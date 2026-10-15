@@ -21,3 +21,5 @@ game's lighting to reach our scope, or a faked shadow that follows the light dir
 ⚠️ **Unchecked** — and a sibling of the glass-shine idea above; both would be judged in the headset.
 
 Verbatim record: [`inbox/2026-09-29-re-village-domed-scope-glass-and-tube-shadows.md`](../inbox/2026-09-29-re-village-domed-scope-glass-and-tube-shadows.md)
+
+Chosen by Tefa: 2026-10-15

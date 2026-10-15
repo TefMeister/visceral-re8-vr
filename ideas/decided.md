@@ -22,3 +22,5 @@ One line per idea, so nothing is offered twice.
 ---
 
 2026-09-26: moved here from `re-village-scope-vr`, on Tefa's word that these ideas are for the future Visceral Village playthrough, not the scope.
+- 2026-10-15 chosen `re-village--a-domed-scope-glass-and-a-scope-tube-that-catches-light-and-shadow` - A domed scope glass, and a scope tube that catches light and shadow
+- 2026-10-15 chosen `re-village--a-light-scope-for-lower-end-pcs-the-game-s-own-scope-view-just-the-rou` - A light scope for lower-end PCs: the game's own scope view, just the round glass
