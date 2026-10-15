@@ -1803,23 +1803,7 @@ local function melee_attack(hit_controller)
             else
                 local num_collidables = rcol:call("getNumCollidables(System.UInt32, System.UInt32)", resource_id, i)
                 local userdata = rcol:call("getRequestSetUserData(System.UInt32, System.UInt32)", resource_id, i)
-                -- #region agent log
-                if userdata == nil then
-                    local t = os.clock()
-                    if t - last_melee_ud_log >= 0.5 then
-                        last_melee_ud_log = t
-                        pcall(function()
-                            local f = io.open("H:/Gaming/Steamlibrary/steamapps/common/Resident Evil Village BIOHAZARD VILLAGE/reframework/debug-cb0ccf.log", "a")
-                            if f then
-                                f:write(string.format(
-                                    "{\"sessionId\":\"cb0ccf\",\"runId\":\"post-fix\",\"hypothesisId\":\"F\",\"location\":\"re8_vr.lua:melee_attack\",\"message\":\"nil request userdata skipped\",\"timestamp\":%d,\"data\":{\"i\":\"%s\",\"resource_id\":\"%s\"}}\n",
-                                    math.floor(os.time() * 1000), tostring(i), tostring(resource_id)))
-                                f:close()
-                            end
-                        end)
-                    end
-                end
-                -- #endregion
+                -- Visceral RE8 (2026-10-15): Andyalpa's debug log here wrote to a fixed path on his own PC; taken out. His nil check below stays.
 
                 if userdata ~= nil and userdata:get_type_definition():is_a("app.ContactUserData") then
                     for j=0, num_collidables - 1 do
