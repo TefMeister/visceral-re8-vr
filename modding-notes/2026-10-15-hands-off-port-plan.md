@@ -71,9 +71,14 @@ Two small differences, both `[inferred-static]`:
 - praydog's second overload sent the right hand a power-0 rumble when the power was 0; the plugin skips it
   (it did nothing, but it could use up a full-auto tick).
 
-## Not settled yet
+## Install layout: on top of the scope mod v1.1.5 (decided the same evening)
 
-- **Install layout beside the scope mod.** The Steam install runs the scope mod (and BeG0nE's `re8_vrz_*`
-  scripts) on praydog's stock `re8_vr.lua`; Hands Off is not installed there. Whether Visceral RE8 and the scope
-  run together, and which `re8_vr.lua` wins, is a question for Tefa before the first launch. `build.sh` therefore
-  has no `--deploy` yet.
+Tefa: *"re8 with scope mod please, so let's just use the 1.1.5 scope mod as a base for our Visceral mod and just
+build on top of it."* The Steam install holds exactly the v1.1.5 package (49 files, byte-identical
+`[measured 2026-10-15]`), which ships no `re8_vr.lua`, so praydog's stock one runs today. Visceral RE8 adds the
+plugin, the bridge and menu Lua, the unported pack files, and our `re8_vr.lua` in place of the stock one.
+
+Before the first launch, three scope scripts get read against the pack, because they touch the same things:
+`re8_vrz_reload_guard.lua` (block gesture vs reloads), `re8_vrz_begone_grip.lua` (the grip fixes vs Andyalpa's
+arm-IK override and hand gestures) and `re8_vrz_rifle_steady.lua` (vs recoil). Then `build.sh` gets a `--deploy`
+that backs up the game folder first; rolling back = the v1.1.5 zip.
