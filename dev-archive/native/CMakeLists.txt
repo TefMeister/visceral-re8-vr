@@ -10,7 +10,10 @@ add_library(visceral_re8_native SHARED
     src/plugin.cpp
     src/common.cpp
     src/bridge.cpp
-    src/haptics.cpp)
+    src/haptics.cpp
+    src/player.cpp
+    src/recoil.cpp
+    src/json_mini.cpp)
 target_include_directories(visceral_re8_native PRIVATE include src)
 set_target_properties(visceral_re8_native PROPERTIES OUTPUT_NAME "visceral_re8_native" PREFIX "")
 target_compile_definitions(visceral_re8_native PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)

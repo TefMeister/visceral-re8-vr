@@ -14,7 +14,7 @@ GAME="/c/Steam/steamapps/common/Resident Evil Village BIOHAZARD VILLAGE"
 BACKUPS="/d/RE Village REFramework builds"
 BUILD="$HERE/build"
 # pack files already ported to C++ (their Lua must NOT run beside the plugin)
-PORTED=(re8_vr_haptics.lua)
+PORTED=(re8_vr_haptics.lua re8_vr_recoil.lua)
 
 undo() {
     local dir="$1"

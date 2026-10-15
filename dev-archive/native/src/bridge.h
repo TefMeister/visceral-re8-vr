@@ -38,7 +38,21 @@ enum Slot : int {
     S_HAP_ON_S = 53, S_HAP_OFF_S = 54, S_HAP_MAX_DUR = 55,
     // WRITTEN BY THE PLUGIN: 1 = haptics.cpp forwards the game's rumble, so re8_vr.lua's own two forwards stand down
     S_NATIVE_HAPTICS = 56,
+    // recoil.cpp (re8_vr_recoil.lua): three re8vr readings and the other mods' globals the Lua checked
+    S_CAN_USE_HANDS = 57,     // re8vr.can_use_hands ~= false (praydog: no cutscene, no vehicle ...)
+    S_IS_RELOADING = 58,      // re8vr.is_reloading
+    S_AIMING = 59,            // player_is_aiming(): re8vr.order's playerGun aim states, or playerCamera.isGunAim
+    S_RECOIL_FLAGS = 60,      // bits, see RecoilFlag (all 0 with the Hands Off pack alone: no file of it sets them)
     S_COUNT = 64,
+};
+enum RecoilFlag : int {       // S_RECOIL_FLAGS bits = the globals re8_vr_recoil.lua read
+    RF_BLOCK_LEFT_IK = 1,     // __vr_block_left_hand_ik
+    RF_BLOCK_FIRE_EMPTY = 2,  // __vr_block_fire_when_empty
+    RF_MANUAL_RELOAD = 4,     // __vr_manual_reload_enabled
+    RF_MAG_DROPPED = 8,       // __vr_mag_dropped
+    RF_AMMO_DROPPED = 16,     // __vr_ammo_dropped
+    RF_NEEDS_PUMP = 32,       // __vr_needs_pump
+    RF_NEEDS_RACK = 64,       // __vr_needs_rack
 };
 constexpr float SENTINEL = 54321.0f;
 constexpr float NO_VALUE = 999.0f;   // only for slots whose real values stay well below it (room space, axes)

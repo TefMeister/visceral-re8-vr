@@ -24,6 +24,7 @@ local S_RE8VR, S_GRIPPING_WEAPON, S_HANDS_W_OK, S_LHAND_W, S_RHAND_W = 35, 36, 3
 local S_WEAPON_AUTO = 44
 local S_IN_HOLSTER_ZONE, S_IN_FLASHLIGHT_ZONE, S_MASTER_OFF = 45, 46, 47
 local S_NATIVE_HAPTICS = 56
+local S_CAN_USE_HANDS, S_IS_RELOADING, S_AIMING, S_RECOIL_FLAGS = 57, 58, 59, 60
 local SENTINEL = 54321.0
 local HANDOVER_EVERY_FRAMES = 180
 local HANDOVER_TRIES = 10
@@ -109,6 +110,24 @@ local function alive(obj)
     return obj ~= nil and safe(function() return obj.get_address == nil or obj:get_address() ~= 0 end) == true
 end
 
+-- recoil.cpp: re8_vr_recoil.lua player_is_aiming, as it was (the gun's aim states, else the camera's gun aim)
+local AIM_METHODS = { "get_isAimIdle", "get_isAimAttack", "get_isAimStart", "get_isAttack" }
+local function aiming(re8vr)
+    local order = re8vr and re8vr.order
+    if order == nil then return false end
+    local gun = safe(function() return order:call("get_playerGun") end)
+    if gun ~= nil then
+        for _, m in ipairs(AIM_METHODS) do
+            if safe(function() return gun:call(m) end) == true then return true end
+        end
+    end
+    local cam = safe(function() return order:call("get_playerCamera") end)
+    return cam ~= nil and safe(function() return cam:call("get_isGunAim") end) == true
+end
+-- S_RECOIL_FLAGS bit order = src/bridge.h RecoilFlag (none of the Hands Off files sets these; other mods may)
+local RECOIL_GLOBALS = { "__vr_block_left_hand_ik", "__vr_block_fire_when_empty", "__vr_manual_reload_enabled",
+    "__vr_mag_dropped", "__vr_ammo_dropped", "__vr_needs_pump", "__vr_needs_rack" }
+
 -- haptics.cpp: praydog's re8vr table and the Hands Off globals the unported files publish
 local function village_readings()
     local re8vr = rawget(_G, "re8vr")
@@ -125,6 +144,15 @@ local function village_readings()
     wb(S_IN_HOLSTER_ZONE, rawget(_G, "__vr_in_holster_zone") == true)
     wb(S_IN_FLASHLIGHT_ZONE, rawget(_G, "__vr_in_head_flashlight_zone") == true)
     wb(S_MASTER_OFF, rawget(_G, "__vr_reloaded_master_enabled") == false)
+    -- recoil.cpp (re8_vr_recoil.lua): its three re8vr readings and the other mods' globals it checked
+    wb(S_CAN_USE_HANDS, not (re8vr and re8vr.can_use_hands == false))
+    wb(S_IS_RELOADING, re8vr and re8vr.is_reloading == true)
+    wb(S_AIMING, aiming(re8vr))
+    local bits = 0
+    for i, name in ipairs(RECOIL_GLOBALS) do
+        if rawget(_G, name) == true then bits = bits | (1 << (i - 1)) end
+    end
+    w(S_RECOIL_FLAGS, bits)
 end
 
 local function buttons()

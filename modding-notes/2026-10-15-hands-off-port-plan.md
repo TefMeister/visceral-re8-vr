@@ -43,7 +43,7 @@ About 24,000 lines to port; `re8_vr.lua` is the VR layer itself and keeps runnin
 ## Port order (each step ships alone; the unported files keep running as Lua)
 
 1. ✅ **haptics** — `src/haptics.cpp` `[compile-verified 2026-10-15]`, not run yet.
-2. **recoil** — reads `re8vr` state, hooks the gun's fire; self-contained apart from the hand IK.
+2. ✅ **recoil** — `src/recoil.cpp` `[compile-verified 2026-10-15]`, checked against the Lua `[verified-numerically 2026-10-15]`, not run yet (`2026-10-15b-recoil-ported-and-first-install.md`).
 3. **ammo HUD** — the GUI pinning; reads the holster's "bare hands" and "weapon id" globals through the bridge.
 4. **hand poser + hand gestures** — finger poses. Ghost Hand gets wired in here (lanes PROTOCOL §20).
 5. **drop physics**.

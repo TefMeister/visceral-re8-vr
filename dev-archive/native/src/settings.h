@@ -32,4 +32,29 @@ constexpr float HAP_DEF_ON_S = 0.018f;
 constexpr float HAP_DEF_OFF_S = 0.070f;
 constexpr float HAP_DEF_MAX_DUR = 0.018f;
 
+// recoil.cpp -- re8_vr_recoil.lua (numbers that are not in its saved file; the saved ones are in recoil.cpp's Cfg)
+constexpr float REC_SUPPORT_HAND_M = 0.35f;      // SUPPORT_HAND_DISTANCE: hands this close (with the left grip) = two-handed
+constexpr float REC_FADEOUT_S = 0.045f;          // RECOIL_FADEOUT_DURATION: the last bit of spring blends out over this
+constexpr float REC_DT_MAX_S = 0.05f;            // a frame's step is clamped to this
+constexpr float REC_DT_FIRST_S = 1.0f / 60.0f;   // the step used before any recoil time exists
+constexpr int REC_KICKS_PER_FRAME_MAX = 10;      // shots applied in one frame at most
+constexpr int REC_PENDING_MAX = 20;              // shots queued between frames at most
+constexpr float REC_ATTACK_MIN_S = 0.001f;       // attack_duration floor
+constexpr float REC_SUSTAIN_WINDOW_MIN_S = 0.01f;   // sustained_window floor
+constexpr float REC_SETTLE_MULT_MIN = 1.0f;      // spring_settle_mult floor
+constexpr float REC_EXPONENT_MIN = 0.1f, REC_EXPONENT_MAX = 1.0f;   // mult_exponent clamp
+constexpr float REC_AUTO_SCALE_MIN = 0.05f;      // auto_scale floor
+constexpr float REC_MEDIUM_BLEND = 0.42f;        // a "medium" weapon's one-hand kick: light + (heavy - light) * this
+constexpr float REC_WEAPON_INTENSITY_MIN = 1.0f, REC_WEAPON_INTENSITY_MAX = 4.0f;   // per-weapon slider range
+// spring channels: {settle_start, snap_pos, snap_vel} -- below settle_start the damping rises toward settle_mult x;
+// below both snap values the channel is set to rest (spring_channel_damping)
+struct SpringChannel { float settle_start, snap_pos, snap_vel; };
+constexpr SpringChannel REC_CH_POS{0.002f, 0.00003f, 0.0006f};
+constexpr SpringChannel REC_CH_PITCH{0.04f, 0.007f, 0.06f};
+constexpr SpringChannel REC_CH_YAW{0.025f, 0.005f, 0.05f};
+// the spring counts as settled (start the fade-out) below all three
+constexpr float REC_DONE_POS = 0.00003f, REC_DONE_ROT = 0.00012f, REC_DONE_VEL = 0.0005f;
+constexpr float REC_ZERO = 1e-7f;                // "no offset at all"
+constexpr int REC_CFG_CHECK_FRAMES = 60;         // how often the saved file's time is checked for a menu change
+
 } // namespace vn::settings
