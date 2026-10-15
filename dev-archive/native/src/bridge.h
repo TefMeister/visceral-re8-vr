@@ -1,0 +1,61 @@
+// bridge.h -- controller readings in, rumble out, through lua/visceral_re8_bridge.lua's shared float array.
+// Same idea as visceral-re2-vr's bridge (REFramework API 1.15 gives C++ no VR buttons and no rumble), with one
+// Village difference: the VR layer here is praydog's re8_vr.lua (the `re8vr` table), not REFramework's C++, so the
+// bridge also carries the few re8vr readings and Hands Off globals that the C++ ports need while the rest of the
+// pack still runs as Lua. Each slot below says which Lua file it stands in for; when that file is ported, the slot
+// is filled by the plugin instead and the Lua line goes.
+#pragma once
+#include "common.h"
+
+namespace vn::bridge {
+
+enum Slot : int {
+    S_FRAME = 0,
+    S_HMD = 1,            // 1 = headset active AND controllers in use (vrmod:is_hmd_active() and is_using_controllers())
+    S_LGRIP = 2, S_LTRIG = 3, S_RGRIP = 4, S_RTRIG = 5,    // digital actions (vrmod:is_action_active)
+    S_LA = 6, S_LB = 7, S_RA = 8, S_RB = 9,
+    S_RUMBLE_L_AMP = 10, S_RUMBLE_L_SEC = 11, S_RUMBLE_L_HZ = 12,   // written by the plugin, fired + cleared by the Lua
+    S_RUMBLE_R_AMP = 13, S_RUMBLE_R_SEC = 14, S_RUMBLE_R_HZ = 15,
+    S_HMD_POS = 16, S_HMD_ROT = 19, S_LPOS = 23, S_RPOS = 26,       // VR tracking space (the real room)
+    S_ACK = 30, S_SENTINEL = 31,
+    // grip axes, -1 when vrmod has none (re8_vr_haptics.lua read_grip_axis)
+    S_LGRIP_AXIS = 32, S_RGRIP_AXIS = 33,
+    // 1 = some other left-grip signal is on: the holster's own left grip, re8vr.is_holding_left_grip, or the
+    // VRControllerManager GRIP action on the left controller (re8_vr_haptics.lua read_left_grip, its last three tests)
+    S_LGRIP_OTHER = 34,
+    S_RE8VR = 35,         // 1 = praydog's re8vr table exists
+    S_GRIPPING_WEAPON = 36,   // re8vr.was_gripping_weapon (the left hand is docked on the gun)
+    S_HANDS_W_OK = 37,    // 1 = the two slots below hold re8vr.last_left/right_hand_position (game world, metres)
+    S_LHAND_W = 38, S_RHAND_W = 41,
+    S_WEAPON_AUTO = 44,   // re8vr.weapon:call("enableFullAuto")
+    // Hands Off globals still published by Lua files not yet ported (re8_vr_holster.lua)
+    S_IN_HOLSTER_ZONE = 45,       // __vr_in_holster_zone
+    S_IN_FLASHLIGHT_ZONE = 46,    // __vr_in_head_flashlight_zone
+    S_MASTER_OFF = 47,            // __vr_reloaded_master_enabled == false
+    // haptics settings, from lua/visceral_re8_menu.lua (Andyalpa's re8_vr/re8_vr_haptics.json, same file and keys)
+    S_HAP_SENT = 48,      // 1 = the menu has sent the numbers below
+    S_HAP_ON = 49, S_HAP_GATE_LEFT = 50, S_HAP_SCALE = 51, S_HAP_AUTO_PULSE = 52,
+    S_HAP_ON_S = 53, S_HAP_OFF_S = 54, S_HAP_MAX_DUR = 55,
+    // WRITTEN BY THE PLUGIN: 1 = haptics.cpp forwards the game's rumble, so re8_vr.lua's own two forwards stand down
+    S_NATIVE_HAPTICS = 56,
+    S_COUNT = 64,
+};
+constexpr float SENTINEL = 54321.0f;
+constexpr float NO_VALUE = 999.0f;   // only for slots whose real values stay well below it (room space, axes)
+
+enum Hand : int { LEFT = 0, RIGHT = 1 };
+
+void install();                    // finds the mailbox method and hooks it (call once, from the game thread)
+bool live();                       // array attached and the headset + controllers active
+bool held(Slot s);                 // button held this frame
+bool pressed(Slot s);              // went down this frame (edge)
+void frame_begin();                // snapshot buttons for edge detection; once per frame, before any feature
+// a rumble for the Lua to fire on its next pass; two requests in one pass keep the stronger and the longer
+void rumble(Hand h, float amplitude, float seconds, float hz);
+float view(Slot s);                // read a slot NOW (not the frame-start snapshot); NO_VALUE if not attached
+Vec3 view_vec3(Slot s);
+bool flag(Slot s);                 // view(s) > 0.5, false when not attached
+void put(Slot s, float v);         // write a slot the Lua reads
+inline bool has(float v) { return v < NO_VALUE * 0.5f; }
+
+} // namespace vn::bridge

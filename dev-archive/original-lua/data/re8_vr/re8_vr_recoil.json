@@ -1,0 +1,168 @@
+{
+    "apply_yaw_rotation": true,
+    "attack_duration": 0.005,
+    "auto_scale": 0.25,
+    "enabled": true,
+    "horizontal_spread": 0.0,
+    "intensity": 2.0,
+    "mult_exponent": 0.1,
+    "one_hand_heavy": 1.9,
+    "one_hand_light": 1.18,
+    "position_back_ratio": 0.0,
+    "position_intensity": 0.006,
+    "position_up_ratio": 1.0,
+    "randomness": 0.347,
+    "rotation_intensity": 0.01,
+    "spring_damping": 5.0,
+    "spring_settle_mult": 4.5,
+    "spring_stiffness": 50.0,
+    "stack_cap": 2.0,
+    "substep_dt": 0.008,
+    "suppress_camera_recoil": false,
+    "suppress_native_recoil": false,
+    "sustained_damping": 10.0,
+    "sustained_window": 0.125,
+    "two_hand_scale": 0.55,
+    "use_native_recoil": false,
+    "vertical_spread": 0.0,
+    "weapons": {
+        "ri3008_Inventory": {
+            "intensity": 2.9,
+            "name": "M1851 Wolfsbane",
+            "type": "magnum"
+        },
+        "ri3021_Inventory": {
+            "intensity": 2.55,
+            "name": "W870 TAC",
+            "type": "shotgun"
+        },
+        "ri3023_Inventory": {
+            "intensity": 2.45,
+            "name": "GM 79",
+            "type": "launcher"
+        },
+        "ri3036_Inventory": {
+            "intensity": 2.55,
+            "name": "M1897",
+            "type": "shotgun"
+        },
+        "ri3040_Inventory": {
+            "intensity": 1.22,
+            "name": "M1911",
+            "type": "handgun"
+        },
+        "ri3042_Inventory": {
+            "intensity": 1.48,
+            "name": "F2 Rifle",
+            "type": "rifle"
+        },
+        "ri3046_Inventory": {
+            "intensity": 1.22,
+            "name": "LEMI",
+            "type": "handgun"
+        },
+        "ri3047_Inventory": {
+            "intensity": 1.22,
+            "name": "V61 Custom",
+            "type": "handgun"
+        },
+        "ri3048_Inventory": {
+            "intensity": 2.55,
+            "name": "SYG-12",
+            "type": "shotgun"
+        },
+        "ri3049_Inventory": {
+            "intensity": 3.2,
+            "name": "WCX",
+            "type": "rifle"
+        },
+        "ri3050_Inventory": {
+            "intensity": 2.9,
+            "name": "S.T.A.K.E",
+            "type": "magnum"
+        },
+        "ri3081_Inventory": {
+            "intensity": 1.22,
+            "name": "LEMI - Mercenaries",
+            "type": "handgun"
+        },
+        "ri3082_Inventory": {
+            "intensity": 1.22,
+            "name": "M1911 - Mercenaries",
+            "type": "handgun"
+        },
+        "ri3083_Inventory": {
+            "intensity": 1.22,
+            "name": "V61 Custom - Mercenaries",
+            "type": "handgun"
+        },
+        "ri3084_Inventory": {
+            "intensity": 2.55,
+            "name": "M1897 - Mercenaries",
+            "type": "shotgun"
+        },
+        "ri3085_Inventory": {
+            "intensity": 2.55,
+            "name": "W870 TAC - Mercenaries",
+            "type": "shotgun"
+        },
+        "ri3086_Inventory": {
+            "intensity": 2.55,
+            "name": "SYG-12 - Mercenaries",
+            "type": "shotgun"
+        },
+        "ri3087_Inventory": {
+            "intensity": 1.48,
+            "name": "F2 Rifle - Mercenaries",
+            "type": "rifle"
+        },
+        "ri3115_Inventory": {
+            "intensity": 1.22,
+            "name": "Rocket Pistol",
+            "type": "handgun"
+        },
+        "ri3116_Inventory": {
+            "intensity": 2.9,
+            "name": "Handcannon PZ",
+            "type": "magnum"
+        },
+        "ri3122_Inventory": {
+            "intensity": 1.22,
+            "name": "Samurai Edge - AW Model-01",
+            "type": "handgun"
+        },
+        "ri3124_Inventory": {
+            "intensity": 1.22,
+            "name": "USM-AI",
+            "type": "handgun"
+        },
+        "ri3125_Inventory": {
+            "intensity": 3.2,
+            "name": "Dragoon",
+            "type": "rifle"
+        },
+        "ri3129_Inventory": {
+            "intensity": 3.2,
+            "name": "Dragoon - Mercenaries",
+            "type": "rifle"
+        },
+        "ri3130_Inventory": {
+            "intensity": 1.22,
+            "name": "USM-AI - Mercenaries",
+            "type": "handgun"
+        },
+        "ri3135_Inventory": {
+            "intensity": 1.22,
+            "name": "LEMI - Shadows of Rose",
+            "type": "handgun"
+        },
+        "ri3147_Inventory": {
+            "intensity": 2.55,
+            "name": "M1897 - Shadows of Rose",
+            "type": "shotgun"
+        }
+    },
+    "wrist_pitch_sign": -1.0,
+    "wrist_yaw_sign": 1.0,
+    "yaw_intensity": 0.171
+}

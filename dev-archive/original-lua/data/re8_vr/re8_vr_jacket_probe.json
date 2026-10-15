@@ -1,0 +1,11 @@
+{
+    "chest_radius": 0.7,
+    "draw_hands": true,
+    "draw_joints": true,
+    "draw_labels": true,
+    "draw_nodes": true,
+    "enabled": true,
+    "grip_pin": true,
+    "scan_interval_s": 1.0,
+    "use_cut_jacket": true
+}
