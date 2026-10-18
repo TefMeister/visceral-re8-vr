@@ -179,11 +179,28 @@ bool set_loaded(int n) {
     return true;
 }
 
+// the bullet item of the ammo in use. 2026-10-18 headset run: "getBulletItemID" by bare name found the (int) overload and
+// read 0, so every gun said "carried -1"; now the exact signature, then the item record's includeItemID(Sub)
+uint32_t bullet_item_id() {
+    uint32_t id = 0;
+    if (auto* m = m_of(gun(), "getBulletItemID()")) id = m->call<uint32_t>(API::get()->get_vm_context(), (void*)gun());
+    if (id == 0) id = call_direct<uint32_t>(work(), sub() ? "get_includeItemIDSub" : "get_includeItemID", 0u);
+    return id;
+}
+
 int reserve() {
-    const uint32_t id = call_direct<uint32_t>(gun(), "getBulletItemID", 0u);
+    const uint32_t id = bullet_item_id();
     auto* m = m_of(g_now.inventory, "getTotalStackSize(System.UInt32, System.Boolean, System.Boolean)");
     if (id == 0 || m == nullptr) return -1;
-    return m->call<int>(API::get()->get_vm_context(), (void*)g_now.inventory, id, false, false);
+    auto* ctx = API::get()->get_vm_context();
+    static uint32_t logged = 0;
+    if (logged != id) {   // the two bools are not named in the type list: log all four answers once per ammo kind
+        logged = id;
+        LOGI("%s ammo: carried of item %u = %d / %d / %d / %d (bools ff / tf / ft / tt)", TAG, id,
+             m->call<int>(ctx, (void*)g_now.inventory, id, false, false), m->call<int>(ctx, (void*)g_now.inventory, id, true, false),
+             m->call<int>(ctx, (void*)g_now.inventory, id, false, true), m->call<int>(ctx, (void*)g_now.inventory, id, true, true));
+    }
+    return m->call<int>(ctx, (void*)g_now.inventory, id, false, false);
 }
 
 // the game's own reload maths: n < 0 = fill up (reload()), else up to n rounds (reload(int)); returns rounds added

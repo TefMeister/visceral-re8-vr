@@ -80,3 +80,17 @@ Three flat starts to the title screen, closed with a normal close each time (no 
   that first try with no exception `[verified-live 2026-10-18, n=1]`. Same fix put into the parked RE7 bridge.
 
 Plugin `816bdefb`, installed 22:41. Still never run in the headset.
+
+## 23:06 first headset run (Tefa): "B doesn't eject the magazine and LG in the ammo spot didn't pick up a shell"
+
+The log `[verified-live 2026-10-18, n=1]`: right B DID take the magazine out (LEMI with 0 rounds, F2 with 6), but nothing
+showed it; the ammo spot DID register the left grip, but every gun read "carried -1", so it refused. Causes and fixes
+(plugin `41f8e1a0`, installed 23:20, unworn):
+- "carried -1": `getBulletItemID` by bare name found the `(int)` overload and read 0. Now the exact `getBulletItemID()`,
+  then the item record's `includeItemID`; the four answers of `getTotalStackSize`'s two unnamed bools are logged once per
+  ammo kind; an unknown reading no longer refuses the grab (the game's own reload decides).
+- nothing to see: `switchMagazineDisp(false)` alone hid nothing. The magazine is now the gun's mesh part
+  `NormalMagazinePartsNo` (`...Customized` with a custom magazine), hidden after the animation while it is out.
+- no joint list: `get_Joints` had no `get_Length`; now `get_Count` / `get_Item` (Andyalpa's RE7 scan), with the magazine
+  part number on the same line.
+- the game asks `tryReload` every frame (4,750 skips in a minute): logged every 2,000 now.

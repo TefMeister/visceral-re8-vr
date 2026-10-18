@@ -161,13 +161,34 @@ void insert_round() {
 
 // the gun's own magazine switch (WeaponGunCore.switchMagazineDisp / resetMagazineDisp, found in the type list):
 // the magazine disappears from the gun while it is out, whichever part it is
+void mag_part_shown(bool show);
 void magazine_shown(bool show) {
+    mag_part_shown(show);
     if (show) call_ptr(g_gun, "resetMagazineDisp");
     else if (auto* m = g_gun ? find_method_deep(g_gun->get_type_definition(), "switchMagazineDisp(System.Boolean)") : nullptr)
         m->call<void>(API::get()->get_vm_context(), (void*)g_gun, false);
 }
 
-bool supply() { return player::unlimited() || player::reserve() > 0 || g_mag_rounds > 0; }
+// unknown carried ammo (-1) = try anyway: the game's own reload then decides (and logs before / after)
+bool supply() { const int r = player::reserve(); return player::unlimited() || r != 0 || g_mag_rounds > 0; }
+
+// the magazine as the gun's mesh part (WeaponGunCore.NormalMagazinePartsNo, ...Customized when customizeMagazine):
+// hidden after the gun's animation while it is out (switchMagazineDisp alone showed nothing in the headset, 2026-10-18)
+int mag_part() {
+    if (g_gun == nullptr) return -1;
+    bool custom = false;
+    player::try_bool(g_gun, "get_customizeMagazine", custom);
+    const int* p = field_ptr<int>(g_gun, custom ? "NormalMagazinePartsNoCustomized" : "NormalMagazinePartsNo");
+    return p != nullptr ? *p : -1;
+}
+void mag_part_shown(bool show) {
+    const int part = mag_part();
+    auto* mesh = component(call_ptr(g_gun, "get_GameObject"), "via.render.Mesh");
+    auto* m = mesh ? find_method_deep(mesh->get_type_definition(), "setPartsEnable(System.UInt64, System.Boolean)") : nullptr;
+    if (m == nullptr || part < 0) return;
+    m->call<void>(API::get()->get_vm_context(), (void*)mesh, (uint64_t)part, show);
+}
+void hide_mag_part() { mag_part_shown(false); }
 
 // ---- the joint writes (only when the magazine joint was found) -------------------------------------------------------
 void write_local(Vec3 p, Quat q) {
@@ -233,6 +254,7 @@ void hand_checks() {
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
     if (mag) {
         set_state(St::INSERT, "brought to the gun");
+        magazine_shown(true);
         LOGI("%s reload: insert at %.3f m (need %.2f)", TAG, d, dock_need());
     } else {
         g_round_in_hand = false;
@@ -249,6 +271,7 @@ void put_back_on_swap(const char* why) {
     if (is_managed(g_drop_gun)) set_loaded_on(g_drop_gun, g_mag_rounds);
     if (g_joint != nullptr) write_scale(g_rest_scale);
     if (is_managed(g_drop_gun)) call_ptr(g_drop_gun, "resetMagazineDisp");
+    mag_part_shown(true);   // g_gun is still the old gun here
     LOGI("%s reload: %s magazine put back as it was (%s): %d rounds", TAG, g_id.c_str(), why, g_mag_rounds);
     g_mag_rounds = 0;
     g_drop_gun = nullptr;
@@ -280,9 +303,12 @@ void begin_drop() {
 
 void log_joints() {
     auto* joints = call_ptr(g_wtf, "get_Joints");
-    const int n = call_direct<int>(joints, "get_Length", 0);
+    int n = call_direct<int>(joints, "get_Length", 0);
+    const bool list = n <= 0;   // Andyalpa's RE7 scan used get_Count / get_Item (2026-10-18: get_Length gave nothing)
+    if (list) n = call_direct<int>(joints, "get_Count", 0);
+    LOGI("%s joints of %s: %d (%s), magazine mesh part %d", TAG, g_id.c_str(), n, joints ? type_name(joints).c_str() : "no list", mag_part());
     for (int i = 0; i < n && i < JOINT_LOG_MAX; ++i) {
-        auto* j = call_ptr(joints, "GetValue(System.Int32)", {(void*)(intptr_t)i});
+        auto* j = list ? call_ptr(joints, "get_Item", {(void*)(intptr_t)i}) : call_ptr(joints, "GetValue(System.Int32)", {(void*)(intptr_t)i});
         Vec3 p{};
         get_v3(JOINT, j, "get_LocalPosition", p);
         LOGI("%s joint %s[%d] %s local %.3f %.3f %.3f", TAG, g_id.c_str(), i, read_string(call_ptr(j, "get_Name")).c_str(), p.x, p.y, p.z);
@@ -334,7 +360,7 @@ int pre_reload_request(int, void**, REFrameworkTypeDefinitionHandle*, unsigned l
     t_blocked = managed_now();
     if (!t_blocked) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     static int n = 0;
-    if (++n <= 5 || n % 50 == 0) LOGI("%s reload: the game's reload skipped (#%d)", TAG, n);
+    if (++n <= 5 || n % 2000 == 0) LOGI("%s reload: the game's reload skipped (#%d; the game asks every frame)", TAG, n);
     return REFRAMEWORK_HOOK_SKIP_ORIGINAL;
 }
 void post_reload_request(void** ret, REFrameworkTypeDefinitionHandle, unsigned long long) {
@@ -428,10 +454,12 @@ void late_point() {
     if (!managed_now()) return;
     hand_checks();
     if (g_w->reload == Reload::MAG) pose_joint();
+    if (mag_out() && g_st != St::INSERT) hide_mag_part();
 }
 
 void render_point() {
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
+    if (mag_out() && g_st != St::INSERT) hide_mag_part();
 }
 
 } // namespace vn::reload
