@@ -57,4 +57,41 @@ constexpr float REC_DONE_POS = 0.00003f, REC_DONE_ROT = 0.00012f, REC_DONE_VEL =
 constexpr float REC_ZERO = 1e-7f;                // "no offset at all"
 constexpr int REC_CFG_CHECK_FRAMES = 60;         // how often the saved file's time is checked for a menu change
 
+// reload.cpp / rack.cpp -- moved over from Visceral RE7 / RE2 (2026-10-18). Village has no per-weapon numbers yet, so the
+// places are measured from the controllers in the room instead of from the gun's own parts.
+constexpr bool RELOAD_ON = true;
+constexpr float RELOAD_SLIDE_SEC = 0.19f;        // the magazine slides out of the magwell (when its joint is known)
+constexpr float RELOAD_FALL_SEC = 0.5f;          // then falls this long
+constexpr float RELOAD_FALL_M = 1.2f;            // this far
+constexpr float RELOAD_INSERT_SEC = 0.19f;       // a new one slides in
+constexpr float RELOAD_MAG_DROP_M = 0.09f;       // how far below its seat the magazine slides out (gun's local -Y, a guess)
+constexpr float RELOAD_DOCK_COOLDOWN_SEC = 0.35f;
+constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
+// where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
+constexpr float DOCK_PISTOL_M = 0.13f;           // left controller this close to the right one = in
+constexpr float DOCK_LONG_AHEAD_M = 0.20f;       // long guns: the magwell / loading port this far ahead along the barrel
+constexpr float DOCK_LONG_M = 0.14f;             // ... and the left controller this close to that point = in
+constexpr float LEFT_HIP_POUCH[3] = {-0.20f, -0.62f, 0.02f};   // our own pouch spot when Andyalpa's ammo spot is off (RE2's left hip)
+constexpr float POUCH_ENTER_M = 0.15f, POUCH_LEAVE_M = 0.22f;
+constexpr float RELOAD_GRAB_BUZZ_AMP = 0.35f, RELOAD_GRAB_BUZZ_SEC = 0.05f;
+constexpr float RELOAD_INSERT_BUZZ_AMP = 0.45f, RELOAD_INSERT_BUZZ_SEC = 0.05f;
+constexpr float RELOAD_DENY_BUZZ_AMP = 0.2f, RELOAD_DENY_BUZZ_SEC = 0.15f;
+constexpr float RELOAD_BUZZ_HZ = 160.0f;
+constexpr int JOINT_LOG_MAX = 40;                // joints of a newly held gun written to the log, at most
+// the hold of a magazine in the left hand (Andyalpa's RE7 handgun hold; Village's own is for Tefa's poses to decide)
+constexpr float MAG_HOLD[6] = {0.104f, -0.039f, 0.053f, 100.5f, -11.5f, 131.5f};   // offset (m), yaw / pitch / roll (deg)
+
+// rack.cpp: slide / bolt / charging handle and pump (RE2 b165/b166 gesture)
+constexpr float RACK_GRAB_M = 0.16f;             // left controller this close to the right one's gun line = can take hold
+constexpr float RACK_GRAB_AHEAD_MAX_M = 0.70f;   // ... and no further ahead along the barrel than this
+constexpr float RACK_GRAB_BEHIND_M = 0.10f;      // ... or behind the gun hand than this (a pistol slide sits over the hand)
+constexpr float RACK_PULL_M = 0.08f;             // controller travel for a full pull (Andyalpa's pull_dist)
+constexpr float RACK_RETURN_M = 0.06f;           // and forward again for a full return
+constexpr float RACK_FOLLOW = 0.92f;             // the slide follows the hand by this much per frame
+constexpr float RACK_SPRING_STEP = 0.2f;         // let go mid-way: travel lost per frame as it springs back
+constexpr float PUMP_RETURN_SEC = 0.2f;          // the pump handle returning by itself after LT is let go
+constexpr float RACK_BUZZ_AMP = 0.45f, RACK_BUZZ_SEC = 0.05f;
+constexpr float SLIDE_BACK_M = -0.045f;          // the slide joint fully back, local Z from rest (when the joint is known)
+constexpr float PUMP_BACK_M = -0.080f;
+
 } // namespace vn::settings

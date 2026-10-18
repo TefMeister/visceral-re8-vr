@@ -44,6 +44,8 @@ bool motion_joint(const char*, Vec3&, Quat&) { return false; }
 bool get_pose(MO*, Vec3&, Quat&) { return false; }
 bool set_pose(MO*, const Vec3&, const Quat&) { return false; }
 } // namespace player
+namespace reload { bool mag_out() { return false; } }   // 2026-10-18: recoil asks our manual reload (none in the test)
+namespace rack { bool needed() { return false; } bool active() { return false; } }
 } // namespace vn
 
 using namespace vn::recoil;

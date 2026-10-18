@@ -1,0 +1,26 @@
+// rack.h -- the slide / bolt / charging-handle rack and the pump for Village, with the left hand ON the gun
+// (2026-10-18, moved over from Visceral RE7; the gesture is Visceral RE2's, Tefa b165/b166):
+//   slide / bolt: when the gun is empty or a rack is needed (or "hold this pose" is on): left grip with the left hand on
+//                 the gun line (over the gun hand or ahead of it) puts the hand on; LT = the pull is live; move the left
+//                 controller back along the gun; once fully back, letting go of the left grip sends it forward.
+//   pump:         left grip + LT with the left hand on the barrel line arms one cycle; pull back, let go of LT.
+// The left hand is held where it took hold, relative to the gun hand, and slides back with the pull: rack.cpp rewrites
+// the left IK target right before each left-arm solve (ik.cpp). The slide joint is only moved when "_01" exists on the
+// gun (Village's gun parts are not known yet; the first hold logs them).
+#pragma once
+#include "common.h"
+
+namespace vn::rack {
+
+void frame();            // UpdateBehavior pre: the gesture, the timers
+void late_point();       // LateUpdateBehavior post: write the slide joint
+void render_point();     // PrepareRendering post: write it again
+void on_ik(MO* ik);      // ik.cpp: the left hand is about to be solved: hold it on the gun while docked
+
+void need(const char* why);   // reload.cpp: a rack / pump is required before the gun fires
+bool needed();
+bool active();                // the left hand is on the slide / bolt / pump
+bool on_pump();
+float travel();               // 0 = rest, 1 = fully back
+
+} // namespace vn::rack

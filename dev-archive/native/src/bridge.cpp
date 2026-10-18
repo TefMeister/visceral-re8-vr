@@ -125,4 +125,44 @@ Vec3 view_vec3(Slot s) { if (g_arr == nullptr) return {NO_VALUE, 0, 0}; const fl
 bool flag(Slot s) { return g_arr != nullptr && elems()[s] > 0.5f; }
 void put(Slot s, float v) { if (g_arr != nullptr) elems()[s] = v; }
 
+Quat view_quat(Slot s) { if (g_arr == nullptr) return {NO_VALUE, 0, 0, 1}; const float* e = elems(); return qnorm({e[s], e[s + 1], e[s + 2], e[s + 3]}); }
+Vec3 hand_pos(Hand h) { const int s = h == LEFT ? S_LPOS : S_RPOS; return {g_now[s], g_now[s + 1], g_now[s + 2]}; }
+Vec3 hmd_pos() { return {g_now[S_HMD_POS], g_now[S_HMD_POS + 1], g_now[S_HMD_POS + 2]}; }
+Quat hmd_rot() { return qnorm({g_now[S_HMD_ROT], g_now[S_HMD_ROT + 1], g_now[S_HMD_ROT + 2], g_now[S_HMD_ROT + 3]}); }
+
+// the camera is the headset placed in the world: world_from_room = camera rotation * inverse(headset rotation)
+namespace {
+bool world_from_room(Quat& w, Vec3& cam) {
+    if (!live()) return false;
+    const Quat c = qnorm({g_now[S_CAM_ROT], g_now[S_CAM_ROT + 1], g_now[S_CAM_ROT + 2], g_now[S_CAM_ROT + 3]});
+    w = qnorm(qmul(c, qinv(hmd_rot())));
+    cam = {g_now[S_CAM_POS], g_now[S_CAM_POS + 1], g_now[S_CAM_POS + 2]};
+    return std::isfinite(w.w) && std::isfinite(cam.x);
+}
+} // namespace
+bool room_to_world(Vec3 room, Vec3& world) {
+    Quat w; Vec3 cam;
+    if (!world_from_room(w, cam)) return false;
+    world = cam + rotate(w, room - hmd_pos());
+    return true;
+}
+bool world_to_room(Vec3 world, Vec3& room) {
+    Quat w; Vec3 cam;
+    if (!world_from_room(w, cam)) return false;
+    room = hmd_pos() + rotate(qinv(w), world - cam);
+    return true;
+}
+bool world_dir_to_room(Vec3 dir, Vec3& room_dir) {
+    Quat w; Vec3 cam;
+    if (!world_from_room(w, cam)) return false;
+    room_dir = rotate(qinv(w), dir);
+    return true;
+}
+bool room_dir_to_world(Vec3 dir, Vec3& world_dir) {
+    Quat w; Vec3 cam;
+    if (!world_from_room(w, cam)) return false;
+    world_dir = rotate(w, dir);
+    return true;
+}
+
 } // namespace vn::bridge

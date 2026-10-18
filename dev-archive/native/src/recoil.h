@@ -12,11 +12,13 @@
 // Settings: Andyalpa's file re8_vr/re8_vr_recoil.json, same keys. lua/visceral_re8_menu.lua draws the menu and writes
 // the file; this reads it back whenever it changes.
 #pragma once
+#include "common.h"
 
 namespace vn::recoil {
 
-void install();        // hooks shoot, AnimIK2Bone.calc and the camera shake (first game frame, after bridge::install)
+void install();        // hooks shoot and the camera shake (first game frame, after bridge::install)
 void frame();          // UpdateBehavior pre: settings file check
 void physics_point();  // UpdateMotion pre and LateUpdateBehavior pre: the once-per-frame physics step
+void on_ik(MO* ik);    // ik.cpp: a player hand is about to be solved (the hook moved there 2026-10-18)
 
 } // namespace vn::recoil

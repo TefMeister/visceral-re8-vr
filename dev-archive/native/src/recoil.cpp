@@ -12,6 +12,8 @@
 #include "common.h"
 #include "json_mini.h"
 #include "player.h"
+#include "rack.h"
+#include "reload.h"
 #include "settings.h"
 
 #include <windows.h>
@@ -77,7 +79,7 @@ Cfg g_cfg;
 std::atomic<int> g_frame{0};
 std::mt19937 g_rng{std::random_device{}()};
 std::atomic<int> g_kicks{0}, g_patches{0};
-bool g_installed_fire = false, g_installed_ik = false, g_installed_cam = false;
+bool g_installed_fire = false, g_installed_cam = false;
 
 #ifdef VN_RECOIL_TEST   // tools/recoil_test: the same shots through this file and through Andyalpa's Lua, side by side
 double vn_test_clock();
@@ -230,7 +232,7 @@ bool is_two_handed() {
 }
 bool weapon_grip_active() { return two_hand_recoil() || bridge::flag(bridge::S_GRIPPING_WEAPON) || is_two_handed(); }
 bool support_follows_weapon() {
-    if (flag(bridge::RF_BLOCK_LEFT_IK)) return false;
+    if (flag(bridge::RF_BLOCK_LEFT_IK) || rack::active()) return false;   // rack.cpp holds the hand on the slide
     if (bridge::flag(bridge::S_IS_RELOADING)) return true;
     return left_grip() && weapon_grip_active();
 }
@@ -518,17 +520,14 @@ void flush_pending() {   // flush_pending_recoil_before_ik
     refresh_offsets();
 }
 
-int pre_ik_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned long long) {
-    if (argc < 2) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
-    auto* ik = (MO*)argv[1];
-    std::lock_guard lk(g_mx);
-    if (!vr_active()) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+void ik_pass(MO* ik) {   // ik.cpp owns the AnimIK2Bone.calc hook since 2026-10-18 (the rack shares it)
+    if (!vr_active()) return;
     const auto& s = player::now();
     const bool right = ik == s.ik_right;
-    if (ik == nullptr || (!right && ik != s.ik_left)) return REFRAMEWORK_HOOK_CALL_ORIGINAL;   // not a player hand
-    if (!equipped().ok) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    if (ik == nullptr || (!right && ik != s.ik_left)) return;   // not a player hand
+    if (!equipped().ok) return;
     const int f = frame_id();
-    if (f == m_pass.frame && m_pass.idle_after_first && m_pending == 0) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    if (f == m_pass.frame && m_pass.idle_after_first && m_pending == 0) return;
     if (f != m_ik_sync_frame) {
         m_ik_sync_frame = f;
         m_pass.frame = f;
@@ -537,10 +536,10 @@ int pre_ik_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigne
         else refresh_offsets();
         flush_pending();
     }
-    if (!m_apply.has_recoil) { m_pass.idle_after_first = true; return REFRAMEWORK_HOOK_CALL_ORIGINAL; }
-    if (!right && !(m_apply.two_handed || weapon_grip_active())) return REFRAMEWORK_HOOK_CALL_ORIGINAL;   // should_apply_recoil_to_ik_hand
+    if (!m_apply.has_recoil) { m_pass.idle_after_first = true; return; }
+    if (!right && !(m_apply.two_handed || weapon_grip_active())) return;   // should_apply_recoil_to_ik_hand
     patch(ik, right);
-    return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    return;
 }
 
 // ---- the shot (on_pre_request_fire / on_post_request_fire, hooked on WeaponGunCore.shoot) ---------------------------
@@ -551,11 +550,12 @@ int chamber_count() {   // get_chamber_bullet_count
 }
 bool cancel_after_fire() {   // should_cancel_recoil_after_fire
     if (flag(bridge::RF_BLOCK_FIRE_EMPTY)) return true;
+    if (reload::mag_out()) return true;   // our own manual reload (2026-10-18)
     if (!flag(bridge::RF_MANUAL_RELOAD)) return false;
     if (flag(bridge::RF_MAG_DROPPED) || flag(bridge::RF_AMMO_DROPPED)) return true;
     return chamber_count() == 0;
 }
-bool block_queue() { return cancel_after_fire() || flag(bridge::RF_NEEDS_PUMP) || flag(bridge::RF_NEEDS_RACK); }
+bool block_queue() { return cancel_after_fire() || flag(bridge::RF_NEEDS_PUMP) || flag(bridge::RF_NEEDS_RACK) || rack::needed(); }
 int has_loaded_ammo(MO* gun) {   // weapon_gun_has_loaded_ammo: 1 yes, 0 no, -1 unknown
     bool b = false;
     if (player::try_bool(gun, "get_isLoadNumInfinity", b) && b) return 1;
@@ -598,12 +598,6 @@ void try_install() {
         if (m != nullptr) { m->add_hook(pre_shoot, post_shoot, false); LOGI("%s recoil: hooked app.WeaponGunCore.shoot", TAG); }
         else LOGW("%s recoil: app.WeaponGunCore.shoot NOT FOUND, no kicks", TAG);
     }
-    if (!g_installed_ik) {
-        g_installed_ik = true;
-        auto* m = tdb->find_method("app.AnimIK2Bone", "calc");
-        if (m != nullptr) { m->add_hook(pre_ik_calc, nullptr, false); LOGI("%s recoil: hooked app.AnimIK2Bone.calc", TAG); }
-        else LOGW("%s recoil: app.AnimIK2Bone.calc NOT FOUND, the hands will not move", TAG);
-    }
     if (g_cfg.suppress_camera_recoil && !g_installed_cam) {
         g_installed_cam = true;
         auto* m = tdb->find_method("app.PlayerCamera", "updateCameraShakeValue");
@@ -629,6 +623,11 @@ void frame() {
 void physics_point() {
     std::lock_guard lk(g_mx);
     process_physics();
+}
+
+void on_ik(MO* ik) {
+    std::lock_guard lk(g_mx);
+    ik_pass(ik);
 }
 
 } // namespace vn::recoil

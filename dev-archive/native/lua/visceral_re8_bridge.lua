@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 64
+local N = 96
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9
@@ -25,6 +25,11 @@ local S_WEAPON_AUTO = 44
 local S_IN_HOLSTER_ZONE, S_IN_FLASHLIGHT_ZONE, S_MASTER_OFF = 45, 46, 47
 local S_NATIVE_HAPTICS = 56
 local S_CAN_USE_HANDS, S_IS_RELOADING, S_AIMING, S_RECOIL_FLAGS = 57, 58, 59, 60
+-- reload.cpp / rack.cpp (2026-10-18)
+local S_LROT, S_RROT, S_CAM_POS, S_CAM_ROT = 64, 68, 72, 75
+local S_IN_AMMO_ZONE, S_CUTSCENE, S_RELOAD_BUSY, S_HAND_STATE, S_POSE_LOCK = 79, 80, 81, 82, 83
+local LEFT_NAMES = { [0] = "free", "grip (praydog's two-hand)", "on the slide / bolt", "on the pump", "holding a magazine", "holding a round" }
+local pose_lock = false
 local SENTINEL = 54321.0
 local HANDOVER_EVERY_FRAMES = 180
 local HANDOVER_TRIES = 10
@@ -40,6 +45,10 @@ local function w(slot, v) arr:write_float(0x20 + slot * 4, v or 0.0) end
 local function wb(slot, b) w(slot, b and 1 or 0) end
 local function w3(slot, v)
     if v and type(v.x) == "number" then w(slot, v.x); w(slot + 1, v.y); w(slot + 2, v.z) else w(slot, 0); w(slot + 1, 0); w(slot + 2, 0) end
+end
+local function w4(slot, q)
+    if q and type(q.w) == "number" then w(slot, q.x); w(slot + 1, q.y); w(slot + 2, q.z); w(slot + 3, q.w)
+    else w(slot, 0); w(slot + 1, 0); w(slot + 2, 0); w(slot + 3, 1) end
 end
 
 local function setup()
@@ -76,8 +85,12 @@ local function poses(vr)
     if q and type(q.w) == "number" then w(S_HMD_ROT, q.x); w(S_HMD_ROT + 1, q.y); w(S_HMD_ROT + 2, q.z); w(S_HMD_ROT + 3, q.w)
     else w(S_HMD_ROT, 0); w(S_HMD_ROT + 1, 0); w(S_HMD_ROT + 2, 0); w(S_HMD_ROT + 3, 1) end
     local c = safe(function() return vr:get_controllers() end)
-    if c and c[1] then w3(S_LPOS, safe(function() return vr:get_position(c[1]) end)) end
-    if c and c[2] then w3(S_RPOS, safe(function() return vr:get_position(c[2]) end)) end
+    if c and c[1] then w3(S_LPOS, safe(function() return vr:get_position(c[1]) end)); w4(S_LROT, safe(function() return vr:get_rotation(c[1]):to_quat() end)) end
+    if c and c[2] then w3(S_RPOS, safe(function() return vr:get_position(c[2]) end)); w4(S_RROT, safe(function() return vr:get_rotation(c[2]):to_quat() end)) end
+    -- reload.cpp / rack.cpp: the game camera, so room space and the world can be turned into each other
+    local tf = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform") end)
+    w3(S_CAM_POS, tf and safe(function() return tf:call("get_Position") end))
+    w4(S_CAM_ROT, tf and safe(function() return tf:call("get_Rotation") end))
 end
 
 -- haptics.cpp: the grip axes, -1 when vrmod has none (re8_vr_haptics.lua read_grip_axis)
@@ -153,6 +166,11 @@ local function village_readings()
         if rawget(_G, name) == true then bits = bits | (1 << (i - 1)) end
     end
     w(S_RECOIL_FLAGS, bits)
+    -- reload.cpp: Andyalpa's left-hip ammo spot is our ammo pouch; the pose switch; the block-pose stand-down
+    wb(S_IN_AMMO_ZONE, rawget(_G, "__vr_in_ammo_holster_zone") == true)
+    wb(S_CUTSCENE, re8vr and re8vr.is_in_cutscene == true)
+    wb(S_POSE_LOCK, pose_lock)
+    rawset(_G, "__visceral_reload_busy", attached and r(S_RELOAD_BUSY) == 1.0 or nil)
 end
 
 local function buttons()
@@ -224,6 +242,12 @@ _G.visceral_re8_bridge = {
 }
 
 re.on_draw_ui(function()
+    if imgui.tree_node("Visceral RE8 reload") then
+        if arr then imgui.text("Left hand: " .. (LEFT_NAMES[math.floor(r(S_HAND_STATE) + 0.5)] or "?")) end
+        local changed, v = imgui.checkbox("Hold this pose (a magazine stays in the hand, the hand stays on the slide)", pose_lock)
+        if changed then pose_lock = v end
+        imgui.tree_pop()
+    end
     if imgui.tree_node("Visceral RE8 bridge") then
         imgui.text(string.format("frame %d  attached=%s  rumbles fired %d", frame, tostring(attached), rumbles))
         imgui.text("mailbox: " .. mailbox_name)

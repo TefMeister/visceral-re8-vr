@@ -395,7 +395,8 @@ local function update_pad_device(device)
     
     re8vr.is_holding_left_grip = vrmod:is_action_active(action_grip, left_joystick)
 
-    if re8vr.wants_block or vrmod:is_action_active(action_block, left_joystick) or vrmod:is_action_active(action_block, right_joystick) then
+    if rawget(_G, "__visceral_reload_busy") == true then re8vr.wants_block = false -- Visceral RE8: a reload in the left hand (2026-10-18)
+    elseif re8vr.wants_block or vrmod:is_action_active(action_block, left_joystick) or vrmod:is_action_active(action_block, right_joystick) then
         cur_button = cur_button | via.hid.GamePadButton.LTrigTop
         re8vr.wants_block = true
     end
@@ -1579,7 +1580,7 @@ local function update_lua_block_gesture()
     local rh_x = right_m[0]
     local left_up = math.abs(hmd_fwd.x * lh_x.x + hmd_fwd.y * lh_x.y + hmd_fwd.z * lh_x.z) >= 0.5
     local right_up = math.abs(hmd_fwd.x * rh_x.x + hmd_fwd.y * rh_x.y + hmd_fwd.z * rh_x.z) >= 0.5
-    re8vr.wants_block = left_up and right_up
+    re8vr.wants_block = left_up and right_up and rawget(_G, "__visceral_reload_busy") ~= true -- Visceral RE8: not during a reload (2026-10-18)
 end
 
 local function update_player_gestures()

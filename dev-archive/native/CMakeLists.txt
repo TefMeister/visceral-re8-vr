@@ -13,6 +13,11 @@ add_library(visceral_re8_native SHARED
     src/haptics.cpp
     src/player.cpp
     src/recoil.cpp
+    src/ik.cpp
+    src/reload.cpp
+    src/rack.cpp
+    src/weapons.cpp
+    src/handstate.cpp
     src/json_mini.cpp)
 target_include_directories(visceral_re8_native PRIVATE include src)
 set_target_properties(visceral_re8_native PROPERTIES OUTPUT_NAME "visceral_re8_native" PREFIX "")

@@ -19,6 +19,10 @@ struct Snapshot {
     MO* weapon = nullptr;      // PlayerGun.get_equipWeaponObject (re8vr.weapon)
     MO* gun = nullptr;         // the weapon's app.WeaponGunCore (the weapon itself, or a component of its GameObject)
     std::string weapon_id;     // the recoil id: the owner's / GameObject's name, canonicalised by the caller's catalog
+    // added 2026-10-18 for reload.cpp / rack.cpp
+    MO* tf = nullptr;          // the player's via.Transform
+    MO* weapon_tf = nullptr;   // the weapon GameObject's via.Transform
+    MO* inventory = nullptr;   // app.Inventory on the player
 };
 
 void refresh();                    // once per frame, game thread
@@ -30,5 +34,18 @@ bool get_pose(MO* transform, Vec3& pos, Quat& rot);
 bool set_pose(MO* transform, const Vec3& pos, const Quat& rot);
 // a bool getter on an object: true when the method exists (its answer goes to `out`)
 bool try_bool(MO* o, const char* method, bool& out);
+MO* managed_string(const char* s);   // one per text, kept alive
+
+// ammo of the gun in hand (2026-10-18). Village's names are not written down anywhere we have, so each is tried from a
+// short list (RE7's names first: Village's guns answer RE7's get_isLoadNumInfinity / get_isMagazineEmpty, and its
+// Inventory has RE7's quick-slot calls); the first start logs which ones answered (`ammo: ...`), and type_probe.txt
+// lists the game's real calls. -1 / false = unknown.
+int loaded();
+int capacity();
+int reserve();                     // rounds of this gun's ammo carried
+bool unlimited();
+bool set_loaded(int n);            // false when no setter was found
+int take_reserve(int n);           // takes up to n rounds out of the carried stacks, returns how many
+void probe_types();                // once: the gun's, the player gun's and the inventory's calls to type_probe.txt
 
 } // namespace vn::player

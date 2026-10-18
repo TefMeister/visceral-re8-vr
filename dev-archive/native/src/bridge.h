@@ -43,7 +43,15 @@ enum Slot : int {
     S_IS_RELOADING = 58,      // re8vr.is_reloading
     S_AIMING = 59,            // player_is_aiming(): re8vr.order's playerGun aim states, or playerCamera.isGunAim
     S_RECOIL_FLAGS = 60,      // bits, see RecoilFlag (all 0 with the Hands Off pack alone: no file of it sets them)
-    S_COUNT = 64,
+    // reload.cpp / rack.cpp (2026-10-18, moved over from Visceral RE7)
+    S_LROT = 64, S_RROT = 68,                         // controller rotations, room space (x,y,z,w)
+    S_CAM_POS = 72, S_CAM_ROT = 75,                   // the game camera's world pose (rotation x,y,z,w)
+    S_IN_AMMO_ZONE = 79,      // __vr_in_ammo_holster_zone: the left hand in Andyalpa's left-hip ammo spot (re8_vr_holster.lua)
+    S_CUTSCENE = 80,          // re8vr.is_in_cutscene
+    S_RELOAD_BUSY = 81,       // WRITTEN BY THE PLUGIN: 1 = a reload / rack in the left hand (our re8_vr.lua then skips the block pose)
+    S_HAND_STATE = 82,        // WRITTEN BY THE PLUGIN: handstate.h code of the left hand, for the menu
+    S_POSE_LOCK = 83,         // WRITTEN BY THE LUA MENU: 1 = "hold this pose"
+    S_COUNT = 96,
 };
 enum RecoilFlag : int {       // S_RECOIL_FLAGS bits = the globals re8_vr_recoil.lua read
     RF_BLOCK_LEFT_IK = 1,     // __vr_block_left_hand_ik
@@ -71,5 +79,15 @@ Vec3 view_vec3(Slot s);
 bool flag(Slot s);                 // view(s) > 0.5, false when not attached
 void put(Slot s, float v);         // write a slot the Lua reads
 inline bool has(float v) { return v < NO_VALUE * 0.5f; }
+
+Quat view_quat(Slot s);
+Vec3 hand_pos(Hand h);             // controller position, room space (frame-start snapshot)
+Vec3 hmd_pos();
+Quat hmd_rot();
+// room <-> game world, through the camera (the camera is the headset in the world): false when not attached
+bool room_to_world(Vec3 room, Vec3& world);
+bool world_to_room(Vec3 world, Vec3& room);
+bool world_dir_to_room(Vec3 world_dir, Vec3& room_dir);
+bool room_dir_to_world(Vec3 room_dir, Vec3& world_dir);
 
 } // namespace vn::bridge
