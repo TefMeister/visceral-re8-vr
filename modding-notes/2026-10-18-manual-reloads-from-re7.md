@@ -143,3 +143,7 @@ HUD fix confirmed (the counter moves when a round goes in) `[verified-live 2026-
 ## 00:31 run: "the shell showed up, but ... both the rifle mag and the shell do not even go in the weapon at all"
 
 Shell in the hand and the manual pump work `[verified-live 2026-10-19]` (pump on `Reload_Slider`, cycles logged). The 10 cm insert never fired: closest 0.349 m (F2 magazine), 0.600 m (shell) to the spot computed from the joint's local numbers through the gun object, which was evidently wrong. Plugin built 00:40: the spot is now MEASURED: the magazine joint's world position at the drop, the Bullet joint's at the grab, kept relative to the right hand target. Still 0.10 m. The F2's mesh has 256 parts, the M1897's too (drawn masks logged).
+
+## 00:39 run: "still doesn't go in"
+
+With the measured spot the closest came to 0.138 m (F2 magazine) and 0.107 m (shell), so the spot is right and 0.10 m was just tight. Plugin `235cceda` (00:45): 0.16 m, and a log line when the item is close enough but the "in front of you at gun height" check stops it.

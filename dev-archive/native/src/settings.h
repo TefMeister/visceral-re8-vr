@@ -70,12 +70,11 @@ constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cool
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in
                                                  // the headset, 2026-10-18: the controllers' rings meet before that)
-constexpr float DOCK_LONG_AHEAD_M = 0.20f;       // long guns: the magwell / loading port this far ahead along the barrel
 constexpr float DOCK_IN_FRONT_M = 0.15f;         // ... and the left controller at least this far in front of the headset
 constexpr float DOCK_BELOW_HEAD_M = 0.55f;       // ... and no lower than this under it (the ammo spot is ~0.62 below)
 constexpr float DOCK_LONG_M = 0.35f;             // (used only when the gun's own port joint is not found)
-constexpr float DOCK_ITEM_M = 0.10f;             // long guns: the magazine / shell in the hand this close to its place on the gun
-                                                 // (Tefa 2026-10-19: "toned down to 10cm for now")             // long guns: the left controller this close to the right one = in
+constexpr float DOCK_ITEM_M = 0.16f;             // long guns: the magazine / shell in the hand this close to its measured place
+                                                 // on the gun (Tefa asked 0.10 on 2026-10-19; that run came to 0.138 / 0.107)
 constexpr float LEFT_HIP_POUCH[3] = {-0.20f, -0.62f, 0.02f};   // our own pouch spot when Andyalpa's ammo spot is off (RE2's left hip)
 constexpr float POUCH_ENTER_M = 0.15f, POUCH_LEAVE_M = 0.22f;
 constexpr float RELOAD_GRAB_BUZZ_AMP = 0.35f, RELOAD_GRAB_BUZZ_SEC = 0.05f;

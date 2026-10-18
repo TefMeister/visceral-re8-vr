@@ -343,7 +343,12 @@ void hand_checks() {
     }
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
-    if (d > dock_need() || !at_gun_height() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
+    if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
+        static float told = -10.0f;
+        if (now - told > 2.0f) { told = now; LOGI("%s reload: at the gun (%.3f m) but not in front of you at gun height", TAG, d); }
+        return;
+    }
+    if (d > dock_need() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
     g_last_dock = now;
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
     if (mag) {
