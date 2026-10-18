@@ -36,7 +36,7 @@ local HANDOVER_TRIES = 10
 local MAILBOX_FILE = "visceral_re8/mailbox.json"
 
 local arr = nil
-local frame, last_handover, handovers, attached, rumbles = 0, -1000, 0, false, 0
+local frame, last_handover, handovers, attached, rumbles = 0, 0, 0, false, 0   -- first hand-over after ~3 s: at frame 1 the plugin has not hooked its mailbox yet and the real setter ran with our array (a caught access violation, 2026-10-18)
 local mailbox_name = "(not read yet)"
 
 local function safe(fn) local ok, v = pcall(fn); if ok then return v end; return nil end

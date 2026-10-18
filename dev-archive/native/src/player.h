@@ -36,16 +36,13 @@ bool set_pose(MO* transform, const Vec3& pos, const Quat& rot);
 bool try_bool(MO* o, const char* method, bool& out);
 MO* managed_string(const char* s);   // one per text, kept alive
 
-// ammo of the gun in hand (2026-10-18). Village's names are not written down anywhere we have, so each is tried from a
-// short list (RE7's names first: Village's guns answer RE7's get_isLoadNumInfinity / get_isMagazineEmpty, and its
-// Inventory has RE7's quick-slot calls); the first start logs which ones answered (`ammo: ...`), and type_probe.txt
-// lists the game's real calls. -1 / false = unknown.
-int loaded();
+// ammo of the gun in hand (2026-10-18), Village's own model (player.cpp). -1 / false = unknown.
+int loaded();                      // the rounds in the gun (its item record's include stack)
 int capacity();
 int reserve();                     // rounds of this gun's ammo carried
 bool unlimited();
-bool set_loaded(int n);            // false when no setter was found
-int take_reserve(int n);           // takes up to n rounds out of the carried stacks, returns how many
-void probe_types();                // once: the gun's, the player gun's and the inventory's calls to type_probe.txt
+bool set_loaded(int n);            // false when the gun has no item record
+int game_reload(int n);            // the game's own reload maths: n < 0 = fill up, else up to n; returns rounds added
+void probe_types();                // once, first game frame: the ammo types' calls to type_probe.txt
 
 } // namespace vn::player

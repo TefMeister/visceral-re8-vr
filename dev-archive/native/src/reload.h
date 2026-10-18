@@ -10,7 +10,8 @@
 // Single-round guns (pump shotguns, GM 79, Wolfsbane): each grab is one round, brought to the gun.
 // Village differences: where things go in is measured from the gun hand in the room (settings.h DOCK_*), because
 // Village's gun parts are not known yet; the magazine is only drawn moving when its joint is found (logged).
-// The game's own ammo calls are tried from short name lists (player.h); the first start logs which ones answered.
+// Ammo is Village's own model (player.cpp, read from the game's type list 2026-10-18): the gun's item record holds its
+// rounds, the gun's own reload() tops it up from the carried ammo, its switchMagazineDisp hides the magazine.
 #pragma once
 #include "common.h"
 

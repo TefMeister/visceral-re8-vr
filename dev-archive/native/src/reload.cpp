@@ -74,7 +74,7 @@ void resolve_frame() {
     const auto& s = player::now();
     g_gun = s.gun;
     g_wtf = s.weapon_tf;
-    g_joint = (g_w != nullptr && g_w->reload == Reload::MAG && g_wtf) ? joint_by_name(g_wtf, L"_04") : nullptr;
+    g_joint = (MAG_JOINT_ANIMATE && g_w != nullptr && g_w->reload == Reload::MAG && g_wtf) ? joint_by_name(g_wtf, L"_04") : nullptr;
     g_hand = nullptr;
     for (const wchar_t* n : {L"l_arm_wrist", L"L_Hand", L"l_hand"}) {
         if ((g_hand = joint_by_name(s.tf, n)) != nullptr) {
@@ -123,41 +123,48 @@ float dock_dist() {
 float dock_need() { return g_w->shape == weapons::Shape::PISTOL ? DOCK_PISTOL_M : DOCK_LONG_M; }
 
 // ---- ammo ------------------------------------------------------------------------------------------------------------
-void set_loaded_on(MO* gun, int n) {
-    for (const char* m : {"set_loadNum(System.Int32)", "setLoadNum(System.Int32)", "setBulletNum(System.Int32)"})
-        if (auto* f = gun ? find_method_deep(gun->get_type_definition(), m) : nullptr) { f->call<void>(API::get()->get_vm_context(), (void*)gun, (int32_t)std::max(0, n)); return; }
+void set_loaded_on(MO* gun, int n) {   // a gun no longer in hand (put away mid-reload)
+    auto* w = call_ptr(gun, "get_work");
+    if (auto* m = w ? find_method_deep(w->get_type_definition(), "set_includeStackSize(System.Int32)") : nullptr)
+        m->call<void>(API::get()->get_vm_context(), (void*)w, (int32_t)std::max(0, n));
 }
 
+// a new magazine: the dropped one's rounds back, then the game's own reload tops it up from the carried ammo
 void fill_magazine() {
-    const int cap = player::capacity(), carried = player::unlimited() ? cap : std::max(0, player::reserve());
-    const int want = std::max(0, cap - g_mag_rounds);
-    const int took = player::unlimited() ? want : player::take_reserve(std::min(want, carried));
-    const int total = g_mag_rounds + took;
+    player::set_loaded(g_mag_rounds);
+    const int took = player::game_reload(-1);
+    const int total = player::loaded();
     g_mag_rounds = 0;
     g_drop_gun = nullptr;
     if (g_dry && total > 0 && g_w->rack) {
         g_stash = total;
         player::set_loaded(0);
         rack::need("a magazine into an empty gun");
-    } else {
-        player::set_loaded(total);
     }
-    LOGI("%s reload: %s new magazine: %d rounds (%d from the carried ammo, capacity %d, %d carried left)%s", TAG, g_id.c_str(), total, took, cap,
-         player::reserve(), g_stash > 0 ? ", waiting for a rack" : "");
+    LOGI("%s reload: %s new magazine: %d rounds (%d from the carried ammo, capacity %d)%s", TAG, g_id.c_str(), total, took, player::capacity(),
+         g_stash > 0 ? ", waiting for a rack" : "");
     g_dry = false;
 }
 
 void insert_round() {
     const int cap = player::capacity(), have = player::loaded() + g_stash;
     if (cap > 0 && have >= cap) { LOGI("%s reload: %s is full (%d)", TAG, g_id.c_str(), have); return; }
-    if (!player::unlimited() && player::take_reserve(1) < 1) { LOGI("%s reload: no round carried (or the carried-ammo calls were not found)", TAG); return; }
-    if (g_w->pump && (player::loaded() == 0 || g_stash > 0)) {
-        ++g_stash;
+    const bool empty = player::loaded() == 0 || g_stash > 0;
+    if (player::game_reload(1) < 1) { LOGI("%s reload: no round went in (none carried?)", TAG); return; }
+    if (g_w->pump && empty) {   // shells into an empty pump gun wait for the pump
+        g_stash += player::loaded();
+        player::set_loaded(0);
         rack::need("shells into an empty pump gun");
-    } else {
-        player::set_loaded(player::loaded() + 1);
     }
     LOGI("%s reload: %s round in: loaded %d, waiting for the pump %d, carried %d", TAG, g_id.c_str(), player::loaded(), g_stash, player::reserve());
+}
+
+// the gun's own magazine switch (WeaponGunCore.switchMagazineDisp / resetMagazineDisp, found in the type list):
+// the magazine disappears from the gun while it is out, whichever part it is
+void magazine_shown(bool show) {
+    if (show) call_ptr(g_gun, "resetMagazineDisp");
+    else if (auto* m = g_gun ? find_method_deep(g_gun->get_type_definition(), "switchMagazineDisp(System.Boolean)") : nullptr)
+        m->call<void>(API::get()->get_vm_context(), (void*)g_gun, false);
 }
 
 bool supply() { return player::unlimited() || player::reserve() > 0 || g_mag_rounds > 0; }
@@ -241,6 +248,7 @@ void put_back_on_swap(const char* why) {
     if (g_st == St::SEATED) return;
     if (is_managed(g_drop_gun)) set_loaded_on(g_drop_gun, g_mag_rounds);
     if (g_joint != nullptr) write_scale(g_rest_scale);
+    if (is_managed(g_drop_gun)) call_ptr(g_drop_gun, "resetMagazineDisp");
     LOGI("%s reload: %s magazine put back as it was (%s): %d rounds", TAG, g_id.c_str(), why, g_mag_rounds);
     g_mag_rounds = 0;
     g_drop_gun = nullptr;
@@ -264,8 +272,9 @@ void begin_drop() {
         g_rest_scale = s;
         set_state(St::SLIDE_OUT, "right B");
     } else {
-        set_state(St::OUT, "right B (no magazine part found: nothing to see)");
+        set_state(St::OUT, "right B");
     }
+    magazine_shown(false);
     LOGI("%s reload: drop with %d rounds in it, %d carried", TAG, g_mag_rounds, player::reserve());
 }
 
@@ -403,6 +412,7 @@ void frame() {
             if (t >= RELOAD_INSERT_SEC) {
                 set_state(St::SEATED, "seated");
                 g_scale_restore = true;
+                magazine_shown(true);
                 fill_magazine();
             }
             break;

@@ -55,3 +55,28 @@ The game's own reload is skipped only if a `tryReload` / `requestReload` exists 
 Home PC, 2026-10-18 21:59, plugin `63dd732e` `[compile-verified 2026-10-18]`, never run with this code. Backup:
 `D:/RE Village REFramework builds/_backup-2026-10-18-2159-before-visceral-re8-deploy/` (the six scripts it "updated"
 besides ours differed only in line endings: checked, nothing lost).
+
+## Later the same evening: the first starts (Tefa: "go") -- the ammo calls are known now
+
+Three flat starts to the title screen, closed with a normal close each time (no gun held, no save loaded):
+
+- **Everything hooks** `[verified-live 2026-10-18, n=3]`: `reload: hooked app.PlayerGun.tryReload` and
+  `app.PlayerGunPl2001.tryReload` (Chris) -- the game's own reload is skipped for our guns; `ik: hooked
+  app.AnimIK2Bone.calc`; recoil, haptics, `BRIDGE ATTACHED`.
+- **`type_probe.txt` gave Village's ammo model** (written from the type database at the title screen, so no gun is
+  needed any more). A gun is an item: its record (`ItemCore.get_work` -> `app.ItemCore.InstanceWork`) holds the loaded
+  rounds as `includeStackSize` (`includeStackSizeSub` for the second ammo kind, chosen by `get_usingBulletIndex`), the
+  most it holds is `getMaxIncludeStackSize`, the carried rounds are `Inventory.getTotalStackSize(bullet item id, bool,
+  bool)` with `WeaponGunCore.getBulletItemID()`. The gun itself has `reload()`, `reload(int)`, `reloadNoReduceBullet(int)`,
+  `forceFullReload()`, and `switchMagazineDisp(bool)` / `resetMagazineDisp()` plus `NormalMagazinePartsNo` (the magazine
+  is a mesh part). The RE7 name guesses were mostly wrong for Village (no `set_loadNum`, no string ids), so `player.cpp`
+  now uses these: rounds set through the record, a new magazine = its own rounds back + the gun's `reload()` topping up
+  from the carried ammo, a shell = `reload(1)`, and the magazine hidden with `switchMagazineDisp(false)` while it is out.
+  The magazine joint animation (`_04`) is switched off (`MAG_JOINT_ANIMATE`) until a joint log shows the real part.
+  What `reload()` / `reload(1)` exactly do is `[hypothesis]` until a headset run: every call logs the rounds before and after.
+- **A caught crash at start-up, now gone:** the bridge's first hand-over ran at frame 1, before the plugin had hooked
+  its mailbox, so the game's real setter ran with our array (`VMContext: Caught exception code c0000005`, caught by
+  REFramework; it was in the earlier runs too). The first hand-over now waits ~3 s (frame 181); the next start attached on
+  that first try with no exception `[verified-live 2026-10-18, n=1]`. Same fix put into the parked RE7 bridge.
+
+Plugin `816bdefb`, installed 22:41. Still never run in the headset.

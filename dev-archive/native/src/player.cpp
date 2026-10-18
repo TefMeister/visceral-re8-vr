@@ -141,90 +141,69 @@ bool try_bool(MO* o, const char* method, bool& out) {
     return true;
 }
 
-// ---- ammo -------------------------------------------------------------------------------------------------------------
+// ---- ammo (Village's own model, read from the game's type database 2026-10-18, type_probe.txt) ----------------------
+// A gun is an item (app.ItemCore); its record (get_work: app.ItemCore.InstanceWork) holds the loaded rounds as an
+// "include" stack: includeStackSize for the normal ammo, includeStackSizeSub for the second kind (usingBulletIndex 1).
+// The carried ammo is counted by Inventory.getTotalStackSize(bullet item id, ...), and the gun's own
+// WeaponGunCore.reload() / reload(int) move carried rounds into it the game's way (the animation is PlayerGun.tryReload,
+// which reload.cpp skips for our guns). [hypothesis] for the reload calls' exact behaviour until the first headset run:
+// every use logs the rounds before and after.
 namespace {
-// the first method of `names` the object has; logged once per (type, list) so the first start shows what answered
-API::Method* first_of(MO* o, std::initializer_list<const char*> names, const char* what) {
-    if (o == nullptr) return nullptr;
-    static std::set<std::string> logged;
-    auto* td = o->get_type_definition();
-    for (const char* n : names) {
-        if (auto* m = find_method_deep(td, n)) {
-            const std::string key = std::string(td->get_full_name()) + what;
-            if (logged.insert(key).second) LOGI("%s ammo: %s = %s.%s", TAG, what, td->get_full_name().c_str(), n);
-            return m;
-        }
-    }
-    const std::string key = std::string(td->get_full_name()) + what + "-missing";
-    if (logged.insert(key).second) LOGW("%s ammo: %s NOT FOUND on %s (see type_probe.txt)", TAG, what, td->get_full_name().c_str());
-    return nullptr;
-}
 MO* gun() { return g_now.gun; }
-MO* bullet_id() {
-    auto* m = first_of(gun(), {"get_bulletItemDataID", "get_bulletItemID", "getBulletItemID", "get_BulletItemID", "getBulletItemDataID"}, "bullet item id");
-    if (m == nullptr) return nullptr;
-    auto r = m->invoke(gun(), std::vector<void*>{});
-    return r.exception_thrown ? nullptr : (MO*)r.ptr;
-}
+MO* work() { return call_ptr(gun(), "get_work"); }
+bool sub() { return call_direct<int>(gun(), "get_usingBulletIndex", 0) == 1; }
+API::Method* m_of(MO* o, const char* name) { return o ? find_method_deep(o->get_type_definition(), name) : nullptr; }
 } // namespace
 
 int loaded() {
-    auto* m = first_of(gun(), {"get_loadNum", "getBulletNum", "get_LoadNum"}, "loaded");
-    return m ? m->call<int>(API::get()->get_vm_context(), (void*)gun()) : -1;
+    auto* w = work();
+    if (w != nullptr) return call_direct<int>(w, sub() ? "get_includeStackSizeSub" : "get_includeStackSize", -1);
+    return call_direct<int>(gun(), "getBulletNum", -1);
 }
 
 int capacity() {
-    auto* m = first_of(gun(), {"get_maxLoadNum", "get_MaxLoadNum", "getMaxBulletNum", "get_maxBulletNum", "getLoadNumMax", "get_loadNumMax"}, "capacity");
-    return m ? m->call<int>(API::get()->get_vm_context(), (void*)gun()) : -1;
+    const int n = call_direct<int>(work(), "getMaxIncludeStackSize", -1);
+    return n >= 0 ? n : call_direct<int>(gun(), "getMaxIncludeStackSize", -1);
 }
 
 bool unlimited() {
     bool b = false;
-    return try_bool(g_now.inventory, "hasUnlimitedAmmo", b) && b;
+    return try_bool(gun(), "get_isLoadNumInfinity", b) && b;
 }
 
 bool set_loaded(int n) {
-    auto* m = first_of(gun(), {"set_loadNum(System.Int32)", "setLoadNum(System.Int32)", "setBulletNum(System.Int32)", "set_LoadNum(System.Int32)"}, "set loaded");
-    if (m == nullptr) return false;
-    m->call<void>(API::get()->get_vm_context(), (void*)gun(), (int32_t)std::max(0, n));
+    auto* w = work();
+    auto* m = m_of(w, sub() ? "set_includeStackSizeSub(System.Int32)" : "set_includeStackSize(System.Int32)");
+    if (m == nullptr) { LOGW("%s ammo: no item record on the gun: cannot set its rounds", TAG); return false; }
+    m->call<void>(API::get()->get_vm_context(), (void*)w, (int32_t)std::max(0, n));
     return true;
 }
 
 int reserve() {
-    auto* id = bullet_id();
-    auto* m = first_of(g_now.inventory, {"getTotalStackNum(System.String, System.Boolean)", "getTotalStackNum(System.String)"}, "carried");
-    if (id == nullptr || m == nullptr) return -1;
-    if (m->get_num_params() == 1) return m->call<int>(API::get()->get_vm_context(), (void*)g_now.inventory, (void*)id);
-    return m->call<int>(API::get()->get_vm_context(), (void*)g_now.inventory, (void*)id, false);
+    const uint32_t id = call_direct<uint32_t>(gun(), "getBulletItemID", 0u);
+    auto* m = m_of(g_now.inventory, "getTotalStackSize(System.UInt32, System.Boolean, System.Boolean)");
+    if (id == 0 || m == nullptr) return -1;
+    return m->call<int>(API::get()->get_vm_context(), (void*)g_now.inventory, id, false, false);
 }
 
-// RE7's safe consume (Andyalpa): findItems + setStackNum, an emptied stack gets setDelayDestroyEnabled(true)
-int take_reserve(int want) {
-    if (want <= 0) return 0;
-    auto* id = bullet_id();
-    auto* find = first_of(g_now.inventory, {"findItems(System.String, System.Boolean)"}, "find carried");
-    if (id == nullptr || find == nullptr) return 0;
-    auto r = find->invoke(g_now.inventory, std::vector<void*>{(void*)id, (void*)(intptr_t)0});
-    auto* list = r.exception_thrown ? nullptr : (MO*)r.ptr;
-    const int n = call_direct<int>(list, "get_Count", 0);
-    int took = 0;
-    for (int i = 0; i < n && took < want; ++i) {
-        auto* item = call_ptr(list, "get_Item", {(void*)(intptr_t)i});
-        const int stack = call_direct<int>(item, "getStackNum", 0);
-        if (stack <= 0) continue;
-        const int take = std::min(want - took, stack);
-        if (auto* m = find_method_deep(item->get_type_definition(), "setStackNum(System.Int32)")) m->call<void>(API::get()->get_vm_context(), (void*)item, (int32_t)(stack - take));
-        if (stack - take <= 0)
-            if (auto* m = find_method_deep(item->get_type_definition(), "setDelayDestroyEnabled(System.Boolean)")) m->call<void>(API::get()->get_vm_context(), (void*)item, true);
-        took += take;
-    }
-    return took;
+// the game's own reload maths: n < 0 = fill up (reload()), else up to n rounds (reload(int)); returns rounds added
+int game_reload(int n) {
+    const int before = loaded();
+    auto* m = m_of(gun(), n < 0 ? "reload()" : "reload(System.Int32)");
+    if (m == nullptr) { LOGW("%s ammo: WeaponGunCore.%s not found", TAG, n < 0 ? "reload()" : "reload(int)"); return 0; }
+    if (n < 0) m->call<void>(API::get()->get_vm_context(), (void*)gun());
+    else m->call<void>(API::get()->get_vm_context(), (void*)gun(), (int32_t)n);
+    const int after = loaded();
+    LOGI("%s ammo: the game's %s: loaded %d -> %d, carried now %d", TAG, n < 0 ? "reload()" : "reload(n)", before, after, reserve());
+    return after - before;
 }
 
-// the game's own calls, written once the first time a gun is held: what the ammo lists above should be checked against
+// the game's own calls, written once at the first game frame (the title screen is enough): every method and field of the
+// types the ammo code needs, read from the type database, plus the names of all app.* types about reloads and bullets.
+// What the ammo lists above should be checked against.
 void probe_types() {
     static bool done = false;
-    if (done || g_now.gun == nullptr) return;
+    if (done) return;
     done = true;
     wchar_t exe[MAX_PATH]{};
     GetModuleFileNameW(nullptr, exe, MAX_PATH);
@@ -234,18 +213,17 @@ void probe_types() {
     FILE* f = nullptr;
     if (_wfopen_s(&f, (dir / "type_probe.txt").c_str(), L"wb") != 0 || f == nullptr) return;
     std::set<std::string> seen;
-    auto dump = [&](MO* o, const char* label) {
-        std::fprintf(f, "==== %s\n", label);
-        for (auto* td = o ? o->get_type_definition() : nullptr; td != nullptr; td = td->get_parent_type()) {
+    auto dump_type = [&](API::TypeDefinition* td) {
+        for (; td != nullptr; td = td->get_parent_type()) {
             const std::string tn = td->get_full_name();
-            if (tn == "System.Object" || tn == "via.Component" || !seen.insert(tn).second) break;
+            if (tn == "System.Object" || tn == "via.Component" || tn == "via.Behavior" || !seen.insert(tn).second) break;
             std::fprintf(f, "TYPE %s\n", tn.c_str());
             for (auto* m : td->get_methods()) {
                 if (m == nullptr) continue;
                 std::string params;
-                for (auto& p : m->get_params()) {
+                for (auto& prm : m->get_params()) {
                     if (!params.empty()) params += ", ";
-                    params += p.t ? ((API::TypeDefinition*)p.t)->get_full_name() : "?";
+                    params += prm.t ? ((API::TypeDefinition*)prm.t)->get_full_name() : "?";
                 }
                 auto* rt = m->get_return_type();
                 std::fprintf(f, "  M %s(%s) -> %s\n", m->get_name(), params.c_str(), rt ? rt->get_full_name().c_str() : "void");
@@ -253,17 +231,44 @@ void probe_types() {
             for (auto* fd : td->get_fields()) {
                 if (fd == nullptr) continue;
                 auto* ft = fd->get_type();
-                std::fprintf(f, "  F %s : %s\n", fd->get_name(), ft ? ft->get_full_name().c_str() : "?");
+                std::fprintf(f, "  F %s%s : %s\n", fd->is_static() ? "static " : "", fd->get_name(), ft ? ft->get_full_name().c_str() : "?");
             }
         }
     };
-    dump(g_now.gun, "the gun (WeaponGunCore)");
-    dump(g_now.weapon, "the weapon object");
-    dump(call_ptr(g_now.updater, "get_playerGun"), "the player gun");
-    dump(g_now.inventory, "the inventory");
-    dump(API::get()->get_managed_singleton("app.InventoryManager"), "app.InventoryManager");
+    auto* tdb = API::get()->tdb();
+    for (const char* t : {"app.WeaponGunCore", "app.WeaponGun", "app.PlayerGun", "app.PlayerGunFPS", "app.Inventory", "app.InventoryManager",
+                          "app.ItemCore", "app.ItemSlotManager", "app.PlayerStatus", "app.PlayerStatusFPS", "app.PlayerReloadController",
+                          "app.ItemCore.InstanceWork"}) {
+        auto* td = tdb->find_type(t);
+        std::fprintf(f, "==== %s%s\n", t, td ? "" : " (not in this game)");
+        if (td) dump_type(td);
+    }
+    // the item record's own parts, one level down (where a gun keeps its loaded rounds)
+    if (auto* iw = tdb->find_type("app.ItemCore.InstanceWork")) {
+        for (auto* fd : iw->get_fields()) {
+            auto* ft = fd ? fd->get_type() : nullptr;
+            if (ft == nullptr || ft->get_full_name().rfind("app.", 0) != 0) continue;
+            std::fprintf(f, "==== field %s of the item record\n", fd->get_name());
+            dump_type(ft);
+        }
+    }
+    std::fprintf(f, "==== app.* types with Reload / Bullet / Ammo / Magazine in the name\n");
+    std::vector<API::TypeDefinition*> extra;
+    const uint32_t n = tdb->get_num_types();
+    for (uint32_t i = 0; i < n; ++i) {
+        auto* td = tdb->get_type(i);
+        if (td == nullptr) continue;
+        const std::string tn = td->get_full_name();
+        if (tn.rfind("app.", 0) != 0) continue;
+        if (tn.find("Reload") != std::string::npos || tn.find("Bullet") != std::string::npos || tn.find("Ammo") != std::string::npos ||
+            tn.find("Magazine") != std::string::npos) {
+            std::fprintf(f, "NAME %s\n", tn.c_str());
+            if (tn.find("Reload") != std::string::npos) extra.push_back(td);
+        }
+    }
+    for (auto* td : extra) dump_type(td);
     std::fclose(f);
-    LOGI("%s type_probe.txt written (the gun, the player gun and the inventory's own calls)", TAG);
+    LOGI("%s type_probe.txt written (the ammo types' own calls, from the type database)", TAG);
 }
 
 } // namespace vn::player

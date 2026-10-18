@@ -77,6 +77,9 @@ constexpr float RELOAD_GRAB_BUZZ_AMP = 0.35f, RELOAD_GRAB_BUZZ_SEC = 0.05f;
 constexpr float RELOAD_INSERT_BUZZ_AMP = 0.45f, RELOAD_INSERT_BUZZ_SEC = 0.05f;
 constexpr float RELOAD_DENY_BUZZ_AMP = 0.2f, RELOAD_DENY_BUZZ_SEC = 0.15f;
 constexpr float RELOAD_BUZZ_HZ = 160.0f;
+// the magazine drop / in-hand animation on joint "_04" (RE2 / RE7's magazine name): off until a joint log shows which
+// Village joint is the magazine; the gun's own switchMagazineDisp hides it meanwhile
+constexpr bool MAG_JOINT_ANIMATE = false;
 constexpr int JOINT_LOG_MAX = 40;                // joints of a newly held gun written to the log, at most
 // the hold of a magazine in the left hand (Andyalpa's RE7 handgun hold; Village's own is for Tefa's poses to decide)
 constexpr float MAG_HOLD[6] = {0.104f, -0.039f, 0.053f, 100.5f, -11.5f, 131.5f};   // offset (m), yaw / pitch / roll (deg)
