@@ -49,6 +49,7 @@ bool g_dry = false;               // the gun was empty when its magazine came ou
 int g_stash = 0;                  // rounds waiting for a rack / pump
 MO* g_drop_gun = nullptr;
 bool g_round_in_hand = false;
+float g_closest = 99.0f;          // the nearest the held magazine / round came to where it goes in (logged on let-go)
 thread_local bool t_blocked = false;
 
 void set_state(St s, const char* why) {
@@ -183,8 +184,15 @@ int mag_part() {
 }
 void mag_part_shown(bool show) {
     const int part = mag_part();
-    auto* mesh = component(call_ptr(g_gun, "get_GameObject"), "via.render.Mesh");
-    auto* m = mesh ? find_method_deep(mesh->get_type_definition(), "setPartsEnable(System.UInt64, System.Boolean)") : nullptr;
+    auto* go = call_ptr(g_gun, "get_GameObject");
+    auto* mesh = component(go, "via.render.Mesh");
+    auto* m = player::overload(mesh, "setPartsEnable", 2);
+    static MO* told = nullptr;
+    if (told != g_gun) {   // once per gun: what the hide can and cannot reach
+        told = g_gun;
+        LOGI("%s reload: magazine part %d, gun object %s, mesh %s, setPartsEnable %s", TAG, part, go ? read_string(call_ptr(go, "get_Name")).c_str() : "none",
+             mesh ? type_name(mesh).c_str() : "NOT FOUND", m ? "found" : "NOT FOUND");
+    }
     if (m == nullptr || part < 0) return;
     m->call<void>(API::get()->get_vm_context(), (void*)mesh, (uint64_t)part, show);
 }
@@ -241,6 +249,8 @@ void hand_checks() {
     const bool mag = g_w->reload == Reload::MAG && g_st == St::IN_HAND;
     if (!mag && !g_round_in_hand) return;
     if (!bridge::held(bridge::S_LGRIP)) {
+        LOGI("%s reload: let go; it came within %.3f m of where it goes in (needs %.2f)", TAG, g_closest, dock_need());
+        g_closest = 99.0f;
         if (g_round_in_hand) { g_round_in_hand = false; LOGI("%s reload: round let go", TAG); return; }
         Quat wr;
         if (!held_pose(g_fall_from, wr)) g_fall_from = Vec3{0, 0, 0};
@@ -249,6 +259,7 @@ void hand_checks() {
         return;
     }
     const float d = dock_dist(), now = now_s();
+    g_closest = std::fmin(g_closest, d);
     if (d > dock_need() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
     g_last_dock = now;
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -306,7 +317,17 @@ void log_joints() {
     int n = call_direct<int>(joints, "get_Length", 0);
     const bool list = n <= 0;   // Andyalpa's RE7 scan used get_Count / get_Item (2026-10-18: get_Length gave nothing)
     if (list) n = call_direct<int>(joints, "get_Count", 0);
-    LOGI("%s joints of %s: %d (%s), magazine mesh part %d", TAG, g_id.c_str(), n, joints ? type_name(joints).c_str() : "no list", mag_part());
+    LOGI("%s joints of %s: %d (%s), magazine mesh part %d, gun transform %s", TAG, g_id.c_str(), n, joints ? type_name(joints).c_str() : "no list",
+         mag_part(), g_wtf ? "found" : "NOT FOUND");
+    if (n <= 0) {   // backup: ask for the usual numbered joint names one by one
+        for (int k = 0; k <= 20; ++k) {
+            wchar_t nm[8];
+            swprintf(nm, 8, L"_%02d", k);
+            auto* j = joint_by_name(g_wtf, nm);
+            Vec3 p{};
+            if (j != nullptr && get_v3(JOINT, j, "get_LocalPosition", p)) LOGI("%s joint %s %ls local %.3f %.3f %.3f", TAG, g_id.c_str(), nm, p.x, p.y, p.z);
+        }
+    }
     for (int i = 0; i < n && i < JOINT_LOG_MAX; ++i) {
         auto* j = list ? call_ptr(joints, "get_Item", {(void*)(intptr_t)i}) : call_ptr(joints, "GetValue(System.Int32)", {(void*)(intptr_t)i});
         Vec3 p{};

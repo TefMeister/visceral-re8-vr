@@ -49,6 +49,13 @@ MO* gun_of(MO* weapon) {
 
 } // namespace
 
+API::Method* overload(MO* o, const char* name, uint32_t nparams) {
+    for (auto* td = o ? o->get_type_definition() : nullptr; td != nullptr; td = td->get_parent_type())
+        for (auto* m : td->get_methods())
+            if (m != nullptr && m->get_num_params() == nparams && std::strcmp(m->get_name(), name) == 0) return m;
+    return nullptr;
+}
+
 MO* managed_string(const char* s) {   // one per name, kept alive
     static std::map<std::string, MO*> cache;
     auto it = cache.find(s);
@@ -183,14 +190,23 @@ bool set_loaded(int n) {
 // read 0, so every gun said "carried -1"; now the exact signature, then the item record's includeItemID(Sub)
 uint32_t bullet_item_id() {
     uint32_t id = 0;
-    if (auto* m = m_of(gun(), "getBulletItemID()")) id = m->call<uint32_t>(API::get()->get_vm_context(), (void*)gun());
-    if (id == 0) id = call_direct<uint32_t>(work(), sub() ? "get_includeItemIDSub" : "get_includeItemID", 0u);
-    return id;
+    auto* m = overload(gun(), "getBulletItemID", 0);
+    if (m != nullptr) id = m->call<uint32_t>(API::get()->get_vm_context(), (void*)gun());
+    const uint32_t from_work = call_direct<uint32_t>(work(), sub() ? "get_includeItemIDSub" : "get_includeItemID", 0u);
+    static MO* logged = nullptr;
+    if (logged != gun()) {
+        logged = gun();
+        LOGI("%s ammo: bullet item id: getBulletItemID() %s -> %u, item record %s -> %u", TAG, m ? "found" : "NOT FOUND", id,
+             work() ? "found" : "NOT FOUND", from_work);
+    }
+    return id != 0 ? id : from_work;
 }
 
 int reserve() {
     const uint32_t id = bullet_item_id();
-    auto* m = m_of(g_now.inventory, "getTotalStackSize(System.UInt32, System.Boolean, System.Boolean)");
+    auto* m = overload(g_now.inventory, "getTotalStackSize", 3);
+    static bool told = false;
+    if ((id == 0 || m == nullptr) && !told) { told = true; LOGW("%s ammo: carried unknown: item id %u, inventory %s, getTotalStackSize %s", TAG, id, g_now.inventory ? "found" : "NOT FOUND", m ? "found" : "NOT FOUND"); }
     if (id == 0 || m == nullptr) return -1;
     auto* ctx = API::get()->get_vm_context();
     static uint32_t logged = 0;
@@ -206,7 +222,7 @@ int reserve() {
 // the game's own reload maths: n < 0 = fill up (reload()), else up to n rounds (reload(int)); returns rounds added
 int game_reload(int n) {
     const int before = loaded();
-    auto* m = m_of(gun(), n < 0 ? "reload()" : "reload(System.Int32)");
+    auto* m = overload(gun(), "reload", n < 0 ? 0 : 1);
     if (m == nullptr) { LOGW("%s ammo: WeaponGunCore.%s not found", TAG, n < 0 ? "reload()" : "reload(int)"); return 0; }
     if (n < 0) m->call<void>(API::get()->get_vm_context(), (void*)gun());
     else m->call<void>(API::get()->get_vm_context(), (void*)gun(), (int32_t)n);
@@ -255,7 +271,7 @@ void probe_types() {
     auto* tdb = API::get()->tdb();
     for (const char* t : {"app.WeaponGunCore", "app.WeaponGun", "app.PlayerGun", "app.PlayerGunFPS", "app.Inventory", "app.InventoryManager",
                           "app.ItemCore", "app.ItemSlotManager", "app.PlayerStatus", "app.PlayerStatusFPS", "app.PlayerReloadController",
-                          "app.ItemCore.InstanceWork"}) {
+                          "app.ItemCore.InstanceWork", "via.Transform", "via.Joint", "via.render.Mesh"}) {
         auto* td = tdb->find_type(t);
         std::fprintf(f, "==== %s%s\n", t, td ? "" : " (not in this game)");
         if (td) dump_type(td);

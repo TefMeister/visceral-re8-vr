@@ -35,6 +35,8 @@ bool set_pose(MO* transform, const Vec3& pos, const Quat& rot);
 // a bool getter on an object: true when the method exists (its answer goes to `out`)
 bool try_bool(MO* o, const char* method, bool& out);
 MO* managed_string(const char* s);   // one per text, kept alive
+// the overload of `name` with `nparams` parameters, searched up the type chain (a bare name can land on any overload)
+API::Method* overload(MO* o, const char* name, uint32_t nparams);
 
 // ammo of the gun in hand (2026-10-18), Village's own model (player.cpp). -1 / false = unknown.
 int loaded();                      // the rounds in the gun (its item record's include stack)
