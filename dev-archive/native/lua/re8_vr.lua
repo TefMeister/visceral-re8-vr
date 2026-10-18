@@ -393,7 +393,9 @@ local function update_pad_device(device)
         re8vr.wants_heal = false
     end
     
-    re8vr.is_holding_left_grip = vrmod:is_action_active(action_grip, left_joystick)
+    -- Visceral RE8 (2026-10-18): not "holding the gun" while a magazine / shell / the slide is in the left hand, so the
+    -- two-handed grip does not lock on as the hand passes the gun (Tefa: "the gun most of the time jumps to the left hand")
+    re8vr.is_holding_left_grip = vrmod:is_action_active(action_grip, left_joystick) and rawget(_G, "__visceral_reload_busy") ~= true
 
     if rawget(_G, "__visceral_reload_busy") == true then re8vr.wants_block = false -- Visceral RE8: a reload in the left hand (2026-10-18)
     elseif re8vr.wants_block or vrmod:is_action_active(action_block, left_joystick) or vrmod:is_action_active(action_block, right_joystick) then

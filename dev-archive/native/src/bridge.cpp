@@ -158,6 +158,12 @@ bool world_dir_to_room(Vec3 dir, Vec3& room_dir) {
     room_dir = rotate(qinv(w), dir);
     return true;
 }
+bool room_rot_to_world(Quat q, Quat& out) {
+    Quat w; Vec3 cam;
+    if (!world_from_room(w, cam)) return false;
+    out = qnorm(qmul(w, q));
+    return true;
+}
 bool room_dir_to_world(Vec3 dir, Vec3& world_dir) {
     Quat w; Vec3 cam;
     if (!world_from_room(w, cam)) return false;

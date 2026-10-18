@@ -90,5 +90,6 @@ bool room_to_world(Vec3 room, Vec3& world);
 bool world_to_room(Vec3 world, Vec3& room);
 bool world_dir_to_room(Vec3 world_dir, Vec3& room_dir);
 bool room_dir_to_world(Vec3 room_dir, Vec3& world_dir);
+bool room_rot_to_world(Quat room_rot, Quat& world_rot);
 
 } // namespace vn::bridge

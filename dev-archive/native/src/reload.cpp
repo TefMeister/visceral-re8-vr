@@ -119,8 +119,28 @@ bool held_pose(Vec3& pos, Quat& rot) {   // the magazine in the left hand: the h
 // Tefa's hand, so long guns now use the plain distance between the two controllers too, with a wider reach
 float dock_dist() { return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT)); }
 float dock_need() { return g_w->shape == weapons::Shape::PISTOL ? DOCK_PISTOL_M : DOCK_LONG_M; }
+// 2026-10-18 headset run: a shell went in 0.6 s after the grab, still at the hip (a long gun held low is within reach of
+// it). Now the left controller must also be in front of the body and up at gun height.
+bool at_gun_height() {
+    const Vec3 h = bridge::hmd_pos(), l = bridge::hand_pos(bridge::LEFT);
+    Vec3 f = rotate(bridge::hmd_rot(), Vec3{0, 0, -1});
+    f.y = 0;
+    const float len = std::sqrt(f.x * f.x + f.z * f.z);
+    f = len < 1e-4f ? Vec3{0, 0, -1} : f * (1.0f / len);
+    const Vec3 d = l - h;
+    return d.x * f.x + d.z * f.z >= DOCK_IN_FRONT_M && d.y >= -DOCK_BELOW_HEAD_M;
+}
 
 // ---- ammo ------------------------------------------------------------------------------------------------------------
+// the game's HUD does not notice our ammo writes (Tefa: the count only changed after the next shot): fire the gun's own
+// ReloadHandler (WeaponGunCore, a System.Action) the way a finished reload would
+void tell_hud() {
+    auto* h = field_obj(g_gun, "ReloadHandler");
+    if (h == nullptr) return;
+    auto* m = player::overload(h, "Invoke", 0);
+    if (m != nullptr) m->call<void>(API::get()->get_vm_context(), (void*)h);
+}
+
 void set_loaded_on(MO* gun, int n) {   // a gun no longer in hand (put away mid-reload)
     auto* w = call_ptr(gun, "get_work");
     if (auto* m = w ? find_method_deep(w->get_type_definition(), "set_includeStackSize(System.Int32)") : nullptr)
@@ -139,6 +159,7 @@ void fill_magazine() {
         player::set_loaded(0);
         rack::need("a magazine into an empty gun");
     }
+    tell_hud();
     LOGI("%s reload: %s new magazine: %d rounds (%d from the carried ammo, capacity %d)%s", TAG, g_id.c_str(), total, took, player::capacity(),
          g_stash > 0 ? ", waiting for a rack" : "");
     g_dry = false;
@@ -154,6 +175,7 @@ void insert_round() {
         player::set_loaded(0);
         rack::need("shells into an empty pump gun");
     }
+    tell_hud();
     LOGI("%s reload: %s round in: loaded %d, waiting for the pump %d, carried %d", TAG, g_id.c_str(), player::loaded(), g_stash, player::reserve());
 }
 
@@ -259,7 +281,7 @@ void hand_checks() {
     }
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
-    if (d > dock_need() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
+    if (d > dock_need() || !at_gun_height() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
     g_last_dock = now;
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
     if (mag) {
@@ -399,8 +421,39 @@ bool in_pouch() { return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours; }
 void on_racked() {
     if (g_stash <= 0) return;
     player::set_loaded(player::loaded() + g_stash);
+    tell_hud();
     LOGI("%s reload: %s racked: %d rounds go in", TAG, g_id.c_str(), g_stash);
     g_stash = 0;
+}
+
+// While the left hand carries a magazine / round, the VR layer's two-handed grip must not pull it onto the gun: whenever
+// it is NOT gripping, the hand's place relative to the left controller (in the world) is remembered; while it grips and
+// the hand carries something, the hand is put back there before the arm is solved.
+namespace {
+bool g_free_ok = false;
+Vec3 g_free_pos{};
+Quat g_free_rot{0, 0, 0, 1};
+} // namespace
+void on_ik(MO* ik) {
+    const auto& s = player::now();
+    if (ik != s.ik_left || !bridge::live()) return;
+    Vec3 cp;
+    Quat cq;
+    if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) || !bridge::room_rot_to_world(bridge::view_quat(bridge::S_LROT), cq)) return;
+    auto* tf = field_obj(ik, "Target");
+    Vec3 tp;
+    Quat tq;
+    if (!bridge::flag(bridge::S_GRIPPING_WEAPON)) {
+        if (player::get_pose(tf, tp, tq)) {
+            const Quat inv = qinv(cq);
+            g_free_pos = rotate(inv, tp - cp);
+            g_free_rot = qnorm(qmul(inv, tq));
+            g_free_ok = true;
+        }
+        return;
+    }
+    if (!g_free_ok || !(mag_in_hand() || round_in_hand())) return;
+    player::set_pose(tf, cp + rotate(cq, g_free_pos), qnorm(qmul(cq, g_free_rot)));
 }
 
 void install() {

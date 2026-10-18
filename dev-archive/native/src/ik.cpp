@@ -4,6 +4,7 @@
 #include "player.h"
 #include "rack.h"
 #include "recoil.h"
+#include "reload.h"
 
 namespace vn::ik {
 
@@ -14,6 +15,7 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     const auto& s = player::now();
     if (ik != s.ik_right && ik != s.ik_left) return REFRAMEWORK_HOOK_CALL_ORIGINAL;   // not a player hand
     recoil::on_ik(ik);
+    reload::on_ik(ik);
     rack::on_ik(ik);
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }

@@ -71,6 +71,8 @@ constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cool
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in
                                                  // the headset, 2026-10-18: the controllers' rings meet before that)
 constexpr float DOCK_LONG_AHEAD_M = 0.20f;       // long guns: the magwell / loading port this far ahead along the barrel
+constexpr float DOCK_IN_FRONT_M = 0.15f;         // ... and the left controller at least this far in front of the headset
+constexpr float DOCK_BELOW_HEAD_M = 0.55f;       // ... and no lower than this under it (the ammo spot is ~0.62 below)
 constexpr float DOCK_LONG_M = 0.35f;             // long guns: the left controller this close to the right one = in
 constexpr float LEFT_HIP_POUCH[3] = {-0.20f, -0.62f, 0.02f};   // our own pouch spot when Andyalpa's ammo spot is off (RE2's left hip)
 constexpr float POUCH_ENTER_M = 0.15f, POUCH_LEAVE_M = 0.22f;
