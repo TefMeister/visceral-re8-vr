@@ -28,6 +28,10 @@ local S_CAN_USE_HANDS, S_IS_RELOADING, S_AIMING, S_RECOIL_FLAGS = 57, 58, 59, 60
 -- reload.cpp / rack.cpp (2026-10-18)
 local S_LROT, S_RROT, S_CAM_POS, S_CAM_ROT = 64, 68, 72, 75
 local S_IN_AMMO_ZONE, S_CUTSCENE, S_RELOAD_BUSY, S_HAND_STATE, S_POSE_LOCK = 79, 80, 81, 82, 83
+local S_SLIDE_HAND = 84   -- x, y, z: the hand on the slide, nudged in cm (gun axes: right, up, forward), saved below
+local SLIDE_HAND_FILE = "visceral_re8/slide_hand.json"
+local slide_hand = { x = 0.0, y = 0.0, z = 0.0 }
+pcall(function() local d = json.load_file(SLIDE_HAND_FILE); if type(d) == "table" then for k, _ in pairs(slide_hand) do if type(d[k]) == "number" then slide_hand[k] = d[k] end end end end)
 local LEFT_NAMES = { [0] = "free", "grip (praydog's two-hand)", "on the slide / bolt", "on the pump", "holding a magazine", "holding a round" }
 local pose_lock = false
 local SENTINEL = 54321.0
@@ -170,6 +174,7 @@ local function village_readings()
     wb(S_IN_AMMO_ZONE, rawget(_G, "__vr_in_ammo_holster_zone") == true)
     wb(S_CUTSCENE, re8vr and re8vr.is_in_cutscene == true)
     wb(S_POSE_LOCK, pose_lock)
+    w(S_SLIDE_HAND, slide_hand.x); w(S_SLIDE_HAND + 1, slide_hand.y); w(S_SLIDE_HAND + 2, slide_hand.z)
     rawset(_G, "__visceral_reload_busy", attached and r(S_RELOAD_BUSY) == 1.0 or nil)
 end
 
@@ -246,6 +251,14 @@ re.on_draw_ui(function()
         if arr then imgui.text("Left hand: " .. (LEFT_NAMES[math.floor(r(S_HAND_STATE) + 0.5)] or "?")) end
         local changed, v = imgui.checkbox("Hold this pose (a magazine stays in the hand, the hand stays on the slide)", pose_lock)
         if changed then pose_lock = v end
+        imgui.text("The left hand on the slide (cm, along the gun):")
+        local moved = false
+        for _, k in ipairs({ "x", "y", "z" }) do
+            local label = ({ x = "right (+) / left (-)", y = "up (+) / down (-)", z = "forward (+) / back (-)" })[k]
+            local c, nv = imgui.slider_float(label, slide_hand[k], -15.0, 15.0, "%.1f")
+            if c then slide_hand[k] = nv; moved = true end
+        end
+        if moved then pcall(function() json.dump_file(SLIDE_HAND_FILE, slide_hand) end) end
         imgui.tree_pop()
     end
     if imgui.tree_node("Visceral RE8 bridge") then

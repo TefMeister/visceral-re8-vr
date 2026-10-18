@@ -123,3 +123,7 @@ rides in the left hand on the hold), the part is hidden only once it is on the f
 an empty / locked-open gun or with "Hold this pose" on (Tefa's RE2 rule).
 
 Installed 23:26 (plugin `906e4e39`). Same moment, Tefa: "the flashlight activation zone needs to be up 10 cm and back 30 cm": Andyalpa's head-flashlight spot in his saved `re8_vr/re8_vr_holster.json` (profile default, headset axes, +Z = back) moved y 0.004 -> 0.104, z -0.069 -> 0.231 (backup beside it, `.before-flashlight-move-*`). A settings file of his, not our code.
+
+## 23:30 run: "mag falls out, mag is visible in hand ... when trying to rack, hand jumps to the grip"
+
+Magazine drop and the magazine in the hand work `[verified-live 2026-10-18, n=1]`. No rack was ever tried (no rack lines): the gun was never empty, so the slide was never due, and the hand went to the VR layer's grip dock as usual. Tefa: "suppress weapon docking on the handle when the slide needs racking and vice versa". Now (plugin `abc67b6d`, 23:32, unworn): with a rack due, the left grip HELD near the gun takes the slide (not only a fresh press), and the hand is placed on the `Slide` joint itself (measured against the gun hand after each frame, riding the slide back), keeping the turn the VR layer gave it; with no rack due it never goes on the slide. Menu "Visceral RE8 reload" has three sliders to nudge the hand on the slide (cm, gun axes), saved in `reframework/data/visceral_re8/slide_hand.json`.

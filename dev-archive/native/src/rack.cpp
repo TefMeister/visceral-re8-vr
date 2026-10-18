@@ -32,7 +32,12 @@ Vec3 g_axis{0, 0, -1};        // the gun's forward in the room, frozen when the 
 int g_last_loaded = -1;
 int g_log_near = 0;
 
-bool g_capture = false;       // take the hand's place on the gun at the next left-arm solve
+bool g_capture = false;       // take the hand's turn (and, with no slide joint, its place) at the next left-arm solve
+// the slide joint relative to the right hand target, measured after each frame's animation (late_point)
+bool g_slide_ok = false;
+Vec3 g_slide_pos{};
+Quat g_slide_gun{0, 0, 0, 1};
+float g_z_anim = 0.0f;
 bool g_rel_ok = false;
 Vec3 g_rel_pos{};
 Quat g_rel_rot{0, 0, 0, 1};
@@ -128,11 +133,14 @@ void frame() {
     if (!lt) g_spent = false;
 
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
-        const bool want = pump() ? (lg && bridge::pressed(bridge::S_LTRIG)) : bridge::pressed(bridge::S_LGRIP) || (lg && bridge::pressed(bridge::S_LTRIG));
+        // Tefa 2026-10-18: "suppress weapon docking on the handle when the slide needs racking": with a rack due, the left
+        // grip held near the gun always takes the slide (our IK target wins over the VR layer's grip dock); with none due
+        // the hand is never put on the slide (may_rack above), so the grip dock is left alone
+        const bool want = pump() ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;
         if (want) {
             float off = 99.0f;
             const bool near = on_gun_line(off);
-            if (g_log_near < 30) {
+            if (g_log_near < 30 && (pump() || bridge::pressed(bridge::S_LGRIP) || near)) {
                 ++g_log_near;
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
                 LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
@@ -186,7 +194,21 @@ void frame() {
     }
 }
 
-void late_point() { write_joint(); }
+void late_point() {
+    g_slide_ok = false;
+    const auto& s = player::now();
+    Vec3 rp, jp, lp, gp;
+    Quat rq, gq;
+    if (g_joint != nullptr && player::get_pose(target_of(s.ik_right), rp, rq) && get_v3(JOINT, g_joint, "get_Position", jp) &&
+        get_v3(JOINT, g_joint, "get_LocalPosition", lp) && get_v3(XFORM, s.weapon_tf, "get_Position", gp) && get_q(XFORM, s.weapon_tf, "get_Rotation", gq)) {
+        const Quat inv = qinv(rq);
+        g_slide_pos = rotate(inv, jp - rp);
+        g_slide_gun = qnorm(qmul(inv, qnorm(gq)));
+        g_z_anim = lp.z;
+        g_slide_ok = true;
+    }
+    write_joint();
+}
 void render_point() { write_joint(); }
 
 void on_ik(MO* ik) {
@@ -204,9 +226,17 @@ void on_ik(MO* ik) {
         g_rel_ok = true;
     }
     if (!g_rel_ok) return;
-    Vec3 back{0, 0, 0};
+    const Quat rot = qnorm(qmul(rq, g_rel_rot));
+    if (g_slide_ok) {   // on the slide joint, riding its travel, nudged by the menu sliders (gun axes: x right, y up, z forward)
+        const Quat gun = qnorm(qmul(rq, g_slide_gun));
+        const Vec3 nudge{bridge::view(bridge::S_SLIDE_HAND_X) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Y) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Z) * 0.01f};
+        const Vec3 pos = rp + rotate(rq, g_slide_pos) + rotate(gun, Vec3{0, 0, z_now() - g_z_anim} + (bridge::has(nudge.x) ? nudge : Vec3{0, 0, 0}));
+        player::set_pose(target_of(ik), pos, rot);
+        return;
+    }
+    Vec3 back{0, 0, 0};   // no slide joint: where the hand took hold, slid back with the pull
     if (g_travel > 0.0f && bridge::room_dir_to_world(g_axis * (-RACK_PULL_M * g_travel), back) == false) back = Vec3{0, 0, 0};
-    player::set_pose(target_of(ik), rp + rotate(rq, g_rel_pos) + back, qnorm(qmul(rq, g_rel_rot)));
+    player::set_pose(target_of(ik), rp + rotate(rq, g_rel_pos) + back, rot);
 }
 
 } // namespace vn::rack
