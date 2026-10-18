@@ -30,6 +30,7 @@ struct Weapon {
     Shape shape;
     bool rack;               // a magazine into an empty gun needs a slide / bolt / charging-handle rack
     bool pump;               // pump shotgun: shells into an empty gun need a pump
+    bool bolt = false;       // bolt action: pulled back and pushed forward by hand; it stays where it is let go (Tefa 2026-10-19)
 };
 
 std::string canonical(const std::string& raw);   // "ri3046" -> "ri3046_Inventory" when that is in the list

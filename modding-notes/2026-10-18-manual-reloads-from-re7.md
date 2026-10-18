@@ -151,3 +151,7 @@ With the measured spot the closest came to 0.138 m (F2 magazine) and 0.107 m (sh
 ## 00:49 run: "still no to both, and shotgun shows 5 shells in the gun, but when i fire the ammo counter drops to zero"
 
 Closest this time 0.349 / 0.418 m (vs 0.138 / 0.107 the run before): the check ran at LateUpdateBehavior, before the arm is solved, so it measured from the hand where the animation had it. Now at PrepareRendering post, after the IK. The zero counter was our own hold-back of the shells until the pump; now the rounds stay in the gun and `PlayerGun.tryAttack` (and `PlayerGunPl2001`) is refused until the rack / pump is done (plugin `571a6bdb`, 00:55, unworn).
+
+## 00:57 run: "yep all work now, but the bolt action needs manually pushing back up, not let go and it snaps back like the pistol slider"
+
+Magazine and shell inserts, the trigger block and the pump all work `[verified-live 2026-10-19, Tefa]`. Plugin `4c63cbaf` (01:02, unworn): the F2 rifles are bolt actions (`weapons.cpp` bolt): the bolt follows the hand both ways once pulled, finishes only when pushed home (travel <= 10%), and if let go before that it stays open where it is and can be taken again from there.

@@ -44,8 +44,9 @@ Quat g_rel_rot{0, 0, 0, 1};
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
 bool pump() { return g_w != nullptr && g_w->pump; }
+bool bolt() { return g_w != nullptr && g_w->bolt; }
 bool rackable() { return g_w != nullptr && (g_w->rack || g_w->pump); }
-const char* part() { return pump() ? "pump" : "slide"; }
+const char* part() { return pump() ? "pump" : bolt() ? "bolt" : "slide"; }
 float z_now() { return g_rest.z + (pump() ? PUMP_BACK_M : SLIDE_BACK_M) * g_travel; }
 MO* target_of(MO* ik) { return field_obj(ik, "Target"); }
 
@@ -82,6 +83,10 @@ void complete() {
 void hand_off(const char* why) {
     if (!g_hand_on) return;
     g_hand_on = g_armed = g_capture = g_rel_ok = false;
+    if (g_pulled && bolt() && g_travel > 0.10f) {   // a bolt let go before it was pushed home stays open there
+        LOGI("%s rack: hand off the bolt (%s): it stays open at %.0f%%, push it forward to finish", TAG, why, g_travel * 100.0f);
+        return;
+    }
     if (g_pulled) { g_pulled = false; g_travel = 0.0f; complete(); }
     LOGI("%s rack: hand off the %s (%s), furthest pull %.3f m", TAG, part(), why, g_max_pull);
 }
@@ -141,7 +146,7 @@ void frame() {
 
     const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     const bool lg = bridge::held(bridge::S_LGRIP), lt = bridge::held(bridge::S_LTRIG), lock = pose_lock();
-    const bool may_rack = pump() || g_parked || g_needed || lock;
+    const bool may_rack = pump() || g_parked || g_needed || lock || (bolt() && g_pulled);   // an open bolt can always be taken
     if (!lt) g_spent = false;
 
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
@@ -175,6 +180,7 @@ void frame() {
             if (g_w->shape == weapons::Shape::LONG && len > 0.10f) g_axis = v * (1.0f / len);
             g_base = along_gun();
             g_max_pull = 0.0f;
+            if (bolt() && g_pulled) g_max_pull = (1.0f - g_travel) * RACK_RETURN_M;   // an open bolt carries on from where it is
         }
         if (!play) hand_off("cutscene / hands not free");
         else if (lock) { /* "hold this pose": the hand stays on, whatever the buttons do */ }
@@ -193,7 +199,7 @@ void frame() {
         g_max_pull = std::fmax(g_max_pull, pulled);
         const float want = !g_pulled ? std::fmax(0.0f, std::fmin(1.0f, pulled / RACK_PULL_M))
                                      : std::fmax(0.0f, std::fmin(1.0f, 1.0f - (g_max_pull - pulled) / RACK_RETURN_M));
-        if (pump() || !g_pulled) g_travel += (want - g_travel) * RACK_FOLLOW;
+        if (pump() || bolt() || !g_pulled) g_travel += (want - g_travel) * RACK_FOLLOW;
         else g_travel = 1.0f;
         if (!g_pulled && g_travel >= 0.97f) {
             g_pulled = true;
@@ -201,6 +207,7 @@ void frame() {
             LOGI("%s rack: pulled back (%.3f m)", TAG, pulled);
         }
         if (pump() && g_pulled && lt && g_travel <= 0.10f) { g_spent = true; hand_off("pumped back by hand"); }
+        if (bolt() && g_pulled && g_travel <= 0.10f) hand_off("bolt pushed home");
     } else if (!g_pulled && g_travel > 0.0f) {
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }
