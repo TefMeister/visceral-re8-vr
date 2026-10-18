@@ -147,3 +147,7 @@ Shell in the hand and the manual pump work `[verified-live 2026-10-19]` (pump on
 ## 00:39 run: "still doesn't go in"
 
 With the measured spot the closest came to 0.138 m (F2 magazine) and 0.107 m (shell), so the spot is right and 0.10 m was just tight. Plugin `235cceda` (00:45): 0.16 m, and a log line when the item is close enough but the "in front of you at gun height" check stops it.
+
+## 00:49 run: "still no to both, and shotgun shows 5 shells in the gun, but when i fire the ammo counter drops to zero"
+
+Closest this time 0.349 / 0.418 m (vs 0.138 / 0.107 the run before): the check ran at LateUpdateBehavior, before the arm is solved, so it measured from the hand where the animation had it. Now at PrepareRendering post, after the IK. The zero counter was our own hold-back of the shells until the pump; now the rounds stay in the gun and `PlayerGun.tryAttack` (and `PlayerGunPl2001`) is refused until the rack / pump is done (plugin `571a6bdb`, 00:55, unworn).

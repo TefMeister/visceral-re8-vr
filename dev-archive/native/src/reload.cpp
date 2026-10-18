@@ -192,11 +192,7 @@ void fill_magazine() {
     const int total = player::loaded();
     g_mag_rounds = 0;
     g_drop_gun = nullptr;
-    if (g_dry && total > 0 && g_w->rack) {
-        g_stash = total;
-        player::set_loaded(0);
-        rack::need("a magazine into an empty gun");
-    }
+    if (g_dry && total > 0 && g_w->rack) rack::need("a magazine into an empty gun");   // the trigger waits for the rack
     tell_hud();
     LOGI("%s reload: %s new magazine: %d rounds (%d from the carried ammo, capacity %d)%s", TAG, g_id.c_str(), total, took, player::capacity(),
          g_stash > 0 ? ", waiting for a rack" : "");
@@ -208,11 +204,7 @@ void insert_round() {
     if (cap > 0 && have >= cap) { LOGI("%s reload: %s is full (%d)", TAG, g_id.c_str(), have); return; }
     const bool empty = player::loaded() == 0 || g_stash > 0;
     if (player::game_reload(1) < 1) { LOGI("%s reload: no round went in (none carried?)", TAG); return; }
-    if (g_w->pump && empty) {   // shells into an empty pump gun wait for the pump
-        g_stash += player::loaded();
-        player::set_loaded(0);
-        rack::need("shells into an empty pump gun");
-    }
+    if (g_w->pump && empty) rack::need("shells into an empty pump gun");   // the trigger waits for the pump
     tell_hud();
     LOGI("%s reload: %s round in: loaded %d, waiting for the pump %d, carried %d", TAG, g_id.c_str(), player::loaded(), g_stash, player::reserve());
 }
@@ -469,6 +461,21 @@ void track_pouch() {   // our own spot, beside Andyalpa's (his reports through t
 }
 
 // ---- the game's own reload request, off for our guns (names tried; the probe file lists the real ones) --------------
+// Tefa 2026-10-19: "shotgun shows 5 shells in the gun, but when i fire the ammo counter drops to zero" -- the rounds were
+// held back until the pump. Now they stay in the gun and PlayerGun.tryAttack is refused until the rack / pump is done.
+thread_local bool t_attack_blocked = false;
+int pre_try_attack(int, void**, REFrameworkTypeDefinitionHandle*, unsigned long long) {
+    t_attack_blocked = managed_now() && rack::needed();
+    if (!t_attack_blocked) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    static int n = 0;
+    if (++n <= 5 || n % 500 == 0) LOGI("%s reload: trigger refused until %s (#%d)", TAG, g_w->pump ? "the pump" : "the rack", n);
+    return REFRAMEWORK_HOOK_SKIP_ORIGINAL;
+}
+void post_try_attack(void** ret, REFrameworkTypeDefinitionHandle, unsigned long long) {
+    if (t_attack_blocked && ret != nullptr) *ret = nullptr;   // "did not attack"
+    t_attack_blocked = false;
+}
+
 int pre_reload_request(int, void**, REFrameworkTypeDefinitionHandle*, unsigned long long) {
     t_blocked = managed_now();
     if (!t_blocked) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
@@ -489,13 +496,7 @@ bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st
 bool round_in_hand() { return managed_now() && g_round_in_hand; }
 bool in_pouch() { return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours; }
 
-void stash_until_racked() {
-    const int n = player::loaded();
-    if (n <= 0) return;
-    g_stash += n;
-    player::set_loaded(0);
-    tell_hud();
-}
+
 
 void on_racked() {
     if (g_stash <= 0) return;
@@ -541,6 +542,10 @@ void install() {
     for (const char* t : {"app.PlayerGun", "app.PlayerGunFPS", "app.PlayerGunPl2001", "app.PlayerGunPl2001FPS", "app.WeaponGunCore"}) {
         auto* td = tdb->find_type(t);
         if (td == nullptr) continue;
+        if (auto* a = td->find_method("tryAttack"); a != nullptr && a->get_declaring_type() == td) {
+            a->add_hook(pre_try_attack, post_try_attack, false);
+            LOGI("%s reload: hooked %s.tryAttack (no shot while a rack / pump is due)", TAG, t);
+        }
         for (const char* name : {"tryReload", "requestReload"}) {
             auto* m = td->find_method(name);
             if (m == nullptr || m->get_declaring_type() != td) continue;
@@ -604,14 +609,15 @@ void frame() {
 
 void late_point() {
     if (!managed_now()) return;
-    hand_checks();
     pose_shell();
     if (g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }
 
+// the hand checks run here, after the arm has been solved: at LateUpdateBehavior the hand joint still stood where the
+// animation had it, so the measured distance jumped between runs (0.11-0.14 m, then 0.35-0.42 m; 2026-10-19)
 void render_point() {
-    if (managed_now()) pose_shell();
+    if (managed_now()) { hand_checks(); pose_shell(); }
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }

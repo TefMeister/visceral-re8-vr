@@ -100,7 +100,7 @@ float travel() { return g_travel; }
 
 void need(const char* why) {
     if (!rackable()) return;
-    if (!g_needed) LOGI("%s rack: %s %s NEEDED (%s): the gun reads empty until then", TAG, g_id.c_str(), pump() ? "pump" : "rack", why);
+    if (!g_needed) LOGI("%s rack: %s %s NEEDED (%s): the trigger waits until then", TAG, g_id.c_str(), pump() ? "pump" : "rack", why);
     g_needed = g_parked = true;
 }
 
@@ -135,7 +135,7 @@ void frame() {
     if (g_hold_closed && shot) g_hold_closed = false;   // a shot
     // Tefa 2026-10-19: "pump handle pumping doesn't work, game still does that automatically": a pump gun now needs the
     // pump after every shot; its remaining shells wait in reload.cpp until then (the game's own pump motion still plays)
-    if (pump() && shot && loaded > 0 && !g_needed) { reload::stash_until_racked(); need("pumped after the shot"); }
+    if (pump() && shot && loaded > 0 && !g_needed) need("pumped after the shot");   // the trigger waits (reload.cpp)
     g_last_loaded = loaded;
     if (!pump() && !g_parked && !reload::mag_out() && loaded == 0) { g_parked = true; LOGI("%s rack: %s empty: it can be racked", TAG, g_id.c_str()); }
 
