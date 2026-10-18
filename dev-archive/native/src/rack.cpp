@@ -226,7 +226,7 @@ void frame() {
         // the hand is never put on the slide (may_rack above), so the grip dock is left alone
         // pump and bolt: LG held + one LT press near it starts the cycle (Tefa 2026-10-19: "LT needs to be pressed once not even
         // held throughout, but it is needed for a cleaner sequence"); the slide: LG alone
-        const bool want = (pump() || bolt()) ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;
+        const bool want = pump() ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;   // the bolt: LG takes hold, LT then arms it
         if (want) {
             float off = 99.0f;
             const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
@@ -236,14 +236,9 @@ void frame() {
                 LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
                      RACK_GRAB_M, is_near ? "HAND ON" : "too far", f.x, f.y, f.z, v.x, v.y, v.z);
             }
-            if (is_near && bolt()) {
-                g_hand_on = g_capture = g_armed = true;
-                g_rel_ok = false;
-                const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
-                const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-                g_axis = len > 0.10f ? v * (1.0f / len) : controller_fwd();
-                g_base = along_gun() + g_travel * RACK_PULL_M;            // the travel carries on from where the bolt is
-                g_dy0 = hand_dy() - g_turn * BOLT_LIFT_M;                 // and so does the turn
+            if (is_near && bolt()) {   // Tefa 2026-10-19: "the left grip must already grip it and hold on, but not move the bolt until LT is pressed"
+                g_hand_on = g_capture = true;
+                g_armed = g_rel_ok = false;
                 bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             } else if (is_near) {
                 g_hand_on = g_capture = true;
@@ -255,7 +250,17 @@ void frame() {
     if (g_hand_on && bolt()) {
         if (!play) hand_off("cutscene / hands not free");
         else if (!lg && !lock) hand_off("LG let go");
-        else bolt_step();
+        else if (!g_armed) {   // holding the bolt, still: one LT press arms it, from where the bolt is
+            if (bridge::pressed(bridge::S_LTRIG)) {
+                g_armed = true;
+                const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
+                const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+                g_axis = len > 0.10f ? v * (1.0f / len) : controller_fwd();
+                g_base = along_gun() + g_travel * RACK_PULL_M;            // the travel carries on from where the bolt is
+                g_dy0 = hand_dy() - g_turn * BOLT_LIFT_M;                 // and so does the turn
+                LOGI("%s rack: bolt armed (LT)", TAG);
+            }
+        } else bolt_step();
         return;
     }
     if (g_hand_on) {
