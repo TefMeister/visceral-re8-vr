@@ -15,6 +15,7 @@ namespace vn::rack {
 void frame();            // UpdateBehavior pre: the gesture, the timers
 void late_point();       // LateUpdateBehavior post: write the slide joint
 void render_point();     // PrepareRendering post: write it again
+void begin_render_point(); // BeginRendering pre: and once more (the F2 bolt did not move with the first two, 2026-10-19)
 void on_ik(MO* ik);      // ik.cpp: the left hand is about to be solved: hold it on the gun while docked
 
 void need(const char* why);   // reload.cpp: a rack / pump is required before the gun fires

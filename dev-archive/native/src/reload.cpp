@@ -49,6 +49,10 @@ bool g_dry = false;               // the gun was empty when its magazine came ou
 int g_stash = 0;                  // rounds waiting for a rack / pump
 MO* g_drop_gun = nullptr;
 bool g_round_in_hand = false;
+MO* g_shell = nullptr;            // the gun's own shell joint ("Bullet"), carried in the left hand for single-round guns
+Vec3 g_shell_rest{};
+Quat g_shell_rest_rot{0, 0, 0, 1};
+bool g_shell_have_rest = false;
 float g_closest = 99.0f;          // the nearest the held magazine / round came to where it goes in (logged on let-go)
 thread_local bool t_blocked = false;
 
@@ -76,6 +80,10 @@ void resolve_frame() {
     g_gun = s.gun;
     g_wtf = s.weapon_tf;
     g_joint = (MAG_JOINT_ANIMATE && g_w != nullptr && g_w->reload == Reload::MAG && g_wtf) ? joint_by_name(g_wtf, L"Magazine") : nullptr;   // Village names its gun joints (headset log 2026-10-18)
+    g_shell = (g_w != nullptr && g_w->reload == Reload::ROUND && g_wtf) ? joint_by_name(g_wtf, L"Bullet") : nullptr;
+    if (g_shell != nullptr && !g_shell_have_rest && !g_round_in_hand &&
+        get_v3(JOINT, g_shell, "get_LocalPosition", g_shell_rest) && get_q(JOINT, g_shell, "get_LocalRotation", g_shell_rest_rot))
+        g_shell_have_rest = true;
     g_hand = nullptr;
     for (const wchar_t* n : {L"l_arm_wrist", L"L_Hand", L"l_hand"}) {
         if ((g_hand = joint_by_name(s.tf, n)) != nullptr) {
@@ -117,8 +125,24 @@ bool held_pose(Vec3& pos, Quat& rot) {   // the magazine in the left hand: the h
 // ---- where things go in, in the room: at the gun hand (pistols) or ahead of it along the barrel (long guns) ----------
 // 2026-10-18 headset run: the point "0.20 m ahead along the barrel" from the controller's turn landed 0.4-0.9 m from
 // Tefa's hand, so long guns now use the plain distance between the two controllers too, with a wider reach
-float dock_dist() { return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT)); }
-float dock_need() { return g_w->shape == weapons::Shape::PISTOL ? DOCK_PISTOL_M : DOCK_LONG_M; }
+// long guns (Tefa 2026-10-19: 10 cm): from the magazine / shell in the hand to its place on the gun (the magazine's seat,
+// the shell joint's rest), both in the world; pistols keep the controller distance, which works
+bool port_world(Vec3& out) {
+    Quat r;
+    if (g_w->reload == Reload::MAG) return g_rest_pos.x == g_rest_pos.x && from_weapon_local(g_rest_pos, Quat{0, 0, 0, 1}, out, r);
+    return g_shell_have_rest && from_weapon_local(g_shell_rest, Quat{0, 0, 0, 1}, out, r);
+}
+float dock_dist() {
+    Vec3 port, item;
+    Quat q;
+    if (g_w->shape == weapons::Shape::LONG && port_world(port) && held_pose(item, q)) return dist(item, port);
+    return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT));
+}
+float dock_need() {
+    Vec3 port;
+    if (g_w->shape == weapons::Shape::LONG) return port_world(port) ? DOCK_ITEM_M : DOCK_LONG_M;
+    return DOCK_PISTOL_M;
+}
 // 2026-10-18 headset run: a shell went in 0.6 s after the grab, still at the hip (a long gun held low is within reach of
 // it). Now the left controller must also be in front of the body and up at gun height.
 bool at_gun_height() {
@@ -227,6 +251,30 @@ void write_world(Vec3 p, Quat q) {
     set_any(JOINT, g_joint, "set_Rotation", &q);
 }
 void write_scale(Vec3 s) { set_any(JOINT, g_joint, "set_LocalScale", &s); }
+void shell_write(Vec3 p, Quat q) {
+    set_any(JOINT, g_shell, "set_LocalPosition", &p);
+    set_any(JOINT, g_shell, "set_LocalRotation", &q);
+}
+void pose_shell() {   // the gun's shell joint rides in the left hand while a round is carried
+    if (g_shell == nullptr || !g_round_in_hand) return;
+    Vec3 wp, lp;
+    Quat wr, lr;
+    if (held_pose(wp, wr) && to_weapon_local(wp, wr, lp, lr)) shell_write(lp, lr);
+}
+void shell_home() { if (g_shell != nullptr && g_shell_have_rest) shell_write(g_shell_rest, g_shell_rest_rot); }
+
+// the gun's mesh parts and whether each is drawn, once per gun: which one is the loose shell (2026-10-19)
+void log_parts() {
+    auto* mesh = component(call_ptr(g_wtf, "get_GameObject"), "via.render.Mesh");
+    auto* cnt = player::overload(mesh, "getPartsEnableCount", 0);
+    auto* get = player::overload(mesh, "getPartsEnable", 1);
+    if (cnt == nullptr || get == nullptr) return;
+    auto* ctx = API::get()->get_vm_context();
+    const uint64_t n = cnt->call<uint64_t>(ctx, (void*)mesh);
+    std::string on;
+    for (uint64_t i = 0; i < n && i < 64; ++i) on += get->call<bool>(ctx, (void*)mesh, i) ? '1' : '0';
+    LOGI("%s mesh parts of %s: %llu, drawn now: %s", TAG, g_id.c_str(), (unsigned long long)n, on.c_str());
+}
 
 void pose_joint() {
     if (g_joint == nullptr || g_w == nullptr) return;
@@ -272,7 +320,7 @@ void hand_checks() {
     if (!bridge::held(bridge::S_LGRIP)) {
         LOGI("%s reload: let go; it came within %.3f m of where it goes in (needs %.2f)", TAG, g_closest, dock_need());
         g_closest = 99.0f;
-        if (g_round_in_hand) { g_round_in_hand = false; LOGI("%s reload: round let go", TAG); return; }
+        if (g_round_in_hand) { g_round_in_hand = false; shell_home(); LOGI("%s reload: round let go", TAG); return; }
         Quat wr;
         if (!held_pose(g_fall_from, wr)) g_fall_from = Vec3{0, 0, 0};
         g_fall_rot = wr;
@@ -290,12 +338,14 @@ void hand_checks() {
         LOGI("%s reload: insert at %.3f m (need %.2f)", TAG, d, dock_need());
     } else {
         g_round_in_hand = false;
+        shell_home();
         insert_round();
     }
 }
 
 void put_back_on_swap(const char* why) {
-    if (g_round_in_hand) { g_round_in_hand = false; LOGI("%s reload: round put back (%s)", TAG, why); }
+    if (g_round_in_hand) { g_round_in_hand = false; shell_home(); LOGI("%s reload: round put back (%s)", TAG, why); }
+    g_shell_have_rest = false;
     MO* old = g_drop_gun != nullptr ? g_drop_gun : g_gun;
     if (g_stash > 0 && is_managed(old)) { set_loaded_on(old, g_stash); LOGI("%s reload: %s: %d rounds that waited for a rack put in (%s)", TAG, g_id.c_str(), g_stash, why); }
     g_stash = 0;
@@ -418,6 +468,14 @@ bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st
 bool round_in_hand() { return managed_now() && g_round_in_hand; }
 bool in_pouch() { return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours; }
 
+void stash_until_racked() {
+    const int n = player::loaded();
+    if (n <= 0) return;
+    g_stash += n;
+    player::set_loaded(0);
+    tell_hud();
+}
+
 void on_racked() {
     if (g_stash <= 0) return;
     player::set_loaded(player::loaded() + g_stash);
@@ -486,7 +544,7 @@ void frame() {
                  g_w->reload == Reload::MAG ? ": manual magazine" : g_w->reload == Reload::ROUND ? ": single rounds" : ": no reload",
                  g_joint != nullptr ? "found" : "not found");
             static std::string seen;
-            if (seen.find("|" + id + "|") == std::string::npos) { seen += "|" + id + "|"; log_joints(); }
+            if (seen.find("|" + id + "|") == std::string::npos) { seen += "|" + id + "|"; log_joints(); log_parts(); }
             player::probe_types();
         }
     }
@@ -526,11 +584,13 @@ void frame() {
 void late_point() {
     if (!managed_now()) return;
     hand_checks();
+    pose_shell();
     if (g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }
 
 void render_point() {
+    if (managed_now()) pose_shell();
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }

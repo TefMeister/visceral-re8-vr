@@ -55,6 +55,12 @@ float along_gun() {
     return d.x * g_axis.x + d.y * g_axis.y + d.z * g_axis.z;
 }
 // the left controller on the gun line: over the gun hand or ahead of it along the barrel, close to the line
+bool near_joint(float& d) {   // the left controller (carried into the world) near the slide / pump joint itself
+    Vec3 jp, lp;
+    if (g_joint == nullptr || !get_v3(JOINT, g_joint, "get_Position", jp) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) return false;
+    d = dist(jp, lp);
+    return d <= RACK_JOINT_GRAB_M;
+}
 bool on_gun_line(float& off) {
     const Vec3 fwd = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
     const float ahead = v.x * fwd.x + v.y * fwd.y + v.z * fwd.z;
@@ -115,7 +121,9 @@ void frame() {
     const auto& s = player::now();
     g_joint = nullptr;   // Village names its gun joints (headset log 2026-10-18: LEMI and F2 have "Slide")
     if (g_w != nullptr && s.weapon_tf != nullptr)
-        for (const wchar_t* n : {L"Slide", L"Pump", L"Forend", L"Bolt"}) if ((g_joint = joint_by_name(s.weapon_tf, n)) != nullptr) break;
+        for (const wchar_t* n : pump() ? std::initializer_list<const wchar_t*>{L"Reload_Slider", L"Pump", L"Forend"}   // M1897: Reload_Slider
+                                       : std::initializer_list<const wchar_t*>{L"Slide", L"Bolt"})
+            if ((g_joint = joint_by_name(s.weapon_tf, n)) != nullptr) break;
     if (g_joint != nullptr && !g_have_rest && get_v3(JOINT, g_joint, "get_LocalPosition", g_rest)) {
         g_have_rest = true;
         LOGI("%s rack: %s %s joint rests at local %.3f %.3f %.3f", TAG, g_id.c_str(), part(), g_rest.x, g_rest.y, g_rest.z);
@@ -123,7 +131,11 @@ void frame() {
     if (g_w == nullptr || s.gun == nullptr || !bridge::live()) { hand_off("no gun / no headset"); return; }
 
     const int loaded = player::loaded();
-    if (g_hold_closed && g_last_loaded > 0 && loaded >= 0 && loaded < g_last_loaded) g_hold_closed = false;   // a shot
+    const bool shot = g_last_loaded > 0 && loaded >= 0 && loaded < g_last_loaded && !reload::mag_out();
+    if (g_hold_closed && shot) g_hold_closed = false;   // a shot
+    // Tefa 2026-10-19: "pump handle pumping doesn't work, game still does that automatically": a pump gun now needs the
+    // pump after every shot; its remaining shells wait in reload.cpp until then (the game's own pump motion still plays)
+    if (pump() && shot && loaded > 0 && !g_needed) { reload::stash_until_racked(); need("pumped after the shot"); }
     g_last_loaded = loaded;
     if (!pump() && !g_parked && !reload::mag_out() && loaded == 0) { g_parked = true; LOGI("%s rack: %s empty: it can be racked", TAG, g_id.c_str()); }
 
@@ -139,7 +151,7 @@ void frame() {
         const bool want = pump() ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;
         if (want) {
             float off = 99.0f;
-            const bool near = on_gun_line(off);
+            const bool near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
             if (g_log_near < 30 && (pump() || bridge::pressed(bridge::S_LGRIP) || near)) {
                 ++g_log_near;
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
@@ -193,6 +205,8 @@ void frame() {
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }
 }
+
+void begin_render_point() { write_joint(); }
 
 void late_point() {
     g_slide_ok = false;

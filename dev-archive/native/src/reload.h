@@ -29,6 +29,7 @@ bool mag_in_hand();      // a magazine is in the left hand (or going in)
 bool round_in_hand();    // a shell / round is in the left hand
 bool in_pouch();         // the left hand is in the ammo spot
 void on_racked();        // rack.cpp: the slide / pump cycled: rounds waiting for it go in
+void stash_until_racked(); // rack.cpp: a pump gun fired: its shells wait for the pump
 void on_ik(MO* ik);      // ik.cpp: keep the left hand on its controller while it carries a magazine / round
 
 } // namespace vn::reload

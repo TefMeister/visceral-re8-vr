@@ -73,7 +73,9 @@ constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close t
 constexpr float DOCK_LONG_AHEAD_M = 0.20f;       // long guns: the magwell / loading port this far ahead along the barrel
 constexpr float DOCK_IN_FRONT_M = 0.15f;         // ... and the left controller at least this far in front of the headset
 constexpr float DOCK_BELOW_HEAD_M = 0.55f;       // ... and no lower than this under it (the ammo spot is ~0.62 below)
-constexpr float DOCK_LONG_M = 0.35f;             // long guns: the left controller this close to the right one = in
+constexpr float DOCK_LONG_M = 0.35f;             // (used only when the gun's own port joint is not found)
+constexpr float DOCK_ITEM_M = 0.10f;             // long guns: the magazine / shell in the hand this close to its place on the gun
+                                                 // (Tefa 2026-10-19: "toned down to 10cm for now")             // long guns: the left controller this close to the right one = in
 constexpr float LEFT_HIP_POUCH[3] = {-0.20f, -0.62f, 0.02f};   // our own pouch spot when Andyalpa's ammo spot is off (RE2's left hip)
 constexpr float POUCH_ENTER_M = 0.15f, POUCH_LEAVE_M = 0.22f;
 constexpr float RELOAD_GRAB_BUZZ_AMP = 0.35f, RELOAD_GRAB_BUZZ_SEC = 0.05f;
@@ -91,6 +93,7 @@ constexpr float MAG_HOLD[6] = {0.104f, -0.039f, 0.053f, 100.5f, -11.5f, 131.5f};
 constexpr float RACK_GRAB_M = 0.16f;             // left controller this close to the right one's gun line = can take hold
 constexpr float RACK_GRAB_AHEAD_MAX_M = 0.70f;   // ... and no further ahead along the barrel than this
 constexpr float RACK_GRAB_BEHIND_M = 0.10f;      // ... or behind the gun hand than this (a pistol slide sits over the hand)
+constexpr float RACK_JOINT_GRAB_M = 0.20f;       // the left controller this close to the slide / pump joint = can take hold
 constexpr float RACK_GRAB_ANY_M = 0.30f;          // ... or simply this close to the right controller (the gun-line test may be off)
 constexpr float RACK_PULL_M = 0.08f;             // controller travel for a full pull (Andyalpa's pull_dist)
 constexpr float RACK_RETURN_M = 0.06f;           // and forward again for a full return
