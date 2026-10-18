@@ -121,3 +121,5 @@ Next build (plugin built 23:35, installed when the game is closed): the magazine
 rides in the left hand on the hold), the part is hidden only once it is on the floor, the rack moves `Slide` (then `Pump`,
 `Forend`, `Bolt`), the pistol dock is 0.24 m (two of three tries stopped at 0.43). No rack was tried: it only takes hold on
 an empty / locked-open gun or with "Hold this pose" on (Tefa's RE2 rule).
+
+Installed 23:26 (plugin `906e4e39`). Same moment, Tefa: "the flashlight activation zone needs to be up 10 cm and back 30 cm": Andyalpa's head-flashlight spot in his saved `re8_vr/re8_vr_holster.json` (profile default, headset axes, +Z = back) moved y 0.004 -> 0.104, z -0.069 -> 0.231 (backup beside it, `.before-flashlight-move-*`). A settings file of his, not our code.
