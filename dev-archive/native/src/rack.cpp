@@ -3,6 +3,7 @@
 // left IK target at the moment it takes hold.
 #include "rack.h"
 #include "bridge.h"
+#include "ghosthand.h"
 #include "joints.h"
 #include "player.h"
 #include "reload.h"
@@ -98,6 +99,7 @@ bool on_gun_line(float& off) {
 
 void complete() {
     const bool was = g_needed;
+    ghosthand::event(part(), "done");
     g_needed = g_parked = false;
     g_hold_closed = true;
     reload::on_racked();
@@ -107,6 +109,10 @@ void complete() {
 
 void hand_off(const char* why) {
     if (!g_hand_on) return;
+    if (g_armed && !g_pulled && !(bolt() && g_bstate != 0)) {   // armed and let go before anything finished
+        ghosthand::value(std::string(part()).append("_max_pull_m").c_str(), g_max_pull);
+        ghosthand::event(part(), "cancel");
+    }
     g_hand_on = g_armed = g_capture = g_rel_ok = g_slide_frozen = false;
     if (pump() && g_pulled && g_travel > 0.10f) {   // a pump let go before it is pushed back up stays there
         LOGI("%s rack: hand off the pump (%s): it stays back, push it up to finish", TAG, why);
@@ -186,6 +192,8 @@ void bolt_step() {
 } // namespace
 
 bool needed() { return RELOAD_ON && rackable() && g_needed; }
+void* slide_joint() { return g_joint; }
+const char* part_name() { return part(); }
 bool active() { return g_hand_on; }
 bool on_pump() { return g_hand_on && pump(); }
 float travel() { return g_travel; }
@@ -277,6 +285,7 @@ void frame() {
                 g_base = along_gun() + g_travel * RACK_PULL_M;            // the travel carries on from where the bolt is
                 g_dy0 = hand_dy() - g_turn * BOLT_LIFT_M;                 // and so does the turn
                 LOGI("%s rack: bolt armed (LT)", TAG);
+                ghosthand::event("bolt", "start");
             }
         } else bolt_step();
         return;
@@ -284,6 +293,7 @@ void frame() {
     if (g_hand_on) {
         if (!g_armed && bridge::pressed(bridge::S_LTRIG)) {   // one LT press arms it; LT need not be held
             g_armed = true;
+            ghosthand::event(part(), "start");
             g_axis = barrel_room();
             // the pump: the left hand sits well ahead on the barrel, so the line from the right hand to it works (worn 2026-10-19)
             const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);

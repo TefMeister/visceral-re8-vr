@@ -47,6 +47,42 @@ local frame, last_handover, handovers, attached, rumbles = 0, 0, 0, false, 0   -
 local mailbox_name = "(not read yet)"
 
 local function safe(fn) local ok, v = pcall(fn); if ok then return v end; return nil end
+
+-- Camera Jitter BeG0nE (2026-10-19, Tefa: "log everything"; wired as Visceral RE2's bridge does it): the head pose as
+-- read, the camera as the game takes it and each picture presented go to %LOCALAPPDATA%\BeG0nE\jitter\ while the
+-- headset is live. jitterlog.lua sits beside this file; without it nothing is recorded and nothing else changes.
+local jl_ok, jl = pcall(require, "jitterlog")
+if jl_ok and type(jl) == "table" then jl.init("visceral-re8-vr", "openxr") else jl = nil end
+local jl_live = false
+local function ypr(q)
+    local f = q * Vector3f.new(0, 0, -1)
+    local u = q * Vector3f.new(0, 1, 0)
+    local yaw = math.deg(math.atan(f.x, -f.z))
+    local pitch = math.deg(math.asin(math.max(-1, math.min(1, f.y))))
+    local rr = q * Vector3f.new(1, 0, 0)
+    local roll = math.deg(math.atan(-rr.y, u.y))
+    return yaw, pitch, roll
+end
+local function jl_pose(vr)
+    if not jl then return end
+    local q = safe(function() return vr:get_transform(0):to_quat() end)
+    local p = safe(function() return vr:get_position(0) end)
+    if q and type(q.w) == "number" then
+        local yaw, pitch, roll = ypr(q)
+        jl.pose(yaw, pitch, roll, p and p.x or 0, p and p.y or 0, p and p.z or 0)
+    end
+end
+local function jl_camera()
+    if not jl or not jl.is_on() then return end
+    local m = safe(function() return sdk.get_primary_camera():call("get_WorldMatrix") end)
+    local q = m and safe(function() return m:to_quat() end)
+    if q and type(q.w) == "number" then
+        local yaw, pitch, roll = ypr(q)
+        local p = safe(function() return m[3] end)
+        jl.camera(yaw, pitch, roll, p and p.x or 0, p and p.y or 0, p and p.z or 0)
+    end
+    jl.present()
+end
 local function r(slot) return arr:read_float(0x20 + slot * 4) end   -- 0x20 = element 0; the plugin checks it by the sentinel
 local function w(slot, v) arr:write_float(0x20 + slot * 4, v or 0.0) end
 local function wb(slot, b) w(slot, b and 1 or 0) end
@@ -208,6 +244,12 @@ local function buttons()
     local vr = _G.vrmod
     local live = vr and safe(function() return vr:is_hmd_active() and vr:is_using_controllers() end) == true
     wb(S_HMD, live)
+    if jl and live ~= jl_live then
+        jl_live = live
+        if live then jl.vr_on() else jl.vr_off() end
+        log.info(TAG .. " jitter recording " .. (live and "ON" or "OFF"))
+    end
+    if live then jl_pose(vr) end
     if not live then
         for s = S_LGRIP, S_RB do w(s, 0) end
         w(S_LGRIP_AXIS, -1); w(S_RGRIP_AXIS, -1)
@@ -264,6 +306,8 @@ re.on_pre_application_entry("UpdateHID", function()
     buttons()
     village_readings()
 end)
+
+re.on_application_entry("BeginRendering", function() jl_camera() end)   -- REFramework's "post" hook (RE2 note 2026-10-14)
 
 _G.visceral_re8_bridge = {
     ready = function() return arr ~= nil end,

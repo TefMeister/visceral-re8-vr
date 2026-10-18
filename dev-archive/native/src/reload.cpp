@@ -2,6 +2,7 @@
 // RE2: the magazine joint's LOCAL pose is written, after the gun's own animation, and never read back the same frame.
 #include "reload.h"
 #include "bridge.h"
+#include "ghosthand.h"
 #include "joints.h"
 #include "player.h"
 #include "rack.h"
@@ -326,6 +327,8 @@ void hand_checks() {
     if (!mag && !g_round_in_hand) return;
     if (!bridge::held(bridge::S_LGRIP)) {
         LOGI("%s reload: let go; it came within %.3f m of where it goes in (needs %.2f)", TAG, g_closest, dock_need());
+        ghosthand::value(g_round_in_hand ? "shell_closest_m" : "mag_closest_m", g_closest);
+        ghosthand::event(g_round_in_hand ? "shell" : "mag", "fail");
         g_closest = 99.0f;
         if (g_round_in_hand) { g_round_in_hand = false; shell_home(); LOGI("%s reload: round let go", TAG); return; }
         Quat wr;
@@ -346,11 +349,15 @@ void hand_checks() {
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
     if (mag) {
         set_state(St::INSERT, "brought to the gun");
+        ghosthand::value("mag_closest_m", d);
+        ghosthand::event("mag", "done");
         magazine_shown(true);
         LOGI("%s reload: insert at %.3f m (need %.2f)", TAG, d, dock_need());
     } else {
         g_round_in_hand = false;
         shell_home();
+        ghosthand::value("shell_closest_m", d);
+        ghosthand::event("shell", "done");
         insert_round();
     }
 }
@@ -435,6 +442,7 @@ void pouch_grab() {
         }
         capture_port(g_shell);
         g_round_in_hand = true;
+        ghosthand::event("shell", "start");
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s reload: a round in the left hand (carried %d)", TAG, player::reserve());
         return;
@@ -446,6 +454,7 @@ void pouch_grab() {
         return;
     }
     set_state(St::IN_HAND, "taken from the ammo spot");
+    ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
 }
 

@@ -23,5 +23,7 @@ bool needed();
 bool active();                // the left hand is on the slide / bolt / pump
 bool on_pump();
 float travel();               // 0 = rest, 1 = fully back
+void* slide_joint();          // this frame's slide / pump / bolt joint (ghosthand.cpp), or nullptr
+const char* part_name();      // "slide" | "pump" | "bolt"
 
 } // namespace vn::rack

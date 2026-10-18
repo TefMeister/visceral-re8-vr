@@ -23,6 +23,7 @@
 #include "bridge.h"
 #include "common.h"
 #include "haptics.h"
+#include "ghosthand.h"
 #include "handstate.h"
 #include "ik.h"
 #include "player.h"
@@ -70,7 +71,7 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
     param->functions->on_pre_application_entry("LateUpdateBehavior", []() { recoil::physics_point(); });
     // the gun's joints (magazine, slide) after its own animation, and again before drawing (the engine rewrites them)
     param->functions->on_post_application_entry("LateUpdateBehavior", []() { reload::late_point(); rack::late_point(); });
-    param->functions->on_post_application_entry("PrepareRendering", []() { reload::render_point(); rack::render_point(); });
+    param->functions->on_post_application_entry("PrepareRendering", []() { reload::render_point(); rack::render_point(); ghosthand::render_point(); });
     param->functions->on_pre_application_entry("BeginRendering", []() { reload::render_point(); rack::begin_render_point(); });
     return true;
 }
