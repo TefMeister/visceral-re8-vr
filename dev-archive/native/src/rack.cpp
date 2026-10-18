@@ -123,7 +123,7 @@ void click() {   // Andyalpa's chamber-open click (RE7 VR Reloaded), played on t
 float hand_dy() { return bridge::hand_pos(bridge::LEFT).y - bridge::hand_pos(bridge::RIGHT).y; }
 float clamp01(float v) { return std::fmax(0.0f, std::fmin(1.0f, v)); }
 
-// one frame of the bolt cycle while the hand is on it (no LT: the hand on the bolt is enough)
+// one frame of the bolt cycle while the hand is on it (LT only starts it, LG keeps it)
 void bolt_step() {
     const float turn_now = clamp01((hand_dy() - g_dy0) / BOLT_LIFT_M);
     const float want = clamp01((g_base - along_gun()) / RACK_PULL_M);
@@ -224,11 +224,13 @@ void frame() {
         // Tefa 2026-10-18: "suppress weapon docking on the handle when the slide needs racking": with a rack due, the left
         // grip held near the gun always takes the slide (our IK target wins over the VR layer's grip dock); with none due
         // the hand is never put on the slide (may_rack above), so the grip dock is left alone
-        const bool want = pump() ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;
+        // pump and bolt: LG held + one LT press near it starts the cycle (Tefa 2026-10-19: "LT needs to be pressed once not even
+        // held throughout, but it is needed for a cleaner sequence"); the slide: LG alone
+        const bool want = (pump() || bolt()) ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;
         if (want) {
             float off = 99.0f;
             const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
-            if (g_log_near < 30 && (pump() || bridge::pressed(bridge::S_LGRIP) || is_near)) {
+            if (g_log_near < 30 && (pump() || bolt() || bridge::pressed(bridge::S_LGRIP) || is_near)) {
                 ++g_log_near;
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
                 LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,

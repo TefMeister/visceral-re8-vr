@@ -159,3 +159,5 @@ Magazine and shell inserts, the trigger block and the pump all work `[verified-l
 ## 01:05 Tefa, how the F2 bolt must work, after every round: "turn the bolt up, pull backwards, then a gun click sound must play to signify that i can now push the bolt back forward and then back down to lock it in"
 
 Plugin `0294722e` (01:10, unworn): a bolt cycle is due after every shot (trigger refused until then) and after a dry reload. Taking the bolt with LG is enough (no LT). Steps: the left hand lifted 5 cm against the right turns it up (the Slide joint turns 60 degrees about the barrel, sign a guess); pulled back to the end = Andyalpa's chamber-open click (RE7 VR Reloaded, `sfx/bolt_click.wav`, played with PlaySound) + buzz; pushed home; the hand lowered 5 cm turns it down = locked, done. Let go mid-cycle, it stays at that step. Turns are read from hand height, not controller rotation (those readings jumped).
+
+Tefa, the same minute: "please make LT part of it still, so only LG on it's own does not start it, just like with the shotgun. LT needs to be pressed once". The bolt now starts on LG held + one LT press near it; LG alone keeps it going.
