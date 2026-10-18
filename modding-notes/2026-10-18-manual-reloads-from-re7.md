@@ -163,3 +163,5 @@ Plugin `0294722e` (01:10, unworn): a bolt cycle is due after every shot (trigger
 Tefa, the same minute: "please make LT part of it still, so only LG on it's own does not start it, just like with the shotgun. LT needs to be pressed once". The bolt now starts on LG held + one LT press near it; LG alone keeps it going.
 
 Then: "so the left grip must already grip it and hold on, but not move the bolt until LT is pressed". Now LG near the bolt puts the hand on it and holds; nothing moves until one LT press arms it (baselines taken at that press).
+
+And: "same with every weapon". Plugin `b78edd21` (01:20, unworn): slide, pump and bolt all take hold on LG near their joint and hold the hand there; one LT press arms the movement; LT need not be held. The pump no longer springs back on LT release: it is pushed back up by hand (let go mid-way, it stays back). The pistol slide still flies forward when LG is let go after a full pull.

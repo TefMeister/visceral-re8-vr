@@ -93,6 +93,10 @@ void complete() {
 void hand_off(const char* why) {
     if (!g_hand_on) return;
     g_hand_on = g_armed = g_capture = g_rel_ok = false;
+    if (pump() && g_pulled && g_travel > 0.10f) {   // a pump let go before it is pushed back up stays there
+        LOGI("%s rack: hand off the pump (%s): it stays back, push it up to finish", TAG, why);
+        return;
+    }
     if (bolt()) {   // a bolt let go mid-cycle stays where it is (turned / open) until the hand takes it again
         if (g_bstate != 0 || g_turn > 0.0f) LOGI("%s rack: hand off the bolt (%s): it stays at step %d", TAG, why, g_bstate);
         else g_turn = 0.0f;
@@ -226,11 +230,12 @@ void frame() {
         // the hand is never put on the slide (may_rack above), so the grip dock is left alone
         // pump and bolt: LG held + one LT press near it starts the cycle (Tefa 2026-10-19: "LT needs to be pressed once not even
         // held throughout, but it is needed for a cleaner sequence"); the slide: LG alone
-        const bool want = pump() ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;   // the bolt: LG takes hold, LT then arms it
+        // Tefa 2026-10-19, for every weapon: "the left grip must already grip it and hold on, but not move ... until LT is pressed"
+        const bool want = lg;
         if (want) {
             float off = 99.0f;
             const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
-            if (g_log_near < 30 && (pump() || bolt() || bridge::pressed(bridge::S_LGRIP) || is_near)) {
+            if (g_log_near < 30 && (bridge::pressed(bridge::S_LGRIP) || is_near)) {
                 ++g_log_near;
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
                 LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
@@ -264,7 +269,7 @@ void frame() {
         return;
     }
     if (g_hand_on) {
-        if (!g_armed && lt && (pump() || bridge::pressed(bridge::S_LTRIG))) {
+        if (!g_armed && bridge::pressed(bridge::S_LTRIG)) {   // one LT press arms it; LT need not be held
             g_armed = true;
             g_axis = controller_fwd();
             // long guns: the left hand sits ahead on the barrel, so the barrel runs from the right hand to it
@@ -273,13 +278,11 @@ void frame() {
             if (g_w->shape == weapons::Shape::LONG && len > 0.10f) g_axis = v * (1.0f / len);
             g_base = along_gun();
             g_max_pull = 0.0f;
+            if (pump() && g_pulled) g_max_pull = (1.0f - g_travel) * RACK_RETURN_M;   // a pump left back carries on from there
         }
         if (!play) hand_off("cutscene / hands not free");
         else if (lock) { /* "hold this pose": the hand stays on, whatever the buttons do */ }
-        else if (pump() && g_pulled && !lt && g_auto != 2) { g_auto = 2; g_auto_t0 = now_s(); }
-        else if (pump() && !g_pulled && !lt) hand_off("LT let go before the handle was back");
-        else if (!lg) hand_off(g_pulled ? "LG let go: it goes forward" : "LG let go");
-        else if (!pump() && !g_pulled && g_armed && !lt) g_armed = false;
+        else if (!lg) hand_off(g_pulled && !pump() ? "LG let go: it goes forward" : "LG let go");
     }
 
     if (g_hand_on && g_armed && g_auto == 2) {
@@ -298,7 +301,7 @@ void frame() {
             bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: pulled back (%.3f m)", TAG, pulled);
         }
-        if (pump() && g_pulled && lt && g_travel <= 0.10f) { g_spent = true; hand_off("pumped back by hand"); }
+        if (pump() && g_pulled && g_travel <= 0.10f) hand_off("pumped back up by hand");
     } else if (!g_pulled && g_travel > 0.0f) {
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }
