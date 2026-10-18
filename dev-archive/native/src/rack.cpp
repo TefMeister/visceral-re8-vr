@@ -55,7 +55,8 @@ bool on_gun_line(float& off) {
     const float ahead = v.x * fwd.x + v.y * fwd.y + v.z * fwd.z;
     const Vec3 side = v - fwd * ahead;
     off = std::sqrt(side.x * side.x + side.y * side.y + side.z * side.z);
-    return ahead >= -RACK_GRAB_BEHIND_M && ahead <= RACK_GRAB_AHEAD_MAX_M && off <= RACK_GRAB_M;
+    if (ahead >= -RACK_GRAB_BEHIND_M && ahead <= RACK_GRAB_AHEAD_MAX_M && off <= RACK_GRAB_M) return true;
+    return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT)) <= RACK_GRAB_ANY_M;   // the line may be off (2026-10-18)
 }
 
 void complete() {
@@ -129,7 +130,12 @@ void frame() {
         if (want) {
             float off = 99.0f;
             const bool near = on_gun_line(off);
-            if (g_log_near < 30) { ++g_log_near; LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s", TAG, off, RACK_GRAB_M, near ? "HAND ON" : "too far"); }
+            if (g_log_near < 30) {
+                ++g_log_near;
+                const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
+                LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
+                     RACK_GRAB_M, near ? "HAND ON" : "too far", f.x, f.y, f.z, v.x, v.y, v.z);
+            }
             if (near) {
                 g_hand_on = g_capture = true;
                 g_pulled = g_armed = g_rel_ok = false;
@@ -141,6 +147,10 @@ void frame() {
         if (!g_armed && lt && (pump() || bridge::pressed(bridge::S_LTRIG))) {
             g_armed = true;
             g_axis = controller_fwd();
+            // long guns: the left hand sits ahead on the barrel, so the barrel runs from the right hand to it
+            const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
+            const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+            if (g_w->shape == weapons::Shape::LONG && len > 0.10f) g_axis = v * (1.0f / len);
             g_base = along_gun();
             g_max_pull = 0.0f;
         }

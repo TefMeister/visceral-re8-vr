@@ -115,12 +115,9 @@ bool held_pose(Vec3& pos, Quat& rot) {   // the magazine in the left hand: the h
 }
 
 // ---- where things go in, in the room: at the gun hand (pistols) or ahead of it along the barrel (long guns) ----------
-float dock_dist() {
-    const Vec3 l = bridge::hand_pos(bridge::LEFT), r = bridge::hand_pos(bridge::RIGHT);
-    if (g_w->shape == weapons::Shape::PISTOL) return dist(l, r);
-    const Vec3 fwd = rotate(bridge::view_quat(bridge::S_RROT), Vec3{0, 0, -1});   // OpenXR: a controller points along -Z
-    return dist(l, r + fwd * DOCK_LONG_AHEAD_M);
-}
+// 2026-10-18 headset run: the point "0.20 m ahead along the barrel" from the controller's turn landed 0.4-0.9 m from
+// Tefa's hand, so long guns now use the plain distance between the two controllers too, with a wider reach
+float dock_dist() { return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT)); }
 float dock_need() { return g_w->shape == weapons::Shape::PISTOL ? DOCK_PISTOL_M : DOCK_LONG_M; }
 
 // ---- ammo ------------------------------------------------------------------------------------------------------------
@@ -184,7 +181,7 @@ int mag_part() {
 }
 void mag_part_shown(bool show) {
     const int part = mag_part();
-    auto* go = call_ptr(g_gun, "get_GameObject");
+    auto* go = call_ptr(g_wtf, "get_GameObject");   // the gun's owner object (player.cpp)
     auto* mesh = component(go, "via.render.Mesh");
     auto* m = player::overload(mesh, "setPartsEnable", 2);
     static MO* told = nullptr;

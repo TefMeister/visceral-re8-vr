@@ -97,8 +97,14 @@ void refresh() {
         s.gun = gun_of(s.weapon);
         s.weapon_id = weapon_id_raw(s.weapon);
         s.tf = call_ptr(s.go, "get_Transform");
-        s.weapon_tf = call_ptr(call_ptr(s.gun != nullptr ? s.gun : s.weapon, "get_GameObject"), "get_Transform");
-        s.inventory = comp(s.go, "app.Inventory");
+        // Village: a gun is an item (app.ItemCore), not a component: its GameObject is its owner (Agent.get_owner), and the
+        // player's inventory is InventoryManager.get_activeInventory (headset run 2026-10-18: both read "NOT FOUND" before)
+        MO* wgo = s.gun != nullptr ? call_ptr(s.gun, "get_owner") : nullptr;
+        if (wgo == nullptr) wgo = field_obj(s.gun, "<owner>k__BackingField");
+        if (wgo == nullptr) wgo = call_ptr(s.weapon, "get_GameObject");
+        s.weapon_tf = call_ptr(wgo, "get_Transform");
+        s.inventory = call_ptr(API::get()->get_managed_singleton("app.InventoryManager"), "get_activeInventory");
+        if (s.inventory == nullptr) s.inventory = comp(s.go, "app.Inventory");
     }
     g_now = s;
 }

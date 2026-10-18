@@ -94,3 +94,17 @@ showed it; the ammo spot DID register the left grip, but every gun read "carried
 - no joint list: `get_Joints` had no `get_Length`; now `get_Count` / `get_Item` (Andyalpa's RE7 scan), with the magazine
   part number on the same line.
 - the game asks `tryReload` every frame (4,750 skips in a minute): logged every 2,000 now.
+
+## 23:16 second and third headset runs: "the mag still doesn't come out with B"
+
+The checks named it `[verified-live 2026-10-18, n=1]`: `gun transform NOT FOUND`, `gun object none`, `inventory NOT FOUND`.
+In Village a gun is an item (`app.WeaponGunCore` -> ... -> `app.ItemCore` -> `app.Agent`), not a component, so it has no
+`get_GameObject`: its object is its owner (`Agent.get_owner`). The player's inventory is not a component either:
+`InventoryManager.get_activeInventory`. Both fixed in `player.cpp` (plugin `9025da76`, 23:25, unworn); the magazine part
+hide, the joint list and the carried-ammo reading all depended on them. The bullet item ids did read (LEMI 1179972000,
+M1897 1731811000).
+
+Shells: the "0.20 m ahead along the barrel" point from the controller's turn came out 0.37-0.86 m from Tefa's hand, so long
+guns now dock by the plain distance between the controllers (0.35 m; pistols 0.20 m). Racking also takes hold within
+0.30 m of the right controller, long guns pull along the line from the right hand to the left, and every grab attempt
+logs the gun line it used, to check the controller-turn reading.
