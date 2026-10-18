@@ -75,7 +75,7 @@ void resolve_frame() {
     const auto& s = player::now();
     g_gun = s.gun;
     g_wtf = s.weapon_tf;
-    g_joint = (MAG_JOINT_ANIMATE && g_w != nullptr && g_w->reload == Reload::MAG && g_wtf) ? joint_by_name(g_wtf, L"_04") : nullptr;
+    g_joint = (MAG_JOINT_ANIMATE && g_w != nullptr && g_w->reload == Reload::MAG && g_wtf) ? joint_by_name(g_wtf, L"Magazine") : nullptr;   // Village names its gun joints (headset log 2026-10-18)
     g_hand = nullptr;
     for (const wchar_t* n : {L"l_arm_wrist", L"L_Hand", L"l_hand"}) {
         if ((g_hand = joint_by_name(s.tf, n)) != nullptr) {
@@ -223,10 +223,12 @@ void pose_joint() {
         return;
     }
     case St::OUT:
+        mag_part_shown(false);
         write_scale(Vec3{0, 0, 0});
         write_local(g_rest_pos, g_rest_rot);
         return;
     case St::IN_HAND: {
+        mag_part_shown(true);
         Vec3 wp, lp;
         Quat wr, lr;
         if (!held_pose(wp, wr) || !to_weapon_local(wp, wr, lp, lr)) return;
@@ -427,9 +429,9 @@ void frame() {
         g_w = weapons::find(id);
         resolve_frame();
         if (!id.empty()) {
-            LOGI("%s weapon: %s (%s)%s, magazine part %s", TAG, id.c_str(), weapons::name(id), g_w == nullptr ? "" :
+            LOGI("%s weapon: %s (%s)%s, magazine joint %s", TAG, id.c_str(), weapons::name(id), g_w == nullptr ? "" :
                  g_w->reload == Reload::MAG ? ": manual magazine" : g_w->reload == Reload::ROUND ? ": single rounds" : ": no reload",
-                 g_joint != nullptr ? "_04 found" : "not found");
+                 g_joint != nullptr ? "found" : "not found");
             static std::string seen;
             if (seen.find("|" + id + "|") == std::string::npos) { seen += "|" + id + "|"; log_joints(); }
             player::probe_types();
@@ -472,12 +474,12 @@ void late_point() {
     if (!managed_now()) return;
     hand_checks();
     if (g_w->reload == Reload::MAG) pose_joint();
-    if (mag_out() && g_st != St::INSERT) hide_mag_part();
+    if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }
 
 void render_point() {
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
-    if (mag_out() && g_st != St::INSERT) hide_mag_part();
+    if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }
 
 } // namespace vn::reload

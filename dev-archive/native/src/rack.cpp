@@ -108,10 +108,12 @@ void frame() {
         g_log_near = 0;
     }
     const auto& s = player::now();
-    g_joint = (g_w != nullptr && s.weapon_tf != nullptr) ? joint_by_name(s.weapon_tf, L"_01") : nullptr;
+    g_joint = nullptr;   // Village names its gun joints (headset log 2026-10-18: LEMI and F2 have "Slide")
+    if (g_w != nullptr && s.weapon_tf != nullptr)
+        for (const wchar_t* n : {L"Slide", L"Pump", L"Forend", L"Bolt"}) if ((g_joint = joint_by_name(s.weapon_tf, n)) != nullptr) break;
     if (g_joint != nullptr && !g_have_rest && get_v3(JOINT, g_joint, "get_LocalPosition", g_rest)) {
         g_have_rest = true;
-        LOGI("%s rack: %s joint _01 rests at local %.3f %.3f %.3f (moved as the %s)", TAG, g_id.c_str(), g_rest.x, g_rest.y, g_rest.z, part());
+        LOGI("%s rack: %s %s joint rests at local %.3f %.3f %.3f", TAG, g_id.c_str(), part(), g_rest.x, g_rest.y, g_rest.z);
     }
     if (g_w == nullptr || s.gun == nullptr || !bridge::live()) { hand_off("no gun / no headset"); return; }
 

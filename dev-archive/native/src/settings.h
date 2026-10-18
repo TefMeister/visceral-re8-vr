@@ -68,7 +68,7 @@ constexpr float RELOAD_MAG_DROP_M = 0.09f;       // how far below its seat the m
 constexpr float RELOAD_DOCK_COOLDOWN_SEC = 0.35f;
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
-constexpr float DOCK_PISTOL_M = 0.20f;           // left controller this close to the right one = in (0.13 never reached in
+constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in
                                                  // the headset, 2026-10-18: the controllers' rings meet before that)
 constexpr float DOCK_LONG_AHEAD_M = 0.20f;       // long guns: the magwell / loading port this far ahead along the barrel
 constexpr float DOCK_LONG_M = 0.35f;             // long guns: the left controller this close to the right one = in
@@ -80,7 +80,7 @@ constexpr float RELOAD_DENY_BUZZ_AMP = 0.2f, RELOAD_DENY_BUZZ_SEC = 0.15f;
 constexpr float RELOAD_BUZZ_HZ = 160.0f;
 // the magazine drop / in-hand animation on joint "_04" (RE2 / RE7's magazine name): off until a joint log shows which
 // Village joint is the magazine; the gun's own switchMagazineDisp hides it meanwhile
-constexpr bool MAG_JOINT_ANIMATE = false;
+constexpr bool MAG_JOINT_ANIMATE = true;    // on since 2026-10-18 23:30: the joint is named "Magazine"
 constexpr int JOINT_LOG_MAX = 40;                // joints of a newly held gun written to the log, at most
 // the hold of a magazine in the left hand (Andyalpa's RE7 handgun hold; Village's own is for Tefa's poses to decide)
 constexpr float MAG_HOLD[6] = {0.104f, -0.039f, 0.053f, 100.5f, -11.5f, 131.5f};   // offset (m), yaw / pitch / roll (deg)

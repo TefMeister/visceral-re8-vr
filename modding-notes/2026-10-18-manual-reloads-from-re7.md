@@ -108,3 +108,16 @@ Shells: the "0.20 m ahead along the barrel" point from the controller's turn cam
 guns now dock by the plain distance between the controllers (0.35 m; pistols 0.20 m). Racking also takes hold within
 0.30 m of the right controller, long guns pull along the line from the right hand to the left, and every grab attempt
 logs the gun line it used, to check the controller-turn reading.
+
+## 23:20 run: the ammo works -- "the mag came out ... disappeared, ... no actual mag [in the hand], but when i put my hand close to the pistol handle the bullets loaded in"
+
+`[verified-live 2026-10-18, n=1]`: B emptied the LEMI (9 rounds kept), the carried count read right (68; the bools change it
+to 77 with the first one true: the second count includes something more, ff is used), the magazine went in at 0.199 m and
+the game's own `reload()` topped it up (9 -> 10, carried 68 -> 67). The joint list finally printed, and **Village names its
+gun joints**: LEMI `root, Body, Magazine, Bullet, Slide, Hammer, Trigger, vfx_muzzle, vfx_muzzle2, Cartridge,
+Magazine_second`; F2 Rifle `root, Body, Magazine, Slide, Trigger, vfx_muzzle, Cartridge`. The magazine mesh part is 1 on
+the LEMI (-1 = none on the F2). +Y is up and +Z forward in the gun's frame (the slide sits above, the muzzle ahead).
+Next build (plugin built 23:35, installed when the game is closed): the magazine joint is `Magazine` (slides out, falls,
+rides in the left hand on the hold), the part is hidden only once it is on the floor, the rack moves `Slide` (then `Pump`,
+`Forend`, `Bolt`), the pistol dock is 0.24 m (two of three tries stopped at 0.43). No rack was tried: it only takes hold on
+an empty / locked-open gun or with "Hold this pose" on (Tefa's RE2 rule).
