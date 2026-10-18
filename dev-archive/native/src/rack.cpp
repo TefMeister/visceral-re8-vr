@@ -9,6 +9,10 @@
 #include "settings.h"
 #include "weapons.h"
 
+#include <windows.h>
+#include <mmsystem.h>
+
+#include <filesystem>
 #include <string>
 
 namespace vn::rack {
@@ -41,6 +45,12 @@ float g_z_anim = 0.0f;
 bool g_rel_ok = false;
 Vec3 g_rel_pos{};
 Quat g_rel_rot{0, 0, 0, 1};
+Quat g_rest_rot{0, 0, 0, 1};
+
+// the bolt cycle: 0 locked, 1 turned up, 2 pulled back (clicked), 3 pushed home (still up); turned down from 3 = done
+int g_bstate = 0;
+float g_turn = 0.0f;          // 0 = down / locked, 1 = up
+float g_dy0 = 0.0f;           // left - right height that counts as "turn 0" (set when the hand takes hold)
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
 bool pump() { return g_w != nullptr && g_w->pump; }
@@ -83,8 +93,9 @@ void complete() {
 void hand_off(const char* why) {
     if (!g_hand_on) return;
     g_hand_on = g_armed = g_capture = g_rel_ok = false;
-    if (g_pulled && bolt() && g_travel > 0.10f) {   // a bolt let go before it was pushed home stays open there
-        LOGI("%s rack: hand off the bolt (%s): it stays open at %.0f%%, push it forward to finish", TAG, why, g_travel * 100.0f);
+    if (bolt()) {   // a bolt let go mid-cycle stays where it is (turned / open) until the hand takes it again
+        if (g_bstate != 0 || g_turn > 0.0f) LOGI("%s rack: hand off the bolt (%s): it stays at step %d", TAG, why, g_bstate);
+        else g_turn = 0.0f;
         return;
     }
     if (g_pulled) { g_pulled = false; g_travel = 0.0f; complete(); }
@@ -92,9 +103,66 @@ void hand_off(const char* why) {
 }
 
 void write_joint() {
-    if (g_joint == nullptr || !g_have_rest || !(g_hand_on || g_travel > 0.0f || g_hold_closed)) return;
+    if (g_joint == nullptr || !g_have_rest || !(g_hand_on || g_travel > 0.0f || g_turn > 0.0f || g_hold_closed)) return;
     Vec3 p{g_rest.x, g_rest.y, z_now()};
     set_any(JOINT, g_joint, "set_LocalPosition", &p);
+    if (bolt()) {   // the bolt turns about the barrel (local Z) as it is lifted
+        const float h = BOLT_TURN_DEG * g_turn * 3.14159265f / 360.0f;
+        Quat q = qnorm(qmul(g_rest_rot, Quat{0, 0, std::sin(h), std::cos(h)}));
+        set_any(JOINT, g_joint, "set_LocalRotation", &q);
+    }
+}
+
+void click() {   // Andyalpa's chamber-open click (RE7 VR Reloaded), played on the PC's sound
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    const auto f = std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "sfx" / "bolt_click.wav";
+    PlaySoundW(f.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
+}
+
+float hand_dy() { return bridge::hand_pos(bridge::LEFT).y - bridge::hand_pos(bridge::RIGHT).y; }
+float clamp01(float v) { return std::fmax(0.0f, std::fmin(1.0f, v)); }
+
+// one frame of the bolt cycle while the hand is on it (no LT: the hand on the bolt is enough)
+void bolt_step() {
+    const float turn_now = clamp01((hand_dy() - g_dy0) / BOLT_LIFT_M);
+    const float want = clamp01((g_base - along_gun()) / RACK_PULL_M);
+    switch (g_bstate) {
+    case 0:
+        g_turn = turn_now;
+        if (g_turn >= 0.95f) { g_bstate = 1; g_turn = 1.0f; LOGI("%s rack: bolt turned up", TAG); }
+        break;
+    case 1:
+        g_travel += (want - g_travel) * RACK_FOLLOW;
+        if (g_travel >= 0.97f) {
+            g_bstate = 2;
+            g_pulled = true;
+            click();
+            bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s rack: bolt back (click): push it forward", TAG);
+        }
+        break;
+    case 2:
+        g_travel += (want - g_travel) * RACK_FOLLOW;
+        if (g_travel <= BOLT_HOME) {
+            g_bstate = 3;
+            g_travel = 0.0f;
+            g_dy0 = hand_dy() - BOLT_LIFT_M;   // from here, lowering the hand turns it down
+            LOGI("%s rack: bolt home: turn it down to lock", TAG);
+        }
+        break;
+    case 3:
+        g_turn = turn_now;
+        if (g_turn <= BOLT_DONE) {
+            g_bstate = 0;
+            g_turn = 0.0f;
+            g_pulled = false;
+            g_hand_on = g_armed = g_capture = g_rel_ok = false;
+            complete();
+            LOGI("%s rack: bolt locked", TAG);
+        }
+        break;
+    }
 }
 } // namespace
 
@@ -120,6 +188,8 @@ void frame() {
         g_needed = g_parked = g_hand_on = g_armed = g_pulled = g_spent = g_hold_closed = g_have_rest = g_capture = g_rel_ok = false;
         g_auto = 0;
         g_travel = 0.0f;
+        g_bstate = 0;
+        g_turn = 0.0f;
         g_last_loaded = -1;
         g_log_near = 0;
     }
@@ -131,6 +201,7 @@ void frame() {
             if ((g_joint = joint_by_name(s.weapon_tf, n)) != nullptr) break;
     if (g_joint != nullptr && !g_have_rest && get_v3(JOINT, g_joint, "get_LocalPosition", g_rest)) {
         g_have_rest = true;
+        if (!get_q(JOINT, g_joint, "get_LocalRotation", g_rest_rot)) g_rest_rot = Quat{0, 0, 0, 1};
         LOGI("%s rack: %s %s joint rests at local %.3f %.3f %.3f", TAG, g_id.c_str(), part(), g_rest.x, g_rest.y, g_rest.z);
     }
     if (g_w == nullptr || s.gun == nullptr || !bridge::live()) { hand_off("no gun / no headset"); return; }
@@ -140,13 +211,13 @@ void frame() {
     if (g_hold_closed && shot) g_hold_closed = false;   // a shot
     // Tefa 2026-10-19: "pump handle pumping doesn't work, game still does that automatically": a pump gun now needs the
     // pump after every shot; its remaining shells wait in reload.cpp until then (the game's own pump motion still plays)
-    if (pump() && shot && loaded > 0 && !g_needed) need("pumped after the shot");   // the trigger waits (reload.cpp)
+    if ((pump() || bolt()) && shot && loaded > 0 && !g_needed) need(pump() ? "pumped after the shot" : "the bolt after the shot");   // the trigger waits (reload.cpp)
     g_last_loaded = loaded;
     if (!pump() && !g_parked && !reload::mag_out() && loaded == 0) { g_parked = true; LOGI("%s rack: %s empty: it can be racked", TAG, g_id.c_str()); }
 
     const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     const bool lg = bridge::held(bridge::S_LGRIP), lt = bridge::held(bridge::S_LTRIG), lock = pose_lock();
-    const bool may_rack = pump() || g_parked || g_needed || lock || (bolt() && g_pulled);   // an open bolt can always be taken
+    const bool may_rack = pump() || g_parked || g_needed || lock || (bolt() && (g_bstate != 0 || g_turn > 0.0f));   // a bolt mid-cycle can always be taken
     if (!lt) g_spent = false;
 
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
@@ -156,19 +227,34 @@ void frame() {
         const bool want = pump() ? (lg && bridge::pressed(bridge::S_LTRIG)) : lg;
         if (want) {
             float off = 99.0f;
-            const bool near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
-            if (g_log_near < 30 && (pump() || bridge::pressed(bridge::S_LGRIP) || near)) {
+            const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
+            if (g_log_near < 30 && (pump() || bridge::pressed(bridge::S_LGRIP) || is_near)) {
                 ++g_log_near;
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
                 LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
-                     RACK_GRAB_M, near ? "HAND ON" : "too far", f.x, f.y, f.z, v.x, v.y, v.z);
+                     RACK_GRAB_M, is_near ? "HAND ON" : "too far", f.x, f.y, f.z, v.x, v.y, v.z);
             }
-            if (near) {
+            if (is_near && bolt()) {
+                g_hand_on = g_capture = g_armed = true;
+                g_rel_ok = false;
+                const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
+                const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+                g_axis = len > 0.10f ? v * (1.0f / len) : controller_fwd();
+                g_base = along_gun() + g_travel * RACK_PULL_M;            // the travel carries on from where the bolt is
+                g_dy0 = hand_dy() - g_turn * BOLT_LIFT_M;                 // and so does the turn
+                bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            } else if (is_near) {
                 g_hand_on = g_capture = true;
                 g_pulled = g_armed = g_rel_ok = false;
                 bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             }
         }
+    }
+    if (g_hand_on && bolt()) {
+        if (!play) hand_off("cutscene / hands not free");
+        else if (!lg && !lock) hand_off("LG let go");
+        else bolt_step();
+        return;
     }
     if (g_hand_on) {
         if (!g_armed && lt && (pump() || bridge::pressed(bridge::S_LTRIG))) {
@@ -180,7 +266,6 @@ void frame() {
             if (g_w->shape == weapons::Shape::LONG && len > 0.10f) g_axis = v * (1.0f / len);
             g_base = along_gun();
             g_max_pull = 0.0f;
-            if (bolt() && g_pulled) g_max_pull = (1.0f - g_travel) * RACK_RETURN_M;   // an open bolt carries on from where it is
         }
         if (!play) hand_off("cutscene / hands not free");
         else if (lock) { /* "hold this pose": the hand stays on, whatever the buttons do */ }
@@ -199,7 +284,7 @@ void frame() {
         g_max_pull = std::fmax(g_max_pull, pulled);
         const float want = !g_pulled ? std::fmax(0.0f, std::fmin(1.0f, pulled / RACK_PULL_M))
                                      : std::fmax(0.0f, std::fmin(1.0f, 1.0f - (g_max_pull - pulled) / RACK_RETURN_M));
-        if (pump() || bolt() || !g_pulled) g_travel += (want - g_travel) * RACK_FOLLOW;
+        if (pump() || !g_pulled) g_travel += (want - g_travel) * RACK_FOLLOW;
         else g_travel = 1.0f;
         if (!g_pulled && g_travel >= 0.97f) {
             g_pulled = true;
@@ -207,7 +292,6 @@ void frame() {
             LOGI("%s rack: pulled back (%.3f m)", TAG, pulled);
         }
         if (pump() && g_pulled && lt && g_travel <= 0.10f) { g_spent = true; hand_off("pumped back by hand"); }
-        if (bolt() && g_pulled && g_travel <= 0.10f) hand_off("bolt pushed home");
     } else if (!g_pulled && g_travel > 0.0f) {
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }

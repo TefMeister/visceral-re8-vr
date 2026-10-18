@@ -100,6 +100,13 @@ constexpr float RACK_FOLLOW = 0.92f;             // the slide follows the hand b
 constexpr float RACK_SPRING_STEP = 0.2f;         // let go mid-way: travel lost per frame as it springs back
 constexpr float PUMP_RETURN_SEC = 0.2f;          // the pump handle returning by itself after LT is let go
 constexpr float RACK_BUZZ_AMP = 0.45f, RACK_BUZZ_SEC = 0.05f;
+// the bolt action (Tefa 2026-10-19: "turn the bolt up, pull backwards, then a gun click sound must play to signify that i can
+// now push the bolt back forward and then back down to lock it in", after every round): the turns are read from the left
+// hand going up / down against the right one (the controllers' turn readings jumped around, 2026-10-19)
+constexpr float BOLT_LIFT_M = 0.05f;             // the left hand this much higher than where it took hold = bolt turned up
+constexpr float BOLT_TURN_DEG = 60.0f;           // how far the bolt joint turns about the barrel when up (sign: a guess)
+constexpr float BOLT_HOME = 0.08f;               // travel at or under this = pushed home
+constexpr float BOLT_DONE = 0.08f;               // turn at or under this (after home) = locked
 constexpr float SLIDE_BACK_M = -0.045f;          // the slide joint fully back, local Z from rest (when the joint is known)
 constexpr float PUMP_BACK_M = -0.080f;
 

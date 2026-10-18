@@ -155,3 +155,7 @@ Closest this time 0.349 / 0.418 m (vs 0.138 / 0.107 the run before): the check r
 ## 00:57 run: "yep all work now, but the bolt action needs manually pushing back up, not let go and it snaps back like the pistol slider"
 
 Magazine and shell inserts, the trigger block and the pump all work `[verified-live 2026-10-19, Tefa]`. Plugin `4c63cbaf` (01:02, unworn): the F2 rifles are bolt actions (`weapons.cpp` bolt): the bolt follows the hand both ways once pulled, finishes only when pushed home (travel <= 10%), and if let go before that it stays open where it is and can be taken again from there.
+
+## 01:05 Tefa, how the F2 bolt must work, after every round: "turn the bolt up, pull backwards, then a gun click sound must play to signify that i can now push the bolt back forward and then back down to lock it in"
+
+Plugin `0294722e` (01:10, unworn): a bolt cycle is due after every shot (trigger refused until then) and after a dry reload. Taking the bolt with LG is enough (no LT). Steps: the left hand lifted 5 cm against the right turns it up (the Slide joint turns 60 degrees about the barrel, sign a guess); pulled back to the end = Andyalpa's chamber-open click (RE7 VR Reloaded, `sfx/bolt_click.wav`, played with PlaySound) + buzz; pushed home; the hand lowered 5 cm turns it down = locked, done. Let go mid-cycle, it stays at that step. Turns are read from hand height, not controller rotation (those readings jumped).
