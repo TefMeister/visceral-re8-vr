@@ -28,6 +28,9 @@ local S_CAN_USE_HANDS, S_IS_RELOADING, S_AIMING, S_RECOIL_FLAGS = 57, 58, 59, 60
 -- reload.cpp / rack.cpp (2026-10-18)
 local S_LROT, S_RROT, S_CAM_POS, S_CAM_ROT = 64, 68, 72, 75
 local S_IN_AMMO_ZONE, S_CUTSCENE, S_RELOAD_BUSY, S_HAND_STATE, S_POSE_LOCK = 79, 80, 81, 82, 83
+local S_HUD_PING = 87     -- the plugin bumps it after an ammo change: refresh the game's remaining-ammo display
+local REMAIN_AMMO_GUI = 1927694450   -- Andyalpa's ETHAN_REMAIN_AMMO_HASH (re8_vr_ammo_hud.lua)
+local hud_ping_seen = 0
 local S_SLIDE_HAND = 84   -- x, y, z: the hand on the slide, nudged in cm (gun axes: right, up, forward), saved below
 local SLIDE_HAND_FILE = "visceral_re8/slide_hand.json"
 local slide_hand = { x = 0.0, y = 0.0, z = 0.0 }
@@ -175,6 +178,29 @@ local function village_readings()
     wb(S_CUTSCENE, re8vr and re8vr.is_in_cutscene == true)
     wb(S_POSE_LOCK, pose_lock)
     w(S_SLIDE_HAND, slide_hand.x); w(S_SLIDE_HAND + 1, slide_hand.y); w(S_SLIDE_HAND + 2, slide_hand.z)
+    -- 2026-10-19: the rifle showed 0/0 after a reload until the trigger was pulled. Do what the game's own HUD code does on
+    -- a change: apply the remaining-ammo driver to its UI and ask its order to show the remaining ammo.
+    local ping = r(S_HUD_PING)
+    if ping ~= hud_ping_seen then
+        hud_ping_seen = ping
+        pcall(function()
+            local gm = sdk.get_managed_singleton("app.GUIManager")
+            local h = gm and gm:call("findGUI", REMAIN_AMMO_GUI)
+            local drv = h and h:call("get_driver")
+            if not drv then return end
+            pcall(function() drv:call("applyToUI") end)
+            local order = nil
+            pcall(function() order = drv:call("get_order") end)
+            if not order then pcall(function() order = drv:get_field("guiOrder") end) end
+            if order then
+                pcall(function() order:call("cancelHide") end)
+                local mode, item = nil, nil
+                pcall(function() mode = drv:call("get_mode") end)
+                pcall(function() item = drv:call("get_itemID") end)
+                if mode ~= nil and item ~= nil then pcall(function() order:call("showRemainAmmo", mode, item) end) end
+            end
+        end)
+    end
     rawset(_G, "__visceral_reload_busy", attached and r(S_RELOAD_BUSY) == 1.0 or nil)
 end
 

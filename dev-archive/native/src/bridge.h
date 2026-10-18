@@ -51,7 +51,8 @@ enum Slot : int {
     S_RELOAD_BUSY = 81,       // WRITTEN BY THE PLUGIN: 1 = a reload / rack in the left hand (our re8_vr.lua then skips the block pose)
     S_HAND_STATE = 82,        // WRITTEN BY THE PLUGIN: handstate.h code of the left hand, for the menu
     S_POSE_LOCK = 83,         // WRITTEN BY THE LUA MENU: 1 = "hold this pose"
-    S_SLIDE_HAND_X = 84, S_SLIDE_HAND_Y = 85, S_SLIDE_HAND_Z = 86,   // WRITTEN BY THE LUA MENU: the hand on the slide, nudged (cm, gun axes)
+    S_SLIDE_HAND_X = 84, S_SLIDE_HAND_Y = 85, S_SLIDE_HAND_Z = 86,
+    S_HUD_PING = 87,          // WRITTEN BY THE PLUGIN: +1 whenever our reload changed the ammo; the Lua refreshes the ammo display   // WRITTEN BY THE LUA MENU: the hand on the slide, nudged (cm, gun axes)
     S_COUNT = 96,
 };
 enum RecoilFlag : int {       // S_RECOIL_FLAGS bits = the globals re8_vr_recoil.lua read

@@ -173,6 +173,7 @@ bool at_gun_height() {
 // the game's HUD does not notice our ammo writes (Tefa: the count only changed after the next shot): fire the gun's own
 // ReloadHandler (WeaponGunCore, a System.Action) the way a finished reload would
 void tell_hud() {
+    bridge::put(bridge::S_HUD_PING, bridge::view(bridge::S_HUD_PING) + 1.0f);   // the Lua side refreshes the game's display
     auto* h = field_obj(g_gun, "ReloadHandler");
     if (h == nullptr) return;
     auto* m = player::overload(h, "Invoke", 0);

@@ -42,6 +42,7 @@ bool g_slide_ok = false;
 Vec3 g_slide_pos{};
 Quat g_slide_gun{0, 0, 0, 1};
 float g_z_anim = 0.0f;
+bool g_slide_frozen = false;  // the spot is kept from the first measure after taking hold (the game animates the pump joint)
 bool g_rel_ok = false;
 Vec3 g_rel_pos{};
 Quat g_rel_rot{0, 0, 0, 1};
@@ -61,6 +62,20 @@ float z_now() { return g_rest.z + (pump() ? PUMP_BACK_M : SLIDE_BACK_M) * g_trav
 MO* target_of(MO* ik) { return field_obj(ik, "Target"); }
 
 Vec3 controller_fwd() { return rotate(bridge::view_quat(bridge::S_RROT), Vec3{0, 0, -1}); }   // OpenXR: -Z
+// the barrel in the room: the gun object's +Z (Village guns: the muzzle joint sits at +Z) carried through the camera.
+// 2026-10-19: the bolt's pull was read along the line between the hands, which is short and crooked when the left hand
+// sits over the receiver, and the bolt would not follow the controller.
+Vec3 barrel_room() {
+    Quat gq;
+    Vec3 f;
+    if (get_q(XFORM, player::now().weapon_tf, "get_Rotation", gq) && bridge::world_dir_to_room(rotate(qnorm(gq), Vec3{0, 0, 1}), f)) {
+        const float len = std::sqrt(f.x * f.x + f.y * f.y + f.z * f.z);
+        if (len > 0.5f) return f * (1.0f / len);
+    }
+    const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
+    const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return len > 0.10f ? v * (1.0f / len) : controller_fwd();
+}
 float along_gun() {
     const Vec3 d = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
     return d.x * g_axis.x + d.y * g_axis.y + d.z * g_axis.z;
@@ -92,7 +107,7 @@ void complete() {
 
 void hand_off(const char* why) {
     if (!g_hand_on) return;
-    g_hand_on = g_armed = g_capture = g_rel_ok = false;
+    g_hand_on = g_armed = g_capture = g_rel_ok = g_slide_frozen = false;
     if (pump() && g_pulled && g_travel > 0.10f) {   // a pump let go before it is pushed back up stays there
         LOGI("%s rack: hand off the pump (%s): it stays back, push it up to finish", TAG, why);
         return;
@@ -161,7 +176,7 @@ void bolt_step() {
             g_bstate = 0;
             g_turn = 0.0f;
             g_pulled = false;
-            g_hand_on = g_armed = g_capture = g_rel_ok = false;
+            g_hand_on = g_armed = g_capture = g_rel_ok = g_slide_frozen = false;
             complete();
             LOGI("%s rack: bolt locked", TAG);
         }
@@ -258,9 +273,7 @@ void frame() {
         else if (!g_armed) {   // holding the bolt, still: one LT press arms it, from where the bolt is
             if (bridge::pressed(bridge::S_LTRIG)) {
                 g_armed = true;
-                const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
-                const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-                g_axis = len > 0.10f ? v * (1.0f / len) : controller_fwd();
+                g_axis = barrel_room();
                 g_base = along_gun() + g_travel * RACK_PULL_M;            // the travel carries on from where the bolt is
                 g_dy0 = hand_dy() - g_turn * BOLT_LIFT_M;                 // and so does the turn
                 LOGI("%s rack: bolt armed (LT)", TAG);
@@ -271,11 +284,11 @@ void frame() {
     if (g_hand_on) {
         if (!g_armed && bridge::pressed(bridge::S_LTRIG)) {   // one LT press arms it; LT need not be held
             g_armed = true;
-            g_axis = controller_fwd();
-            // long guns: the left hand sits ahead on the barrel, so the barrel runs from the right hand to it
+            g_axis = barrel_room();
+            // the pump: the left hand sits well ahead on the barrel, so the line from the right hand to it works (worn 2026-10-19)
             const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
             const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-            if (g_w->shape == weapons::Shape::LONG && len > 0.10f) g_axis = v * (1.0f / len);
+            if (pump() && len > 0.10f) g_axis = v * (1.0f / len);
             g_base = along_gun();
             g_max_pull = 0.0f;
             if (pump() && g_pulled) g_max_pull = (1.0f - g_travel) * RACK_RETURN_M;   // a pump left back carries on from there
@@ -310,6 +323,7 @@ void frame() {
 void begin_render_point() { write_joint(); }
 
 void late_point() {
+    if (g_hand_on && g_slide_frozen) { write_joint(); return; }   // Tefa 2026-10-19: the hand wandered on the shotgun's fore-end
     g_slide_ok = false;
     const auto& s = player::now();
     Vec3 rp, jp, lp, gp;
@@ -321,6 +335,7 @@ void late_point() {
         g_slide_gun = qnorm(qmul(inv, qnorm(gq)));
         g_z_anim = lp.z;
         g_slide_ok = true;
+        if (g_hand_on) { g_slide_frozen = true; g_z_anim = z_now(); }   // the joint's own place now = travel offset 0 from here
     }
     write_joint();
 }

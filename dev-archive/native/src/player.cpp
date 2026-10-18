@@ -277,7 +277,7 @@ void probe_types() {
     auto* tdb = API::get()->tdb();
     for (const char* t : {"app.WeaponGunCore", "app.WeaponGun", "app.PlayerGun", "app.PlayerGunFPS", "app.Inventory", "app.InventoryManager",
                           "app.ItemCore", "app.ItemSlotManager", "app.PlayerStatus", "app.PlayerStatusFPS", "app.PlayerReloadController",
-                          "app.ItemCore.InstanceWork", "via.Transform", "via.Joint", "via.render.Mesh"}) {
+                          "app.ItemCore.InstanceWork", "via.Transform", "via.Joint", "via.render.Mesh", "app.GUIRemainAmmo"}) {
         auto* td = tdb->find_type(t);
         std::fprintf(f, "==== %s%s\n", t, td ? "" : " (not in this game)");
         if (td) dump_type(td);
