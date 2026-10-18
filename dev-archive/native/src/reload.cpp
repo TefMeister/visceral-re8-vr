@@ -127,10 +127,24 @@ bool held_pose(Vec3& pos, Quat& rot) {   // the magazine in the left hand: the h
 // Tefa's hand, so long guns now use the plain distance between the two controllers too, with a wider reach
 // long guns (Tefa 2026-10-19: 10 cm): from the magazine / shell in the hand to its place on the gun (the magazine's seat,
 // the shell joint's rest), both in the world; pistols keep the controller distance, which works
+// 2026-10-19 headset run: computed from the joint's local numbers and the gun object, the spot came out 0.35 / 0.60 m
+// away from where Tefa brought the magazine / shell. Now it is measured: the magazine joint's (or the shell joint's) own
+// world position, taken while it still sits in the gun, kept relative to the right hand target, which carries the gun.
+bool g_port_ok = false;
+Vec3 g_port_rel{};
+bool rh_target(Vec3& p, Quat& q) { return player::get_pose(field_obj(player::now().ik_right, "Target"), p, q); }
+void capture_port(MO* joint) {
+    Vec3 jp{}, rp{};
+    Quat rq{0, 0, 0, 1};
+    g_port_ok = joint != nullptr && get_v3(JOINT, joint, "get_Position", jp) && rh_target(rp, rq);
+    if (g_port_ok) g_port_rel = rotate(qinv(rq), jp - rp);
+}
 bool port_world(Vec3& out) {
-    Quat r;
-    if (g_w->reload == Reload::MAG) return g_rest_pos.x == g_rest_pos.x && from_weapon_local(g_rest_pos, Quat{0, 0, 0, 1}, out, r);
-    return g_shell_have_rest && from_weapon_local(g_shell_rest, Quat{0, 0, 0, 1}, out, r);
+    Vec3 rp;
+    Quat rq;
+    if (!g_port_ok || !rh_target(rp, rq)) return false;
+    out = rp + rotate(rq, g_port_rel);
+    return true;
 }
 float dock_dist() {
     Vec3 port, item;
@@ -375,6 +389,7 @@ void begin_drop() {
         g_rest_pos = p;
         g_rest_rot = qnorm(q);
         g_rest_scale = s;
+        capture_port(g_joint);
         set_state(St::SLIDE_OUT, "right B");
     } else {
         set_state(St::OUT, "right B");
@@ -420,6 +435,7 @@ void pouch_grab() {
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
             return;
         }
+        capture_port(g_shell);
         g_round_in_hand = true;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s reload: a round in the left hand (carried %d)", TAG, player::reserve());
