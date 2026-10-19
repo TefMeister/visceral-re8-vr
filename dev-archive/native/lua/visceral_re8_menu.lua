@@ -3,7 +3,8 @@
 --
 -- Each ported file keeps Andyalpa's saved file (same path, same keys), so settings made with the Lua pack carry over.
 -- So far: haptics (re8_vr/re8_vr_haptics.json, menu "Weapon Shooting Haptics", src/haptics.cpp) and recoil
--- (re8_vr/re8_vr_recoil.json, menu "Weapon Recoil", src/recoil.cpp, which reads the file itself).
+-- (re8_vr/re8_vr_recoil.json, menu "Weapon Recoil", src/recoil.cpp, which reads the file itself), and the ammo HUD
+-- (re8_vr/re8_vr_ammo_hud.json, menu "Ammo HUD", src/ammo_hud.cpp, which reads the file itself; 2026-10-19).
 -- Slot numbers must match src/bridge.h.
 
 local TAG = "[visceral-re8-menu]"
@@ -305,4 +306,107 @@ rawget(_G, "__re8_vr_overlay_bind").recoil = {
     end,
 }
 
-log.info(TAG .. " loaded: haptics + recoil settings")
+-- ammo HUD -----------------------------------------------------------------------------------------------------------
+-- src/ammo_hud.cpp reads re8_vr/re8_vr_ammo_hud.json itself whenever it changes; this is re8_vr_ammo_hud.lua's menu
+-- (same labels, ids and keys). Its buttons go to the plugin as a numbered command; the plugin sends its status back.
+local S_HUD_CMD, S_HUD_CMD_SEQ, S_HUD_STATUS = 90, 91, 92
+local HUD_PATH = "re8_vr/re8_vr_ammo_hud.json"
+local HUD = {   -- re8_vr_ammo_hud.lua CFG, Andyalpa's defaults
+    display = "weapon", mode = "manual", keep_open = true, force_open_interval_s = 2.0, set_world_view = true,
+    off_right = 0.04, off_up = -0.02, off_forward = 0.08, rot_yaw = 0.0, rot_pitch = 0.0, rot_roll = 0.0,
+    scale = 0.55, poll_s = 0.35,
+}
+local HUD_STATUS = { "init", "ready", "partial", "no_gui_manager", "no_remain_ammo", "recover_pending", "menu_yield",
+                     "off", "melee_hide", "weapon", "default" }
+local hud_seq = 0
+
+local function hud_save() pcall(function() json.dump_file(HUD_PATH, HUD) end) end
+local function hud_load()   -- load_cfg: keys of the right type, the old enabled / attach switches, then saved back
+    local data = nil
+    pcall(function() data = json.load_file(HUD_PATH) end)
+    if type(data) ~= "table" then hud_save(); return end
+    for k, v in pairs(data) do
+        if HUD[k] ~= nil and type(v) == type(HUD[k]) then HUD[k] = v end
+    end
+    HUD.mode = "manual"
+    if type(data.display) ~= "string" then
+        HUD.display = (data.enabled == false or data.attach == false) and "default" or "weapon"
+    elseif data.display ~= "default" and data.display ~= "weapon" and data.display ~= "off" then
+        HUD.display = "weapon"
+    end
+    hud_save()
+end
+hud_load()
+
+local function hud_cmd(code)
+    local b = rawget(_G, "visceral_re8_bridge")
+    if not b or not b.ready() then return end
+    hud_seq = hud_seq + 1
+    b.w(S_HUD_CMD, code)
+    b.w(S_HUD_CMD_SEQ, hud_seq)
+end
+local function hud_snap()   -- apply_rh_near_preset
+    HUD.off_right, HUD.off_up, HUD.off_forward = 0.02, 0.04, 0.06
+    HUD.rot_yaw, HUD.rot_pitch, HUD.rot_roll = 0.0, 0.0, 0.0
+    HUD.scale, HUD.display, HUD.keep_open, HUD.set_world_view = 0.55, "weapon", true, true
+    hud_save()
+    hud_cmd(1)
+end
+
+re.on_draw_ui(function()
+    if not imgui.tree_node("Ammo HUD") then return end
+    local labels, map = { "Default", "On Weapon", "Off" }, { "default", "weapon", "off" }
+    local cur = HUD.display == "weapon" and 2 or HUD.display == "off" and 3 or 1
+    local c, idx = imgui.combo("Ammo HUD Display##ammo_hud_disp", cur, labels)
+    if c and map[idx] then HUD.display = map[idx]; hud_save() end
+    imgui.text("default = game | weapon = RH attach | off = hidden")
+    local b = rawget(_G, "visceral_re8_bridge")
+    if b and b.ready() then
+        imgui.text("Status: " .. (HUD_STATUS[math.floor(b.r(S_HUD_STATUS) + 0.5) + 1] or "?") .. "  (" .. HUD.display .. ")")
+    end
+    if HUD.display == "weapon" then
+        imgui.spacing()
+        if imgui.button("Snap near right hand##ammo_hud_snap") then hud_snap() end
+        imgui.text("Snap = small offsets, scale 0.55, rot 0 (visible start)")
+        imgui.spacing()
+        local ch, v = imgui.checkbox("Keep HUD open##ammo_hud_keep", HUD.keep_open == true)
+        if ch then HUD.keep_open = v; hud_save() end
+        ch, v = imgui.checkbox("Force World ViewType##ammo_hud_world", HUD.set_world_view == true)
+        if ch then HUD.set_world_view = v; hud_save() end
+        imgui.spacing()
+        local function slider(label, key, lo, hi, fmt)
+            local sc, sv = imgui.slider_float(label, tonumber(HUD[key]) or 0.0, lo, hi, fmt)
+            if sc then HUD[key] = sv; hud_save() end
+        end
+        slider("Offset Right (m)##ammo_hud_or", "off_right", -2.0, 2.0, "%.3f")
+        slider("Offset Up (m)##ammo_hud_ou", "off_up", -2.0, 2.0, "%.3f")
+        slider("Offset Forward (m)##ammo_hud_of", "off_forward", -2.0, 2.0, "%.3f")
+        slider("Rot Yaw (deg)##ammo_hud_yaw", "rot_yaw", -360.0, 360.0, "%.1f")
+        slider("Rot Pitch (deg)##ammo_hud_pitch", "rot_pitch", -360.0, 360.0, "%.1f")
+        slider("Rot Roll (deg)##ammo_hud_roll", "rot_roll", -360.0, 360.0, "%.1f")
+        slider("Scale##ammo_hud_scale", "scale", 0.001, 5.0, "%.3f")
+        imgui.text("Tip: start near Snap preset; huge Scale can fling UI off-screen")
+        imgui.spacing()
+        if imgui.button("Open HUD now##ammo_hud_open") then hud_cmd(1) end
+        imgui.same_line()
+        if imgui.button("Recover after menu##ammo_hud_rec") then hud_cmd(2) end
+        imgui.same_line()
+        if imgui.button("Reset offsets##ammo_hud_reset") then hud_snap() end
+    end
+    imgui.spacing()
+    if imgui.button("Re-resolve##ammo_hud_res") then hud_cmd(3) end
+    imgui.tree_pop()
+end)
+
+re.on_config_save(function() hud_save() end)
+
+rawget(_G, "__re8_vr_overlay_bind").ammo_hud = {   -- as re8_vr_ammo_hud.lua left it
+    push = function(api) api.set_string("ammo_hud.display", HUD.display, false) end,
+    pull = function(api)
+        local d = api.get_string("ammo_hud.display", HUD.display)
+        if d == "default" or d == "weapon" or d == "off" then HUD.display = d end
+        hud_save()
+    end,
+}
+
+log.info(TAG .. " loaded: haptics + recoil + ammo HUD settings")

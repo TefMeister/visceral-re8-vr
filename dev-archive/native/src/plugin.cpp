@@ -20,6 +20,7 @@
 
 #include <atomic>
 
+#include "ammo_hud.h"
 #include "breech.h"
 #include "bridge.h"
 #include "common.h"
@@ -46,6 +47,7 @@ void on_frame() {
     reload::frame();
     breech::frame();
     rack::frame();
+    ammo_hud::frame();
     recoil::frame();
     handstate::frame();
 }
@@ -68,6 +70,8 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
     param->functions->log_info("%s loaded: Hands Off port, haptics + recoil + manual reloads", TAG);
     // the bridge Lua writes its readings at UpdateHID pre; reading after it, at UpdateBehavior pre, sees this frame's
     param->functions->on_pre_application_entry("UpdateBehavior", []() { on_frame(); });
+    // the ammo counter is placed at the right hand just before it is drawn (re8_vr_ammo_hud.lua did the same)
+    param->functions->on_pre_gui_draw_element([](void* element, void* context) { return ammo_hud::pre_gui_draw(element, context); });
     // re8_vr_recoil.lua stepped its spring at both of these (once per frame, whichever comes first)
     param->functions->on_pre_application_entry("UpdateMotion", []() { recoil::physics_point(); });
     param->functions->on_pre_application_entry("LateUpdateBehavior", []() { recoil::physics_point(); });

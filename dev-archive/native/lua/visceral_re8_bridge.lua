@@ -28,6 +28,7 @@ local S_CAN_USE_HANDS, S_IS_RELOADING, S_AIMING, S_RECOIL_FLAGS = 57, 58, 59, 60
 -- reload.cpp / rack.cpp (2026-10-18)
 local S_LROT, S_RROT, S_CAM_POS, S_CAM_ROT = 64, 68, 72, 75
 local S_IN_AMMO_ZONE, S_CUTSCENE, S_RELOAD_BUSY, S_HAND_STATE, S_POSE_LOCK = 79, 80, 81, 82, 83
+local S_BARE_HANDS, S_INTERACTION_BLOCKED = 88, 89   -- ammo_hud.cpp: two of the holster's globals
 local S_HUD_PING = 87     -- the plugin bumps it after an ammo change: refresh the game's remaining-ammo display
 local REMAIN_AMMO_GUI = 1927694450   -- Andyalpa's ETHAN_REMAIN_AMMO_HASH (re8_vr_ammo_hud.lua)
 local hud_ping_seen = 0
@@ -212,6 +213,15 @@ local function village_readings()
     -- reload.cpp: Andyalpa's left-hip ammo spot is our ammo pouch; the pose switch; the block-pose stand-down
     wb(S_IN_AMMO_ZONE, rawget(_G, "__vr_in_ammo_holster_zone") == true)
     wb(S_CUTSCENE, re8vr and re8vr.is_in_cutscene == true)
+    -- ammo_hud.cpp (re8_vr_ammo_hud.lua): bare hands, and whether a menu / inventory blocks the hands
+    wb(S_BARE_HANDS, rawget(_G, "__re8_bare_hands") == true)
+    local blocked = false
+    local fn = rawget(_G, "__vr_is_interaction_blocked")
+    if type(fn) == "function" then
+        local ok, v = pcall(fn)
+        blocked = ok and v == true
+    end
+    wb(S_INTERACTION_BLOCKED, blocked)
     wb(S_POSE_LOCK, pose_lock)
     w(S_SLIDE_HAND, slide_hand.x); w(S_SLIDE_HAND + 1, slide_hand.y); w(S_SLIDE_HAND + 2, slide_hand.z)
     -- 2026-10-19: the rifle showed 0/0 after a reload until the trigger was pulled. Do what the game's own HUD code does on

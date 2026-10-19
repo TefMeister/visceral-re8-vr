@@ -53,6 +53,11 @@ enum Slot : int {
     S_POSE_LOCK = 83,         // WRITTEN BY THE LUA MENU: 1 = "hold this pose"
     S_SLIDE_HAND_X = 84, S_SLIDE_HAND_Y = 85, S_SLIDE_HAND_Z = 86,
     S_HUD_PING = 87,          // WRITTEN BY THE PLUGIN: +1 whenever our reload changed the ammo; the Lua refreshes the ammo display   // WRITTEN BY THE LUA MENU: the hand on the slide, nudged (cm, gun axes)
+    // ammo_hud.cpp (re8_vr_ammo_hud.lua, 2026-10-19)
+    S_BARE_HANDS = 88,        // __re8_bare_hands (the holster: nothing in the right hand)
+    S_INTERACTION_BLOCKED = 89,   // __vr_is_interaction_blocked() (the holster: a menu / inventory is up)
+    S_HUD_CMD = 90, S_HUD_CMD_SEQ = 91,   // WRITTEN BY THE LUA MENU: a button (1 open now, 2 recover, 3 re-resolve), numbered
+    S_HUD_STATUS = 92,        // WRITTEN BY THE PLUGIN: ammo_hud.cpp's status, for the menu
     S_COUNT = 96,
 };
 enum RecoilFlag : int {       // S_RECOIL_FLAGS bits = the globals re8_vr_recoil.lua read
