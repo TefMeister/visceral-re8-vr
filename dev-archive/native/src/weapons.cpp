@@ -13,6 +13,7 @@ namespace vn::weapons {
 namespace {
 using R = Reload;
 using S = Shape;
+using B = Breech;
 const Weapon WEAPONS[] = {
     // id                  name                          reload    shape       rack   pump
     {"ri3040_Inventory", "M1911",                      R::MAG,   S::PISTOL,  true,  false},
@@ -39,9 +40,9 @@ const Weapon WEAPONS[] = {
     {"ri3036_Inventory", "M1897",                      R::ROUND, S::LONG,    false, true},
     {"ri3084_Inventory", "M1897 - Mercenaries",        R::ROUND, S::LONG,    false, true},
     {"ri3147_Inventory", "M1897 - Shadows of Rose",    R::ROUND, S::LONG,    false, true},
-    {"ri3023_Inventory", "GM 79",                      R::ROUND, S::LONG,    false, false},
-    {"ri3008_Inventory", "M1851 Wolfsbane",            R::ROUND, S::PISTOL,  false, false},
-    {"ri3116_Inventory", "Handcannon PZ",              R::ROUND, S::PISTOL,  false, false},
+    {"ri3023_Inventory", "GM 79",                      R::ROUND, S::LONG,    false, false, false, B::BREAK},
+    {"ri3008_Inventory", "M1851 Wolfsbane",            R::ROUND, S::PISTOL,  false, false, false, B::CYLINDER},
+    {"ri3116_Inventory", "Handcannon PZ",              R::ROUND, S::PISTOL,  false, false, false, B::CYLINDER},   // a revolver [hypothesis]
     {"ri3022_Inventory", "Knife (melee)",              R::NONE,  S::PISTOL,  false, false},
     {"ri3044_Inventory", "Knife (melee, 2)",           R::NONE,  S::PISTOL,  false, false},
 };

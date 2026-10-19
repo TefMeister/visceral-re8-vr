@@ -84,6 +84,14 @@ constexpr float RELOAD_GRAB_BUZZ_AMP = 0.35f, RELOAD_GRAB_BUZZ_SEC = 0.05f;
 constexpr float RELOAD_INSERT_BUZZ_AMP = 0.45f, RELOAD_INSERT_BUZZ_SEC = 0.05f;
 constexpr float RELOAD_DENY_BUZZ_AMP = 0.2f, RELOAD_DENY_BUZZ_SEC = 0.15f;
 constexpr float RELOAD_BUZZ_HZ = 160.0f;
+// the guns that open to load (breech.cpp, 2026-10-19): revolvers flick the cylinder out, the GM 79 drops its barrel
+constexpr bool  BREECH_ON = true;
+constexpr bool  BREECH_FLICK_ON = true;           // off = right B only
+constexpr float BREECH_FLICK_DEG_S = 420.0f;      // the gun hand turning this fast about the flick axis = a flick (a guess: the log prints Tefa's fastest)
+constexpr float BREECH_FLICK_LOG_DEG_S = 200.0f;  // turns this fast are logged once a second, to set the number above
+constexpr float BREECH_FLICK_FOLLOW = 0.6f;       // smoothing of the turn rate per frame (1 = raw)
+constexpr float BREECH_FLICK_COOLDOWN_SEC = 0.35f; // after opening / closing, no flick counts for this long (the hand coming back)
+constexpr float BREECH_BUZZ_AMP = 0.5f, BREECH_BUZZ_SEC = 0.05f;
 // the magazine drop / in-hand animation on joint "_04" (RE2 / RE7's magazine name): off until a joint log shows which
 // Village joint is the magazine; the gun's own switchMagazineDisp hides it meanwhile
 constexpr bool MAG_JOINT_ANIMATE = true;    // on since 2026-10-18 23:30: the joint is named "Magazine"

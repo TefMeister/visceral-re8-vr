@@ -20,6 +20,7 @@
 
 #include <atomic>
 
+#include "breech.h"
 #include "bridge.h"
 #include "common.h"
 #include "haptics.h"
@@ -43,6 +44,7 @@ void on_frame() {
     haptics::frame();
     weapons::watch();
     reload::frame();
+    breech::frame();
     rack::frame();
     recoil::frame();
     handstate::frame();

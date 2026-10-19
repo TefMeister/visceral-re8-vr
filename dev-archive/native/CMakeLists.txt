@@ -16,6 +16,7 @@ add_library(visceral_re8_native SHARED
     src/ik.cpp
     src/reload.cpp
     src/rack.cpp
+    src/breech.cpp
     src/weapons.cpp
     src/handstate.cpp
     src/ghosthand.cpp

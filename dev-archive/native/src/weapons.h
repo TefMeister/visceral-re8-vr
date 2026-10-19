@@ -21,7 +21,8 @@ enum class Reload {
     MAG,      // a magazine: right B drops it, the left-hip ammo spot gives a new one
     ROUND,    // single shells / rounds / grenades: each grab from the ammo spot is one
 };
-enum class Shape { PISTOL, LONG };   // where the magazine / shell goes in: at the gun hand, or ahead of it along the barrel
+enum class Shape { PISTOL, LONG };
+enum class Breech { NONE, CYLINDER, BREAK };   // 2026-10-19: opens to load (breech.cpp): a revolver's cylinder, a break-action barrel   // where the magazine / shell goes in: at the gun hand, or ahead of it along the barrel
 
 struct Weapon {
     const char* id;          // canonical: "ri3046_Inventory"
@@ -31,6 +32,7 @@ struct Weapon {
     bool rack;               // a magazine into an empty gun needs a slide / bolt / charging-handle rack
     bool pump;               // pump shotgun: shells into an empty gun need a pump
     bool bolt = false;       // bolt action: pulled back and pushed forward by hand; it stays where it is let go (Tefa 2026-10-19)
+    Breech breech = Breech::NONE;
 };
 
 std::string canonical(const std::string& raw);   // "ri3046" -> "ri3046_Inventory" when that is in the list

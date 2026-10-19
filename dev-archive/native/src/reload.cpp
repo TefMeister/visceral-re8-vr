@@ -5,6 +5,7 @@
 #include "ghosthand.h"
 #include "joints.h"
 #include "player.h"
+#include "breech.h"
 #include "rack.h"
 #include "settings.h"
 #include "weapons.h"
@@ -434,6 +435,11 @@ void pouch_grab() {
     g_last_grab = now;
     if (g_w->reload == Reload::ROUND) {
         if (g_round_in_hand) return;
+        if (!breech::loading_allowed()) {   // 2026-10-19: a revolver / the GM 79 takes rounds only while it is open
+            LOGI("%s reload: %s is closed: open it first (right B or a flick)", TAG, g_id.c_str());
+            bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            return;
+        }
         const int cap = player::capacity();
         if (!supply() || (cap > 0 && player::loaded() + g_stash >= cap)) {
             LOGI("%s reload: nothing to take (carried %d, loaded %d of %d)", TAG, player::reserve(), player::loaded() + g_stash, cap);
@@ -475,10 +481,10 @@ void track_pouch() {   // our own spot, beside Andyalpa's (his reports through t
 // held back until the pump. Now they stay in the gun and PlayerGun.tryAttack is refused until the rack / pump is done.
 thread_local bool t_attack_blocked = false;
 int pre_try_attack(int, void**, REFrameworkTypeDefinitionHandle*, unsigned long long) {
-    t_attack_blocked = managed_now() && rack::needed();
+    t_attack_blocked = managed_now() && (rack::needed() || breech::blocks_fire());
     if (!t_attack_blocked) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     static int n = 0;
-    if (++n <= 5 || n % 500 == 0) LOGI("%s reload: trigger refused until %s (#%d)", TAG, g_w->pump ? "the pump" : "the rack", n);
+    if (++n <= 5 || n % 500 == 0) LOGI("%s reload: trigger refused until %s (#%d)", TAG, breech::blocks_fire() ? "it is closed" : g_w->pump ? "the pump" : "the rack", n);
     return REFRAMEWORK_HOOK_SKIP_ORIGINAL;
 }
 void post_try_attack(void** ret, REFrameworkTypeDefinitionHandle, unsigned long long) {
