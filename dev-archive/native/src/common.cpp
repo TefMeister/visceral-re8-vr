@@ -4,6 +4,7 @@
 #include <windows.h>
 
 #include <cstring>
+#include <set>
 
 namespace vn {
 
@@ -49,6 +50,26 @@ std::string read_string(void* s) {
     std::string out(n > 0 ? n : 0, '\0');
     if (n > 0) WideCharToMultiByte(CP_UTF8, 0, w, len, out.data(), n, nullptr, nullptr);
     return out;
+}
+
+bool args_fit(API::Method* m, std::string_view method, std::initializer_list<uintptr_t> bits) {
+    static std::set<std::string> refused;   // one line per method, not one per frame
+    auto refuse = [&](const char* why) {
+        auto* decl = m->get_declaring_type();
+        const std::string key = (decl != nullptr ? decl->get_full_name() : std::string("?")) + "." + std::string(method);
+        if (refused.insert(key).second) LOGW("%s call refused: %s: %s (the game would have faulted on it)", TAG, key.c_str(), why);
+        return false;
+    };
+    if (m->get_num_params() != bits.size()) return refuse("the parameter count differs");
+    const auto params = m->get_params();
+    size_t i = 0;
+    for (const uintptr_t b : bits) {
+        auto* td = (API::TypeDefinition*)params[i++].t;
+        if (td == nullptr) continue;
+        const bool by_value = td->is_valuetype() || td->is_primitive() || td->is_enum() || td->is_by_ref() || td->is_pointer();
+        if (!by_value && b != 0 && !is_managed((void*)b)) return refuse("an object was expected and the argument is not one");
+    }
+    return true;
 }
 
 static bool invoke(MO* o, std::string_view method, std::vector<void*> args, reframework::InvokeRet& r) {

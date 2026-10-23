@@ -274,16 +274,12 @@ void force_open(bool hard, bool bypass_weapon = false) {   // force_open_ammo_hu
     const float now = now_s();
     if (!hard && now - S.last_open_t < g_cfg.force_open_interval_s) return;
     S.last_open_t = now;
-    MO* order = call_ptr(S.wig, "get_order");
-    if (!alive(order)) order = field_obj(S.wig, "guiOrder");
-    if (alive(order)) {
-        call_direct<void*>(order, "cancelHide", nullptr);
-        call_direct<void*>(order, "show", nullptr, true);
-        auto* gm = find_method_deep(S.wig->get_type_definition(), "get_mode");
-        auto* gi = find_method_deep(S.wig->get_type_definition(), "get_itemID");
-        if (gm != nullptr && gi != nullptr)
-            call_direct<void*>(order, "showRemainAmmo", nullptr, call_direct<int>(S.wig, "get_mode", 0), call_direct<int>(S.wig, "get_itemID", 0));
-    }
+    // The Lua also asked the counter's order object for cancelHide(), show(true) and showRemainAmmo(mode, item), each
+    // inside pcall. None of those calls exists in that shape: the game's show / showRemainAmmo take one
+    // app.GUIRequest.Parameter object and live on the driver, and there is no cancelHide (type_probe.txt,
+    // 2026-10-18). In Lua they failed quietly every time; here the raw call passed `true` where an object was
+    // expected, the game faulted on it every 2 s (this timer) and its half-finished GUI request list crashed it
+    // minutes later (2026-10-22 23:19 dump). So the port does what the Lua effectively did: nothing here.
     if (!alive(S.gui_comp)) S.gui_comp = gui_comp_from_driver(S.wig);
     ensure_world_view(S.gui_comp);
     keep_drawn();

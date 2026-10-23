@@ -5,8 +5,11 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <initializer_list>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "reframework/API.hpp"
@@ -73,11 +76,24 @@ std::string read_string(void* s);                   // a System.String to UTF-8 
 MO* call_ptr(MO* o, std::string_view method, std::vector<void*> args = {});
 bool call_vec3(MO* o, std::string_view method, Vec3& out);
 bool call_quat(MO* o, std::string_view method, Quat& out);
+// A direct call hands the game raw registers with nothing in between, so the arguments must fit the method's real
+// parameters: the count, and an object where the game expects one. args_fit checks that before the call and refuses
+// (one log line per method) when they do not. Why: on 2026-10-22 ammo_hud passed `true` to a method taking a
+// GUI request object; the game dereferenced 0x1, the fault unwound its method half-done and the broken GUI list
+// crashed the game minutes later. Every argument is given as the bits the call would pass.
+bool args_fit(API::Method* m, std::string_view method, std::initializer_list<uintptr_t> bits);
+template <typename A>
+uintptr_t arg_bits(A a) {
+    if constexpr (std::is_pointer_v<A>) return (uintptr_t)a;
+    else if constexpr (std::is_floating_point_v<A>) { const float f = (float)a; uint32_t b = 0; std::memcpy(&b, &f, sizeof b); return b; }
+    else return (uintptr_t)a;
+}
 template <typename T, typename... Args>
 T call_direct(MO* o, std::string_view method, T fallback, Args... args) {
     if (o == nullptr) return fallback;
     auto* m = find_method_deep(o->get_type_definition(), method);
     if (m == nullptr) return fallback;
+    if (!args_fit(m, method, {arg_bits(args)...})) return fallback;
     return m->call<T>(API::get()->get_vm_context(), (void*)o, args...);
 }
 MO* component(MO* game_object, const char* type);
