@@ -8,4 +8,4 @@
 - The REFramework and RE modding communities, for the knowledge this builds on.
 
 If you helped and are not listed, or something here is yours and you want it credited differently or removed,
-email us and we will fix it as soon as we can. We honour correction and removal requests from rights holders.
+open an issue on GitHub and we will fix it as soon as we can. We honour correction and removal requests from rights holders.
