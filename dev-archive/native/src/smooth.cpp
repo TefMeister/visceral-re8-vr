@@ -130,7 +130,10 @@ void on_ik(MO* ik) {
         return;
     }
     g_frame = frame;
-    const int owner = rack::active() ? RACK : reload::hand_on_mag() ? MAG : bridge::flag(bridge::S_GRIPPING_WEAPON) ? GRIP : CONTROLLER;
+    // 23:49 (Tefa: "the automatic docking is still present"): the game's own 10 cm dock (made without LG) counted as the grip
+    // here and was eased onto, which also held back the grip script's undo; the grip is only the grip with LG held
+    const bool lg_held = bridge::held(bridge::S_LGRIP);
+    const int owner = rack::active() ? RACK : reload::hand_on_mag() ? MAG : (bridge::flag(bridge::S_GRIPPING_WEAPON) && lg_held) ? GRIP : CONTROLLER;
     spots_refresh();
     const Spot* kept = owner == GRIP ? spot_now() : nullptr;
     if (kept != nullptr) { rel = kept->p; qrel = kept->q; }
