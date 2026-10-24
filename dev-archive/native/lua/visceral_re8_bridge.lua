@@ -373,6 +373,25 @@ re.on_draw_ui(function()
         if changed then pose_lock = v end
         local c0, v0 = imgui.checkbox("The left hand goes onto the gun only while LG is held", dock_needs_button)
         if c0 then dock_needs_button = v0 end
+        -- 2026-10-24 (Tefa: "multiple spots where the hand can dock and which ever way"): one kept grip spot per gun
+        -- (lua/re8_vrz_begone_grip.lua, data/visceral_re8/grip_spots.json)
+        do
+            local gw = rawget(_G, "re8_scope_left_grip")
+            local gnum = arr and math.floor(r(S_WEAPON_NUM) + 0.5) or 0
+            local spots = nil
+            pcall(function() spots = json.load_file("visceral_re8/grip_spots.json") end)
+            local sp = type(spots) == "table" and spots[tostring(gnum)] or nil
+            imgui.text(gnum <= 0 and "Grip spot: no gun in hand"
+                or (type(sp) == "table" and ("Grip spot for this gun: kept (" .. tostring(sp.how) .. ")")
+                or "Grip spot for this gun: not kept yet (the first aimed two-handed grip will be kept)"))
+            if type(gw) ~= "function" then
+                imgui.text("(the grip script is not loaded)")
+            else
+                if imgui.button("Keep my grip for this gun (in 3 seconds)") then pcall(gw, "keep", "3") end
+                imgui.text("  Then hold both controllers the way the hands should sit on the gun, left grip NOT pressed; both buzz when kept.")
+                if imgui.button("Drop this gun's kept grip") then pcall(gw, "unkeep") end
+            end
+        end
         local num = arr and r(S_WEAPON_NUM) or 0
         local key = gun_key(num)
         imgui.text("The left hand on the slide / pump / bolt of " .. (key == "any" and "any gun (no gun in hand)" or key) .. ":")

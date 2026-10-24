@@ -6,6 +6,12 @@
 #include "rack.h"
 #include "reload.h"
 #include "settings.h"
+#include "json_mini.h"
+
+#include <windows.h>
+
+#include <filesystem>
+#include <map>
 
 namespace vn::smooth {
 
@@ -43,6 +49,45 @@ Quat slerp_from_identity(Quat q, float k) {   // identity -> q by k (0..1), the 
     return qnorm(Quat{q.x * f, q.y * f, q.z * f, std::cos(k * a)});
 }
 MO* target_of(MO* ik) { return field_obj(ik, "Target"); }
+
+// 2026-10-24 (Tefa's screenshots: "multiple spots where the hand can dock and which ever way"): the place frozen above was
+// wherever the animation's socket stood when the hand settled, so every take differed. The grip script
+// (lua/re8_vrz_begone_grip.lua) now keeps ONE spot per gun in data/visceral_re8/grip_spots.json (the game's aiming grip, or
+// the wearer's own); while the hand is on the grip it is drawn THERE, in the gun hand's frame, eased onto as before.
+struct Spot { Vec3 p; Quat q; };
+std::map<int, Spot> g_spots;
+float g_spots_t = -10.0f;
+std::filesystem::file_time_type g_spots_mtime{};
+std::filesystem::path spots_path() {
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    return std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "grip_spots.json";
+}
+void spots_refresh() {   // at most once a second: re-read the file when it changed
+    const float t = now_s();
+    if (t - g_spots_t < 1.0f) return;
+    g_spots_t = t;
+    std::error_code ec;
+    const auto path = spots_path();
+    const auto mt = std::filesystem::last_write_time(path, ec);
+    if (ec) { if (!g_spots.empty()) { g_spots.clear(); LOGI("%s smooth: no kept grip spots (file gone)", TAG); } return; }
+    if (mt == g_spots_mtime) return;
+    g_spots_mtime = mt;
+    json::Value v;
+    if (!json::load_file(path.wstring(), v) || v.kind != json::Value::OBJ) return;
+    g_spots.clear();
+    for (const auto& [k, s] : v.obj) {
+        auto num = [&](const char* n) { const auto* x = s.get(n); return x != nullptr && x->kind == json::Value::NUM ? (float)x->n : 0.0f; };
+        if (s.get("x") == nullptr) continue;
+        g_spots[std::atoi(k.c_str())] = Spot{{num("x"), num("y"), num("z")}, qnorm({num("qx"), num("qy"), num("qz"), num("qw")})};
+    }
+    LOGI("%s smooth: %d kept grip spot(s) read", TAG, (int)g_spots.size());
+}
+const Spot* spot_now() {
+    const int n = (int)(bridge::view(bridge::S_WEAPON_NUM) + 0.5f);
+    auto it = g_spots.find(n);
+    return it == g_spots.end() ? nullptr : &it->second;
+}
 } // namespace
 
 void on_ik(MO* ik) {
@@ -53,8 +98,8 @@ void on_ik(MO* ik) {
     Quat rq, lq;
     if (!player::get_pose(target_of(s.ik_right), rp, rq) || !player::get_pose(target_of(ik), lp, lq)) return;
     const Quat inv = qinv(qnorm(rq));
-    const Vec3 rel = rotate(inv, lp - rp);
-    const Quat qrel = qnorm(qmul(inv, qnorm(lq)));
+    Vec3 rel = rotate(inv, lp - rp);
+    Quat qrel = qnorm(qmul(inv, qnorm(lq)));
     const float frame = bridge::view(bridge::S_FRAME);
     // 2026-10-24 first wear: "there is a frame right after i press LG that already shows the hand docked". The scope's grip
     // script docks the hand in a LATER solve of the same frame, after this had decided the frame, and that solve drew the
@@ -86,6 +131,9 @@ void on_ik(MO* ik) {
     }
     g_frame = frame;
     const int owner = rack::active() ? RACK : reload::hand_on_mag() ? MAG : bridge::flag(bridge::S_GRIPPING_WEAPON) ? GRIP : CONTROLLER;
+    spots_refresh();
+    const Spot* kept = owner == GRIP ? spot_now() : nullptr;
+    if (kept != nullptr) { rel = kept->p; qrel = kept->q; }
     if (!g_have) {
         g_have = true;
         g_owner = owner;
@@ -104,11 +152,12 @@ void on_ik(MO* ik) {
     }
     const float k = 1.0f - ease((now_s() - g_t0) / SMOOTH_DOCK_SEC);
     if (owner == GRIP && k <= 0.0f) {
-        if (!g_grip_frozen) {
+        if (!g_grip_frozen || (kept != nullptr && (dist(g_grip_p, rel) > 0.001f))) {
             g_grip_frozen = true;
             g_grip_p = rel;
             g_grip_q = qrel;
-            LOGI("%s smooth: the left hand's place on the grip frozen (%.3f %.3f %.3f in the gun hand's frame)", TAG, rel.x, rel.y, rel.z);
+            LOGI("%s smooth: the left hand's place on the grip frozen (%.3f %.3f %.3f in the gun hand's frame, %s)", TAG, rel.x, rel.y, rel.z,
+                 kept != nullptr ? "this gun's kept spot" : "where it settled: no kept spot for this gun yet");
         }
         g_final_p = g_grip_p;
         g_final_q = g_grip_q;
