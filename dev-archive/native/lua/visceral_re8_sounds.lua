@@ -458,48 +458,55 @@ GUN_SOUNDS = {
                  [8] = { "wwise:3713528881" },                         -- SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A
                  [9] = { "wwise:1306247460" },                         -- SND_MOT_RI3042_SE_RELOAD_A
                  [10] = { "wwise:2626270253" } },                      -- SND_MOT_RI3042_SE_RELOAD_B
-    -- 2026-10-24 /lm: the guns below come from the live gun survey (every id is one that gun's own container knows,
-    -- checked: 40 of 40) and a reader's analogy with the three guns above. Which JOB each does is [hypothesis] until
-    -- heard; 'fair' / 'weak' / 'coin toss' says how good the analogy is. Codes 12 / 13 (breech open / close) are not
-    -- wired yet (the plugin sends 1-11), so those entries sit idle.
-    -- 3040 M1911: its container knows RI3040 RELOAD_A-E only (five letters; the LEMI has A-H)
-    -- Assumes the two pistols share one animation template, so a letter does the same job on both. The LEMI shows the
-    -- letters are NOT in time order (E came first), so 'A-E in time order' is the worse bet.
-    ["3040"] = { [1] = { "wwise:3748353186" },   -- RELOAD_C: the LEMI's C is its slide back [hypothesis] (fair: letter for letter)
-                 [2] = { "wwise:599071332" },   -- RELOAD_D: the LEMI's D played at the slide-home moment (1.5 s); no F here [hypothesis] (fair)
-                 [9] = { "wwise:1375402122" },   -- RELOAD_E: the LEMI's E was the magazine release at 0.0 s [hypothesis] (fair)
-                 [10] = { "wwise:1723664427", "wwise:4011733426" } },   -- RELOAD_B, _A: the LEMI's in pair [hypothesis] (fair)
-    -- 3047 V61 Custom: its container knows RI3047 RELOAD_A-D only (no E, so no LEMI-style 'out' letter)
-    ["3047"] = { [1] = { "wwise:1860130758" },   -- RELOAD_C: as the LEMI / M1911 [hypothesis] (weak)
-                 [2] = { "wwise:527011809" },   -- RELOAD_D: as the M1911 guess [hypothesis] (weak)
-                 [9] = { "wwise:4094454040" },   -- RELOAD_A: with no E, out is A or B; A = first in time [hypothesis] (coin toss)
-                 [10] = { "wwise:999252073" } },   -- RELOAD_B [hypothesis] (coin toss)
-    -- 3048 SYG-12: own HAND_MAGAZINE + RELOAD_A-C = the F2's own set (HAND_MAGAZINE + RELOAD_A/B) plus a C
-    ["3048"] = { [1] = { "wwise:3138231974@stop" },   -- SHOTGUN_MVT_PUMP, first half: its container knows the pump sound though it has no pump; maybe the handle pull [hypothesis] (weak)
-                 [2] = { "wwise:1028693329" },   -- RELOAD_C: the letter the F2 lacks = the rack after an empty reload [hypothesis] (weak)
-                 [9] = { "wwise:2654909845" },   -- RELOAD_A: out, as the F2's RELOAD_A [hypothesis] (fair: same name set as the F2)
-                 [10] = { "wwise:3994740882" } },   -- RELOAD_B: in, as the F2's RELOAD_B [hypothesis] (fair)
-    -- 3049 WCX: NO own-number names found; only the shared long-gun (SHOTGUN_*) set, so these are fallbacks
-    -- The real WCX mechanics are almost surely under names the survey did not try (see names-to-try.md).
-    ["3049"] = { [1] = { "wwise:3430096898" },   -- SHOTGUN_PICKUP_I: the F2's bolt-back click, for the charging handle pulled [hypothesis] (weak)
-                 [2] = { "wwise:1762366329" },   -- SHOTGUN_PICKUP_H: the F2's bolt-forward click, for the handle let go [hypothesis] (weak)
-                 [9] = { "wwise:3713528881" },   -- SHOTGUN_HAND_RELOAD_A [hypothesis] (weak; on the F2 this one is the bolt turned down)
-                 [10] = { "wwise:1162100996" } },   -- SHOTGUN_HAND_RELOAD_B [hypothesis] (weak)
-    -- 3125 Dragoon: NO own-number names found; the same fallbacks as the WCX (its container knows all four)
-    ["3125"] = { [1] = { "wwise:3430096898" },   -- SHOTGUN_PICKUP_I [hypothesis] (weak)
-                 [2] = { "wwise:1762366329" },   -- SHOTGUN_PICKUP_H [hypothesis] (weak)
-                 [9] = { "wwise:3713528881" },   -- SHOTGUN_HAND_RELOAD_A [hypothesis] (weak)
-                 [10] = { "wwise:1162100996" } },   -- SHOTGUN_HAND_RELOAD_B [hypothesis] (weak)
-    -- 3023 GM 79: own HAND, MVT_AIM, MVT_GUARD_A/B, RELOAD_A, RELOAD_B, RELOAD_END
-    ["3023"] = { [11] = { "wwise:194076821" },   -- RELOAD_B: the round in, between opening (A) and closing (END) [hypothesis] (fair)
-                 [12] = { "wwise:20648496" },   -- RELOAD_A: barrel opens [hypothesis] (fair). NEEDS NEW CODE 12 (breech open): idle until then
-                 [13] = { "wwise:3941260967" } },   -- RELOAD_END: barrel shut [hypothesis] (fair). NEEDS NEW CODE 13 (breech close)
-    -- 3008 M1851 Wolfsbane: own BACK_DEFAULT, HAND, HAND_WEAK, MVT_AIM, MVT_READY_HAND, PICKUP_A, TAKE_SHELL; no cylinder name
-    -- TAKE_SHELL reads as the round taken from the pouch, HAND / HAND_WEAK as hand foley. The game itself reported
-    -- RI3008_SE_TAKE_SHELL and _HAND_WEAK during a LEMI reload (the timing comment in visceral_re8_sounds.lua) although the
-    -- LEMI's container does not know them: shared pistol hand foley played on the player, under the Wolfsbane's number
-    -- [inferred-static 2026-10-24].
-    ["3008"] = { [11] = { "wwise:2607745607" } },   -- PICKUP_A: its only mechanical-sounding name [hypothesis] (weak)
+    -- 2026-10-24 /lm, second flat run: every gun reloaded once by the game while the sounds were learned, so these come
+    -- from each gun's OWN reload run, by name and order (dev-archive/recon/2026-10-24-gun-survey/sounds-learned.json)
+    -- [measured 2026-10-24, n=1 per gun]. Which job each does is still [hypothesis] until heard in the headset.
+    -- 3040 M1911 (also S.T.A.K.E and Samurai Edge: their reloads play these same names)
+    ["3040"] = {
+                 [9] = { "wwise:4011733426" },   -- RI3040_SE_RELOAD_A: first after the draw = out
+                 [10] = { "wwise:1723664427" },   -- RI3040_SE_RELOAD_B: next, twice = in
+                 [1] = { "wwise:3748353186" },   -- RI3040_SE_RELOAD_C: after the magazine = slide back
+                 [2] = { "wwise:1375402122", "wwise:599071332" } },   -- RI3040_SE_RELOAD_E + RI3040_SE_RELOAD_D: last two = slide home
+    -- 3047 V61 Custom
+    ["3047"] = {
+                 [9] = { "wwise:999252073" },   -- RI3047_SE_RELOAD_B: first = out
+                 [10] = { "wwise:1860130758" },   -- RI3047_SE_RELOAD_C: second = in
+                 [1] = { "wwise:4094454040" },   -- RI3047_SE_RELOAD_A: third = slide back
+                 [2] = { "wwise:527011809" } },   -- RI3047_SE_RELOAD_D: last = slide home
+    -- 3124 USM-AI (it plays gun 3117's reload names and the V61's draw sounds)
+    ["3124"] = {
+                 [9] = { "wwise:696504162" },   -- RI3117_SE_RELOAD_E: the first reload name = out
+                 [10] = { "wwise:3903860849" },   -- RI3117_SE_RELOAD_F: the second = in
+                 [1] = { "wwise:2826146651" },   -- RI3047_SE_GET_WEP_D: after the magazine = slide back
+                 [2] = { "wwise:1083173504" } },   -- RI3047_SE_GET_WEP_B: the last slide sound = home
+    -- 3048 SYG-12
+    ["3048"] = {
+                 [9] = { "wwise:1028693329" },   -- RI3048_SE_RELOAD_C: first of its own pair = out
+                 [10] = { "wwise:3994740882" },   -- RI3048_SE_RELOAD_B: second = in
+                 [1] = { "wwise:3430096898" },   -- RI_SE_SHOTGUN_PICKUP_I: the F2's bolt-back click
+                 [2] = { "wwise:1762366329" } },   -- RI_SE_SHOTGUN_PICKUP_H: the F2's bolt-forward click
+    -- 3049 WCX (it plays the SYG-12's magazine names)
+    ["3049"] = {
+                 [9] = { "wwise:2654909845" },   -- RI3048_SE_RELOAD_A: first = out
+                 [10] = { "wwise:3994740882" },   -- RI3048_SE_RELOAD_B: second = in
+                 [1] = { "wwise:3430096898" },   -- RI_SE_SHOTGUN_PICKUP_I: charging handle back, as the F2's bolt
+                 [2] = { "wwise:1762366329" } },   -- RI_SE_SHOTGUN_PICKUP_H: handle home
+    -- 3125 Dragoon (it plays gun 3113's magazine names)
+    ["3125"] = {
+                 [9] = { "wwise:1675735353" },   -- RI3113_SE_RELOAD_A: first = out
+                 [10] = { "wwise:949146101" },   -- RI3113_SE_RELOAD_B: second = in
+                 [1] = { "wwise:3430096898" },   -- RI_SE_SHOTGUN_PICKUP_I: lever back, as the F2's bolt
+                 [2] = { "wwise:1762366329" } },   -- RI_SE_SHOTGUN_PICKUP_H: lever home
+    -- 3023 GM 79
+    ["3023"] = {
+                 [11] = { "wwise:194076821" },   -- RI3023_SE_RELOAD_B: between opening and closing = round in
+                 [12] = { "wwise:1523159280" },   -- RI3023_SE_RELOAD_START: first = barrel opens (code 12 not wired yet)
+                 [13] = { "wwise:3941260967" } },   -- RI3023_SE_RELOAD_END: last = barrel shut (code 13 not wired yet)
+    -- 3008 M1851 Wolfsbane (also the Handcannon PZ: its reload plays these same names)
+    ["3008"] = {
+                 [11] = { "wwise:315834017" },   -- RI3008_SE_RELOAD_BULLET: each round in
+                 [12] = { "wwise:719712247" },   -- RI3008_SE_EJECT_BULLET: cylinder open, cases out (code 12 not wired yet)
+                 [13] = { "wwise:372434422" } },   -- RI3008_SE_MVT_CYLINDER_ROLL: cylinder shut (code 13 not wired yet)
 }
 -- 2026-10-24 /pd (Tefa: "can you do all the other guns in the game as well"): the Mercenaries and Shadows of Rose copies
 -- are the same guns, so they use their base gun's sounds; the W870 TAC borrows the M1897's, which are the shared shotgun
@@ -513,7 +520,8 @@ local VARIANT_OF = { ["3081"] = "3046", ["3135"] = "3046",                    --
                      -- the survey backs it: the W870 knows SHOTGUN_MVT_PUMP and _SHELL, the two the M1897 uses
                      ["3082"] = "3040", ["3083"] = "3047",                    -- M1911 / V61 Custom - Mercenaries
                      ["3086"] = "3048", ["3129"] = "3125",                    -- SYG-12 / Dragoon - Mercenaries
-                     ["3116"] = "3008" }                                      -- Handcannon PZ: knew no name; the other revolver [hypothesis]
+                     ["3050"] = "3040", ["3122"] = "3040",                    -- S.T.A.K.E, Samurai Edge: their reloads play the M1911's names
+                     ["3116"] = "3008" }                                      -- Handcannon PZ: its reload plays the Wolfsbane's names (2026-10-24)
 gun_sounds = function(num) return GUN_SOUNDS[num] or GUN_SOUNDS[VARIANT_OF[num] or ""] end
 local FROM_END = { [2] = { FAM_RELOAD, 1 }, [3] = { FAM_FIRE, 2 }, [4] = { FAM_FIRE, 1 },
                    [5] = { FAM_FIRE, 4 }, [6] = { FAM_FIRE, 3 }, [7] = { FAM_FIRE, 2 }, [8] = { FAM_FIRE, 1 } }

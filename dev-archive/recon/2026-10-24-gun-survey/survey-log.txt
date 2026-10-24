@@ -1,5 +1,24 @@
-[REFramework] [info] [visceral-re8-survey] loaded: every owned gun is surveyed once, a few seconds after the player appears
-[REFramework] [info] [visceral-re8-survey] 1 gun object(s) under the player: surveying each (joints + known sounds)
+[REFramework] [info] [visceral-re8-cycle] loaded (runs once when reframework/data/visceral_re8/cycle_guns.json exists)
+[REFramework] [info] [visceral-re8-survey] loaded: every gun object is surveyed once, the first time it is in hand
+[REFramework] [info] [visceral-re8-cycle] give: gun 1157345091 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 3875003266 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 2545563073 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 949611560 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 3132227914 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 3003110346 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 2146816802 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 241847407 added
+[REFramework] [info] [visceral-re8-cycle] give: gun 634755339 added
+[REFramework] [info] [visceral-re8-cycle] give: ammo 1179972000 x30 added
+[REFramework] [info] [visceral-re8-cycle] give: ammo 1731811000 x20 added
+[REFramework] [info] [visceral-re8-cycle] give: ammo 3919597625 x20 added
+[REFramework] [info] [visceral-re8-cycle] give: ammo 2182652875 x20 added
+[REFramework] [info] [visceral-re8-cycle] give: ammo 2275184395 x6 added
+[REFramework] [info] [visceral-re8-cycle] give: ammo 3188868396 x30 added
+[REFramework] [info] [visceral-re8-cycle] give: ammo 1927571624 x6 FAILED
+[REFramework] [info] [visceral-re8-cycle] cycle started: 16 gun(s), 16 s each
+[REFramework] [info] [visceral-re8-cycle] gun 1 of 16 (item 97158149): requested
+[REFramework] [info] [visceral-re8-survey] new gun object ri3046_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3046_Inventory joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3046_Inventory joint 1 Body < root
 [REFramework] [info] [visceral-re8-survey] ri3046_Inventory joint 2 Magazine < Body
@@ -19,10 +38,16 @@
 [REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3046_SE_RELOAD_F (wwise:3043993691)
 [REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3046_SE_RELOAD_G (wwise:1153937529)
 [REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3046_SE_RELOAD_H (wwise:846168023)
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3008_SE_PICKUP_A (wwise:2607745607)
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3008_SE_HAND_WEAK (wwise:686072595)
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
 [REFramework] [info] [visceral-re8-survey] ri3046_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3046_Inventory: 11 joints, 9 of 1100 sound names known
-[REFramework] [info] [visceral-re8-survey] survey done: written to reframework/data/visceral_re8/gun_survey.json
-[REFramework] [info] [visceral-re8-survey] loaded: every gun object is surveyed once, the first time it is in hand
+[REFramework] [info] [visceral-re8-survey] ri3046_Inventory: 11 joints, 16 of 9780 sound names known
+[REFramework] [info] [visceral-re8-cycle] gun 2 of 16 (item 2838037082): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3036_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3036_Inventory joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3036_Inventory joint 1 Body < root
@@ -61,7 +86,8 @@
 [REFramework] [info] [visceral-re8-survey] ri3036_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_WALK (wwise:2594268335)
 [REFramework] [info] [visceral-re8-survey] ri3036_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_AIM (wwise:1228826873)
 [REFramework] [info] [visceral-re8-survey] ri3036_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT (wwise:3258035154)
-[REFramework] [info] [visceral-re8-survey] ri3036_Inventory: 12 joints, 25 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3036_Inventory: 12 joints, 25 of 9780 sound names known
+[REFramework] [info] [visceral-re8-cycle] gun 3 of 16 (item 4186049118): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3042_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3042_Inventory joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3042_Inventory joint 1 Body < root
@@ -92,7 +118,35 @@
 [REFramework] [info] [visceral-re8-survey] ri3042_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_AIM (wwise:1228826873)
 [REFramework] [info] [visceral-re8-survey] ri3042_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT (wwise:3258035154)
 [REFramework] [info] [visceral-re8-survey] ri3042_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2 (wwise:727399281)
-[REFramework] [info] [visceral-re8-survey] ri3042_Inventory: 7 joints, 22 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3042_Inventory: 7 joints, 22 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3042's reload sounds: wwise:2364005535 wwise:3713528881 wwise:3835880431 wwise:1762366329 wwise:3430096898 wwise:727399281 wwise:1754729071 wwise:890956598 wwise:1306247460 wwise:2638512361 wwise:2626270253 wwise:727399281 wwise:1162100996 wwise:3713528881 wwise:3835880431 wwise:3430096898 wwise:2618206409
+[REFramework] [info] [visceral-re8-cycle] gun 4 of 16 (item 2735256250): requested
+[REFramework] [info] [visceral-re8-survey] new gun object ri3040_Inventory: surveying (joints + known sounds)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 0 root < none
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 1 Body < root
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 2 Magazine < Body
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 3 Slide < Body
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 4 Hammer < Body
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 5 Trigger < Body
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 6 vfx_muzzle < Body
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 7 Magazine_second < Body
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 8 Cartridge < Body
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_A (wwise:4011733426)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_B (wwise:1723664427)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_C (wwise:3748353186)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_D (wwise:599071332)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_E (wwise:1375402122)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3008_SE_PICKUP_A (wwise:2607745607)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3008_SE_HAND_WEAK (wwise:686072595)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
+[REFramework] [info] [visceral-re8-survey] ri3040_Inventory: 9 joints, 13 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3040's reload sounds: wwise:2897034826 wwise:1394671443 wwise:4011733426 wwise:843928613 wwise:1723664427 wwise:843928613 wwise:1723664427 wwise:3748353186 wwise:2579496227 wwise:1375402122 wwise:599071332
+[REFramework] [info] [visceral-re8-cycle] gun 5 of 16 (item 738899953): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3021_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3021_Inventory joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3021_Inventory joint 1 Body < root
@@ -128,47 +182,9 @@
 [REFramework] [info] [visceral-re8-survey] ri3021_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_AIM (wwise:1228826873)
 [REFramework] [info] [visceral-re8-survey] ri3021_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT (wwise:3258035154)
 [REFramework] [info] [visceral-re8-survey] ri3021_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2 (wwise:727399281)
-[REFramework] [info] [visceral-re8-survey] ri3021_Inventory: 8 joints, 26 of 1100 sound names known
-[REFramework] [info] [visceral-re8-cycle] loaded (runs once when reframework/data/visceral_re8/cycle_guns.json exists)
-[REFramework] [info] [visceral-re8-survey] loaded: every gun object is surveyed once, the first time it is in hand
-[REFramework] [info] [visceral-re8-cycle] cycle started: 16 gun(s) in the inventory, 6 s each
-[REFramework] [info] [visceral-re8-cycle] gun 1 of 16 (item 97158149): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 2 of 16 (item 2838037082): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 3 of 16 (item 4186049118): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 4 of 16 (item 2735256250): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 5 of 16 (item 738899953): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 6 of 16 (item 2576167331): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 7 of 16 (item 331140406): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 8 of 16 (item 1157345091): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 9 of 16 (item 3875003266): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 10 of 16 (item 2545563073): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 11 of 16 (item 949611560): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] gun 12 of 16 (item 3132227914): FAILED (no weapon change)
-[REFramework] [info] [visceral-re8-cycle] loaded (runs once when reframework/data/visceral_re8/cycle_guns.json exists)
-[REFramework] [info] [visceral-re8-survey] loaded: every gun object is surveyed once, the first time it is in hand
-[REFramework] [info] [visceral-re8-cycle] cycle started: 16 gun(s) in the inventory, 6 s each
-[REFramework] [info] [visceral-re8-cycle] gun 1 of 16 (item 97158149): requested
-[REFramework] [info] [visceral-re8-cycle] gun 2 of 16 (item 2838037082): requested
-[REFramework] [info] [visceral-re8-cycle] gun 3 of 16 (item 4186049118): requested
-[REFramework] [info] [visceral-re8-cycle] gun 4 of 16 (item 2735256250): requested
-[REFramework] [info] [visceral-re8-survey] new gun object ri3040_Inventory: surveying (joints + known sounds)
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 0 root < none
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 1 Body < root
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 2 Magazine < Body
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 3 Slide < Body
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 4 Hammer < Body
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 5 Trigger < Body
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 6 vfx_muzzle < Body
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 7 Magazine_second < Body
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory joint 8 Cartridge < Body
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_A (wwise:4011733426)
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_B (wwise:1723664427)
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_C (wwise:3748353186)
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_D (wwise:599071332)
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI3040_SE_RELOAD_E (wwise:1375402122)
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3040_Inventory: 9 joints, 6 of 1100 sound names known
-[REFramework] [info] [visceral-re8-cycle] gun 5 of 16 (item 738899953): requested
+[REFramework] [info] [visceral-re8-survey] ri3021_Inventory: 8 joints, 26 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3021's reload sounds: wwise:2364005535 wwise:2638512361 wwise:1762366329 wwise:2908618300 wwise:2618206409 wwise:1398425233
+[REFramework] [info] [visceral-re8-sounds] learned gun 3021's reload sounds: wwise:1762366329 wwise:2908618300 wwise:1762366329 wwise:2908618300 wwise:1762366329 wwise:2908618300 wwise:1762366329 wwise:2908618300
 [REFramework] [info] [visceral-re8-cycle] gun 6 of 16 (item 2576167331): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3023_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3023_Inventory joint 0 root < none
@@ -197,7 +213,8 @@
 [REFramework] [info] [visceral-re8-survey] ri3023_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_WALK (wwise:2594268335)
 [REFramework] [info] [visceral-re8-survey] ri3023_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_AIM (wwise:1228826873)
 [REFramework] [info] [visceral-re8-survey] ri3023_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT (wwise:3258035154)
-[REFramework] [info] [visceral-re8-survey] ri3023_Inventory: 16 joints, 10 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3023_Inventory: 16 joints, 10 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3023's reload sounds: wwise:1287365610 wwise:1523159280 wwise:194076821 wwise:20648496 wwise:3941260967 wwise:2885765249
 [REFramework] [info] [visceral-re8-cycle] gun 7 of 16 (item 331140406): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3008_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3008_Inventory joint 0 root < none
@@ -227,7 +244,10 @@
 [REFramework] [info] [visceral-re8-survey] ri3008_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
 [REFramework] [info] [visceral-re8-survey] ri3008_Inventory knows SND_MOT_RI3008_SE_HAND_WEAK (wwise:686072595)
 [REFramework] [info] [visceral-re8-survey] ri3008_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
-[REFramework] [info] [visceral-re8-survey] ri3008_Inventory: 20 joints, 7 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3008_Inventory: 20 joints, 7 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3008's after-the-shot sounds: wwise:740255369 wwise:372434422
+[REFramework] [info] [visceral-re8-sounds] learned gun 3008's reload sounds: wwise:1972145823 wwise:719712247 wwise:2269678183 wwise:315834017 wwise:372434422
+[REFramework] [info] [visceral-re8-sounds] learned gun 3008's reload sounds: wwise:719712247 wwise:315834017 wwise:372434422 wwise:719712247 wwise:315834017 wwise:372434422 wwise:719712247 wwise:315834017 wwise:372434422 wwise:719712247
 [REFramework] [info] [visceral-re8-cycle] gun 8 of 16 (item 1157345091): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3047_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3047_Inventory joint 0 root < none
@@ -242,8 +262,15 @@
 [REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3047_SE_RELOAD_B (wwise:999252073)
 [REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3047_SE_RELOAD_C (wwise:1860130758)
 [REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3047_SE_RELOAD_D (wwise:527011809)
+[REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3008_SE_HAND_WEAK (wwise:686072595)
+[REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
 [REFramework] [info] [visceral-re8-survey] ri3047_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3047_Inventory: 8 joints, 5 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3047_Inventory: 8 joints, 10 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3047's reload sounds: wwise:871019791 wwise:4094454040 wwise:871019791 wwise:4094454040
+[REFramework] [info] [visceral-re8-sounds] learned gun 3047's reload sounds: wwise:999252073 wwise:1860130758 wwise:4094454040 wwise:1083173504 wwise:527011809
 [REFramework] [info] [visceral-re8-cycle] gun 9 of 16 (item 3875003266): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3050_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3050_Inventory joint 0 root < none
@@ -256,8 +283,21 @@
 [REFramework] [info] [visceral-re8-survey] ri3050_Inventory joint 7 MagCatch < Body
 [REFramework] [info] [visceral-re8-survey] ri3050_Inventory joint 8 Magazine_second < Body
 [REFramework] [info] [visceral-re8-survey] ri3050_Inventory joint 9 Cartridge < Body
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3008_SE_PICKUP_A (wwise:2607745607)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3008_SE_HAND_WEAK (wwise:686072595)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3040_SE_RELOAD_A (wwise:4011733426)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3040_SE_RELOAD_B (wwise:1723664427)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3040_SE_RELOAD_C (wwise:3748353186)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3040_SE_RELOAD_D (wwise:599071332)
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI3040_SE_RELOAD_E (wwise:1375402122)
 [REFramework] [info] [visceral-re8-survey] ri3050_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3050_Inventory: 10 joints, 1 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3050_Inventory: 10 joints, 13 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3050's reload sounds: wwise:2897034826 wwise:1394671443 wwise:4011733426 wwise:843928613 wwise:1723664427 wwise:843928613 wwise:1723664427 wwise:3748353186 wwise:2579496227 wwise:1375402122 wwise:599071332
 [REFramework] [info] [visceral-re8-cycle] gun 10 of 16 (item 2545563073): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3115_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3115_Inventory joint 0 root < none
@@ -269,19 +309,55 @@
 [REFramework] [info] [visceral-re8-survey] ri3115_Inventory joint 6 Bullet01 < Body
 [REFramework] [info] [visceral-re8-survey] ri3115_Inventory joint 7 Hummer < Body
 [REFramework] [info] [visceral-re8-survey] ri3115_Inventory joint 8 vfx_muzzle < Body
+[REFramework] [info] [visceral-re8-survey] ri3115_Inventory knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3115_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3115_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3115_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3115_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
 [REFramework] [info] [visceral-re8-survey] ri3115_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3115_Inventory: 9 joints, 1 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3115_Inventory: 9 joints, 6 of 9780 sound names known
 [REFramework] [info] [visceral-re8-survey] new gun object ri3115_Bullet_03: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 joint 1 _00 < root
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
 [REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03 knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03: 2 joints, 1 of 1100 sound names known
-[REFramework] [info] [visceral-re8-cycle] gun 11 of 16 (item 949611560): requested
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_03: 2 joints, 6 of 9780 sound names known
 [REFramework] [info] [visceral-re8-survey] new gun object ri3115_Bullet_02: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 joint 1 _00 < root
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
 [REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02 knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02: 2 joints, 1 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_02: 2 joints, 6 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3115's reload sounds: wwise:2579496227 wwise:2428522962 wwise:1555106077 wwise:2269678183
+[REFramework] [info] [visceral-re8-survey] new gun object ri3115_Bullet_01: surveying (joints + known sounds)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 joint 0 root < none
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 joint 1 _00 < root
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01: 2 joints, 6 of 9780 sound names known
+[REFramework] [info] [visceral-re8-survey] new gun object ri3115_Bullet_00: surveying (joints + known sounds)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 joint 0 root < none
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 joint 1 _00 < root
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
+[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00: 2 joints, 6 of 9780 sound names known
+[REFramework] [info] [visceral-re8-cycle] gun 11 of 16 (item 949611560): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3122_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3122_Inventory joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3122_Inventory joint 1 Body < root
@@ -292,19 +368,22 @@
 [REFramework] [info] [visceral-re8-survey] ri3122_Inventory joint 6 vfx_muzzle < Body
 [REFramework] [info] [visceral-re8-survey] ri3122_Inventory joint 7 Magazine_second < Body
 [REFramework] [info] [visceral-re8-survey] ri3122_Inventory joint 8 Cartridge < Body
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3008_SE_PICKUP_A (wwise:2607745607)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3008_SE_HAND_WEAK (wwise:686072595)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3040_SE_RELOAD_A (wwise:4011733426)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3040_SE_RELOAD_B (wwise:1723664427)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3040_SE_RELOAD_C (wwise:3748353186)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3040_SE_RELOAD_D (wwise:599071332)
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI3040_SE_RELOAD_E (wwise:1375402122)
 [REFramework] [info] [visceral-re8-survey] ri3122_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3122_Inventory: 9 joints, 1 of 1100 sound names known
-[REFramework] [info] [visceral-re8-survey] new gun object ri3115_Bullet_01: surveying (joints + known sounds)
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 joint 0 root < none
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 joint 1 _00 < root
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01 knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_01: 2 joints, 1 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3122_Inventory: 9 joints, 13 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3122's reload sounds: wwise:2897034826 wwise:1394671443 wwise:4011733426 wwise:843928613 wwise:1723664427 wwise:843928613 wwise:1723664427 wwise:3748353186 wwise:2579496227 wwise:1375402122 wwise:599071332
 [REFramework] [info] [visceral-re8-cycle] gun 12 of 16 (item 3132227914): requested
-[REFramework] [info] [visceral-re8-survey] new gun object ri3115_Bullet_00: surveying (joints + known sounds)
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 joint 0 root < none
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 joint 1 _00 < root
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00 knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3115_Bullet_00: 2 joints, 1 of 1100 sound names known
 [REFramework] [info] [visceral-re8-survey] new gun object ri3124_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3124_Inventory joint 0 root < none
 [REFramework] [info] [visceral-re8-survey] ri3124_Inventory joint 1 Body < root
@@ -316,8 +395,14 @@
 [REFramework] [info] [visceral-re8-survey] ri3124_Inventory joint 7 Cartridge < Body
 [REFramework] [info] [visceral-re8-survey] ri3124_Inventory joint 8 vfx_muzzle2 < Body
 [REFramework] [info] [visceral-re8-survey] ri3124_Inventory joint 9 Stock < Body
+[REFramework] [info] [visceral-re8-survey] ri3124_Inventory knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3124_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3124_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3124_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3124_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
 [REFramework] [info] [visceral-re8-survey] ri3124_Inventory knows SND_MOT_RI_SE_MVT_SMALL (wwise:2579496227)
-[REFramework] [info] [visceral-re8-survey] ri3124_Inventory: 10 joints, 1 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3124_Inventory: 10 joints, 6 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3124's reload sounds: wwise:2396138270 wwise:2579496227 wwise:1083173504 wwise:696504162 wwise:2269678183 wwise:3903860849 wwise:2826146651 wwise:2428522962 wwise:1083173504 wwise:3102372331
 [REFramework] [info] [visceral-re8-cycle] gun 13 of 16 (item 3003110346): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3049_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory joint 0 root < none
@@ -331,6 +416,9 @@
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory joint 8 Selecter < Body
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory joint 9 Cartridge < Body
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory joint 10 Magazine_second < Body
+[REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI3048_SE_RELOAD_A (wwise:2654909845)
+[REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI3048_SE_RELOAD_B (wwise:3994740882)
+[REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI3048_SE_HAND_MAGAZINE (wwise:390474127)
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_A (wwise:2364005535)
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_B (wwise:1437816205)
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A (wwise:3713528881)
@@ -355,7 +443,9 @@
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_AIM (wwise:1228826873)
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT (wwise:3258035154)
 [REFramework] [info] [visceral-re8-survey] ri3049_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2 (wwise:727399281)
-[REFramework] [info] [visceral-re8-survey] ri3049_Inventory: 11 joints, 24 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3049_Inventory: 11 joints, 27 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3049's reload sounds: wwise:727399281 wwise:2618206409
+[REFramework] [info] [visceral-re8-sounds] learned gun 3049's reload sounds: wwise:2654909845 wwise:390474127 wwise:2638512361 wwise:3994740882 wwise:1762366329 wwise:3713528881 wwise:3430096898 wwise:1162100996
 [REFramework] [info] [visceral-re8-cycle] gun 14 of 16 (item 2146816802): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3125_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3125_Inventory joint 0 root < none
@@ -391,7 +481,8 @@
 [REFramework] [info] [visceral-re8-survey] ri3125_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_AIM (wwise:1228826873)
 [REFramework] [info] [visceral-re8-survey] ri3125_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT (wwise:3258035154)
 [REFramework] [info] [visceral-re8-survey] ri3125_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2 (wwise:727399281)
-[REFramework] [info] [visceral-re8-survey] ri3125_Inventory: 13 joints, 20 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3125_Inventory: 13 joints, 20 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3125's reload sounds: wwise:1932276830 wwise:4010728799 wwise:3439966503 wwise:2638512361 wwise:1675735353 wwise:3991804165 wwise:949146101 wwise:1932276830 wwise:3713528881 wwise:3430096898 wwise:1762366329 wwise:1162100996
 [REFramework] [info] [visceral-re8-cycle] gun 15 of 16 (item 241847407): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3048_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3048_Inventory joint 0 root < none
@@ -433,7 +524,8 @@
 [REFramework] [info] [visceral-re8-survey] ri3048_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_AIM (wwise:1228826873)
 [REFramework] [info] [visceral-re8-survey] ri3048_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT (wwise:3258035154)
 [REFramework] [info] [visceral-re8-survey] ri3048_Inventory knows SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2 (wwise:727399281)
-[REFramework] [info] [visceral-re8-survey] ri3048_Inventory: 9 joints, 30 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3048_Inventory: 9 joints, 30 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3048's reload sounds: wwise:3115164376 wwise:1932276830 wwise:390474127 wwise:2638512361 wwise:3430096898 wwise:1028693329 wwise:3994740882 wwise:2364005535 wwise:1762366329 wwise:3430096898 wwise:1162100996
 [REFramework] [info] [visceral-re8-cycle] gun 16 of 16 (item 634755339): requested
 [REFramework] [info] [visceral-re8-survey] new gun object ri3116_Inventory: surveying (joints + known sounds)
 [REFramework] [info] [visceral-re8-survey] ri3116_Inventory joint 0 root < none
@@ -448,5 +540,14 @@
 [REFramework] [info] [visceral-re8-survey] ri3116_Inventory joint 9 Bullet04 < Cylinder
 [REFramework] [info] [visceral-re8-survey] ri3116_Inventory joint 10 Lid < Body
 [REFramework] [info] [visceral-re8-survey] ri3116_Inventory joint 11 vfx_muzzle < Body
-[REFramework] [info] [visceral-re8-survey] ri3116_Inventory: 12 joints, 0 of 1100 sound names known
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory knows SND_MOT_RI3008_SE_PICKUP_A (wwise:2607745607)
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory knows SND_MOT_RI3008_SE_TAKE_SHELL (wwise:2269678183)
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory knows SND_MOT_RI3008_SE_MVT_AIM (wwise:1394671443)
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory knows SND_MOT_RI3008_SE_BACK_DEFAULT (wwise:1510783764)
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory knows SND_MOT_RI3008_SE_HAND (wwise:3102372331)
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory knows SND_MOT_RI3008_SE_HAND_WEAK (wwise:686072595)
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory knows SND_MOT_RI3008_SE_MVT_READY_HAND (wwise:2428522962)
+[REFramework] [info] [visceral-re8-survey] ri3116_Inventory: 12 joints, 7 of 9780 sound names known
+[REFramework] [info] [visceral-re8-sounds] learned gun 3116's reload sounds: wwise:1972145823 wwise:719712247 wwise:2269678183 wwise:315834017 wwise:372434422
+[REFramework] [info] [visceral-re8-sounds] learned gun 3116's reload sounds: wwise:719712247 wwise:315834017 wwise:372434422 wwise:719712247 wwise:315834017 wwise:372434422 wwise:719712247 wwise:315834017 wwise:372434422 wwise:719712247 wwise:315834017 wwise:372434422
 [REFramework] [info] [visceral-re8-cycle] cycle done

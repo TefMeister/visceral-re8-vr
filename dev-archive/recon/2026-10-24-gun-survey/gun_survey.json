@@ -31,7 +31,8 @@
             "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
             "SND_MOT_RI3008_SE_PICKUP_A": 2607745607,
             "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183
-        }
+        },
+        "v": 2
     },
     "ri3021_Inventory": {
         "container": true,
@@ -72,7 +73,8 @@
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
             "SND_MOT_RI_SE_SHOTGUN_SHELL": 2908618300,
             "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
-        }
+        },
+        "v": 2
     },
     "ri3023_Inventory": {
         "container": true,
@@ -105,7 +107,8 @@
             "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
             "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
             "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335
-        }
+        },
+        "v": 2
     },
     "ri3036_Inventory": {
         "container": true,
@@ -149,7 +152,8 @@
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
             "SND_MOT_RI_SE_SHOTGUN_SHELL": 2908618300,
             "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
-        }
+        },
+        "v": 2
     },
     "ri3040_Inventory": {
         "container": true,
@@ -165,13 +169,21 @@
             "8 Cartridge < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_HAND_WEAK": 686072595,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_PICKUP_A": 2607745607,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI3040_SE_RELOAD_A": 4011733426,
             "SND_MOT_RI3040_SE_RELOAD_B": 1723664427,
             "SND_MOT_RI3040_SE_RELOAD_C": 3748353186,
             "SND_MOT_RI3040_SE_RELOAD_D": 599071332,
             "SND_MOT_RI3040_SE_RELOAD_E": 1375402122,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3042_Inventory": {
         "container": true,
@@ -207,7 +219,8 @@
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
             "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
-        }
+        },
+        "v": 2
     },
     "ri3046_Inventory": {
         "container": true,
@@ -225,6 +238,13 @@
             "10 Magazine_second < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_HAND_WEAK": 686072595,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_PICKUP_A": 2607745607,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI3046_SE_RELOAD_A": 1786646228,
             "SND_MOT_RI3046_SE_RELOAD_B": 2121001178,
             "SND_MOT_RI3046_SE_RELOAD_C": 3326354725,
@@ -234,7 +254,8 @@
             "SND_MOT_RI3046_SE_RELOAD_G": 1153937529,
             "SND_MOT_RI3046_SE_RELOAD_H": 846168023,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3047_Inventory": {
         "container": true,
@@ -249,12 +270,18 @@
             "7 Cartridge < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_HAND_WEAK": 686072595,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
             "SND_MOT_RI3047_SE_RELOAD_A": 4094454040,
             "SND_MOT_RI3047_SE_RELOAD_B": 999252073,
             "SND_MOT_RI3047_SE_RELOAD_C": 1860130758,
             "SND_MOT_RI3047_SE_RELOAD_D": 527011809,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3048_Inventory": {
         "container": true,
@@ -300,7 +327,8 @@
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
             "SND_MOT_RI_SE_SHOTGUN_SHELL": 2908618300,
             "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
-        }
+        },
+        "v": 2
     },
     "ri3049_Inventory": {
         "container": true,
@@ -318,6 +346,9 @@
             "10 Magazine_second < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3048_SE_HAND_MAGAZINE": 390474127,
+            "SND_MOT_RI3048_SE_RELOAD_A": 2654909845,
+            "SND_MOT_RI3048_SE_RELOAD_B": 3994740882,
             "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_A": 3724857694,
             "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_B": 1754729071,
             "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A": 3713528881,
@@ -342,7 +373,8 @@
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
             "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
-        }
+        },
+        "v": 2
     },
     "ri3050_Inventory": {
         "container": true,
@@ -359,8 +391,21 @@
             "9 Cartridge < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_HAND_WEAK": 686072595,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_PICKUP_A": 2607745607,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
+            "SND_MOT_RI3040_SE_RELOAD_A": 4011733426,
+            "SND_MOT_RI3040_SE_RELOAD_B": 1723664427,
+            "SND_MOT_RI3040_SE_RELOAD_C": 3748353186,
+            "SND_MOT_RI3040_SE_RELOAD_D": 599071332,
+            "SND_MOT_RI3040_SE_RELOAD_E": 1375402122,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3115_Bullet_00": {
         "container": true,
@@ -369,8 +414,14 @@
             "1 _00 < root"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3115_Bullet_01": {
         "container": true,
@@ -379,8 +430,14 @@
             "1 _00 < root"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3115_Bullet_02": {
         "container": true,
@@ -389,8 +446,14 @@
             "1 _00 < root"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3115_Bullet_03": {
         "container": true,
@@ -399,8 +462,14 @@
             "1 _00 < root"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3115_Inventory": {
         "container": true,
@@ -416,8 +485,14 @@
             "8 vfx_muzzle < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3116_Inventory": {
         "container": true,
@@ -435,7 +510,16 @@
             "10 Lid < Body",
             "11 vfx_muzzle < Body"
         ],
-        "sounds": null
+        "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_HAND_WEAK": 686072595,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_PICKUP_A": 2607745607,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183
+        },
+        "v": 2
     },
     "ri3122_Inventory": {
         "container": true,
@@ -451,8 +535,21 @@
             "8 Cartridge < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_HAND_WEAK": 686072595,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_PICKUP_A": 2607745607,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
+            "SND_MOT_RI3040_SE_RELOAD_A": 4011733426,
+            "SND_MOT_RI3040_SE_RELOAD_B": 1723664427,
+            "SND_MOT_RI3040_SE_RELOAD_C": 3748353186,
+            "SND_MOT_RI3040_SE_RELOAD_D": 599071332,
+            "SND_MOT_RI3040_SE_RELOAD_E": 1375402122,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3124_Inventory": {
         "container": true,
@@ -469,8 +566,14 @@
             "9 Stock < Body"
         ],
         "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183,
             "SND_MOT_RI_SE_MVT_SMALL": 2579496227
-        }
+        },
+        "v": 2
     },
     "ri3125_Inventory": {
         "container": true,
@@ -510,6 +613,7 @@
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
             "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
             "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
-        }
+        },
+        "v": 2
     }
 }

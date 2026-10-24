@@ -44,25 +44,78 @@ local function murmur3_utf16(s)
 end
 -- ==== END HASH ====
 
--- the name patterns: every action seen in the 39 known names, plus the obvious kin (letters run on past the ones seen)
-local ACTS = {}
-local function add(a) ACTS[#ACTS + 1] = a end
+-- the name patterns (v2, 2026-10-24, from the reader's names-to-try.lua): the 110 first actions, new actions read from
+-- the joints the first survey found, every gun's number asked of every gun, more family words and prefixes; most
+-- likely first, ~9800 names per gun
+local M = {}
+
+-- every gun number seen (the 16 story guns + the Mercenaries / Shadows of Rose copies in weapons.cpp)
+M.NUMBERS = { "3008", "3021", "3023", "3036", "3040", "3042", "3046", "3047", "3048", "3049", "3050", "3115", "3116",
+              "3122", "3124", "3125", "3081", "3082", "3083", "3084", "3085", "3086", "3087", "3129", "3130", "3135", "3147" }
+
+-- the actions already asked (copied from visceral_re8_gun_survey.lua, so this file stands alone)
+local OLD = {}
 for _, base in ipairs({ "RELOAD_", "MVT_RELOAD_", "HAND_RELOAD_", "HAND_GUARD_", "MVT_GUARD_", "PICKUP_" }) do
-    for c = string.byte("A"), string.byte("L") do add(base .. string.char(c)) end
+    for c = string.byte("A"), string.byte("L") do OLD[#OLD + 1] = base .. string.char(c) end
 end
 for _, a in ipairs({ "RELOAD_END", "MVT_RELOAD_END", "HAND_RELOAD_END", "TAKE_SHELL", "SHELL", "MVT_PUMP", "MVT_WALK",
     "MVT_AIM", "MVT_BACK_DEFAULT", "MVT_BACK_DEFAULT2", "BACK_DEFAULT", "BACK_DEFAULT2", "HAND", "HAND_WEAK",
     "MVT_READY_HAND", "MVT_SMALL", "MVT_MIDDLE", "MVT_LARGE", "GRAB_LEVER", "HAND_MAGAZINE", "TAKE_MAGAZINE", "COCK",
     "HAMMER", "SLIDE", "BOLT", "LEVER", "OPEN", "CLOSE", "CYLINDER_OPEN", "CYLINDER_CLOSE", "BARREL_OPEN", "BARREL_CLOSE",
-    "MAGAZINE_IN", "MAGAZINE_OUT", "PUMP", "CHARGE", "LOAD", "EJECT" }) do add(a) end
-local FAMILIES = { "", "SHOTGUN_", "HANDGUN_", "RIFLE_", "MAGNUM_", "SNIPER_", "MACHINEGUN_", "GRENADE_", "REVOLVER_" }
+    "MAGAZINE_IN", "MAGAZINE_OUT", "PUMP", "CHARGE", "LOAD", "EJECT" }) do OLD[#OLD + 1] = a end
 
-local function names_for(num)   -- num = "3046": the gun's own names, then the shared families
-    local out = {}
-    for _, a in ipairs(ACTS) do out[#out + 1] = "SND_MOT_RI" .. num .. "_SE_" .. a end
-    for _, f in ipairs(FAMILIES) do for _, a in ipairs(ACTS) do out[#out + 1] = "SND_MOT_RI_SE_" .. f .. a end end
+-- new actions, by the parts the survey found
+local NEW = {
+    -- pistols (S.T.A.K.E has a MagCatch joint)
+    "SLIDE_BACK", "SLIDE_RELEASE", "SLIDE_STOP", "SLIDE_FORWARD", "MAG_IN", "MAG_OUT", "MAG_CATCH", "MAGAZINE_RELEASE",
+    "MAGAZINE_CATCH", "HAMMER_COCK", "DECOCK", "TAKE_BULLET", "HAND_SLIDE", "GRAB_SLIDE",
+    -- revolvers (Cylinder, Lid) and the GM 79 (Carrier, Lever)
+    "CYLINDER", "CYLINDER_IN", "CYLINDER_OUT", "CYLINDER_SWING", "CYLINDER_ROLL", "CYLINDER_SPIN", "LID", "LID_OPEN",
+    "LID_CLOSE", "EJECTOR", "EJECT_SHELL", "SPEED_LOADER", "BULLET_IN", "SHELL_IN", "LOAD_BULLET", "LOAD_SHELL",
+    "CARRIER", "CARRIER_OPEN", "CARRIER_CLOSE", "BREAK_OPEN", "BREAK_CLOSE", "GRAB_CARRIER",
+    -- the Rocket Pistol (Lid, Lever, Bullet00/01)
+    "LEVER_UP", "LEVER_DOWN", "LEVER_OPEN", "LEVER_CLOSE", "ROCKET", "ROCKET_IN", "LOAD_ROCKET", "TAKE_ROCKET",
+    -- WCX (Handle, Bolt < Handle, Selecter) and Dragoon (Lever, Selector)
+    "HANDLE", "HANDLE_BACK", "HANDLE_RELEASE", "GRAB_HANDLE", "CHARGING_HANDLE", "BOLT_BACK", "BOLT_RELEASE",
+    "BOLT_FORWARD", "SELECTOR", "SELECTER", "GRAB_LEVER_B", "HAND_MAGAZINE_B",
+}
+-- letters past L, numbered forms and empty / tactical reload forms, on the bases the found names use
+for _, base in ipairs({ "RELOAD_", "PICKUP_", "HAND_RELOAD_", "MVT_RELOAD_" }) do
+    for c = string.byte("M"), string.byte("P") do NEW[#NEW + 1] = base .. string.char(c) end
+end
+for _, base in ipairs({ "RELOAD_", "PICKUP_" }) do
+    for i = 0, 12 do NEW[#NEW + 1] = string.format("%s%02d", base, i); NEW[#NEW + 1] = base .. i end
+end
+for c = string.byte("A"), string.byte("H") do
+    local l = string.char(c)
+    NEW[#NEW + 1] = "RELOAD_EMPTY_" .. l; NEW[#NEW + 1] = "EMPTY_RELOAD_" .. l; NEW[#NEW + 1] = "RELOAD_" .. l .. "_EMPTY"
+    NEW[#NEW + 1] = "TAC_RELOAD_" .. l; NEW[#NEW + 1] = "RELOAD_TAC_" .. l
+end
+M.NEW = NEW
+
+-- shared families: the ones asked plus new words (the found shared ones are only SHOTGUN_ and the bare MVT_SMALL)
+M.FAMILIES = { "", "SHOTGUN_", "HANDGUN_", "RIFLE_", "MAGNUM_", "SNIPER_", "MACHINEGUN_", "GRENADE_", "REVOLVER_",
+               "PISTOL_", "HG_", "SG_", "MG_", "AR_", "RF_", "SMG_", "ASSAULT_", "ASSAULTRIFLE_", "HANDCANNON_",
+               "ROCKET_", "LAUNCHER_", "GL_", "LONG_", "SMALL_" }
+
+-- the names for one gun container. Order: cheapest likely wins first, so a cut-short run still learns the most.
+function M.names_for(num)
+    local out, seen = {}, {}
+    local function put(n) if not seen[n] then seen[n] = true; out[#out + 1] = n end end
+    for _, a in ipairs(OLD) do put("SND_MOT_RI" .. num .. "_SE_" .. a) end                          -- 1. as before
+    for _, a in ipairs(NEW) do put("SND_MOT_RI" .. num .. "_SE_" .. a) end                          -- 2. new actions, own number
+    for _, n in ipairs(M.NUMBERS) do                                                                 -- 3. every other gun's number
+        if n ~= num then for _, a in ipairs(OLD) do put("SND_MOT_RI" .. n .. "_SE_" .. a) end end
+    end
+    for _, f in ipairs(M.FAMILIES) do                                                                -- 4. shared families
+        for _, a in ipairs(OLD) do put("SND_MOT_RI_SE_" .. f .. a) end
+        for _, a in ipairs(NEW) do put("SND_MOT_RI_SE_" .. f .. a) end
+    end
+    for _, a in ipairs(OLD) do put("SND_MOT_RI" .. num .. "_" .. a); put("SND_MOT_PL1000_SE_" .. a) end   -- 5. other prefixes
     return out
 end
+
+local names_for = M.names_for
 
 local function player_go()
     local v = rawget(_G, "re8vr")
@@ -111,6 +164,7 @@ end
 -- yet (this run or an earlier one: the file is read back) is surveyed once. Equipping each gun once, by hand, by the pad
 -- or by the game's own call, surveys them all.
 local RESCAN_SEC = 2.0
+local SURVEY_VERSION = 2      -- a gun surveyed with an older name list is asked again
 local state = nil   -- nil = idle, else { g, ni, names, cont }
 local seen_player_at, last_scan = nil, 0
 local result = {}
@@ -131,9 +185,9 @@ re.on_frame(function()
         local guns = {}
         gun_objects(pgo, guns, 0)
         for _, g in ipairs(guns) do
-            if result[g.name] == nil then
+            if result[g.name] == nil or (tonumber(result[g.name].v) or 1) < SURVEY_VERSION then
                 state = { g = g, ni = 1, names = names_for(g.num), cont = container_of(g.go) }
-                result[g.name] = { joints = joints_of(g.go), sounds = {}, container = state.cont ~= nil }
+                result[g.name] = { joints = joints_of(g.go), sounds = {}, container = state.cont ~= nil, v = SURVEY_VERSION }
                 L(string.format("new gun object %s: surveying (joints + known sounds)", g.name))
                 for _, j in ipairs(result[g.name].joints) do L(g.name .. " joint " .. j) end
                 if state.cont == nil then L(g.name .. ": no sound container") end
