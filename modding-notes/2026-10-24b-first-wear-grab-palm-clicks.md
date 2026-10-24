@@ -122,8 +122,8 @@ Tefa: *"can you run the game and get the sounds you need? they are all on the qu
 the tools we have, even if it doesn't matter for this game and is for data gathering only, to make the tools smarter"*.
 Launched flat through `re8drive.py boot` (fixed: it now launches through Steam, the old launch script went with the clean
 reinstall), driven with a ViGEm pad (`re-village-scope-vr/dev-archive/tools/re8pad.py`): RT fires from the hip, X reloads,
-D-pad = quick slots (up LEMI, right M1897, down F2, left W870). Reloading with no spare ammo opened the crafting screen and a
-trigger press crafted one handgun ammo stack (in memory; the game was closed without saving).
+D-pad = quick slots (up LEMI, right M1897, down F2, left W870). Tefa opened the crafting screen mid-run to make
+ammo for the empty reload (correction: the first note blamed the game); a pad press there crafted one handgun ammo stack.
 36 named sounds heard. The id is the RE Engine name hash (murmur3_32, UTF-16LE, seed 0xFFFFFFFF) `[verified-numerically
 2026-10-24, n=3]`. Picked by timing (`GUN_SOUNDS` in `visceral_re8_sounds.lua`): LEMI slide back RELOAD_C (1.1 s into the
 reload), home RELOAD_D + F (1.5 s, together); M1897 pump SHOTGUN_MVT_PUMP (the only after-shot sound); F2 bolt GRAB_LEVER,
