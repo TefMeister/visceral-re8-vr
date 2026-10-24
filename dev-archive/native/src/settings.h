@@ -63,6 +63,8 @@ constexpr bool GHOST_HAND_ON = true;
 // reload.cpp / rack.cpp -- moved over from Visceral RE7 / RE2 (2026-10-18). Village has no per-weapon numbers yet, so the
 // places are measured from the controllers in the room instead of from the gun's own parts.
 constexpr bool RELOAD_ON = true;
+// eject.cpp (2026-10-24): a pump / bolt gun's spent shell leaves when the hand pulls the pump / bolt back, not at the shot
+constexpr bool EJECT_BY_HAND = true;
 constexpr float RELOAD_SLIDE_SEC = 0.19f;        // the magazine slides out of the magwell (when its joint is known)
 constexpr float RELOAD_FALL_SEC = 0.5f;          // then falls this long
 constexpr float RELOAD_FALL_M = 1.2f;            // this far

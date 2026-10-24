@@ -3,6 +3,7 @@
 // left IK target at the moment it takes hold.
 #include "rack.h"
 #include "bridge.h"
+#include "eject.h"
 #include "ghosthand.h"
 #include "joints.h"
 #include "player.h"
@@ -196,6 +197,7 @@ void bolt_step(bool lt) {
             g_bstate = 2;
             g_pulled = true;
             bridge::sfx(bridge::SFX_BOLT_BACK);
+            eject::by_hand();   // the spent case leaves with the bolt
             bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: bolt back (click): push it forward", TAG);
         }
@@ -255,6 +257,7 @@ void frame() {
         g_turn = 0.0f;
         g_last_loaded = -1;
         g_log_near = 0;
+        eject::reset();
     }
     const auto& s = player::now();
     g_joint = nullptr;   // Village names its gun joints (headset log 2026-10-18: LEMI and F2 have "Slide")
@@ -272,6 +275,7 @@ void frame() {
     const int loaded = player::loaded();
     const bool shot = g_last_loaded > 0 && loaded >= 0 && loaded < g_last_loaded && !reload::mag_out();
     if (g_hold_closed && shot) g_hold_closed = false;   // a shot
+    if ((pump() || bolt()) && shot) eject::on_shot();   // its spent shell waits for the hand (eject.cpp)
     // Tefa 2026-10-19: "pump handle pumping doesn't work, game still does that automatically": a pump gun now needs the
     // pump after every shot; its remaining shells wait in reload.cpp until then (the game's own pump motion still plays)
     if ((pump() || bolt()) && shot && loaded > 0 && !g_needed) need(pump() ? "pumped after the shot" : "the bolt after the shot");   // the trigger waits (reload.cpp)
@@ -381,6 +385,7 @@ void frame() {
         if (!g_pulled && g_travel >= 0.97f) {
             g_pulled = true;
             bridge::sfx(pump() ? bridge::SFX_PUMP_BACK : bridge::SFX_SLIDE_BACK);
+            if (pump()) eject::by_hand();   // the spent shell leaves with the pump
             bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: pulled back (%.3f m)", TAG, pulled);
         }
