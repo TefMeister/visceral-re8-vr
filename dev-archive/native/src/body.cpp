@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -38,14 +39,15 @@ bool g_wrote = false;
 int g_held = 0, g_undone = 0;
 float g_log_t = 0.0f;
 float g_tf_yaw = 0.0f, g_look_yaw = 0.0f;
+bool g_catching = false;        // standing: the body is coming round to the look (until within 2 deg)
 
 float fwd_yaw(Quat q) { return yaw_of(rotate(q, Vec3{0, 0, 1})); }   // the game's forward is +Z (praydog's re8_vr.lua)
 
-float move_toward(float cur, float target, float dt) {
+float move_toward(float cur, float target, float dt, float gain = BODY_TURN_GAIN) {
     const float d = wrap_pi(target - cur);
     // RE2's rule: the step grows with the angle (FirstPerson::update_player_body_rotation: angle / 720 * dt * speed), so a
     // large lag closes fast and a small one gently; a floor so it always finishes
-    const float rate = std::fmax(BODY_TURN_MIN_DEG_S * DEG, std::fabs(d) * BODY_TURN_GAIN);
+    const float rate = std::fmax(BODY_TURN_MIN_DEG_S * DEG, std::fabs(d) * gain);
     const float step = std::fmin(std::fabs(d), rate * dt);
     return wrap_pi(cur + (d < 0 ? -step : step));
 }
@@ -60,7 +62,10 @@ float applied_yaw() { return g_theta; }
 void frame() {
     g_write = false;
     const auto& s = player::now();
-    if (!BODY_TURN_ON || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) {
+    // 2026-10-25 (Tefa: "Ethans body shakes backwards and forwards and spins around in one place when inventory is open"): the
+    // look is the inventory's then, so the turn is off while a menu / the inventory is up
+    if (!BODY_TURN_ON || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE) ||
+        bridge::flag(bridge::S_INTERACTION_BLOCKED)) {
         g_mode = "off";
         g_theta = 0.0f;
         g_have_last_pos = false;
@@ -100,14 +105,15 @@ void frame() {
         g_mode = backwards ? "back-pedal" : "walk";
         g_target = wrap_pi((backwards ? g_look_yaw : g_vel_yaw) - g_tf_yaw);
     } else {
-        // standing: the body stays until the head is further than the slack; then it comes round to the slack's edge
+        // standing (2026-10-25, Tefa: "the RE2 style body has not worked yet, still clunky"; the log: the body parked 25 deg off
+        // the look after a big head turn, because it only ever came round to the slack's EDGE): RE2's body always catches up
+        // with the look, gently; head wobbles inside BODY_STAND_DEADZONE_DEG leave it alone
         const float off = wrap_pi(g_look_yaw - body_now);
-        const float slack = BODY_HEAD_SLACK_DEG * DEG;
         g_mode = "stand";
-        if (std::fabs(off) > slack) g_target = wrap_pi(g_look_yaw - (off > 0 ? slack : -slack) - g_tf_yaw);
+        if (std::fabs(off) > BODY_STAND_DEADZONE_DEG * DEG || g_catching) { g_target = wrap_pi(g_look_yaw - g_tf_yaw); g_catching = std::fabs(off) > 2.0f * DEG; }
         else g_target = g_theta;
     }
-    g_theta = move_toward(g_theta, g_target, dt);
+    g_theta = move_toward(g_theta, g_target, dt, std::strcmp(g_mode, "stand") == 0 ? BODY_STAND_GAIN : BODY_TURN_GAIN);
     g_pivot = p;
     g_rot = yaw_quat(g_theta);
     g_write = std::fabs(g_theta) > 0.001f;

@@ -8,7 +8,9 @@
 // every joint is turned about the vertical axis through the player's feet by an offset theta that lags its target:
 //   walking:  the direction of travel (back-pedalling: the look direction)
 //   aiming:   the look direction
-//   standing: nothing, until the head is more than BODY_HEAD_SLACK_DEG from the body; then the body comes round to that
+//   standing: nothing, until the head is more than BODY_STAND_DEADZONE_DEG from the body; then the body comes round to the
+//             look, gently, all the way (2026-10-25: it used to stop at the slack's edge and stay turned)
+//   a menu / the inventory up: off (2026-10-25)
 // The arm IK runs after this write (praydog's hand targets are separate transforms), so the hands stay on the controllers.
 // Whether the engine keeps the write until the frame is drawn is measured every frame (the root joint read back at
 // PrepareRendering) and logged once a second, so a run says "held" or "undone" by itself.
