@@ -67,6 +67,7 @@ constexpr float RELOAD_SLIDE_SEC = 0.19f;        // the magazine slides out of t
 constexpr float RELOAD_FALL_SEC = 0.5f;          // then falls this long
 constexpr float RELOAD_FALL_M = 1.2f;            // this far
 constexpr float RELOAD_INSERT_SEC = 0.19f;       // a new one slides in
+constexpr float RELOAD_TARGET_REACH_M = 0.02f;   // the drawn wrist this close to its IK target = the arm reached it (measure then)
 constexpr float RELOAD_MAG_DROP_M = 0.09f;       // how far below its seat the magazine slides out (gun's local -Y, a guess)
 constexpr float RELOAD_DOCK_COOLDOWN_SEC = 0.35f;
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown

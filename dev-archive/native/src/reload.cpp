@@ -31,6 +31,7 @@ const char* st_name(St s) {
 }
 
 St g_st = St::SEATED;
+bool g_hand_on_mag = false;       // seated with LG still held since the insert (the hand stays on the magazine)
 const weapons::Weapon* g_w = nullptr;
 std::string g_id;                 // canonical
 MO* g_gun = nullptr;              // this frame's objects (valid for the frame only)
@@ -423,6 +424,7 @@ void put_back_on_swap(const char* why) {
     MO* old = g_drop_gun != nullptr ? g_drop_gun : g_gun;
     if (g_stash > 0 && is_managed(old)) { set_loaded_on(old, g_stash); LOGI("%s reload: %s: %d rounds that waited for a rack put in (%s)", TAG, g_id.c_str(), g_stash, why); }
     g_stash = 0;
+    g_hand_on_mag = false;
     if (g_st == St::SEATED) return;
     if (is_managed(g_drop_gun)) set_loaded_on(g_drop_gun, g_mag_rounds);
     if (g_joint != nullptr) write_scale(g_rest_scale);
@@ -587,10 +589,68 @@ namespace {
 bool g_free_ok = false;
 Vec3 g_free_pos{};
 Quat g_free_rot{0, 0, 0, 1};
+
+// 2026-10-24 (Tefa: "can we make the hand stay on the bottom of the mag and follow it fully until it's in the gun, so the LG
+// needs to be released to use your left hand again, and letting go of LG before the click sound plays ... just drops the
+// mag"): from the insert until LG is let go, the left hand is drawn holding the magazine where it is (going in, then seated).
+// The IK target is the wrist and its turn differs from the hand joint's by a fixed amount: measured after the solves.
+bool g_tq_ok = false;
+Quat g_tq_off{0, 0, 0, 1};        // hand joint = IK target * this
+bool mag_world(Vec3& p, Quat& q) {
+    if (g_joint == nullptr) return false;
+    if (g_st == St::INSERT) return from_weapon_local(lerp(mag_out_pos(), g_rest_pos, ease((now_s() - g_t0) / RELOAD_INSERT_SEC)), g_rest_rot, p, q);
+    if (g_st == St::SEATED) return from_weapon_local(g_rest_pos, g_rest_rot, p, q);
+    return false;
+}
+bool hand_on_mag_pose(Vec3& tp, Quat& tq) {   // where the IK target goes so the hand joint holds the magazine (held_pose undone)
+    Vec3 mp;
+    Quat mq;
+    if (!mag_world(mp, mq)) return false;
+    const Quat hold = quat_from_ypr(MAG_HOLD[3], MAG_HOLD[4], MAG_HOLD[5]);
+    const Quat hq = qnorm(qmul(qnorm(mq), qinv(hold)));
+    tp = mp - rotate(hq, Vec3{MAG_HOLD[0], MAG_HOLD[1], MAG_HOLD[2]});
+    tq = g_tq_ok ? qnorm(qmul(hq, qinv(g_tq_off))) : hq;
+    return true;
+}
+void measure_target_turn() {
+    const auto& s = player::now();
+    Vec3 hp, tp;
+    Quat hq, tq;
+    if (g_hand == nullptr || s.ik_left == nullptr || !get_v3(JOINT, g_hand, "get_Position", hp) || !get_q(JOINT, g_hand, "get_Rotation", hq) ||
+        !player::get_pose(field_obj(s.ik_left, "Target"), tp, tq) || dist(hp, tp) > RELOAD_TARGET_REACH_M)
+        return;
+    const Quat off = qnorm(qmul(qinv(qnorm(tq)), qnorm(hq)));
+    if (!g_tq_ok) LOGI("%s reload: the hand joint's turn from its IK target measured (%.3f %.3f %.3f %.3f)", TAG, off.x, off.y, off.z, off.w);
+    g_tq_off = off;
+    g_tq_ok = true;
+}
+void mag_hand_frame() {   // UpdateBehavior: let go before the click drops it; let go after it frees the hand
+    if (pose_lock() || g_w == nullptr || g_w->reload != Reload::MAG) { g_hand_on_mag = false; return; }
+    const bool lg = bridge::held(bridge::S_LGRIP);
+    if (g_st == St::INSERT && !lg) {
+        Quat q;
+        Vec3 p;
+        if (mag_world(p, q)) { g_fall_from = p; g_fall_rot = q; } else g_fall_from = Vec3{0, 0, 0};
+        ghosthand::event("mag", "fail");
+        set_state(g_joint != nullptr ? St::HAND_FALL : St::OUT, "LG let go before it clicked in");
+        return;
+    }
+    if (g_hand_on_mag && (!lg || g_st != St::SEATED)) {
+        g_hand_on_mag = false;
+        LOGI("%s reload: LG let go: the left hand leaves the magazine", TAG);
+    }
+}
 } // namespace
+bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_hand_on_mag); }
+
 void on_ik(MO* ik) {
     const auto& s = player::now();
     if (ik != s.ik_left || !bridge::live()) return;
+    if (hand_on_mag()) {
+        Vec3 tp;
+        Quat tq;
+        if (hand_on_mag_pose(tp, tq)) { player::set_pose(field_obj(ik, "Target"), tp, tq); return; }
+    }
     Vec3 cp;
     Quat cq;
     if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) || !bridge::room_rot_to_world(bridge::view_quat(bridge::S_LROT), cq)) return;
@@ -671,11 +731,13 @@ void frame() {
                 g_scale_restore = true;
                 magazine_shown(true);
                 fill_magazine();
+                g_hand_on_mag = bridge::held(bridge::S_LGRIP) && g_joint != nullptr;
             }
             break;
         default:
             break;
         }
+        mag_hand_frame();
         if (in_play() && bridge::pressed(bridge::S_RB) && g_st == St::SEATED && !rack::active()) begin_drop();
     }
     if (in_pouch() && bridge::pressed(bridge::S_LGRIP)) pouch_grab();
@@ -691,6 +753,7 @@ void late_point() {
 // the hand checks run here, after the arm has been solved: at LateUpdateBehavior the hand joint still stood where the
 // animation had it, so the measured distance jumped between runs (0.11-0.14 m, then 0.35-0.42 m; 2026-10-19)
 void render_point() {
+    if (!hand_on_mag()) measure_target_turn();   // only while the hand is the controller's (or the grip's), not ours
     if (managed_now()) { hand_checks(); pose_shell(); }
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();

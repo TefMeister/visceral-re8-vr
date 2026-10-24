@@ -27,6 +27,7 @@ bool mag_out();          // the magazine is not seated
 bool session_active();   // a reload is under way
 bool mag_in_hand();      // a magazine is in the left hand (or going in)
 bool round_in_hand();    // a shell / round is in the left hand
+bool hand_on_mag();      // the left hand holds the magazine going in, or seated, until LG is let go
 bool in_pouch();         // the left hand is in the ammo spot
 void on_racked();        // rack.cpp: the slide / pump cycled: rounds waiting for it go in
 void on_ik(MO* ik);      // ik.cpp: keep the left hand on its controller while it carries a magazine / round

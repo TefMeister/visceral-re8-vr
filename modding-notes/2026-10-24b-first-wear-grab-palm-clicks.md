@@ -76,3 +76,17 @@ Build 4: smoothing back to build 1 (owner change only), plus a later solve withi
 first answer (the late dock, the flash); the slide / pump / bolt need a FRESH LG press within 14 cm of the part (was: LG held,
 20 cm); the shell sits 7 cm lower in the world; sounds are keyed `<call>:<motion>:<slot>` and replayed only with the context
 they were heard with this session (the first learned lists were dropped). `[compile-verified 2026-10-24]`
+
+## Build 5 (13:45): the hand rides the magazine in
+
+Tefa, 13:30: *"LG should go on the slide when held before reaching the activation area and then dock when it's in the area,
+just right now it jumps on the slide and the bolt for the rifle straight away unnaturally after inserting the mag ... can we
+make the hand stay on the bottom of the mag and follow it fully until it's in the gun, so the LG needs to be released to use
+your left hand again, and letting go of LG before the click sound plays that lets the player know that the mag is on now,
+just drops the mag?"*
+
+- LG held takes the slide / pump / bolt on entering the 14 cm zone again (build 4's fresh-press rule taken out).
+- From the insert until LG is let go, the left IK target holds the magazine: the magazine joint's world pose with the hold
+  (`MAG_HOLD`) undone, corrected by the hand joint's measured turn from its IK target. Nothing can take the slide meanwhile.
+- LG let go while the magazine is going in (before it seats) drops it (`HAND_FALL`, "LG let go before it clicked in").
+- Smoothing knows the magazine as an owner, so the hand eases onto and off it. `[compile-verified 2026-10-24]`

@@ -4,6 +4,7 @@
 #include "joints.h"
 #include "player.h"
 #include "rack.h"
+#include "reload.h"
 #include "settings.h"
 
 namespace vn::smooth {
@@ -12,8 +13,10 @@ using namespace joints;
 using namespace vn::settings;
 
 namespace {
-enum Owner : int { CONTROLLER = 0, GRIP = 1, RACK = 2 };
-const char* owner_name(int o) { return o == GRIP ? "the two-handed grip" : o == RACK ? "the slide / pump / bolt" : "the controller"; }
+enum Owner : int { CONTROLLER = 0, GRIP = 1, RACK = 2, MAG = 3 };
+const char* owner_name(int o) {
+    return o == GRIP ? "the two-handed grip" : o == RACK ? "the slide / pump / bolt" : o == MAG ? "the magazine going in" : "the controller";
+}
 
 bool g_have = false;
 int g_owner = CONTROLLER;
@@ -59,7 +62,7 @@ void on_ik(MO* ik) {
         return;
     }
     g_frame = frame;
-    const int owner = rack::active() ? RACK : bridge::flag(bridge::S_GRIPPING_WEAPON) ? GRIP : CONTROLLER;
+    const int owner = rack::active() ? RACK : reload::hand_on_mag() ? MAG : bridge::flag(bridge::S_GRIPPING_WEAPON) ? GRIP : CONTROLLER;
     if (!g_have) {
         g_have = true;
         g_owner = owner;
