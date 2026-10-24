@@ -318,13 +318,32 @@ void shell_write(Vec3 p, Quat q) {
     set_any(JOINT, g_shell, "set_LocalPosition", &p);
     set_any(JOINT, g_shell, "set_LocalRotation", &q);
 }
+// 2026-10-24 (board: "the pouch shell moves a little with the right controller"): the shell's local numbers were taken
+// against the gun object, but a joint's local is against its PARENT joint. The M1897's Bullet sits at local
+// (0, -0.015, -0.013), which only makes sense under Body (local 0, 0.030, 0.222 from the root, joint log 2026-10-24), so
+// the shell was most likely off by Body's place and swung with the gun's turn [inferred-static]. Now it is written in
+// the world (as the falling magazine is), which needs no parent; the parent is logged once per gun to settle it.
 void pose_shell() {   // the gun's shell joint rides in the left hand while a round is carried
     if (g_shell == nullptr || !g_round_in_hand) return;
     Vec3 wp, lp;
     Quat wr, lr;
     if (!held_pose(wp, wr)) return;
     wp.y -= SHELL_HOLD_DOWN_M;   // the world's up is +Y
-    if (to_weapon_local(wp, wr, lp, lr)) shell_write(lp, lr);
+    static std::string told;
+    if (told != g_id) {
+        told = g_id;
+        MO* parent = call_ptr(g_shell, "get_Parent");
+        Vec3 pl{};
+        const bool have = parent != nullptr && get_v3(JOINT, parent, "get_LocalPosition", pl);
+        LOGI("%s reload: %s shell joint Bullet hangs under %s (its local %.3f %.3f %.3f); placed %s", TAG, g_id.c_str(),
+             parent_name(g_shell).c_str(), have ? pl.x : 0.0f, have ? pl.y : 0.0f, have ? pl.z : 0.0f, SHELL_WORLD_WRITE ? "in the world" : "by gun-local numbers");
+    }
+    if (SHELL_WORLD_WRITE) {
+        set_any(JOINT, g_shell, "set_Position", &wp);
+        set_any(JOINT, g_shell, "set_Rotation", &wr);
+    } else if (to_weapon_local(wp, wr, lp, lr)) {
+        shell_write(lp, lr);
+    }
 }
 void shell_home() { if (g_shell != nullptr && g_shell_have_rest) shell_write(g_shell_rest, g_shell_rest_rot); }
 

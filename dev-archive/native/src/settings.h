@@ -135,6 +135,7 @@ constexpr float SMOOTH_LATE_DOCK_M = 0.15f;       // a later solve of the frame 
 // rack.cpp (2026-10-24, Tefa: "gun goes through the left wrist not the palm for LEMI and the shotgun"): the IK target is the
 // wrist, so on the slide and the pump the hand is moved back by the wrist-to-palm offset (L_Hand -> L_Palm, measured live)
 constexpr bool PALM_ON_SLIDE = true;
+constexpr bool SHELL_WORLD_WRITE = true;          // 2026-10-24: the pouch shell is placed in the world (off = the old gun-local write)
 constexpr float SHELL_HOLD_DOWN_M = 0.07f;       // a shotgun shell from the pouch sits this much lower in the world than the
                                                  // magazine hold (Tefa 2026-10-24: "shell needs to be lowered about 7 cm for now")
 constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close to its target = the arm reached it: measure the palm then
