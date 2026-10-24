@@ -289,7 +289,9 @@ void frame() {
         // pump and bolt: LG held + one LT press near it starts the cycle (Tefa 2026-10-19: "LT needs to be pressed once not even
         // held throughout, but it is needed for a cleaner sequence"); the slide: LG alone
         // Tefa 2026-10-19, for every weapon: "the left grip must already grip it and hold on, but not move ... until LT is pressed"
-        const bool want = lg;
+        // 2026-10-24 (Tefa: "hand must not go straight onto the slider or the bolt after inserting a mag"): LG pressed NEAR the
+        // part takes it; LG still held from the magazine, or held while the hand moves in, does not
+        const bool want = bridge::pressed(bridge::S_LGRIP);
         if (want) {
             float off = 99.0f;
             const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);

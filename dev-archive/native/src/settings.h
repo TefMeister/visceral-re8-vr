@@ -103,7 +103,9 @@ constexpr float MAG_HOLD[6] = {0.104f, -0.039f, 0.053f, 100.5f, -11.5f, 131.5f};
 constexpr float RACK_GRAB_M = 0.16f;             // left controller this close to the right one's gun line = can take hold
 constexpr float RACK_GRAB_AHEAD_MAX_M = 0.70f;   // ... and no further ahead along the barrel than this
 constexpr float RACK_GRAB_BEHIND_M = 0.10f;      // ... or behind the gun hand than this (a pistol slide sits over the hand)
-constexpr float RACK_JOINT_GRAB_M = 0.20f;       // the left controller this close to the slide / pump joint = can take hold
+constexpr float RACK_JOINT_GRAB_M = 0.14f;       // the left controller this close to the slide / pump joint = can take hold
+                                                 // (0.20 until 2026-10-24: Tefa "hand must not go straight onto the slider or the bolt after
+                                                 // inserting a mag, there has to be a tighter zone"; it also needs a fresh LG press now)
 constexpr float RACK_GRAB_ANY_M = 0.30f;          // ... or simply this close to the right controller (the gun-line test may be off)
 constexpr float RACK_PULL_M = 0.08f;             // controller travel for a full pull (Andyalpa's pull_dist)
 constexpr float RACK_RETURN_M = 0.06f;           // and forward again for a full return
@@ -124,13 +126,13 @@ constexpr float PUMP_BACK_M = -0.080f;
 
 // smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
-constexpr float SMOOTH_JUMP_M = 0.04f;           // the hand asked to move further than this in one frame (in the gun hand's frame) = a
-                                                 // jump made by someone else (the VR layer's dock, the scope's grip script): eased too
-constexpr float SMOOTH_SAME_M = 0.002f;          // a second solve in the same frame asking for a place this close = the same ask
+constexpr float SMOOTH_LATE_DOCK_M = 0.15f;       // a later solve of the frame asking this close to the first answer = a late dock: held back
 
 // rack.cpp (2026-10-24, Tefa: "gun goes through the left wrist not the palm for LEMI and the shotgun"): the IK target is the
 // wrist, so on the slide and the pump the hand is moved back by the wrist-to-palm offset (L_Hand -> L_Palm, measured live)
 constexpr bool PALM_ON_SLIDE = true;
+constexpr float SHELL_HOLD_DOWN_M = 0.07f;       // a shotgun shell from the pouch sits this much lower in the world than the
+                                                 // magazine hold (Tefa 2026-10-24: "shell needs to be lowered about 7 cm for now")
 constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close to its target = the arm reached it: measure the palm then
 
 } // namespace vn::settings

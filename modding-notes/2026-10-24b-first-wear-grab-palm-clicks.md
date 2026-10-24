@@ -57,3 +57,22 @@ saved per gun in `visceral_re8/sounds.json` (`learned`), and the handling sounds
 forward = the fire run's last two, bolt up / back / forward / down = its last four, the slide going home = the reload run's
 last. The handgun's reload is ours, so Experiments has "let the game do its own reload" (`EX_GAME_RELOAD`, 8) for one reload
 per gun. `[compile-verified 2026-10-24]`; which ids are which is `[hypothesis]` until heard.
+
+## Second wear (12:49-12:52, build 3) and build 4 (13:07)
+
+Tefa: LG-only works and no far snaps (`the game docked the left hand without the left grip button -- undone` x8). But the
+left hand was "super janky": it moved and turned with the gun even when not docked, lagged behind the controller, and turned
+by itself when docked. The log: `smooth: the left hand was asked to jump 0.4-0.7 m (between two solves of one frame)` every
+frame: the game solves the left arm several times a frame with targets far apart, and build 2's "ease any jump" dragged the
+hand between them. Ghost Hand agrees: the left hand wandered up to 52 cm from its usual place `[measured 2026-10-24]`.
+Also: the hand went onto the slide as the magazine went in (`HAND ON` at 0.177 m, same millisecond as the insert); the game's
+own pump motion no longer plays, but the shell still ejects at the shot; the pouch shells are too small and sit too far from
+the fingers (Tefa: lower them about 7 cm for now, then tune with the poser); the bolt "works better and better, hand now moves
+with the bolt and looks really good" `[reported 2026-10-24]`; the wrist-to-palm offset measured 2.9 cm.
+The weapon-motion "ids" heard were 1 and 2: slots in a motion's sound track, not Wwise ids, so build 3 replayed the walk's
+slot 1 as the pump. The pump replay ran (`played (replayed through weaponTrigger)`), but whether it was heard is not known.
+
+Build 4: smoothing back to build 1 (owner change only), plus a later solve within 15 cm of the frame's first answer draws the
+first answer (the late dock, the flash); the slide / pump / bolt need a FRESH LG press within 14 cm of the part (was: LG held,
+20 cm); the shell sits 7 cm lower in the world; sounds are keyed `<call>:<motion>:<slot>` and replayed only with the context
+they were heard with this session (the first learned lists were dropped). `[compile-verified 2026-10-24]`

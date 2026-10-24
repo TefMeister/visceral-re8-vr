@@ -320,7 +320,9 @@ void pose_shell() {   // the gun's shell joint rides in the left hand while a ro
     if (g_shell == nullptr || !g_round_in_hand) return;
     Vec3 wp, lp;
     Quat wr, lr;
-    if (held_pose(wp, wr) && to_weapon_local(wp, wr, lp, lr)) shell_write(lp, lr);
+    if (!held_pose(wp, wr)) return;
+    wp.y -= SHELL_HOLD_DOWN_M;   // the world's up is +Y
+    if (to_weapon_local(wp, wr, lp, lr)) shell_write(lp, lr);
 }
 void shell_home() { if (g_shell != nullptr && g_shell_have_rest) shell_write(g_shell_rest, g_shell_rest_rot); }
 
