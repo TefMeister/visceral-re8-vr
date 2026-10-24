@@ -302,6 +302,17 @@ void* slide_joint() { return g_joint; }
 const char* part_name() { return part(); }
 bool active() { return g_hand_on; }
 bool pump_gun() { return pump(); }
+float left_gun_closeness() {   // 2026-10-25 (the open hand snapped at the zone's edge): a ramp, not a step
+    const auto& s = player::now();
+    if (s.gun == nullptr) return 0.0f;
+    float d = 99.0f;
+    if (g_joint != nullptr && near_joint(d)) return 1.0f;
+    float off = 99.0f;
+    if (on_gun_line(off)) return 1.0f;
+    const float far_m = RACK_GRAB_M + FINGER_OPEN_RAMP_M;   // (not 'far': a windows.h macro)
+    if (off >= far_m) return 0.0f;
+    return (far_m - off) / FINGER_OPEN_RAMP_M;
+}
 bool left_near_gun() { float off = 99.0f; if (g_joint != nullptr && near_joint(off)) return true; return on_gun_line(off); }
 bool on_pump() { return g_hand_on && pump(); }
 float travel() { return g_travel; }
@@ -608,6 +619,11 @@ void on_ik(MO* ik) {
         const Vec3 offs = rotate(gun, bridge::has(nudge.x) ? nudge : Vec3{0, 0, 0});
         const Vec3 travel = rotate(gun, Vec3{0, 0, z_now() - g_z_anim});
         player::set_pose(target_of(ik), rp + rotate(rq, g_rel_pos) + travel + offs, qnorm(qmul(slide_hand_turn(gun), rot)));
+        // the socket for the grip script's steering (2026-10-25): the same place, in the right hand's frame
+        const Vec3 sock = g_rel_pos + rotate(qinv(rq), travel + offs);
+        bridge::put(bridge::S_RACK_SOCKET, sock.x);
+        bridge::put((bridge::Slot)(bridge::S_RACK_SOCKET + 1), sock.y);
+        bridge::put((bridge::Slot)(bridge::S_RACK_SOCKET + 2), sock.z);
         return;
     }
     if (g_slide_ok) {   // on the slide joint, riding its travel, nudged by the menu sliders (gun axes: x right, y up, z forward)

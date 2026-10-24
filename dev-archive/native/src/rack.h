@@ -21,7 +21,8 @@ void on_ik(MO* ik);      // ik.cpp: the left hand is about to be solved: hold it
 void need(const char* why);   // reload.cpp: a rack / pump is required before the gun fires
 bool needed();
 bool active();                // the left hand is on the slide / bolt / pump
-bool pump_gun();              // the gun in hand is a pump gun: its two-handed grip IS the pump (handstate.cpp vetoes the grip script)
+bool pump_gun();
+float left_gun_closeness();   // 0 = the left controller far from the gun, 1 = in the grab zone (fingers.cpp eases on it)              // the gun in hand is a pump gun: its two-handed grip IS the pump (handstate.cpp vetoes the grip script)
 bool left_near_gun();         // the left controller in a grab area: the slide / pump / bolt part, or the line along the gun (fingers.cpp)
 bool on_pump();
 float travel();               // 0 = rest, 1 = fully back

@@ -147,10 +147,16 @@ constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close t
 // body.cpp (2026-10-24, Tefa idea 6): the drawn body lags the look / walk direction like Visceral RE2's
 constexpr bool  BODY_TURN_ON = true;
 constexpr float BODY_TURN_GAIN = 3.0f;            // turn rate = gain x the remaining angle (per second): big lags close fast
-constexpr float BODY_TURN_MIN_DEG_S = 40.0f;      // and never slower than this, so a turn finishes
-constexpr float BODY_STAND_DEADZONE_DEG = 30.0f;  // standing: the head may look this far off the body before the body comes round to it
+constexpr float BODY_TURN_MIN_DEG_S = 40.0f;      // and never slower than this, so a turn finishes (aiming)
+// 2026-10-25 (Tefa): "body rotate on standing still after hmd has moved either right 60 degrees or left 60 degrees, straight
+// forward is 0 then. when walking it's 45 degrees and when running 30"
+constexpr float BODY_STAND_DEADZONE_DEG = 60.0f;  // standing: the head may look this far off the body before the body comes round to it
+constexpr float BODY_WALK_DEADZONE_DEG = 45.0f;
+constexpr float BODY_RUN_DEADZONE_DEG = 30.0f;
+constexpr float BODY_RUN_MIN_MPS = 2.4f;          // moving faster than this = running
+constexpr float BODY_FOLLOW_GAIN = 1.0f;          // the catch-up: gain x the remaining angle per second (slow), floor BODY_FOLLOW_MIN_DEG_S
+constexpr float BODY_FOLLOW_MIN_DEG_S = 20.0f;
 constexpr float BODY_MAX_OFFSET_DEG = 100.0f;     // the drawn body never further than this from the player transform
-constexpr float BODY_STAND_GAIN = 1.5f;           // standing: the gentler catch-up (gain x the remaining angle, per second)
 constexpr float BODY_WALK_MIN_MPS = 0.35f;        // moving faster than this = walking: the body faces the travel
 constexpr float BODY_BACKPEDAL_DEG = 100.0f;      // travel further than this from the look = back-pedalling: face the look
 constexpr int   BODY_MAX_JOINTS = 256;
@@ -158,6 +164,7 @@ constexpr int   BODY_MAX_JOINTS = 256;
 // fingers.cpp (2026-10-24, Tefa): the left hand opens a little in a grab area (slide / pump / bolt, the gun, the pouch)
 constexpr bool  FINGER_OPEN_ON = true;
 constexpr float FINGER_OPEN_AMOUNT = 0.45f;       // how far toward the straight rest pose (0 = as animated, 1 = fully open)
-constexpr float FINGER_OPEN_SEC = 0.15f;          // the time to open, and to close again
+constexpr float FINGER_OPEN_SEC = 0.25f;          // the time to open, and to close again
+constexpr float FINGER_OPEN_RAMP_M = 0.14f;       // the hand starts opening this far outside the grab zone, fully open at its edge
 
 } // namespace vn::settings

@@ -65,7 +65,12 @@ enum Slot : int {
     S_EXPERIMENT = 96,        // WRITTEN BY THE LUA MENU: Experiment bits, for trying a fix live without a rebuild
     S_WEAPON_NUM = 97,        // WRITTEN BY THE PLUGIN: the held gun's number (ri3046 -> 3046), 0 = none (the menu keeps settings per gun)
     S_GRIP_VETO = 98,         // WRITTEN BY THE PLUGIN: 1 = the left hand is ours (on the magazine): the scope's grip script must not take it
-    S_COUNT = 100,
+    // 2026-10-25 (Tefa: "cannot two hand a gun, even when LG is held"): on a pump gun the two-handed grip IS the pump, which
+    // rack.cpp holds; the grip script steers the gun at the rack's socket while this says so
+    S_POSER_HELD = 29,        // WRITTEN BY THE LUA: joints a hand poser (hand_poser.lua) holds right now; fingers.cpp stands down
+    S_RACK_TWOHAND = 99,      // WRITTEN BY THE PLUGIN: 1 = the left hand is on a pump: the grip script steers at S_RACK_SOCKET
+    S_RACK_SOCKET = 100,      // 100-102, WRITTEN BY THE PLUGIN: where the rack draws the left hand, in the right hand's frame (m)
+    S_COUNT = 104,
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,

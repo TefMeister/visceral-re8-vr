@@ -56,7 +56,11 @@ void frame() {
     // 00:17 (Tefa: holding LG before reaching the shotgun the hand lands open beside it, and "it jumps this whole gap
     // instantly"): the grip script took the grip within 10 cm of ITS kept spot, beside the pump. On a pump gun the two-handed
     // grip is the pump itself, which rack.cpp holds; the grip script keeps off pump guns altogether
-    bridge::put(bridge::S_GRIP_VETO, (reload::hand_on_mag() || rack::active() || rack::pump_gun()) ? 1.0f : 0.0f);
+    // 2026-10-25 (Tefa: "cannot two hand a gun, even when LG is held"): with the hand on the pump the grip script steers the gun
+    // at the rack's socket (S_RACK_TWOHAND); otherwise on a pump gun it keeps off; the slide / bolt hand never steers
+    const bool pump_hold = rack::active() && rack::pump_gun();
+    bridge::put(bridge::S_RACK_TWOHAND, pump_hold ? 1.0f : 0.0f);
+    bridge::put(bridge::S_GRIP_VETO, (reload::hand_on_mag() || (rack::active() && !pump_hold) || (rack::pump_gun() && !pump_hold)) ? 1.0f : 0.0f);
     // the held gun's number for the menu's per-gun settings (ri3046 -> 3046)
     int num = 0;
     for (char c : s.weapon_id) { if (c >= '0' && c <= '9') num = num * 10 + (c - '0'); else if (num > 0) break; }

@@ -622,8 +622,32 @@ local function grip_pass(final)
     -- 2026-10-24 (Visceral RE8): a mod that holds the left hand itself (on a magazine going in) vetoes the grip
     local veto = rawget(_G, "re8_grip_veto")
     if type(veto) == "function" and veto() == true then allowed = false end
+    -- 2026-10-25 (Visceral RE8, Tefa: "cannot two hand a gun, even when LG is held"): on a pump gun the two-handed grip IS
+    -- the pump, which the plugin's rack holds; while it says so (bridge slot 99) the grip is taken at ITS socket (slots
+    -- 100-102, the right hand's frame) and steered as any grip; the plugin draws the left hand itself
+    local rack_two, rack_sock = false, nil
+    do
+        local b = rawget(_G, "visceral_re8_bridge")
+        if b ~= nil and b.ready() and (safe(function() return b.r(99) end) or 0) > 0.5 then
+            rack_two = true
+            rack_sock = Vector3f.new(b.r(100), b.r(101), b.r(102))
+        end
+    end
     local our_grip
-    if S.take ~= nil then
+    if rack_two then
+        if S.take == nil or not S.take.rack then
+            S.takes = S.takes + 1
+            S.take = { socket = rack_sock, lrot = lrot_live or Quaternion.new(1, 0, 0, 0), drift_max = 0, rack = true }
+            L(string.format("grip taken #%d: the left hand on the pump (the plugin's socket %.3f %.3f %.3f): the gun follows both hands",
+                S.takes, rack_sock.x, rack_sock.y, rack_sock.z))
+        end
+        S.take.socket = rack_sock
+        our_grip = true
+    elseif S.take ~= nil and S.take.rack then
+        L("grip let go: the left hand came off the pump")
+        release_take()
+        our_grip = false
+    elseif S.take ~= nil then
         our_grip = allowed and (holding or keep_ok)
     else
         local near = cpp_grip or (d_take ~= nil and d_take <= GRIP_DOCK_M)

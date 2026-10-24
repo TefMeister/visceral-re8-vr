@@ -42,7 +42,7 @@ using namespace vn;
 namespace {
 void on_frame() {
     static std::atomic<bool> installed{false};
-    if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); ik::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
+    if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); ik::install(); body::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
     bridge::frame_begin();
     player::refresh();                                 // before any feature: the hooks later in the frame read this snapshot
     haptics::frame();

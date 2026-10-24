@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 100
+local N = 104   -- 2026-10-25: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9
@@ -251,6 +251,7 @@ local function village_readings()
     end
     wb(S_INTERACTION_BLOCKED, blocked)
     wb(S_POSE_LOCK, pose_lock)
+    w(29, tonumber(rawget(_G, "hand_poser_held")) or 0)   -- S_POSER_HELD: fingers.cpp stands down while a poser holds a finger
     local hand = hand_for(r(S_WEAPON_NUM))
     w(S_SLIDE_HAND, hand.x); w(S_SLIDE_HAND + 1, hand.y); w(S_SLIDE_HAND + 2, hand.z)
     w(S_SLIDE_HAND_ROT, hand.rx); w(S_SLIDE_HAND_ROT + 1, hand.ry); w(S_SLIDE_HAND_ROT + 2, hand.rz)

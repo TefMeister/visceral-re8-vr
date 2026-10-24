@@ -26,6 +26,7 @@ constexpr int N = sizeof(LEFT_FINGERS) / sizeof(LEFT_FINGERS[0]);
 float g_open = 0.0f;        // 0 = as animated, 1 = FINGER_OPEN_AMOUNT of the way to rest
 float g_last_t = -1.0f;
 bool g_want = false;
+bool g_poser = false;
 const char* g_why = "";
 MO* g_joint[N] = {};
 Quat g_target[N] = {};
@@ -46,20 +47,25 @@ void frame() {
     const bool play = FINGER_OPEN_ON && bridge::live() && bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     const bool free_hand = !bridge::held(bridge::S_LGRIP) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !rack::active() &&
                            !reload::mag_in_hand() && !reload::round_in_hand();
-    bool want = false;
-    if (play && free_hand) {
-        if (reload::in_pouch()) { want = true; g_why = "pouch"; }
-        else if (s.gun != nullptr && rack::left_near_gun()) { want = true; g_why = "gun"; }
+    // 2026-10-25 (Tefa, screenshots: the hand "teleport alternates between hand poses" near the gun): the open hand stepped on
+    // at the zone's edge and fought Hand Poser, which holds the same joints. Now it ramps with the distance to the gun, and
+    // stands down entirely while a poser holds any finger
+    g_poser = bridge::view(bridge::S_POSER_HELD) > 0.5f;
+    float aim = 0.0f;
+    if (play && free_hand && !g_poser) {
+        if (reload::in_pouch()) { aim = 1.0f; g_why = "pouch"; }
+        else if (s.gun != nullptr) { aim = rack::left_gun_closeness(); if (aim > 0.0f) g_why = "gun"; }
     }
-    if (want != g_want) { g_want = want; LOGI("%s fingers: %s", TAG, want ? (std::string("open (") + g_why + ")").c_str() : "back to the game's pose"); }
+    const bool want = aim > 0.001f;
+    if (want != g_want) { g_want = want; LOGI("%s fingers: %s", TAG, want ? (std::string("opening (") + g_why + ")").c_str() : (g_poser ? "standing down: a hand poser holds the fingers" : "back to the game's pose")); }
     const float step = FINGER_OPEN_SEC > 0.0f ? dt / FINGER_OPEN_SEC : 1.0f;
-    g_open = want ? std::fmin(1.0f, g_open + step) : std::fmax(0.0f, g_open - step);
+    g_open = g_open < aim ? std::fmin(aim, g_open + step) : std::fmax(aim, g_open - step);
     if (s.tf != g_tf) { g_tf = s.tf; for (auto& j : g_joint) j = nullptr; }
 }
 
 void render_point() {
     for (auto& h : g_have) h = false;
-    if (g_open <= 0.001f || g_tf == nullptr) return;
+    if (g_open <= 0.001f || g_tf == nullptr || g_poser) return;
     const float u = ease(g_open) * FINGER_OPEN_AMOUNT;
     for (int i = 0; i < N; ++i) {
         if (g_joint[i] == nullptr) g_joint[i] = joint_by_name(g_tf, LEFT_FINGERS[i]);
@@ -73,7 +79,7 @@ void render_point() {
 }
 
 void begin_render() {
-    if (g_open <= 0.001f) return;
+    if (g_open <= 0.001f || g_poser) return;
     for (int i = 0; i < N; ++i)
         if (g_have[i] && g_joint[i] != nullptr) set_any(JOINT, g_joint[i], "set_LocalRotation", &g_target[i]);
 }

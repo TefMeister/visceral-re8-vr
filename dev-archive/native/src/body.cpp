@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <tuple>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -60,6 +61,40 @@ MO* joint_at(MO* joints, int i, bool list) {
 }
 } // namespace
 
+// ---- THE INVENTORY (2026-10-25): the interaction flag never fired in the inventory, so the game's own calls are hooked:
+// app.MenuManager.openInventoryMenu / app.GUIInventory.openInventory (the ones praydog's re8_vr.lua hooks for its 0.25 s
+// window) set it, and the matching close calls clear it; a steady isOpenInventoryMenu, when the type has one, is read too
+bool g_inv_open = false;
+MO* g_menu_mgr = nullptr;
+API::Method* g_is_open = nullptr;
+bool g_is_open_looked = false;
+int inv_pre_open(int, void**, REFrameworkTypeDefinitionHandle*, unsigned long long) { if (!g_inv_open) LOGI("%s body: the inventory opened", TAG); g_inv_open = true; return REFRAMEWORK_HOOK_CALL_ORIGINAL; }
+int inv_pre_close(int, void**, REFrameworkTypeDefinitionHandle*, unsigned long long) { if (g_inv_open) LOGI("%s body: the inventory closed", TAG); g_inv_open = false; return REFRAMEWORK_HOOK_CALL_ORIGINAL; }
+bool menu_open() {
+    if (!g_is_open_looked) {
+        g_is_open_looked = true;
+        g_menu_mgr = (MO*)API::get()->get_managed_singleton("app.MenuManager");
+        g_is_open = g_menu_mgr != nullptr ? find_method_deep(g_menu_mgr->get_type_definition(), "isOpenInventoryMenu") : nullptr;
+        LOGI("%s body: app.MenuManager %s, isOpenInventoryMenu %s", TAG, g_menu_mgr ? "found" : "MISSING", g_is_open ? "found (read every frame)" : "not there (the open / close hooks decide)");
+    }
+    if (g_is_open != nullptr && is_managed(g_menu_mgr)) {
+        auto r = g_is_open->invoke(g_menu_mgr, std::vector<void*>{});
+        if (!r.exception_thrown) return r.byte != 0 || g_inv_open;
+    }
+    return g_inv_open;
+}
+void install() {
+    int n = 0;
+    for (auto [type, name, open] : {std::tuple{"app.MenuManager", "openInventoryMenu", true}, std::tuple{"app.MenuManager", "closeInventoryMenu", false},
+                                   std::tuple{"app.GUIInventory", "openInventory", true}, std::tuple{"app.GUIInventory", "closeInventory", false}}) {
+        auto* m = API::get()->tdb()->find_method(type, name);
+        if (m == nullptr) { LOGI("%s body: %s.%s not found", TAG, type, name); continue; }
+        m->add_hook(open ? inv_pre_open : inv_pre_close, nullptr, false);
+        ++n;
+    }
+    LOGI("%s body: %d inventory open / close call(s) hooked", TAG, n);
+}
+
 float applied_yaw() { return g_theta; }
 
 void frame() {
@@ -102,34 +137,47 @@ void frame() {
     // of the transform turned the drawn body at once. Now the body has its OWN facing in the world (g_body_yaw), turned
     // toward its target at its own pace whatever the transform does; the drawn offset is that facing minus the transform's.
     if (!g_body_init) { g_body_yaw = g_tf_yaw; g_body_init = true; }
-    const bool blocked = bridge::flag(bridge::S_INTERACTION_BLOCKED);
+    const bool blocked = bridge::flag(bridge::S_INTERACTION_BLOCKED) || menu_open();
     if (blocked != g_was_blocked) {
         g_was_blocked = blocked;
         LOGI("%s body: %s", TAG, blocked ? "a menu / the inventory is up: the body holds still" : "menu closed: the body turns again");
     }
-    float target = g_body_yaw;
-    float gain = BODY_TURN_GAIN;
     if (blocked) {
-        // (00:25, Tefa: "ethan's body still goes crazy in the inventory screen"): it holds its facing in the world
+        // (00:25 / 00:35, Tefa: "ethan's body still goes crazy in the inventory screen"; the log: the body kept writing through
+        // the inventory, the interaction flag never fired): nothing is written at all while a menu is up; the body starts
+        // again from the transform's facing when it closes
         g_mode = "menu";
-    } else if (bridge::flag(bridge::S_AIMING) || bridge::held(bridge::S_RGRIP)) {
+        g_theta = 0.0f;
+        g_body_yaw = g_tf_yaw;
+        g_catching = false;
+        g_write = false;
+        return;
+    }
+    // 2026-10-25, Tefa's rule: the body only comes round once the head is further off it than the deadzone of the moment:
+    // standing 60 deg, walking 45, running 30; then it turns, slowly, until it faces where the head looks ("straight
+    // forward is 0 then"). Aiming: it faces the look. Walking with the head inside the deadzone: the head turns on the neck
+    float target = g_body_yaw;
+    float gain = BODY_FOLLOW_GAIN, floor_deg_s = BODY_FOLLOW_MIN_DEG_S;
+    const float off = wrap_pi(g_look_yaw - g_body_yaw);
+    if (bridge::flag(bridge::S_AIMING) || bridge::held(bridge::S_RGRIP)) {
         g_mode = "aim";
         target = g_look_yaw;
-    } else if (g_speed > BODY_WALK_MIN_MPS) {
-        // back-pedalling (travel more than BODY_BACKPEDAL_DEG from the look) keeps facing the look, as RE2 does; otherwise
-        // the body faces the travel and the head turns freely on the neck
-        const bool backwards = std::fabs(wrap_pi(g_vel_yaw - g_look_yaw)) > BODY_BACKPEDAL_DEG * DEG;
-        g_mode = backwards ? "back-pedal" : "walk";
-        target = backwards ? g_look_yaw : g_vel_yaw;
+        gain = BODY_TURN_GAIN;
+        floor_deg_s = BODY_TURN_MIN_DEG_S;
+        g_catching = false;
     } else {
-        // standing: head wobbles inside BODY_STAND_DEADZONE_DEG leave the body alone; past it the body comes round to the
-        // look, gently, all the way (until within 2 deg)
-        const float off = wrap_pi(g_look_yaw - g_body_yaw);
-        g_mode = "stand";
-        gain = BODY_STAND_GAIN;
-        if (std::fabs(off) > BODY_STAND_DEADZONE_DEG * DEG || g_catching) { target = g_look_yaw; g_catching = std::fabs(off) > 2.0f * DEG; }
+        float dead = BODY_STAND_DEADZONE_DEG;
+        if (g_speed > BODY_RUN_MIN_MPS) { g_mode = "run"; dead = BODY_RUN_DEADZONE_DEG; }
+        else if (g_speed > BODY_WALK_MIN_MPS) { g_mode = "walk"; dead = BODY_WALK_DEADZONE_DEG; }
+        else g_mode = "stand";
+        if (std::fabs(off) > dead * DEG || g_catching) { target = g_look_yaw; g_catching = std::fabs(off) > 2.0f * DEG; }
     }
-    g_body_yaw = move_toward(g_body_yaw, target, dt, gain);
+    {
+        const float d = wrap_pi(target - g_body_yaw);
+        const float rate = std::fmax(floor_deg_s * DEG, std::fabs(d) * gain);
+        const float step = std::fmin(std::fabs(d), rate * dt);
+        g_body_yaw = wrap_pi(g_body_yaw + (d < 0 ? -step : step));
+    }
     g_target = wrap_pi(target - g_tf_yaw);
     g_theta = wrap_pi(g_body_yaw - g_tf_yaw);
     const float lim = BODY_MAX_OFFSET_DEG * DEG;   // never further than this from the transform (the arms hang off it)
