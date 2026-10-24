@@ -555,7 +555,13 @@ void measure_palm() {
                  PALM_MEASURE_REACH_M, g_palm_closest);
         return;
     }
-    const Vec3 v = rotate(qinv(qnorm(tq)), pp - hp);
+    // 2026-10-25 (Tefa: the slide hand "ends up in a different spot each time"): the offset was taken against the TARGET's
+    // rotation, which the drawn wrist never quite matches, so each take measured a different offset. Now against the hand
+    // joint's own rotation (a constant of the skeleton), and the first good measurement is kept
+    if (g_palm_ok) return;
+    Quat hq;
+    if (!get_q(JOINT, hand, "get_Rotation", hq)) return;
+    const Vec3 v = rotate(qinv(qnorm(hq)), pp - hp);
     if (g_palm_logs < 5 && (!g_palm_ok || dist(v, g_palm_t) > 0.005f)) {
         ++g_palm_logs;
         LOGI("%s rack: wrist to palm %.3f m (in the hand target's frame %.3f %.3f %.3f), wrist %.3f m from its target", TAG,
@@ -600,7 +606,11 @@ void on_ik(MO* ik) {
         } else {
             Vec3 ap;
             Quat aq;
-            if (anim_hold(ap, aq)) { g_rel_pos = (g_slide_ok && !pump()) ? rotate(inv, lp - rp) : ap; g_rel_rot = aq; how = "NEW: the game's own two-handed hold"; }
+            // 01:25 (Tefa: the pistol's slide hand "bent up in strange ways"): the animation's two-handed hold is a support
+            // grip under a pistol, wrong for a hand on its slide; the slide / bolt keep the hand's turn as it first came
+            // (the menu's turn sliders adjust it; "Drop this gun's slide / pump / bolt hold" takes a fresh one)
+            if (!pump()) { g_rel_pos = rotate(inv, lp - rp); g_rel_rot = qnorm(qmul(inv, lq)); how = "NEW: the hand as it first came"; }
+            else if (anim_hold(ap, aq)) { g_rel_pos = ap; g_rel_rot = aq; how = "NEW: the game's own two-handed hold"; }
             else { g_rel_pos = rotate(inv, lp - rp); g_rel_rot = qnorm(qmul(inv, lq)); how = "NEW: the hand as it came (the animation was not readable)"; }
             g_holds[key] = Hold{g_rel_pos, g_rel_rot};
             holds_save();

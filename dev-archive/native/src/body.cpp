@@ -38,6 +38,9 @@ Quat g_rot{0, 0, 0, 1};
 float g_wrote_root_yaw = 0.0f;  // the root joint's yaw after our write
 bool g_wrote = false;
 int g_held = 0, g_undone = 0;
+Vec3 g_root_p{};
+Quat g_root_q{0, 0, 0, 1};
+MO* g_root = nullptr;   // the root joint and the turn written at the late write (written again before the draw)
 float g_log_t = 0.0f;
 float g_tf_yaw = 0.0f, g_look_yaw = 0.0f;
 bool g_catching = false;        // standing: the body is coming round to the look (until within 2 deg)
@@ -216,9 +219,21 @@ void late_point() {
     set_any(JOINT, j, "set_Position", &np);
     set_any(JOINT, j, "set_Rotation", &nq);
     g_wrote_root_yaw = fwd_yaw(nq);
+    g_root = j;
+    g_root_p = np;
+    g_root_q = nq;
     g_wrote = true;
 }
 
+// 2026-10-25 01:25 (Tefa, after five builds: "chest turns with my head - no change still"): the LateUpdateBehavior write held
+// to PrepareRendering post (the check), but the engine re-poses the skeleton once more before the draw (the shotgun's pump
+// joint needed its second write at BeginRendering for the same reason). The turned root is now written again here and at
+// BeginRendering pre, from the turn kept at the late write
+void write_root_again() {
+    if (!g_wrote || g_root == nullptr) return;
+    set_any(JOINT, g_root, "set_Position", &g_root_p);
+    set_any(JOINT, g_root, "set_Rotation", &g_root_q);
+}
 void render_point() {
     if (!g_wrote) return;
     const auto& s = player::now();
@@ -228,7 +243,9 @@ void render_point() {
     Quat rq;
     if (root == nullptr || !get_q(JOINT, root, "get_Rotation", rq)) return;
     if (std::fabs(wrap_pi(fwd_yaw(rq) - g_wrote_root_yaw)) < 2.0f * DEG) ++g_held; else ++g_undone;
+    write_root_again();
 }
+void begin_render() { write_root_again(); }
 
 // which game types carry the game's own body-direction machinery (its third-person mode): once, into type_probe.txt
 void probe_types() {

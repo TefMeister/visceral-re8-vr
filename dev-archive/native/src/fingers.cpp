@@ -63,23 +63,43 @@ void frame() {
     if (s.tf != g_tf) { g_tf = s.tf; for (auto& j : g_joint) j = nullptr; }
 }
 
+// 2026-10-25 01:25 (Tefa: near the pump "the hand smoothly rotates to the pose of what it is like when it actually is gripping
+// on the gun ... it gets stuck after taking the hand off"): the skeleton's rest pose (BaseLocalRotation) is a relaxed CURL in
+// Village, so blending toward it closed the hand; and nothing else re-poses the finger joints, so whatever was last written
+// stayed. Now: "open" is the identity local rotation (each finger bone straight along its parent); the pose found at the
+// start of an episode is kept and written back exactly when the episode ends; nothing is written outside an episode
+bool g_episode = false;
+Quat g_found[N] = {};
 void render_point() {
     for (auto& h : g_have) h = false;
-    if (g_open <= 0.001f || g_tf == nullptr || g_poser) return;
+    if (g_tf == nullptr || g_poser) { if (g_episode) { g_episode = false; } return; }
+    if (g_open <= 0.001f) {
+        if (g_episode) {   // the episode ends: the hand as it was found, written once more, then left alone
+            g_episode = false;
+            for (int i = 0; i < N; ++i) if (g_joint[i] != nullptr) { g_target[i] = g_found[i]; g_have[i] = true; set_any(JOINT, g_joint[i], "set_LocalRotation", &g_target[i]); }
+        }
+        return;
+    }
     const float u = ease(g_open) * FINGER_OPEN_AMOUNT;
+    const Quat open{0, 0, 0, 1};
     for (int i = 0; i < N; ++i) {
         if (g_joint[i] == nullptr) g_joint[i] = joint_by_name(g_tf, LEFT_FINGERS[i]);
         MO* j = g_joint[i];
-        Quat anim, rest;
-        if (j == nullptr || !get_q(JOINT, j, "get_LocalRotation", anim) || !get_q(JOINT, j, "get_BaseLocalRotation", rest)) continue;
-        g_target[i] = nlerp(qnorm(anim), qnorm(rest), u);
+        if (j == nullptr) continue;
+        if (!g_episode) {   // the pose as found, kept for the whole episode (later reads would see our own writes)
+            Quat q;
+            if (!get_q(JOINT, j, "get_LocalRotation", q)) continue;
+            g_found[i] = qnorm(q);
+        }
+        g_target[i] = nlerp(g_found[i], open, u);
         g_have[i] = true;
         set_any(JOINT, j, "set_LocalRotation", &g_target[i]);
     }
+    g_episode = true;
 }
 
 void begin_render() {
-    if (g_open <= 0.001f || g_poser) return;
+    if (g_poser) return;
     for (int i = 0; i < N; ++i)
         if (g_have[i] && g_joint[i] != nullptr) set_any(JOINT, g_joint[i], "set_LocalRotation", &g_target[i]);
 }

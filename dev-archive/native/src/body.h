@@ -20,7 +20,8 @@ namespace vn::body {
 
 void frame();          // UpdateBehavior pre: the target and the lag
 void late_point();     // LateUpdateBehavior post: turn the skeleton
-void render_point();   // PrepareRendering post: read the root back (did the write hold?)
+void render_point();   // PrepareRendering post: read the root back (did the write hold?), write it again
+void begin_render();   // BeginRendering pre: write it once more (the engine re-poses before the draw)
 void install();        // once: hooks the inventory's open / close calls
 void probe_types();    // first frame: which game types own calculateBodyDirection / set_bodyDirectionTarget / getCameraYaw
 float applied_yaw();   // the offset drawn this frame (radians)
