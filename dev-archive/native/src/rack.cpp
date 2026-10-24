@@ -301,6 +301,7 @@ bool needed() { return RELOAD_ON && rackable() && g_needed; }
 void* slide_joint() { return g_joint; }
 const char* part_name() { return part(); }
 bool active() { return g_hand_on; }
+bool pump_gun() { return pump(); }
 bool left_near_gun() { float off = 99.0f; if (g_joint != nullptr && near_joint(off)) return true; return on_gun_line(off); }
 bool on_pump() { return g_hand_on && pump(); }
 float travel() { return g_travel; }
