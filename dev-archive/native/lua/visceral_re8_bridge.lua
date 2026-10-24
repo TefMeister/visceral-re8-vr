@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 96
+local N = 100
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9
@@ -33,9 +33,35 @@ local S_HUD_PING = 87     -- the plugin bumps it after an ammo change: refresh t
 local REMAIN_AMMO_GUI = 1927694450   -- Andyalpa's ETHAN_REMAIN_AMMO_HASH (re8_vr_ammo_hud.lua)
 local hud_ping_seen = 0
 local S_SLIDE_HAND = 84   -- x, y, z: the hand on the slide, nudged in cm (gun axes: right, up, forward), saved below
+local S_SLIDE_HAND_ROT = 93   -- x, y, z: the same hand turned, degrees about the gun's axes (2026-10-24)
+local S_EXPERIMENT, S_WEAPON_NUM = 96, 97
 local SLIDE_HAND_FILE = "visceral_re8/slide_hand.json"
-local slide_hand = { x = 0.0, y = 0.0, z = 0.0 }
-pcall(function() local d = json.load_file(SLIDE_HAND_FILE); if type(d) == "table" then for k, _ in pairs(slide_hand) do if type(d[k]) == "number" then slide_hand[k] = d[k] end end end end)
+-- 2026-10-24: kept per gun (a pistol slide, a pump and a bolt want different hands); "any" = a gun not set yet
+local HAND_KEYS = { "x", "y", "z", "rx", "ry", "rz" }
+local slide_hands = { any = { x = 0.0, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0 } }
+pcall(function()
+    local d = json.load_file(SLIDE_HAND_FILE)
+    if type(d) ~= "table" then return end
+    if type(d.x) == "number" then d = { any = d } end   -- the file from before 2026-10-24: one hand for every gun
+    for gun, t in pairs(d) do
+        if type(t) == "table" then
+            slide_hands[gun] = {}
+            for _, k in ipairs(HAND_KEYS) do slide_hands[gun][k] = type(t[k]) == "number" and t[k] or 0.0 end
+        end
+    end
+end)
+local function gun_key(num) return (num and num > 0) and string.format("ri%d", num) or "any" end
+local function hand_for(num) return slide_hands[gun_key(num)] or slide_hands.any end
+-- 2026-10-24 (Tefa: "the guns must not automatically dock with proximity, only LG pressed and held"): the patched
+-- REFramework's own switch (re-village-scope-vr; the scope mod's release set it to dock by itself)
+local dock_needs_button = true
+local dock_told = nil
+local experiments = 0
+local EXPERIMENTS = {
+    { bit = 1, label = "magazine: hide the gun's own magazine the moment it drops (the old way)" },
+    { bit = 2, label = "magazine: do NOT carry 'Magazine_second' along with it" },
+    { bit = 4, label = "left hand: no smoothing going onto / off the gun" },
+}
 local LEFT_NAMES = { [0] = "free", "grip (praydog's two-hand)", "on the slide / bolt", "on the pump", "holding a magazine", "holding a round" }
 local pose_lock = false
 local SENTINEL = 54321.0
@@ -223,7 +249,18 @@ local function village_readings()
     end
     wb(S_INTERACTION_BLOCKED, blocked)
     wb(S_POSE_LOCK, pose_lock)
-    w(S_SLIDE_HAND, slide_hand.x); w(S_SLIDE_HAND + 1, slide_hand.y); w(S_SLIDE_HAND + 2, slide_hand.z)
+    local hand = hand_for(r(S_WEAPON_NUM))
+    w(S_SLIDE_HAND, hand.x); w(S_SLIDE_HAND + 1, hand.y); w(S_SLIDE_HAND + 2, hand.z)
+    w(S_SLIDE_HAND_ROT, hand.rx); w(S_SLIDE_HAND_ROT + 1, hand.ry); w(S_SLIDE_HAND_ROT + 2, hand.rz)
+    w(S_EXPERIMENT, experiments)
+    if re8vr then
+        local ok = pcall(function() if re8vr.grip_needs_button ~= dock_needs_button then re8vr.grip_needs_button = dock_needs_button end end)
+        local now = ok and tostring(dock_needs_button) or "not available (not the patched REFramework)"
+        if now ~= dock_told then
+            dock_told = now
+            log.info(TAG .. " left hand docks on the gun only with LG held: " .. now)
+        end
+    end
     -- 2026-10-19: the rifle showed 0/0 after a reload until the trigger was pulled. Do what the game's own HUD code does on
     -- a change: apply the remaining-ammo driver to its UI and ask its order to show the remaining ammo.
     local ping = r(S_HUD_PING)
@@ -331,14 +368,33 @@ re.on_draw_ui(function()
         if arr then imgui.text("Left hand: " .. (LEFT_NAMES[math.floor(r(S_HAND_STATE) + 0.5)] or "?")) end
         local changed, v = imgui.checkbox("Hold this pose (a magazine stays in the hand, the hand stays on the slide)", pose_lock)
         if changed then pose_lock = v end
-        imgui.text("The left hand on the slide (cm, along the gun):")
-        local moved = false
-        for _, k in ipairs({ "x", "y", "z" }) do
-            local label = ({ x = "right (+) / left (-)", y = "up (+) / down (-)", z = "forward (+) / back (-)" })[k]
-            local c, nv = imgui.slider_float(label, slide_hand[k], -15.0, 15.0, "%.1f")
-            if c then slide_hand[k] = nv; moved = true end
+        local c0, v0 = imgui.checkbox("The left hand goes onto the gun only while LG is held", dock_needs_button)
+        if c0 then dock_needs_button = v0 end
+        local num = arr and r(S_WEAPON_NUM) or 0
+        local key = gun_key(num)
+        imgui.text("The left hand on the slide / pump / bolt of " .. (key == "any" and "any gun (no gun in hand)" or key) .. ":")
+        if not slide_hands[key] then
+            slide_hands[key] = {}
+            for _, k in ipairs(HAND_KEYS) do slide_hands[key][k] = slide_hands.any[k] end
         end
-        if moved then pcall(function() json.dump_file(SLIDE_HAND_FILE, slide_hand) end) end
+        local hand = slide_hands[key]
+        local moved = false
+        local LABELS = { x = "move right (+) / left (-), cm", y = "move up (+) / down (-), cm", z = "move forward (+) / back (-), cm",
+            rx = "tilt fingers up (+) / down (-), deg", ry = "turn left (+) / right (-), deg", rz = "roll (+) / (-), deg" }
+        for _, k in ipairs(HAND_KEYS) do
+            local lim = (k:sub(1, 1) == "r") and 180.0 or 15.0
+            local c, nv = imgui.slider_float(LABELS[k], hand[k], -lim, lim, "%.1f")
+            if c then hand[k] = nv; moved = true end
+        end
+        if moved then pcall(function() json.dump_file(SLIDE_HAND_FILE, slide_hands) end) end
+        if imgui.tree_node("Experiments (try a fix without restarting)") then
+            for _, e in ipairs(EXPERIMENTS) do
+                local on = (experiments & e.bit) ~= 0
+                local c, nv = imgui.checkbox(e.label, on)
+                if c then experiments = nv and (experiments | e.bit) or (experiments & ~e.bit) end
+            end
+            imgui.tree_pop()
+        end
         imgui.tree_pop()
     end
     if imgui.tree_node("Visceral RE8 bridge") then

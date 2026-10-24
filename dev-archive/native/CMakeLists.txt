@@ -21,7 +21,8 @@ add_library(visceral_re8_native SHARED
     src/weapons.cpp
     src/handstate.cpp
     src/ghosthand.cpp
-    src/json_mini.cpp)
+    src/json_mini.cpp
+    src/smooth.cpp)
 target_include_directories(visceral_re8_native PRIVATE include src)
 target_link_libraries(visceral_re8_native PRIVATE winmm)   # PlaySound: the bolt click (rack.cpp)
 set_target_properties(visceral_re8_native PROPERTIES OUTPUT_NAME "visceral_re8_native" PREFIX "")

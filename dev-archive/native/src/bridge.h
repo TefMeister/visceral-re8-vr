@@ -58,8 +58,26 @@ enum Slot : int {
     S_INTERACTION_BLOCKED = 89,   // __vr_is_interaction_blocked() (the holster: a menu / inventory is up)
     S_HUD_CMD = 90, S_HUD_CMD_SEQ = 91,   // WRITTEN BY THE LUA MENU: a button (1 open now, 2 recover, 3 re-resolve), numbered
     S_HUD_STATUS = 92,        // WRITTEN BY THE PLUGIN: ammo_hud.cpp's status, for the menu
-    S_COUNT = 96,
+    // 2026-10-24 (Tefa: "using LG + LT to rack makes no gun sounds"): sound requests to lua/visceral_re8_sounds.lua
+    S_SFX_CODE = 61, S_SFX_SEQ = 62,   // WRITTEN BY THE PLUGIN: which handling sound (Sfx below), numbered so a repeat plays again
+    S_SFX_LUA_HAS = 63,       // WRITTEN BY THE LUA: bit (1 << code) = the Lua has a game sound for that code (else the plugin's wav, if any)
+    S_SLIDE_HAND_ROT = 93,    // 93-95, WRITTEN BY THE LUA MENU: the hand on the slide / pump / bolt turned (deg, about the gun's x, y, z)
+    S_EXPERIMENT = 96,        // WRITTEN BY THE LUA MENU: Experiment bits, for trying a fix live without a rebuild
+    S_WEAPON_NUM = 97,        // WRITTEN BY THE PLUGIN: the held gun's number (ri3046 -> 3046), 0 = none (the menu keeps settings per gun)
+    S_COUNT = 100,
 };
+enum Sfx : int {               // S_SFX_CODE values
+    SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,
+    SFX_BOLT_UP = 5, SFX_BOLT_BACK = 6, SFX_BOLT_FORWARD = 7, SFX_BOLT_DOWN = 8,
+};
+enum Experiment : int {        // S_EXPERIMENT bits (menu "Visceral RE8 reload" -> "Experiments")
+    EX_MAG_HIDE_AT_DROP = 1,   // the old way: the gun's own magazine display switched off the moment the magazine drops
+    EX_MAG_NO_SECOND = 2,      // do NOT move "Magazine_second" with "Magazine"
+    EX_NO_SMOOTH = 4,          // no smoothing of the left hand going onto / off the gun
+};
+void sfx(Sfx code);            // ask the Lua for a handling sound (plays the plugin's wav itself when the Lua has none)
+bool experiment(Experiment e);
+
 enum RecoilFlag : int {       // S_RECOIL_FLAGS bits = the globals re8_vr_recoil.lua read
     RF_BLOCK_LEFT_IK = 1,     // __vr_block_left_hand_ik
     RF_BLOCK_FIRE_EMPTY = 2,  // __vr_block_fire_when_empty

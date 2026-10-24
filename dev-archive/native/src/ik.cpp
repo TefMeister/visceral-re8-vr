@@ -5,6 +5,7 @@
 #include "rack.h"
 #include "recoil.h"
 #include "reload.h"
+#include "smooth.h"
 
 namespace vn::ik {
 
@@ -17,6 +18,7 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     recoil::on_ik(ik);
     reload::on_ik(ik);
     rack::on_ik(ik);
+    smooth::on_ik(ik);   // last: eases the left hand when whoever places it changes
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }
 } // namespace

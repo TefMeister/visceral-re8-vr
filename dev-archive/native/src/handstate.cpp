@@ -49,6 +49,10 @@ void frame() {
     const auto& s = player::now();
     const bool right = s.weapon != nullptr;
     bridge::put(bridge::S_HAND_STATE, (float)left);
+    // the held gun's number for the menu's per-gun settings (ri3046 -> 3046)
+    int num = 0;
+    for (char c : s.weapon_id) { if (c >= '0' && c <= '9') num = num * 10 + (c - '0'); else if (num > 0) break; }
+    bridge::put(bridge::S_WEAPON_NUM, right ? (float)num : 0.0f);
     bridge::put(bridge::S_RELOAD_BUSY, (left == SLIDE || left == PUMP || left == MAGAZINE || left == ROUND || reload::session_active()) ? 1.0f : 0.0f);
     if (left == g_left && right == g_right && s.weapon_id == g_weapon) return;
     if (left != g_left) LOGI("%s hands: left %s -> %s", TAG, left_name(g_left), left_name(left));

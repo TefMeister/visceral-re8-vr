@@ -9,6 +9,7 @@
 #include "bridge.h"
 
 #include <windows.h>
+#include <mmsystem.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -170,5 +171,25 @@ bool room_dir_to_world(Vec3 dir, Vec3& world_dir) {
     world_dir = rotate(w, dir);
     return true;
 }
+
+
+// a handling sound: the Lua plays the game's own when it has one for the code (lua/visceral_re8_sounds.lua); the bolt
+// falls back to Andyalpa's chamber click (RE7 VR Reloaded), the only wav we carry
+void sfx(Sfx code) {
+    if (g_arr == nullptr) return;
+    float* e = elems();
+    e[S_SFX_CODE] = (float)code;
+    e[S_SFX_SEQ] += 1.0f;
+    const int has = (int)e[S_SFX_LUA_HAS];
+    LOGI("%s sound: handling sound %d asked (%s)", TAG, (int)code, (has >> code) & 1 ? "the game's, via the Lua" : "no game sound set");
+    if ((has >> code) & 1) return;
+    if (code != SFX_BOLT_BACK && code != SFX_BOLT_FORWARD) return;
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    const auto f = std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "sfx" / "bolt_click.wav";
+    PlaySoundW(f.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
+}
+
+bool experiment(Experiment ex) { return g_arr != nullptr && (((int)elems()[S_EXPERIMENT]) & (int)ex) != 0; }
 
 } // namespace vn::bridge

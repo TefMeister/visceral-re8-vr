@@ -52,7 +52,6 @@ Quat g_rest_rot{0, 0, 0, 1};
 // the bolt cycle: 0 locked, 1 turned up, 2 pulled back (clicked), 3 pushed home (still up); turned down from 3 = done
 int g_bstate = 0;
 float g_turn = 0.0f;          // 0 = down / locked, 1 = up
-float g_dy0 = 0.0f;           // left - right height that counts as "turn 0" (set when the hand takes hold)
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
 bool pump() { return g_w != nullptr && g_w->pump; }
@@ -63,13 +62,33 @@ float z_now() { return g_rest.z + (pump() ? PUMP_BACK_M : SLIDE_BACK_M) * g_trav
 MO* target_of(MO* ik) { return field_obj(ik, "Target"); }
 
 Vec3 controller_fwd() { return rotate(bridge::view_quat(bridge::S_RROT), Vec3{0, 0, -1}); }   // OpenXR: -Z
-// the barrel in the room: the gun object's +Z (Village guns: the muzzle joint sits at +Z) carried through the camera.
+Vec3 unit_or(Vec3 v, Vec3 fallback) {
+    const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return len > 1e-4f ? v * (1.0f / len) : fallback;
+}
+// the barrel in the room, carried through the camera. 2026-10-24 (Tefa: "i think the bolt racking works backwards"): the
+// gun object's +Z was only assumed to point at the muzzle, so the barrel is now the line from the gun to its own
+// "vfx_muzzle" joint when the gun has one; the old +Z guess is kept as the fallback and the two are compared in the log once.
 // 2026-10-19: the bolt's pull was read along the line between the hands, which is short and crooked when the left hand
 // sits over the receiver, and the bolt would not follow the controller.
 Vec3 barrel_room() {
+    const auto& s = player::now();
     Quat gq;
-    Vec3 f;
-    if (get_q(XFORM, player::now().weapon_tf, "get_Rotation", gq) && bridge::world_dir_to_room(rotate(qnorm(gq), Vec3{0, 0, 1}), f)) {
+    Vec3 gp{}, mp{}, f{};
+    const bool have_gun = get_q(XFORM, s.weapon_tf, "get_Rotation", gq) && get_v3(XFORM, s.weapon_tf, "get_Position", gp);
+    const Vec3 plus_z = have_gun ? rotate(qnorm(gq), Vec3{0, 0, 1}) : Vec3{0, 0, 0};
+    MO* muzzle = s.weapon_tf != nullptr ? joint_by_name(s.weapon_tf, L"vfx_muzzle") : nullptr;
+    if (have_gun && muzzle != nullptr && get_v3(JOINT, muzzle, "get_Position", mp) && dist(mp, gp) > BARREL_MUZZLE_MIN_M) {
+        const Vec3 to_muzzle = unit_or(mp - gp, plus_z);
+        static std::string told;
+        if (told != g_id) {
+            told = g_id;
+            const float d = to_muzzle.x * plus_z.x + to_muzzle.y * plus_z.y + to_muzzle.z * plus_z.z;
+            LOGI("%s rack: %s barrel from the muzzle joint; the old +Z guess agreed by %.2f (1 = same, -1 = backwards)", TAG, g_id.c_str(), d);
+        }
+        if (bridge::world_dir_to_room(to_muzzle, f)) return unit_or(f, controller_fwd());
+    }
+    if (have_gun && bridge::world_dir_to_room(plus_z, f)) {
         const float len = std::sqrt(f.x * f.x + f.y * f.y + f.z * f.z);
         if (len > 0.5f) return f * (1.0f / len);
     }
@@ -99,6 +118,7 @@ bool on_gun_line(float& off) {
 
 void complete() {
     const bool was = g_needed;
+    if (!pump() && !bolt()) bridge::sfx(bridge::SFX_SLIDE_FORWARD);   // the slide slams home (the bolt and pump say their own)
     ghosthand::event(part(), "done");
     g_needed = g_parked = false;
     g_hold_closed = true;
@@ -138,51 +158,60 @@ void write_joint() {
     }
 }
 
-void click() {   // Andyalpa's chamber-open click (RE7 VR Reloaded), played on the PC's sound
-    wchar_t exe[MAX_PATH]{};
-    GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    const auto f = std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "sfx" / "bolt_click.wav";
-    PlaySoundW(f.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
-}
-
-float hand_dy() { return bridge::hand_pos(bridge::LEFT).y - bridge::hand_pos(bridge::RIGHT).y; }
 float clamp01(float v) { return std::fmax(0.0f, std::fmin(1.0f, v)); }
+float g_bolt_t = -1.0f;       // the last frame's clock, for the bolt's own lift and drop
 
-// one frame of the bolt cycle while the hand is on it (LT only starts it, LG keeps it)
-void bolt_step() {
-    const float turn_now = clamp01((hand_dy() - g_dy0) / BOLT_LIFT_M);
+// 2026-10-24, the bolt redone (Tefa: "LG puts the left hand on the bolt, holding LT then lifts the bolt up with hand so
+// player only has to do the backward and forward motion, click must play both when bolt is in the back and when pushed
+// forward again ... then when the bolt is all the way back in front, it automatically goes back down"). So: with LT held
+// the bolt turns up by itself, then follows the hand back (click) and forward (click), and once home it turns down by
+// itself, LT or not. LT let go mid-way: it stays where it is until LT is held again.
+void bolt_step(bool lt) {
+    const float now = now_s();
+    const float dt = g_bolt_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_bolt_t);
+    g_bolt_t = now;
     const float want = clamp01((g_base - along_gun()) / RACK_PULL_M);
     switch (g_bstate) {
     case 0:
-        g_turn = turn_now;
-        if (g_turn >= 0.95f) { g_bstate = 1; g_turn = 1.0f; LOGI("%s rack: bolt turned up", TAG); }
+        if (!lt || g_spent) break;   // a finished cycle wants LT let go once before the next one
+        g_turn = clamp01(g_turn + dt / BOLT_LIFT_SEC);
+        if (g_turn >= 1.0f) {
+            g_bstate = 1;
+            g_base = along_gun();   // the pull is measured from where the hand is once the bolt is up
+            bridge::sfx(bridge::SFX_BOLT_UP);
+            LOGI("%s rack: bolt turned up by itself: pull it back", TAG);
+        }
         break;
     case 1:
+        if (!lt) break;
         g_travel += (want - g_travel) * RACK_FOLLOW;
         if (g_travel >= 0.97f) {
             g_bstate = 2;
             g_pulled = true;
-            click();
+            bridge::sfx(bridge::SFX_BOLT_BACK);
             bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: bolt back (click): push it forward", TAG);
         }
         break;
     case 2:
+        if (!lt) break;
         g_travel += (want - g_travel) * RACK_FOLLOW;
         if (g_travel <= BOLT_HOME) {
             g_bstate = 3;
             g_travel = 0.0f;
-            g_dy0 = hand_dy() - BOLT_LIFT_M;   // from here, lowering the hand turns it down
-            LOGI("%s rack: bolt home: turn it down to lock", TAG);
+            bridge::sfx(bridge::SFX_BOLT_FORWARD);
+            bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s rack: bolt home (click): it turns down by itself", TAG);
         }
         break;
     case 3:
-        g_turn = turn_now;
-        if (g_turn <= BOLT_DONE) {
+        g_turn = clamp01(g_turn - dt / BOLT_LIFT_SEC);
+        if (g_turn <= 0.0f) {
             g_bstate = 0;
-            g_turn = 0.0f;
             g_pulled = false;
-            g_hand_on = g_armed = g_capture = g_rel_ok = g_slide_frozen = false;
+            g_armed = false;
+            g_spent = true;
+            bridge::sfx(bridge::SFX_BOLT_DOWN);
             complete();
             LOGI("%s rack: bolt locked", TAG);
         }
@@ -275,23 +304,28 @@ void frame() {
             }
         }
     }
+    if (bolt() && !g_hand_on && g_bstate == 3) { bolt_step(false); return; }   // home: it turns down by itself, hand or not
     if (g_hand_on && bolt()) {
-        if (!play) hand_off("cutscene / hands not free");
-        else if (!lg && !lock) hand_off("LG let go");
-        else if (!g_armed) {   // holding the bolt, still: one LT press arms it, from where the bolt is
-            if (bridge::pressed(bridge::S_LTRIG)) {
-                g_armed = true;
-                g_axis = barrel_room();
-                g_base = along_gun() + g_travel * RACK_PULL_M;            // the travel carries on from where the bolt is
-                g_dy0 = hand_dy() - g_turn * BOLT_LIFT_M;                 // and so does the turn
-                LOGI("%s rack: bolt armed (LT)", TAG);
-                ghosthand::event("bolt", "start");
-            }
-        } else bolt_step();
+        if (!play) { hand_off("cutscene / hands not free"); return; }
+        if (!lg && !lock) { hand_off("LG let go"); return; }
+        // 2026-10-24 (Tefa: "LT needs to be held the whole time to work it"): the bolt works only while LT is held
+        if (lt && !g_armed) {
+            g_armed = true;
+            g_axis = barrel_room();
+            g_base = along_gun() + g_travel * RACK_PULL_M;   // the travel carries on from where the bolt is
+            LOGI("%s rack: bolt held with LT", TAG);
+            ghosthand::event("bolt", "start");
+        } else if (!lt && g_armed) {
+            g_armed = false;
+            if (g_bstate != 3) LOGI("%s rack: LT let go: the bolt stays at step %d", TAG, g_bstate);
+        }
+        bolt_step(lt && g_armed);
         return;
     }
     if (g_hand_on) {
-        if (!g_armed && bridge::pressed(bridge::S_LTRIG)) {   // one LT press arms it; LT need not be held
+        // 2026-10-24 (Tefa: "LG is used to put hand on the slider/handle/bolt and LT needs to be held the whole time to work
+        // it"): LT held = the slide / pump follows the hand; LT let go = the slide goes home, the pump stays where it is
+        if (lt && !g_armed && !g_spent) {
             g_armed = true;
             ghosthand::event(part(), "start");
             g_axis = barrel_room();
@@ -299,9 +333,20 @@ void frame() {
             const Vec3 v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
             const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
             if (pump() && len > 0.10f) g_axis = v * (1.0f / len);
-            g_base = along_gun();
+            g_base = along_gun() + (g_pulled ? 0.0f : g_travel * RACK_PULL_M);   // a part-way pull carries on from there
             g_max_pull = 0.0f;
             if (pump() && g_pulled) g_max_pull = (1.0f - g_travel) * RACK_RETURN_M;   // a pump left back carries on from there
+        } else if (!lt && g_armed && !lock) {
+            g_armed = false;
+            if (!pump() && g_pulled) {   // the slide let go of at the back: it slams home
+                g_pulled = false;
+                g_travel = 0.0f;
+                complete();
+                g_spent = true;
+                LOGI("%s rack: LT let go at the back: the slide went home", TAG);
+            } else {
+                LOGI("%s rack: LT let go: the %s %s", TAG, part(), pump() ? "stays where it is" : "springs back");
+            }
         }
         if (!play) hand_off("cutscene / hands not free");
         else if (lock) { /* "hold this pose": the hand stays on, whatever the buttons do */ }
@@ -321,11 +366,12 @@ void frame() {
         else g_travel = 1.0f;
         if (!g_pulled && g_travel >= 0.97f) {
             g_pulled = true;
+            bridge::sfx(pump() ? bridge::SFX_PUMP_BACK : bridge::SFX_SLIDE_BACK);
             bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: pulled back (%.3f m)", TAG, pulled);
         }
-        if (pump() && g_pulled && g_travel <= 0.10f) hand_off("pumped back up by hand");
-    } else if (!g_pulled && g_travel > 0.0f) {
+        if (pump() && g_pulled && g_travel <= 0.10f) { bridge::sfx(bridge::SFX_PUMP_FORWARD); hand_off("pumped back up by hand"); }
+    } else if (!g_pulled && g_travel > 0.0f && !(pump() && g_hand_on)) {   // a pump only springs back once the hand is off it
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }
 }
@@ -351,6 +397,18 @@ void late_point() {
 }
 void render_point() { write_joint(); }
 
+// 2026-10-24 (Tefa: on the slide the hand "sits there with its wrist ready to rack and hand fully visible on the right
+// hand side"): the menu's three turn sliders turn the hand about the gun's own axes (x right, y up, z forward), in degrees
+Quat slide_hand_turn(Quat gun) {
+    const float d = 3.14159265f / 360.0f;
+    const float ax = bridge::view(bridge::S_SLIDE_HAND_ROT), ay = bridge::view((bridge::Slot)(bridge::S_SLIDE_HAND_ROT + 1)),
+                az = bridge::view((bridge::Slot)(bridge::S_SLIDE_HAND_ROT + 2));
+    if (!bridge::has(ax) || (ax == 0.0f && ay == 0.0f && az == 0.0f)) return Quat{0, 0, 0, 1};
+    const Quat local = qnorm(qmul(qmul(Quat{0, std::sin(ay * d), 0, std::cos(ay * d)}, Quat{std::sin(ax * d), 0, 0, std::cos(ax * d)}),
+                                  Quat{0, 0, std::sin(az * d), std::cos(az * d)}));
+    return qnorm(qmul(qmul(gun, local), qinv(gun)));
+}
+
 void on_ik(MO* ik) {
     const auto& s = player::now();
     if (!g_hand_on || ik != s.ik_left) return;
@@ -371,7 +429,7 @@ void on_ik(MO* ik) {
         const Quat gun = qnorm(qmul(rq, g_slide_gun));
         const Vec3 nudge{bridge::view(bridge::S_SLIDE_HAND_X) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Y) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Z) * 0.01f};
         const Vec3 pos = rp + rotate(rq, g_slide_pos) + rotate(gun, Vec3{0, 0, z_now() - g_z_anim} + (bridge::has(nudge.x) ? nudge : Vec3{0, 0, 0}));
-        player::set_pose(target_of(ik), pos, rot);
+        player::set_pose(target_of(ik), pos, qnorm(qmul(slide_hand_turn(gun), rot)));
         return;
     }
     Vec3 back{0, 0, 0};   // no slide joint: where the hand took hold, slid back with the pull

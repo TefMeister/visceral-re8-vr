@@ -36,6 +36,12 @@ std::string g_id;                 // canonical
 MO* g_gun = nullptr;              // this frame's objects (valid for the frame only)
 MO* g_wtf = nullptr;
 MO* g_joint = nullptr;            // the magazine joint, when found
+// 2026-10-24 (Tefa: "when ejecting the mag, only the bottom slab of the mag drops out, not the whole magazine"): the LEMI
+// also has "Magazine_second"; it is carried along with "Magazine", keeping where it sat against it at the drop
+MO* g_joint2 = nullptr;
+bool g_j2_ok = false, g_j2_same_parent = false;
+Vec3 g_j2_rel_l{}, g_j2_rel_w{}, g_j2_rest_scale{1, 1, 1};
+Quat g_j2_rot_l{0, 0, 0, 1}, g_j2_rot_w{0, 0, 0, 1};
 MO* g_hand = nullptr;             // the player's left hand joint
 float g_t0 = 0.0f;
 Vec3 g_rest_pos{}, g_rest_scale{1, 1, 1};
@@ -82,6 +88,7 @@ void resolve_frame() {
     g_gun = s.gun;
     g_wtf = s.weapon_tf;
     g_joint = (MAG_JOINT_ANIMATE && g_w != nullptr && g_w->reload == Reload::MAG && g_wtf) ? joint_by_name(g_wtf, L"Magazine") : nullptr;   // Village names its gun joints (headset log 2026-10-18)
+    g_joint2 = (g_joint != nullptr && !bridge::experiment(bridge::EX_MAG_NO_SECOND)) ? joint_by_name(g_wtf, L"Magazine_second") : nullptr;
     g_shell = (g_w != nullptr && g_w->reload == Reload::ROUND && g_wtf) ? joint_by_name(g_wtf, L"Bullet") : nullptr;
     if (g_shell != nullptr && !g_shell_have_rest && !g_round_in_hand &&
         get_v3(JOINT, g_shell, "get_LocalPosition", g_shell_rest) && get_q(JOINT, g_shell, "get_LocalRotation", g_shell_rest_rot))
@@ -254,12 +261,57 @@ void hide_mag_part() { mag_part_shown(false); }
 void write_local(Vec3 p, Quat q) {
     set_any(JOINT, g_joint, "set_LocalPosition", &p);
     set_any(JOINT, g_joint, "set_LocalRotation", &q);
+    if (g_joint2 != nullptr && g_j2_ok && g_j2_same_parent) {
+        Vec3 p2 = p + rotate(q, g_j2_rel_l);
+        Quat q2 = qnorm(qmul(q, g_j2_rot_l));
+        set_any(JOINT, g_joint2, "set_LocalPosition", &p2);
+        set_any(JOINT, g_joint2, "set_LocalRotation", &q2);
+    }
 }
 void write_world(Vec3 p, Quat q) {
     set_any(JOINT, g_joint, "set_Position", &p);
     set_any(JOINT, g_joint, "set_Rotation", &q);
+    if (g_joint2 != nullptr && g_j2_ok) {
+        Vec3 p2 = p + rotate(q, g_j2_rel_w);
+        Quat q2 = qnorm(qmul(q, g_j2_rot_w));
+        set_any(JOINT, g_joint2, "set_Position", &p2);
+        set_any(JOINT, g_joint2, "set_Rotation", &q2);
+    }
 }
-void write_scale(Vec3 s) { set_any(JOINT, g_joint, "set_LocalScale", &s); }
+void write_scale(Vec3 s) {
+    set_any(JOINT, g_joint, "set_LocalScale", &s);
+    if (g_joint2 != nullptr && g_j2_ok) {
+        Vec3 s2 = s.x < 0.01f ? Vec3{0, 0, 0} : g_j2_rest_scale;
+        set_any(JOINT, g_joint2, "set_LocalScale", &s2);
+    }
+}
+std::string parent_name(MO* joint) {
+    MO* p = call_ptr(joint, "get_Parent");
+    return p != nullptr ? read_string(call_ptr(p, "get_Name")) : std::string("none");
+}
+// where the second magazine joint sits against the first, taken at the drop while both still sit in the gun
+void capture_second() {
+    g_j2_ok = false;
+    if (g_joint2 == nullptr) return;
+    Vec3 p1l, p2l, p1w, p2w, s2;
+    Quat q1l, q2l, q1w, q2w;
+    if (!get_v3(JOINT, g_joint, "get_LocalPosition", p1l) || !get_q(JOINT, g_joint, "get_LocalRotation", q1l) ||
+        !get_v3(JOINT, g_joint2, "get_LocalPosition", p2l) || !get_q(JOINT, g_joint2, "get_LocalRotation", q2l) ||
+        !get_v3(JOINT, g_joint, "get_Position", p1w) || !get_q(JOINT, g_joint, "get_Rotation", q1w) ||
+        !get_v3(JOINT, g_joint2, "get_Position", p2w) || !get_q(JOINT, g_joint2, "get_Rotation", q2w)) return;
+    if (!get_v3(JOINT, g_joint2, "get_LocalScale", s2) || s2.x < 0.01f) s2 = Vec3{1, 1, 1};
+    const std::string a = parent_name(g_joint), b = parent_name(g_joint2);
+    g_j2_same_parent = a == b;
+    const Quat i1l = qinv(qnorm(q1l)), i1w = qinv(qnorm(q1w));
+    g_j2_rel_l = rotate(i1l, p2l - p1l);
+    g_j2_rot_l = qnorm(qmul(i1l, qnorm(q2l)));
+    g_j2_rel_w = rotate(i1w, p2w - p1w);
+    g_j2_rot_w = qnorm(qmul(i1w, qnorm(q2w)));
+    g_j2_rest_scale = s2;
+    g_j2_ok = true;
+    LOGI("%s reload: %s Magazine_second rides along (%.3f m from Magazine); parents: Magazine under %s, Magazine_second under %s%s", TAG,
+         g_id.c_str(), dist(p1w, p2w), a.c_str(), b.c_str(), g_j2_same_parent ? "" : " (different: it follows only while falling)");
+}
 void shell_write(Vec3 p, Quat q) {
     set_any(JOINT, g_shell, "set_LocalPosition", &p);
     set_any(JOINT, g_shell, "set_LocalRotation", &q);
@@ -396,11 +448,15 @@ void begin_drop() {
         g_rest_rot = qnorm(q);
         g_rest_scale = s;
         capture_port(g_joint);
+        capture_second();
         set_state(St::SLIDE_OUT, "right B");
     } else {
         set_state(St::OUT, "right B");
     }
-    magazine_shown(false);
+    // 2026-10-24: the gun's own magazine display stays on while the magazine slides, falls and is carried (switching it
+    // off here is the suspect for "only the bottom slab drops"); the menu's experiment puts the old way back
+    if (g_joint == nullptr || bridge::experiment(bridge::EX_MAG_HIDE_AT_DROP)) magazine_shown(false);
+    log_parts();
     LOGI("%s reload: drop with %d rounds in it, %d carried", TAG, g_mag_rounds, player::reserve());
 }
 

@@ -114,11 +114,15 @@ constexpr float RACK_BUZZ_AMP = 0.45f, RACK_BUZZ_SEC = 0.05f;
 // the bolt action (Tefa 2026-10-19: "turn the bolt up, pull backwards, then a gun click sound must play to signify that i can
 // now push the bolt back forward and then back down to lock it in", after every round): the turns are read from the left
 // hand going up / down against the right one (the controllers' turn readings jumped around, 2026-10-19)
-constexpr float BOLT_LIFT_M = 0.05f;             // the left hand this much higher than where it took hold = bolt turned up
+// 2026-10-24: the lift and the drop are done by the bolt itself now (Tefa), with LT held to lift it
+constexpr float BOLT_LIFT_SEC = 0.12f;           // the bolt turning up (LT held) and back down (once home), by itself
 constexpr float BOLT_TURN_DEG = -60.0f;          // how far the bolt joint turns about the barrel when up (+60 went into the gun, 2026-10-19)
 constexpr float BOLT_HOME = 0.08f;               // travel at or under this = pushed home
-constexpr float BOLT_DONE = 0.08f;               // turn at or under this (after home) = locked
+constexpr float BARREL_MUZZLE_MIN_M = 0.05f;     // the muzzle joint at least this far from the gun's origin = a usable barrel line
 constexpr float SLIDE_BACK_M = -0.045f;          // the slide joint fully back, local Z from rest (when the joint is known)
 constexpr float PUMP_BACK_M = -0.080f;
+
+// smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
+constexpr float SMOOTH_DOCK_SEC = 0.15f;
 
 } // namespace vn::settings

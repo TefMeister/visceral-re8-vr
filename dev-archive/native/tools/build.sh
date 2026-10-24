@@ -54,7 +54,7 @@ put() {
 }
 put "$DLL" reframework/plugins/visceral_re8_native.dll code
 put "$HERE/sfx/bolt_click.wav" reframework/data/visceral_re8/sfx/bolt_click.wav code   # Andyalpa's click (RE7 VR Reloaded)
-for f in visceral_re8_bridge.lua visceral_re8_menu.lua re8_vr.lua jitterlog.lua; do put "$HERE/lua/$f" "reframework/autorun/$f" code; done
+for f in visceral_re8_bridge.lua visceral_re8_menu.lua visceral_re8_sounds.lua re8_vr.lua jitterlog.lua; do put "$HERE/lua/$f" "reframework/autorun/$f" code; done
 for f in "$PACK"/autorun/*.lua; do
     b="$(basename "$f")"
     [ "$b" = re8_vr.lua ] && continue                         # ours (Andyalpa's + our switches) went in above
