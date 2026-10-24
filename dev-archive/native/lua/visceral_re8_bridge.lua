@@ -391,6 +391,18 @@ re.on_draw_ui(function()
                 imgui.text("  Then hold both controllers the way the hands should sit on the gun, left grip NOT pressed; both buzz when kept.")
                 if imgui.button("Drop this gun's kept grip") then pcall(gw, "unkeep") end
             end
+            -- the slide / pump / bolt hold (src/rack.cpp, data/visceral_re8/hand_holds.json, keys "<gun id>:<part>")
+            local holds = nil
+            pcall(function() holds = json.load_file("visceral_re8/hand_holds.json") end)
+            local mine = {}
+            if type(holds) == "table" and gnum > 0 then
+                for k, _ in pairs(holds) do if tostring(k):find(tostring(gnum), 1, true) then mine[#mine + 1] = k end end
+            end
+            imgui.text(#mine > 0 and ("Slide / pump / bolt hold kept: " .. table.concat(mine, ", ")) or "Slide / pump / bolt hold: not kept yet (the next take keeps the game's own)")
+            if #mine > 0 and imgui.button("Drop this gun's slide / pump / bolt hold") then
+                for _, k in ipairs(mine) do holds[k] = nil end
+                pcall(function() json.dump_file("visceral_re8/hand_holds.json", holds) end)
+            end
         end
         local num = arr and r(S_WEAPON_NUM) or 0
         local key = gun_key(num)

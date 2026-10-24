@@ -708,7 +708,9 @@ local function grip_pass(final)
             S.drift_max = 0
             S.take = { socket = socket_live, lrot = lrot_live, drift_max = 0 }
             S.frozen = { socket = socket_live, lrot = lrot_live }
-            if aiming() and gun_num() > 0 then spot_keep(gun_num(), socket_live, lrot_live, "the game's aiming grip") end
+            -- (23:40, Tefa: "this needs to be a solid just one spot the left hand grabs on to on every weapon separately"): the
+            -- first trusted socket is kept, aiming or not, so the next grab is already the same
+            if gun_num() > 0 then spot_keep(gun_num(), socket_live, lrot_live, aiming() and "the game's aiming grip" or "the game's grip") end
             L(string.format("grip taken #%d%s: socket frozen at (%.3f, %.3f, %.3f) in the right hand's frame (%s)%s",
                 S.takes, holding and " with the button" or " by itself (auto-dock)", socket_live.x, socket_live.y, socket_live.z, why,
                 stacked and " (stacked: the right hand aims alone)" or ""))

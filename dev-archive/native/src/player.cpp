@@ -114,7 +114,12 @@ const Snapshot& now() { return g_now; }
 bool motion_joint(const char* joint, Vec3& pos, Quat& rot) {
     auto* motion = g_now.motion;
     const uint32_t hash = is_managed(motion) ? joint_hash(joint) : 0;
-    if (hash == 0) return false;
+    return motion_joint_hash(hash, pos, rot);
+}
+
+bool motion_joint_hash(uint32_t hash, Vec3& pos, Quat& rot) {
+    auto* motion = g_now.motion;
+    if (hash == 0 || !is_managed(motion)) return false;
     auto* td = motion->get_type_definition();
     auto* m_idx = find_method_deep(td, "getJointIndexByNameHash");
     auto* m_pos = find_method_deep(td, "getWorldPosition");

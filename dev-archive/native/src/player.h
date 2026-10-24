@@ -29,6 +29,7 @@ void refresh();                    // once per frame, game thread
 const Snapshot& now();
 // world pose of a joint of the player's animation (via.motion.Motion), e.g. "l_arm_wrist"; false when not readable
 bool motion_joint(const char* joint, Vec3& pos, Quat& rot);
+bool motion_joint_hash(uint32_t hash, Vec3& pos, Quat& rot);   // the same by name hash (an IK's <HashJoint2>)
 // read / write a via.Transform's world pose (the IK target)
 bool get_pose(MO* transform, Vec3& pos, Quat& rot);
 bool set_pose(MO* transform, const Vec3& pos, const Quat& rot);

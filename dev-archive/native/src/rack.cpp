@@ -10,6 +10,7 @@
 #include "reload.h"
 #include "settings.h"
 #include "weapons.h"
+#include "json_mini.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -69,6 +70,66 @@ int g_palm_logs = 0, g_palm_misses = 0;
 float g_palm_closest = 99.0f;
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
+
+// ---- ONE HOLD PER GUN AND PART (2026-10-24, Tefa in the headset: "hand doesn't just grab on to the gun in one certain pose, it
+// depends which way my hand is rotated before and how far the gun is, how the gun itself is rotated ... this needs to be a
+// solid just one spot the left hand grabs on to on every weapon separately, so that i can tweak the fingers to grip the weapon
+// and i know it will always look like this"). The hand's turn on the slide / pump / bolt was taken from the hand at the take.
+// Now each gun + part keeps ONE hold in data/visceral_re8/hand_holds.json: the game's own two-handed hold (the animation's
+// left hand against its right hand, as praydog's dock reads it, by the hand IKs' joint hashes), taken at the first take and
+// kept from then on. The menu's turn / move sliders still adjust it. Deleting a line of the file takes a fresh one.
+struct Hold { Vec3 p; Quat q; };
+std::map<std::string, Hold> g_holds;
+std::filesystem::file_time_type g_holds_mtime{};
+std::filesystem::path holds_path() {
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    return std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "hand_holds.json";
+}
+void holds_load() {   // re-read when the file changed (the menu can drop a hold)
+    std::error_code ec;
+    const auto path = holds_path();
+    const auto mt = std::filesystem::last_write_time(path, ec);
+    if (ec) { g_holds.clear(); return; }
+    if (mt == g_holds_mtime) return;
+    g_holds_mtime = mt;
+    json::Value v;
+    if (!json::load_file(path.wstring(), v) || v.kind != json::Value::OBJ) return;
+    g_holds.clear();
+    for (const auto& [k, h] : v.obj) {
+        auto num = [&](const char* n) { const auto* x = h.get(n); return x != nullptr && x->kind == json::Value::NUM ? (float)x->n : 0.0f; };
+        if (h.get("qw") == nullptr) continue;
+        g_holds[k] = Hold{{num("x"), num("y"), num("z")}, qnorm({num("qx"), num("qy"), num("qz"), num("qw")})};
+    }
+}
+void holds_save() {
+    std::error_code ec;
+    const auto path = holds_path();
+    std::filesystem::create_directories(path.parent_path(), ec);
+    FILE* f = nullptr;
+    if (_wfopen_s(&f, path.c_str(), L"wb") != 0 || f == nullptr) return;
+    std::fprintf(f, "{\n");
+    size_t i = 0;
+    for (const auto& [k, h] : g_holds)
+        std::fprintf(f, "    \"%s\": {\"x\": %.5f, \"y\": %.5f, \"z\": %.5f, \"qx\": %.6f, \"qy\": %.6f, \"qz\": %.6f, \"qw\": %.6f}%s\n", k.c_str(),
+                     h.p.x, h.p.y, h.p.z, h.q.x, h.q.y, h.q.z, h.q.w, ++i < g_holds.size() ? "," : "");
+    std::fprintf(f, "}\n");
+    std::fclose(f);
+    g_holds_mtime = std::filesystem::last_write_time(path, ec);
+}
+// the animation's left hand against its right hand, in the right hand's frame (praydog: original_left_*_relative)
+bool anim_hold(Vec3& pos_rel, Quat& rot_rel) {
+    const auto& s = player::now();
+    auto* lh = s.ik_left != nullptr ? field_ptr<uint32_t>(s.ik_left, "<HashJoint2>k__BackingField") : nullptr;
+    auto* rh = s.ik_right != nullptr ? field_ptr<uint32_t>(s.ik_right, "<HashJoint2>k__BackingField") : nullptr;
+    Vec3 lp, rp;
+    Quat lq, rq;
+    if (lh == nullptr || rh == nullptr || !player::motion_joint_hash(*lh, lp, lq) || !player::motion_joint_hash(*rh, rp, rq)) return false;
+    const Quat inv = qinv(rq);
+    pos_rel = rotate(inv, lp - rp);
+    rot_rel = qnorm(qmul(inv, lq));
+    return true;
+}
 bool pump() { return g_w != nullptr && g_w->pump; }
 bool bolt() { return g_w != nullptr && g_w->bolt; }
 bool rackable() { return g_w != nullptr && (g_w->rack || g_w->pump); }
@@ -515,11 +576,24 @@ void on_ik(MO* ik) {
     Vec3 rp, lp;
     Quat rq, lq;
     if (!player::get_pose(target_of(s.ik_right), rp, rq)) return;
-    if (g_capture) {   // where the VR layer put the hand this frame, relative to the gun hand, becomes its place on the gun
+    if (g_capture) {   // this gun + part's one kept hold (see "ONE HOLD PER GUN AND PART")
         if (!player::get_pose(target_of(ik), lp, lq)) return;
         const Quat inv = qinv(rq);
-        g_rel_pos = rotate(inv, lp - rp);
-        g_rel_rot = qnorm(qmul(inv, lq));
+        const std::string key = g_id + ":" + part();
+        holds_load();
+        const char* how = "kept";
+        if (auto it = g_holds.find(key); it != g_holds.end()) {
+            g_rel_pos = it->second.p;
+            g_rel_rot = it->second.q;
+        } else {
+            Vec3 ap;
+            Quat aq;
+            if (anim_hold(ap, aq)) { g_rel_pos = g_slide_ok ? rotate(inv, lp - rp) : ap; g_rel_rot = aq; how = "NEW: the game's own two-handed hold"; }
+            else { g_rel_pos = rotate(inv, lp - rp); g_rel_rot = qnorm(qmul(inv, lq)); how = "NEW: the hand as it came (the animation was not readable)"; }
+            g_holds[key] = Hold{g_rel_pos, g_rel_rot};
+            holds_save();
+        }
+        LOGI("%s rack: %s hold (%s): turn %.3f %.3f %.3f %.3f", TAG, key.c_str(), how, g_rel_rot.x, g_rel_rot.y, g_rel_rot.z, g_rel_rot.w);
         g_capture = false;
         g_rel_ok = true;
     }
