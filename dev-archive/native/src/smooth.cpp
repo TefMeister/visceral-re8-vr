@@ -66,7 +66,11 @@ void on_ik(MO* ik) {
         // teleports back onto the mag"): while the hand is ours (slide / pump / bolt / magazine) the grip script's undo moved
         // it toward the controller in a later solve and that was drawn. Ours: the first answer always wins
         const bool ours = rack::active() || reload::hand_on_mag();
-        if (!ours && !easing && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) && dist(lp, cp) + SMOOTH_TOWARD_M < dist(first, cp)) {
+        // (worn 15:27, Tefa: gripping the handgun "hand jumps around a bit like fighting something", and walking with the rifle
+        // gripped "the hand jitters a lot around the gripping area"): with LG held the grip is wanted, and the later solves'
+        // pulls toward the controller were drawn every frame. An undo is only an undo with LG let go
+        const bool lg = bridge::held(bridge::S_LGRIP);
+        if (!ours && !lg && !easing && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) && dist(lp, cp) + SMOOTH_TOWARD_M < dist(first, cp)) {
             g_final_p = rel;
             g_final_q = qrel;
             return;

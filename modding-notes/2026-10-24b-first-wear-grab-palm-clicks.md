@@ -168,3 +168,14 @@ Build 9: the magazine's seat and out spot are measured after the solves relative
 from that target (the gun transform read before the solve is where the game's animation holds it); the pump halves swapped
 (back = second half, forward = first); the after-shot motion (24xx) of a pump / bolt gun is ended by time at frame 8
 (`after_shot_cut_frame` in sounds.json) in VR. `[compile-verified 2026-10-24]`
+
+## Seventh wear (15:20-15:28) and build 10
+
+Tefa: gripping the handgun the hand "jumps around a bit like fighting something", flickering many frames going on and off;
+walking with the rifle gripped, the hand "jitters a lot around the gripping area"; the shotgun should use the current
+push-up half both ways, the push up 10% louder `[reported 2026-10-24]`. Ghost Hand: the game's hand jumped 53 times while the
+controller was calm `[measured 2026-10-24]`.
+Build 10: the late-solve "toward the controller = an undo, drawn" rule only applies with LG let go (with LG held the grip
+script's pulls were drawn every frame); the pump plays its first half both ways, forward at volume 1.1 through
+`WwiseContainer.trigger(UInt32, RequestInfo)` with `RequestInfo.set_Volume` (found in the MCP type dump; falls back to the
+plain trigger). `[compile-verified 2026-10-24]`

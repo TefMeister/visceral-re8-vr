@@ -181,7 +181,7 @@ local function hand_owned(key)
     local g = GUN_SOUNDS[tostring(weapon_num())]
     if not g then return false end
     for code = 1, 8 do
-        for _, k in ipairs(g[code] or {}) do if k:gsub("@%a+$", "") == key then return true end end
+        for _, k in ipairs(g[code] or {}) do if k:match("^[^@]+") == key then return true end end
     end
     return false
 end
@@ -346,15 +346,28 @@ re.on_frame(function()
     end
 end)
 
+local trigger_ri_m = nil           -- WwiseContainer.trigger(UInt32, RequestInfo): carries a volume
+local function trigger_vol(cont, id, vol)
+    trigger_ri_m = trigger_ri_m or safe(function() return sdk.find_type_definition("via.wwise.WwiseContainer"):get_method("trigger(System.UInt32, via.wwise.RequestInfo)") end)
+    local ri = trigger_ri_m and safe(function() local r = sdk.create_instance("via.wwise.RequestInfo"); return r and r:add_ref() end)
+    if ri == nil then return false end
+    pcall(function() ri:call("set_Volume", vol) end)
+    return pcall(function() trigger_ri_m:call(cont, id, ri) end)
+end
+
 local function play(key)
+    local vol = key and tonumber(key:match("@v([%d%.]+)"))
+    key = key and key:gsub("@v[%d%.]+", "")
     local half = key and key:match("@(%a+)$")
     key = key and key:gsub("@%a+$", "")
     local id = key and tonumber(key:match("^%a+:(%d+)$"))
     if id == nil then return false, "no sound" end
     if trigger_m == nil then return false, "no WwiseContainer.trigger" end
     local kc = find_container(key, id)
-    if kc ~= nil and pcall(function() trigger_m:call(kc, id) end) then
+    local by_vol = kc ~= nil and vol ~= nil and trigger_vol(kc, id, vol)
+    if kc ~= nil and (by_vol or pcall(function() trigger_m:call(kc, id) end)) then
         played = played + 1
+        if vol ~= nil then L(string.format("%s at volume %.2f: %s", key, vol, by_vol and "sent with a RequestInfo" or "the RequestInfo FAILED, played plain")) end
         if half == "stop" then
             pending_stops[#pending_stops + 1] = { t = os.clock() + pump_split_ms / 1000, cont = kc, id = id }
         elseif half == "seek" then
@@ -428,7 +441,10 @@ GUN_SOUNDS = {
     -- forward (started at the split). The split is `pump_split_ms` in sounds.json, so it can be tuned with "Reset scripts".
     -- (worn 15:12, Tefa: swap them, "the sound that plays when pulling the handle down is the one that is now used for when
     -- pushing it back up"): back = the second half, forward = the first
-    ["3036"] = { [3] = { "wwise:3138231974@seek" }, [4] = { "wwise:3138231974@stop" },   -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP
+    -- (worn 15:27, Tefa: "make the sound the same as it is right now when pushing the handle up, it's more subtle"): the first
+    -- half both ways, "just change the volume of the pushing up sound just 10% higher than the one when pulling the handle down"
+    -- (via.wwise.RequestInfo.set_Volume, found with the REFramework MCP type dump)
+    ["3036"] = { [3] = { "wwise:3138231974@stop" }, [4] = { "wwise:3138231974@stop@v1.1" },   -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP
                  [11] = { "wwise:2908618300" } },                      -- SND_MOT_RI_SE_SHOTGUN_SHELL
     ["3042"] = { [5] = { "wwise:3835880431" },                         -- SND_MOT_RI3042_SE_GRAB_LEVER
                  [6] = { "wwise:3430096898" },                         -- SND_MOT_RI_SE_SHOTGUN_PICKUP_I
