@@ -54,6 +54,8 @@ put() {
 }
 put "$DLL" reframework/plugins/visceral_re8_native.dll code
 put "$HERE/sfx/bolt_click.wav" reframework/data/visceral_re8/sfx/bolt_click.wav code   # Andyalpa's click (RE7 VR Reloaded)
+# controller bindings: every REFramework default plus the left thumb rest (bindings/README.md); delete it from the game folder to undo
+put "$HERE/bindings/_interaction_profiles_oculus_touch_controller.json" _interaction_profiles_oculus_touch_controller.json code
 # ours, plus our copies of pack files (Andyalpa's + our changes): re8_vr.lua (switches), and the holster, its visuals and
 # the hand gestures with the loading-flood guard (2026-10-24)
 for f in visceral_re8_bridge.lua visceral_re8_menu.lua visceral_re8_sounds.lua re8_vr.lua jitterlog.lua \

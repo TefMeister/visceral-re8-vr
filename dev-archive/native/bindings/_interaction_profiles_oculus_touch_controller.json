@@ -1,0 +1,85 @@
+{
+    "bindings": [
+        {
+            "action": "pose",
+            "path": "/user/hand/left/input/grip/pose"
+        },
+        {
+            "action": "trigger",
+            "path": "/user/hand/left/input/trigger"
+        },
+        {
+            "action": "grip",
+            "path": "/user/hand/left/input/squeeze"
+        },
+        {
+            "action": "abutton",
+            "path": "/user/hand/left/input/x/click"
+        },
+        {
+            "action": "bbutton",
+            "path": "/user/hand/left/input/y/click"
+        },
+        {
+            "action": "joystick",
+            "path": "/user/hand/left/input/thumbstick"
+        },
+        {
+            "action": "joystickclick",
+            "path": "/user/hand/left/input/thumbstick/click"
+        },
+        {
+            "action": "haptic",
+            "path": "/user/hand/left/output/haptic"
+        },
+        {
+            "action": "pose",
+            "path": "/user/hand/right/input/grip/pose"
+        },
+        {
+            "action": "trigger",
+            "path": "/user/hand/right/input/trigger"
+        },
+        {
+            "action": "grip",
+            "path": "/user/hand/right/input/squeeze"
+        },
+        {
+            "action": "abutton",
+            "path": "/user/hand/right/input/a/click"
+        },
+        {
+            "action": "bbutton",
+            "path": "/user/hand/right/input/b/click"
+        },
+        {
+            "action": "joystick",
+            "path": "/user/hand/right/input/thumbstick"
+        },
+        {
+            "action": "joystickclick",
+            "path": "/user/hand/right/input/thumbstick/click"
+        },
+        {
+            "action": "haptic",
+            "path": "/user/hand/right/output/haptic"
+        },
+        {
+            "action": "systembutton",
+            "path": "/user/hand/left/input/menu/click"
+        },
+        {
+            "action": "re3_dodge",
+            "path": "/user/hand/right/input/a/click"
+        },
+        {
+            "action": "weapondial_start",
+            "path": "/user/hand/left/input/trigger"
+        },
+        {
+            "action": "minimap",
+            "path": "/user/hand/left/input/thumbrest/touch"
+        }
+    ],
+    "vector2_associations": []
+}

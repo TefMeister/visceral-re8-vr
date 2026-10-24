@@ -2742,20 +2742,14 @@ local function read_active_dpad_quickslot()
     end
 
     local dial = false
-    pcall(function()
-        local a = vrmod:get_action_weapon_dial()
-        if not a then return end
-        if left and vrmod:is_action_active(a, left) then dial = true end
-        if right and vrmod:is_action_active(a, right) then dial = true end
-    end)
+    -- Visceral RE8 (2026-10-24, Tefa): the quick-equip combo is the left thumb rest + right stick, not the weapon dial (LT);
+    -- re8_vr.lua reads the thumb rest every frame (re8vr.thumbrest_dpad)
+    dial = rawget(_G, "re8vr") ~= nil and re8vr.thumbrest_dpad == true
 
     local Q = QuickEquipSlotEnum
     if dial then
         local axis = nil
         pcall(function() axis = vrmod:get_right_stick_axis() end)
-        if not axis then
-            pcall(function() axis = vrmod:get_left_stick_axis() end)
-        end
         if axis then
             if axis.y and axis.y >= 0.55 and Q and Q.Up ~= nil then return Q.Up, "dial_up" end
             if axis.y and axis.y <= -0.55 and Q and Q.Down ~= nil then return Q.Down, "dial_down" end

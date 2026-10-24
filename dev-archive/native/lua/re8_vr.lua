@@ -245,6 +245,14 @@ local function update_pad_device(device)
     local vr_left_stick_axis = vrmod:get_left_stick_axis()
     local vr_right_stick_axis = vrmod:get_right_stick_axis()
 
+    -- Visceral RE8 (2026-10-24, Tefa: "change d-pad to left thumb rest + right stick up, down, left, right"): the left thumb
+    -- rest arrives as the "minimap" action (dev-archive/native/bindings/, a REFramework bindings file in the game folder).
+    -- While it is touched the right stick is the D-pad, so it does not also turn the view.
+    local thumbrest_dpad = vrmod:is_action_active(vrmod:get_action_minimap(), vrmod:get_left_joystick())
+    re8vr.thumbrest_dpad = thumbrest_dpad
+    local dpad_axis = vr_right_stick_axis
+    if thumbrest_dpad then vr_right_stick_axis = Vector2f.new(0.0, 0.0) end
+
     local cur_button = device:call("get_Button")
     
     device:call("set_AxisL", vr_left_stick_axis)
@@ -330,7 +338,7 @@ local function update_pad_device(device)
     local right_joystick = vrmod:get_right_joystick()
     local left_joystick = vrmod:get_left_joystick()
 
-    local is_minimap_active = vrmod:is_action_active(action_minimap, right_joystick) or vrmod:is_action_active(action_minimap, left_joystick)
+    local is_minimap_active = vrmod:is_action_active(action_minimap, right_joystick) -- Visceral RE8: the left one is the thumb rest
     if vrmod:is_action_active(action_trigger, right_joystick) then
         device:call("set_AnalogR", 1.0)
         cur_button = cur_button | via.hid.GamePadButton.RTrigBottom
@@ -346,17 +354,17 @@ local function update_pad_device(device)
         device:call("set_AnalogL", 1.0)
     end
 
-    if vrmod:is_action_active(action_weapon_dial, left_joystick) or vrmod:is_action_active(action_weapon_dial, right_joystick) then
+    if thumbrest_dpad then -- Visceral RE8 (2026-10-24): was the weapon dial (LT) + left stick
         -- DPad mimickry
-        if vr_left_stick_axis.y >= 0.9 then
+        if dpad_axis.y >= 0.9 then
             cur_button = cur_button | via.hid.GamePadButton.LUp
-        elseif vr_left_stick_axis.y <= -0.9 then
+        elseif dpad_axis.y <= -0.9 then
             cur_button = cur_button | via.hid.GamePadButton.LDown
         end
 
-        if vr_left_stick_axis.x >= 0.9 then
+        if dpad_axis.x >= 0.9 then
             cur_button = cur_button | via.hid.GamePadButton.LRight
-        elseif vr_left_stick_axis.x <= -0.9 then
+        elseif dpad_axis.x <= -0.9 then
             cur_button = cur_button | via.hid.GamePadButton.LLeft
         end
     else
