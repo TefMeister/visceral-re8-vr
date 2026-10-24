@@ -215,6 +215,7 @@ void insert_round() {
     if (cap > 0 && have >= cap) { LOGI("%s reload: %s is full (%d)", TAG, g_id.c_str(), have); return; }
     const bool empty = player::loaded() == 0 || g_stash > 0;
     if (player::game_reload(1) < 1) { LOGI("%s reload: no round went in (none carried?)", TAG); return; }
+    bridge::sfx(bridge::SFX_SHELL_IN);
     if (g_w->pump && empty) rack::need("shells into an empty pump gun");   // the trigger waits for the pump
     tell_hud();
     LOGI("%s reload: %s round in: loaded %d, waiting for the pump %d, carried %d", TAG, g_id.c_str(), player::loaded(), g_stash, player::reserve());
@@ -405,6 +406,7 @@ void hand_checks() {
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
     if (mag) {
         set_state(St::INSERT, "brought to the gun");
+        bridge::sfx(bridge::SFX_MAG_IN);
         ghosthand::value("mag_closest_m", d);
         ghosthand::event("mag", "done");
         magazine_shown(true);
@@ -444,6 +446,7 @@ void begin_drop() {
     g_dry = n == 0;
     g_drop_gun = g_gun;
     if (!player::set_loaded(0)) { LOGW("%s reload: %s: no way to empty the gun found, no drop (see type_probe.txt)", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
+    bridge::sfx(bridge::SFX_MAG_OUT);
     Vec3 p, s;
     Quat q;
     if (g_joint != nullptr && get_v3(JOINT, g_joint, "get_LocalPosition", p) && get_q(JOINT, g_joint, "get_LocalRotation", q)) {

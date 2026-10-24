@@ -129,3 +129,15 @@ ammo for the empty reload (correction: the first note blamed the game); a pad pr
 reload), home RELOAD_D + F (1.5 s, together); M1897 pump SHOTGUN_MVT_PUMP (the only after-shot sound); F2 bolt GRAB_LEVER,
 PICKUP_I, PICKUP_H, HAND_RELOAD_A. Which is which is `[hypothesis]` until Tefa hears them. Driving facts went to
 `ai-game-control-profiles/routes/resident-evil-village/KNOWN.md`; the sound findings to the SoundXfounD board.
+
+## Fourth wear (14:35-14:39): every handling sound "played", none was heard
+
+The log shows each one `played (on the player)` on cue (slide back / home, pump, the four bolt steps), and Tefa heard
+nothing, also no magazine sound `[reported 2026-10-24]`. The REFramework MCP type dump of `via.wwise.WwiseContainer`: a
+container only knows its own triggers (`exists(UInt32)`, `get_TriggerIdNameList()`), so the player's first container was the
+wrong one. Build 7 (not installed yet, the game was up): the learner catches the container the GAME uses while a
+weapon-motion sound plays (the weaponTrigger call is under way when the container's trigger runs) with the number it hands
+it, and plays through it when that container says it knows the sound; else it makes a fresh `app.WwiseWeaponTriggerTracks`
+holding the id and hands it to the player's `WwiseWeaponMotionSequence.weaponTrigger`, the game's own way. New handling
+sounds: magazine out (LEMI RELOAD_E, F2 RELOAD_A), magazine in (LEMI RELOAD_B + A, F2 RELOAD_B), shell in (SHOTGUN_SHELL).
+`[compile-verified 2026-10-24]`

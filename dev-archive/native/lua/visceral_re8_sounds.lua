@@ -35,6 +35,7 @@ local JOBS = {
     { code = 3, name = "pump pulled back" }, { code = 4, name = "pump pushed forward" },
     { code = 5, name = "bolt turned up" }, { code = 6, name = "bolt back (click)" },
     { code = 7, name = "bolt forward (click)" }, { code = 8, name = "bolt turned down" },
+    { code = 9, name = "magazine out" }, { code = 10, name = "magazine in" }, { code = 11, name = "shell in" },
 }
 
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
@@ -53,6 +54,7 @@ local FAM_FIRE, FAM_RELOAD = 24, 25
 local jobs = {}                -- code -> sound key, set by hand in the menu
 local names = {}               -- "wwise:<id>" -> the game's own trigger name
 local on_player = {}           -- "wwise:<id>" -> true when the game plays it on the player (OnCharacter), not the weapon
+local cid_of = {}              -- "wwise:<id>" -> the number the game hands the sound container for it (may differ from the id)
 local learned = {}             -- "3036" -> { ["24"] = { keys }, ["25"] = { keys } }
 pcall(function()
     local d = json.load_file(SOUNDS_FILE)
@@ -60,6 +62,7 @@ pcall(function()
     if type(d.jobs) == "table" then for k, v in pairs(d.jobs) do if tonumber(k) and type(v) == "string" and not v:find("Trigger:") then jobs[tonumber(k)] = v end end end
     if type(d.names) == "table" then names = d.names end
     if type(d.on_player) == "table" then on_player = d.on_player end
+    if type(d.cid_of) == "table" then cid_of = d.cid_of end
     if type(d.learned) == "table" then
         for w, g in pairs(d.learned) do   -- only the keyed form (the first learned lists were bare slot numbers: dropped)
             if type(g) == "table" then
@@ -74,7 +77,7 @@ local function save()
     pcall(function()
         local o = {}
         for k, v in pairs(jobs) do o[tostring(k)] = v end
-        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names, on_player = on_player })
+        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names, on_player = on_player, cid_of = cid_of })
     end)
 end
 local function weapon_num()
@@ -107,6 +110,13 @@ end
 local run = nil                    -- the motion run being recorded: { motion, weapon, keys, last }
 local replaying = false            -- our own replay is heard by the same hook: never part of a run
 local ctx = {}                     -- key -> the newest { name, this, go, layer, tracks, slot } it was heard with
+-- 2026-10-24 headset run: every handling sound "played" on the player's first WwiseContainer and Tefa heard none. A container
+-- only knows its own triggers (exists(id), get_TriggerIdNameList). So the container the GAME uses while a weapon-motion sound
+-- plays is caught (the weaponTrigger call is under way when the container's trigger runs) and kept for replays.
+local in_motion = nil              -- the key of the weapon-motion sound being played right now
+local motion_cont = nil            -- the container the game played weapon-motion sounds through (held with add_ref)
+local motion_cont_go = "?"
+local motion_cont_sig = "?"
 local seq_m = {}                   -- call name -> method
 
 local function note(key, where, how, motion)
@@ -168,9 +178,33 @@ local function hook()
             if name:sub(1, 7) == "trigger" and m:get_num_params() >= 1 then
                 if trigger_m == nil and m:get_num_params() == 1 then trigger_m = m end
                 local ok = pcall(function()
+                    local sig = {}
+                    for _, t in ipairs(m:get_param_types() or {}) do sig[#sig + 1] = t:get_full_name() end
+                    sig = name .. "(" .. table.concat(sig, ", ") .. ")"
+                    local first_u32 = nil   -- the argument slot of the first UInt32 (the trigger id)
+                    for i, t in ipairs(m:get_param_types() or {}) do
+                        if first_u32 == nil and t:get_full_name() == "System.UInt32" then first_u32 = i + 2 end
+                    end
                     sdk.hook(m, function(args)
-                        local id = sdk.to_int64(args[3]) & 0xFFFFFFFF
                         local cont = sdk.to_managed_object(args[2])
+                        if in_motion ~= nil and cont ~= nil and not replaying then
+                            local key = in_motion
+                            local cid = first_u32 and (sdk.to_int64(args[first_u32]) & 0xFFFFFFFF) or nil
+                            if motion_cont == nil or not same(motion_cont, cont) then
+                                if motion_cont ~= nil then pcall(function() motion_cont:release() end) end
+                                pcall(function() cont:add_ref() end)
+                                motion_cont = cont
+                                local go = safe(function() return cont:call("get_GameObject") end)
+                                motion_cont_go = tostring(go and safe(function() return go:call("get_Name") end) or "?")
+                                motion_cont_sig = sig
+                                L(string.format("the game plays weapon-motion sounds through the WwiseContainer on '%s' via %s", motion_cont_go, sig))
+                            end
+                            if cid ~= nil and cid_of[key] ~= cid then
+                                cid_of[key] = cid
+                                L(string.format("%s '%s' goes to the container as %d", key, tostring(names[key] or "?"), cid))
+                            end
+                        end
+                        local id = sdk.to_int64(args[3]) & 0xFFFFFFFF
                         local go = cont and safe(function() return cont:call("get_GameObject") end)
                         local gname = go and safe(function() return go:call("get_Name") end)
                         local pgo = player_go()
@@ -191,6 +225,8 @@ local function hook()
         local name = m:get_name()
         if name == "weaponTrigger" or name == "manualTrigger" then
             seq_m[name] = m
+            local pts = m:get_param_types() or {}
+            if name == "weaponTrigger" and pts[3] and pts[3]:get_full_name() == "app.WwiseWeaponTriggerTracks" then seq_m.plain = m end
             local wt = name == "weaponTrigger"
             local ok = pcall(function()
                 sdk.hook(m, function(args)
@@ -198,6 +234,7 @@ local function hook()
                     local go = wt and sdk.to_managed_object(args[3]) or nil
                     local layer = sdk.to_managed_object(args[wt and 4 or 3])
                     local tracks = sdk.to_managed_object(args[wt and 5 or 4])
+                    in_motion = nil
                     local motion = layer and safe(function() return layer:call("get_MotionID") end)
                     local tid = tracks and safe(function() return tracks:call("get_TriggerId") end)
                     if tid == nil or tid == 0 then return end
@@ -210,7 +247,8 @@ local function hook()
                     if onchar and not on_player[key] then on_player[key] = true end
                     note(key, onchar and "the player" or "the weapon", name, motion)
                     record(key, motion)
-                end, function(r) return r end)
+                    in_motion = key
+                end, function(r) in_motion = nil return r end)
             end)
             if ok then n = n + 1 end
         end
@@ -226,6 +264,34 @@ local function play(key)
     local id = key and tonumber(key:match("^%a+:(%d+)$"))
     if id == nil then return false, "no sound" end
     if trigger_m == nil then return false, "no WwiseContainer.trigger" end
+    if motion_cont ~= nil then
+        local cid = tonumber(cid_of[key]) or id
+        local known = safe(function() return motion_cont:call("exists(System.UInt32)", cid) end)
+        -- only when that container says it knows the sound; else the made track below
+        if known == true and pcall(function() trigger_m:call(motion_cont, cid) end) then
+            played = played + 1
+            return true, string.format("the game's weapon-motion container on '%s', id %d, it knows it: %s", motion_cont_go, cid, tostring(known))
+        end
+    end
+    -- the game's own way, with a track made here: a fresh app.WwiseWeaponTriggerTracks holding the id, handed to the
+    -- player's WwiseWeaponMotionSequence like a motion would (works in any run, for any id, heard or not)
+    local pgo = player_go()
+    local seq = pgo and safe(function() return pgo:call("getComponent(System.Type)", sdk.typeof("app.WwiseWeaponMotionSequence")) end)
+    local mo = pgo and safe(function() return pgo:call("getComponent(System.Type)", sdk.typeof("via.motion.Motion")) end)
+    local layer = mo and safe(function() return mo:call("getLayer", UPPER_LAYER) end)
+    if seq_m.plain ~= nil and seq ~= nil and layer ~= nil then
+        local tr = safe(function() local t = sdk.create_instance("app.WwiseWeaponTriggerTracks"); t = t and t:add_ref(); return t end)
+        if tr ~= nil then
+            pcall(function() tr:call("set_TriggerId", id) end)
+            pcall(function() tr:set_field("OnCharacter", on_player[key] == true) end)
+            local w = rawget(_G, "re8vr") and re8vr.weapon
+            local wgo = w and safe(function() return w:call("get_GameObject") end)
+            replaying = true
+            local ok = pcall(function() seq_m.plain:call(seq, wgo or pgo, layer, tr, 1) end)
+            replaying = false
+            if ok then played = played + 1 return true, "a made track through the game's WwiseWeaponMotionSequence" end
+        end
+    end
     local c = ctx[key]
     local wcont = c and container_of(c.go)
     if wcont == nil then   -- the weapon in hand now (a later run, or a sound learned in flat)
@@ -253,12 +319,17 @@ end
 -- A trigger id is the RE Engine name hash: murmur3_32 of the UTF-16LE name, seed 0xFFFFFFFF (checked on three).
 local GUN_SOUNDS = {
     ["3046"] = { [1] = { "wwise:3326354725" },                         -- SND_MOT_RI3046_SE_RELOAD_C
-                 [2] = { "wwise:2079149791", "wwise:3043993691" } },   -- SND_MOT_RI3046_SE_RELOAD_D, _F
-    ["3036"] = { [3] = { "wwise:3138231974" }, [4] = {} },            -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP (one sound, both ways)
+                 [2] = { "wwise:2079149791", "wwise:3043993691" },     -- SND_MOT_RI3046_SE_RELOAD_D, _F
+                 [9] = { "wwise:1178490312" },                         -- SND_MOT_RI3046_SE_RELOAD_E (0.0 s: out)
+                 [10] = { "wwise:2121001178", "wwise:1786646228" } },  -- SND_MOT_RI3046_SE_RELOAD_B, _A (0.6-0.7 s: in)
+    ["3036"] = { [3] = { "wwise:3138231974" }, [4] = {},              -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP (one sound, both ways)
+                 [11] = { "wwise:2908618300" } },                      -- SND_MOT_RI_SE_SHOTGUN_SHELL
     ["3042"] = { [5] = { "wwise:3835880431" },                         -- SND_MOT_RI3042_SE_GRAB_LEVER
                  [6] = { "wwise:3430096898" },                         -- SND_MOT_RI_SE_SHOTGUN_PICKUP_I
                  [7] = { "wwise:1762366329" },                         -- SND_MOT_RI_SE_SHOTGUN_PICKUP_H
-                 [8] = { "wwise:3713528881" } },                       -- SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A
+                 [8] = { "wwise:3713528881" },                         -- SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A
+                 [9] = { "wwise:1306247460" },                         -- SND_MOT_RI3042_SE_RELOAD_A
+                 [10] = { "wwise:2626270253" } },                      -- SND_MOT_RI3042_SE_RELOAD_B
 }
 local FROM_END = { [2] = { FAM_RELOAD, 1 }, [3] = { FAM_FIRE, 2 }, [4] = { FAM_FIRE, 1 },
                    [5] = { FAM_FIRE, 4 }, [6] = { FAM_FIRE, 3 }, [7] = { FAM_FIRE, 2 }, [8] = { FAM_FIRE, 1 } }
@@ -283,7 +354,7 @@ re.on_pre_application_entry("UpdateHID", function()
     local b = rawget(_G, "visceral_re8_bridge")
     if not b or not b.ready() then return end
     local mask = 0
-    for code = 1, 8 do if job_key(code) then mask = mask | (1 << code) end end
+    for code = 1, 11 do if job_key(code) then mask = mask | (1 << code) end end
     b.w(S_SFX_LUA_HAS, mask)
     if run ~= nil and os.clock() - run.last > RUN_QUIET_SEC then finish_run() end
     local seq = b.r(S_SFX_SEQ)
