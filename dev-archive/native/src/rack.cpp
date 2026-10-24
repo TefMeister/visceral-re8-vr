@@ -579,7 +579,7 @@ void on_ik(MO* ik) {
     if (g_capture) {   // this gun + part's one kept hold (see "ONE HOLD PER GUN AND PART")
         if (!player::get_pose(target_of(ik), lp, lq)) return;
         const Quat inv = qinv(rq);
-        const std::string key = g_id + ":" + part();
+        const std::string key = g_id + ":" + part() + ":v2";   // v2 (23:55): the pump keeps the animation's place too
         holds_load();
         const char* how = "kept";
         if (auto it = g_holds.find(key); it != g_holds.end()) {
@@ -588,7 +588,7 @@ void on_ik(MO* ik) {
         } else {
             Vec3 ap;
             Quat aq;
-            if (anim_hold(ap, aq)) { g_rel_pos = g_slide_ok ? rotate(inv, lp - rp) : ap; g_rel_rot = aq; how = "NEW: the game's own two-handed hold"; }
+            if (anim_hold(ap, aq)) { g_rel_pos = (g_slide_ok && !pump()) ? rotate(inv, lp - rp) : ap; g_rel_rot = aq; how = "NEW: the game's own two-handed hold"; }
             else { g_rel_pos = rotate(inv, lp - rp); g_rel_rot = qnorm(qmul(inv, lq)); how = "NEW: the hand as it came (the animation was not readable)"; }
             g_holds[key] = Hold{g_rel_pos, g_rel_rot};
             holds_save();
@@ -599,6 +599,16 @@ void on_ik(MO* ik) {
     }
     if (!g_rel_ok) return;
     const Quat rot = qnorm(qmul(rq, g_rel_rot));
+    // 23:55 (Tefa: "LG still grips wrong", the hand beside the shotgun's pump): the pump hand sat at the pump joint moved by the
+    // palm offset. It now sits where the game's own animation holds the pump (the kept place), sliding with the pump's travel
+    if (pump() && g_slide_ok) {
+        const Quat gun = qnorm(qmul(rq, g_slide_gun));
+        const Vec3 nudge{bridge::view(bridge::S_SLIDE_HAND_X) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Y) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Z) * 0.01f};
+        const Vec3 offs = rotate(gun, bridge::has(nudge.x) ? nudge : Vec3{0, 0, 0});
+        const Vec3 travel = rotate(gun, Vec3{0, 0, z_now() - g_z_anim});
+        player::set_pose(target_of(ik), rp + rotate(rq, g_rel_pos) + travel + offs, qnorm(qmul(slide_hand_turn(gun), rot)));
+        return;
+    }
     if (g_slide_ok) {   // on the slide joint, riding its travel, nudged by the menu sliders (gun axes: x right, y up, z forward)
         const Quat gun = qnorm(qmul(rq, g_slide_gun));
         const Vec3 nudge{bridge::view(bridge::S_SLIDE_HAND_X) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Y) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Z) * 0.01f};

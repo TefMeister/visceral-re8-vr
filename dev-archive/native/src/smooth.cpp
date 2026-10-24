@@ -83,6 +83,31 @@ void spots_refresh() {   // at most once a second: re-read the file when it chan
     }
     LOGI("%s smooth: %d kept grip spot(s) read", TAG, (int)g_spots.size());
 }
+// ---- THE FREE HAND STAYS ON ITS CONTROLLER (23:55, Tefa: "the automated docking area doesn't dock anymore but the hand pose
+// teleport-changes when near it and moving my hand around, still like semi-docking at the handle not moving fully with the
+// left controller, then snapping to the actual location"). praydog docks the hand within 10 cm of the animation's grip
+// spot whatever the button, and the grip script's undo came in a later solve. Now, with LG up, the hand's place is
+// predicted from the controller itself and written in the FIRST solve: the offset between the controller and praydog's
+// free-hand target (his left-hand offsets) is learned while he has NOT docked, and a target further than
+// FREE_DEVIATION_M from that prediction (a dock) is put back on it.
+bool g_cal = false;
+Vec3 g_cal_p{};
+Quat g_cal_q{0, 0, 0, 1};
+int g_free_frames = 0;
+float g_free_frame = -1.0f;   // the frame the free hand was put back
+Vec3 g_free_p{};
+Quat g_free_q{0, 0, 0, 1};
+int g_free_told = 0;
+bool controller_now(Vec3& p, Quat& q) {
+    if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), p) || !bridge::room_rot_to_world(bridge::view_quat(bridge::S_LROT), q)) return false;
+    q = qnorm(q);
+    return std::isfinite(p.x) && std::isfinite(q.w);
+}
+Quat nlerp_q(Quat a, Quat b, float u) {
+    if (a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w < 0.0f) b = {-b.x, -b.y, -b.z, -b.w};
+    return qnorm({a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, a.z + (b.z - a.z) * u, a.w + (b.w - a.w) * u});
+}
+
 const Spot* spot_now() {
     const int n = (int)(bridge::view(bridge::S_WEAPON_NUM) + 0.5f);
     auto it = g_spots.find(n);
@@ -110,6 +135,10 @@ void on_ik(MO* ik) {
     // Build 5 (worn 13:49): that also held back the grip script's UNDO of the game's 10 cm dock (made without LG), so the
     // unwanted dock stayed on screen. A late ask that comes back toward the left controller is an undo: drawn as asked.
     if (g_have && frame == g_frame) {
+        if (g_free_frame == frame && !bridge::held(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag()) {
+            player::set_pose(target_of(ik), g_free_p, g_free_q);   // a later solve's dock: the free hand stays put back
+            return;
+        }
         const bool easing = now_s() - g_t0 < SMOOTH_DOCK_SEC;
         Vec3 cp;
         const Vec3 first = rp + rotate(rq, g_final_p);
@@ -134,6 +163,38 @@ void on_ik(MO* ik) {
     // here and was eased onto, which also held back the grip script's undo; the grip is only the grip with LG held
     const bool lg_held = bridge::held(bridge::S_LGRIP);
     const int owner = rack::active() ? RACK : reload::hand_on_mag() ? MAG : (bridge::flag(bridge::S_GRIPPING_WEAPON) && lg_held) ? GRIP : CONTROLLER;
+    // the free hand (see "THE FREE HAND STAYS ON ITS CONTROLLER")
+    if (owner == CONTROLLER && !lg_held && !bridge::flag(bridge::S_IS_RELOADING)) {
+        Vec3 cp;
+        Quat cq;
+        if (controller_now(cp, cq)) {
+            const Quat cinv = qinv(cq);
+            const Vec3 pp = g_cal ? cp + rotate(cq, g_cal_p) : lp;
+            const Quat pq = g_cal ? qnorm(qmul(cq, g_cal_q)) : lq;
+            const bool docked = bridge::flag(bridge::S_GRIPPING_WEAPON) || (g_cal && dist(lp, pp) > FREE_DEVIATION_M);
+            if (!docked) {
+                const Vec3 np = rotate(cinv, lp - cp);
+                const Quat nq = qnorm(qmul(cinv, qnorm(lq)));
+                if (++g_free_frames >= FREE_LEARN_FRAMES && std::sqrt(np.x * np.x + np.y * np.y + np.z * np.z) < FREE_OFFSET_MAX_M) {
+                    if (!g_cal) { g_cal = true; g_cal_p = np; g_cal_q = nq; LOGI("%s smooth: the free hand's controller offset learned (%.3f %.3f %.3f)", TAG, np.x, np.y, np.z); }
+                    else { g_cal_p = g_cal_p + (np - g_cal_p) * FREE_LEARN_RATE; g_cal_q = nlerp_q(g_cal_q, nq, FREE_LEARN_RATE); }
+                }
+            } else if (g_cal) {
+                g_free_frames = 0;
+                g_free_frame = frame;
+                g_free_p = pp;
+                g_free_q = pq;
+                player::set_pose(target_of(ik), pp, pq);
+                lp = pp;
+                lq = pq;
+                rel = rotate(inv, lp - rp);
+                qrel = qnorm(qmul(inv, qnorm(lq)));
+                if (g_free_told < 5) { ++g_free_told; LOGI("%s smooth: the game docked the free hand (LG up): put back on the controller", TAG); }
+            }
+        }
+    } else {
+        g_free_frames = 0;
+    }
     spots_refresh();
     const Spot* kept = owner == GRIP ? spot_now() : nullptr;
     if (kept != nullptr) { rel = kept->p; qrel = kept->q; }

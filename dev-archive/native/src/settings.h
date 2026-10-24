@@ -130,6 +130,10 @@ constexpr float PUMP_BACK_M = -0.080f;
 // smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
 constexpr float SMOOTH_TOWARD_M = 0.01f;          // a later solve asking this much closer to the left controller = an undo (drawn)
+constexpr float FREE_DEVIATION_M = 0.04f;         // smooth.cpp: the free hand's target this far from its controller prediction = a dock (put back)
+constexpr int   FREE_LEARN_FRAMES = 5;            // free frames in a row before the controller offset is learned from them
+constexpr float FREE_LEARN_RATE = 0.05f;          // how fast the learned offset follows
+constexpr float FREE_OFFSET_MAX_M = 0.35f;        // a learned offset longer than this is not believed
 constexpr float SMOOTH_LATE_DOCK_M = 0.15f;       // a later solve of the frame asking this close to the first answer = a late dock: held back
 
 // rack.cpp (2026-10-24, Tefa: "gun goes through the left wrist not the palm for LEMI and the shotgun"): the IK target is the
