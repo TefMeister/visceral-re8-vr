@@ -98,6 +98,8 @@ float g_free_frame = -1.0f;   // the frame the free hand was put back
 Vec3 g_free_p{};
 Quat g_free_q{0, 0, 0, 1};
 int g_free_told = 0;
+int g_free_count = 0;
+float g_free_log_t = -10.0f;
 bool controller_now(Vec3& p, Quat& q) {
     if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), p) || !bridge::room_rot_to_world(bridge::view_quat(bridge::S_LROT), q)) return false;
     q = qnorm(q);
@@ -134,8 +136,34 @@ void on_ik(MO* ik) {
     // again, as in build 1, where nothing looked wrong with them.)
     // Build 5 (worn 13:49): that also held back the grip script's UNDO of the game's 10 cm dock (made without LG), so the
     // unwanted dock stayed on screen. A late ask that comes back toward the left controller is an undo: drawn as asked.
+    // 01:06 (live watch, Tefa hovering at the pump: the game's dock switched on and off four times in four seconds, "it also
+    // just jumps forward close to the gun"): the dock was only caught in the FIRST solve of a frame; a dock in a later solve
+    // fell through to the hold-back below, which is measured from the gun hand that the dock had just turned toward the
+    // controller, so the hand followed the gun. Now every solve of a free hand (LG up) is checked against the controller
+    const bool free_now = !bridge::held(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !bridge::flag(bridge::S_IS_RELOADING);
+    if (free_now && g_cal) {
+        Vec3 cp;
+        Quat cq;
+        if (controller_now(cp, cq)) {
+            const Vec3 pp = cp + rotate(cq, g_cal_p);
+            const Quat pq = qnorm(qmul(cq, g_cal_q));
+            if (dist(lp, pp) > FREE_DEVIATION_M) {
+                player::set_pose(target_of(ik), pp, pq);
+                g_free_frame = frame;
+                g_free_p = pp;
+                g_free_q = pq;
+                ++g_free_count;
+                if (now_s() - g_free_log_t > 1.0f) { g_free_log_t = now_s(); LOGI("%s smooth: the game docked the free hand (LG up): put back on the controller (%d times so far)", TAG, g_free_count); }
+                if (g_have && frame == g_frame) return;
+                lp = pp;
+                lq = pq;
+                rel = rotate(inv, lp - rp);
+                qrel = qnorm(qmul(inv, qnorm(lq)));
+            }
+        }
+    }
     if (g_have && frame == g_frame) {
-        if (g_free_frame == frame && !bridge::held(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag()) {
+        if (g_free_frame == frame && free_now) {
             player::set_pose(target_of(ik), g_free_p, g_free_q);   // a later solve's dock: the free hand stays put back
             return;
         }
@@ -180,16 +208,7 @@ void on_ik(MO* ik) {
                     else { g_cal_p = g_cal_p + (np - g_cal_p) * FREE_LEARN_RATE; g_cal_q = nlerp_q(g_cal_q, nq, FREE_LEARN_RATE); }
                 }
             } else if (g_cal) {
-                g_free_frames = 0;
-                g_free_frame = frame;
-                g_free_p = pp;
-                g_free_q = pq;
-                player::set_pose(target_of(ik), pp, pq);
-                lp = pp;
-                lq = pq;
-                rel = rotate(inv, lp - rp);
-                qrel = qnorm(qmul(inv, qnorm(lq)));
-                if (g_free_told < 5) { ++g_free_told; LOGI("%s smooth: the game docked the free hand (LG up): put back on the controller", TAG); }
+                g_free_frames = 0;   // (the put-back itself happened above, for every solve)
             }
         }
     } else {
