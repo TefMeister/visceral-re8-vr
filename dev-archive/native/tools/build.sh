@@ -57,7 +57,7 @@ put "$HERE/sfx/bolt_click.wav" reframework/data/visceral_re8/sfx/bolt_click.wav 
 # ours, plus our copies of pack files (Andyalpa's + our changes): re8_vr.lua (switches), and the holster, its visuals and
 # the hand gestures with the loading-flood guard (2026-10-24)
 for f in visceral_re8_bridge.lua visceral_re8_menu.lua visceral_re8_sounds.lua re8_vr.lua jitterlog.lua \
-         re8_vr_holster.lua re8_vr_holster_visuals.lua re8_vr_hand_gestures.lua visceral_re8_gun_survey.lua \n         visceral_re8_gun_cycle.lua; do
+         re8_vr_holster.lua re8_vr_holster_visuals.lua re8_vr_hand_gestures.lua visceral_re8_gun_survey.lua visceral_re8_gun_cycle.lua; do
     put "$HERE/lua/$f" "reframework/autorun/$f" code
 done
 for f in "$PACK"/autorun/*.lua; do
