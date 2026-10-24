@@ -52,12 +52,14 @@ local FAM_FIRE, FAM_RELOAD = 24, 25
 
 local jobs = {}                -- code -> sound key, set by hand in the menu
 local names = {}               -- "wwise:<id>" -> the game's own trigger name
+local on_player = {}           -- "wwise:<id>" -> true when the game plays it on the player (OnCharacter), not the weapon
 local learned = {}             -- "3036" -> { ["24"] = { keys }, ["25"] = { keys } }
 pcall(function()
     local d = json.load_file(SOUNDS_FILE)
     if type(d) ~= "table" then return end
     if type(d.jobs) == "table" then for k, v in pairs(d.jobs) do if tonumber(k) and type(v) == "string" and not v:find("Trigger:") then jobs[tonumber(k)] = v end end end
     if type(d.names) == "table" then names = d.names end
+    if type(d.on_player) == "table" then on_player = d.on_player end
     if type(d.learned) == "table" then
         for w, g in pairs(d.learned) do   -- only the keyed form (the first learned lists were bare slot numbers: dropped)
             if type(g) == "table" then
@@ -72,7 +74,7 @@ local function save()
     pcall(function()
         local o = {}
         for k, v in pairs(jobs) do o[tostring(k)] = v end
-        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names })
+        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names, on_player = on_player })
     end)
 end
 local function weapon_num()
@@ -205,6 +207,7 @@ local function hook()
                     end
                     local onchar = safe(function() return tracks:get_field("OnCharacter") end)
                     if go ~= nil and not onchar then store(key, { go = go }) end   -- heard on the weapon: played there
+                    if onchar and not on_player[key] then on_player[key] = true end
                     note(key, onchar and "the player" or "the weapon", name, motion)
                     record(key, motion)
                 end, function(r) return r end)
@@ -229,16 +232,34 @@ local function play(key)
         local w = rawget(_G, "re8vr") and re8vr.weapon
         wcont = container_of(w and safe(function() return w:call("get_GameObject") end))
     end
-    for _, cont in ipairs({ wcont or false, container_of(player_go()) or false }) do
+    local pcont = container_of(player_go())
+    local order = on_player[key] and { pcont or false, wcont or false } or { wcont or false, pcont or false }
+    for _, cont in ipairs(order) do
         if cont and pcall(function() trigger_m:call(cont, id) end) then
             played = played + 1
-            return true, (cont == wcont) and "on the weapon" or "on the player"
+            return true, (cont == pcont) and "on the player" or "on the weapon"
         end
     end
     return false, "no sound container"
 end
 
 -- the learned sound for a handling sound, for the gun in hand (counted from the end of the run)
+-- 2026-10-24, flat run driven by the session (virtual pad, the game's own fire and reload): each gun's own handling sounds,
+-- picked by NAME and timing (`[measured 2026-10-24, n=1-2 per gun]`, which one is which is `[hypothesis]` until heard):
+--   LEMI empty reload, from the magazine release: E 0.0 s, TAKE_SHELL 0.2, B 0.6, A 0.7, C 1.1, D + F together 1.5,
+--     HAND_WEAK 2.3 -> the slide back = C, the slide home = D + F.
+--   M1897 after a shot (motion 2422): one sound, SHOTGUN_MVT_PUMP -> played as the pump comes back.
+--   F2 Rifle after a shot (2422): GRAB_LEVER, PICKUP_I, PICKUP_H, HAND_RELOAD_A -> up, back, forward, down.
+-- A trigger id is the RE Engine name hash: murmur3_32 of the UTF-16LE name, seed 0xFFFFFFFF (checked on three).
+local GUN_SOUNDS = {
+    ["3046"] = { [1] = { "wwise:3326354725" },                         -- SND_MOT_RI3046_SE_RELOAD_C
+                 [2] = { "wwise:2079149791", "wwise:3043993691" } },   -- SND_MOT_RI3046_SE_RELOAD_D, _F
+    ["3036"] = { [3] = { "wwise:3138231974" }, [4] = {} },            -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP (one sound, both ways)
+    ["3042"] = { [5] = { "wwise:3835880431" },                         -- SND_MOT_RI3042_SE_GRAB_LEVER
+                 [6] = { "wwise:3430096898" },                         -- SND_MOT_RI_SE_SHOTGUN_PICKUP_I
+                 [7] = { "wwise:1762366329" },                         -- SND_MOT_RI_SE_SHOTGUN_PICKUP_H
+                 [8] = { "wwise:3713528881" } },                       -- SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A
+}
 local FROM_END = { [2] = { FAM_RELOAD, 1 }, [3] = { FAM_FIRE, 2 }, [4] = { FAM_FIRE, 1 },
                    [5] = { FAM_FIRE, 4 }, [6] = { FAM_FIRE, 3 }, [7] = { FAM_FIRE, 2 }, [8] = { FAM_FIRE, 1 } }
 local function learned_key(code)
@@ -248,7 +269,15 @@ local function learned_key(code)
     if type(keys) ~= "table" or #keys < e[2] then return nil end
     return keys[#keys - e[2] + 1]
 end
-local function job_key(code) return jobs[code] or learned_key(code) end
+-- the sounds for a handling sound: set by hand in the menu, else the gun's own (GUN_SOUNDS), else counted from the learned run
+local function job_keys(code)
+    if jobs[code] then return { jobs[code] } end
+    local g = GUN_SOUNDS[tostring(weapon_num())]
+    if g and g[code] then return g[code] end
+    local k = learned_key(code)
+    return k and { k } or nil
+end
+local function job_key(code) local k = job_keys(code); return k and k[1] or nil end
 
 re.on_pre_application_entry("UpdateHID", function()
     local b = rawget(_G, "visceral_re8_bridge")
@@ -262,10 +291,9 @@ re.on_pre_application_entry("UpdateHID", function()
     if seq == seq_seen then return end
     seq_seen = seq
     local code = math.floor(b.r(S_SFX_CODE) + 0.5)
-    local key = job_key(code)
-    if key then
+    for _, key in ipairs(job_keys(code) or {}) do
         local ok, how = play(key)
-        L(string.format("handling sound %d -> %s '%s'%s: %s (%s)", code, key, tostring(names[key] or "?"), jobs[code] and "" or " (learned from the game)", ok and "played" or "FAILED", how))
+        L(string.format("handling sound %d -> %s '%s': %s (%s)", code, key, tostring(names[key] or "?"), ok and "played" or "FAILED", how))
     end
 end)
 

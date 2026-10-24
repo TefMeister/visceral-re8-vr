@@ -115,3 +115,17 @@ magazine, read by the grip script through `_G.re8_grip_veto` (no grip, praydog's
 game holds it (locked back) stays there; after a hand pump the hand stays on the pump (LT let go before the next).
 The rifle's hand leaving the magazine with the controllers far apart is most likely the arm's reach `[hypothesis]`.
 `[compile-verified 2026-10-24]`
+
+## The flat sound run (14:20-14:28), driven by the session
+
+Tefa: *"can you run the game and get the sounds you need? they are all on the quick slots"*, then *"please use and update all
+the tools we have, even if it doesn't matter for this game and is for data gathering only, to make the tools smarter"*.
+Launched flat through `re8drive.py boot` (fixed: it now launches through Steam, the old launch script went with the clean
+reinstall), driven with a ViGEm pad (`re-village-scope-vr/dev-archive/tools/re8pad.py`): RT fires from the hip, X reloads,
+D-pad = quick slots (up LEMI, right M1897, down F2, left W870). Reloading with no spare ammo opened the crafting screen and a
+trigger press crafted one handgun ammo stack (in memory; the game was closed without saving).
+36 named sounds heard. The id is the RE Engine name hash (murmur3_32, UTF-16LE, seed 0xFFFFFFFF) `[verified-numerically
+2026-10-24, n=3]`. Picked by timing (`GUN_SOUNDS` in `visceral_re8_sounds.lua`): LEMI slide back RELOAD_C (1.1 s into the
+reload), home RELOAD_D + F (1.5 s, together); M1897 pump SHOTGUN_MVT_PUMP (the only after-shot sound); F2 bolt GRAB_LEVER,
+PICKUP_I, PICKUP_H, HAND_RELOAD_A. Which is which is `[hypothesis]` until Tefa hears them. Driving facts went to
+`ai-game-control-profiles/routes/resident-evil-village/KNOWN.md`; the sound findings to the SoundXfounD board.
