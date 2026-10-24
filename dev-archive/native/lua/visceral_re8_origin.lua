@@ -17,6 +17,7 @@ local function safe(f) local ok, v = pcall(f); if ok then return v end; return n
 
 local done_for = nil     -- the player object the origin was set for (a new load gets a new one)
 local since = nil
+local last_hp, last_move = nil, nil   -- the headset's last position and when it last moved
 
 local function set_now(why)
     local p = safe(function() return vrmod:get_position(0) end)
@@ -37,10 +38,18 @@ re.on_frame(function()
     local player = safe(function() return v.player end)
     if player == nil or safe(function() return v.can_use_hands end) ~= true then since = nil return end
     if done_for == player then return end
-    since = since or os.clock()
-    if os.clock() - since < ORIGIN_DELAY_S then return end
+    -- 02:43 (the first run: set while the headset lay on the desk, "player" being there before the title screen): it waits
+    -- until the controllers are in use and the headset has MOVED (a head wears it; a desk does not), then ORIGIN_DELAY_S more
+    if not safe(function() return vrmod:is_using_controllers() end) then since = nil return end
+    local hp = safe(function() return vrmod:get_position(0) end)
+    if hp == nil then return end
+    local now = os.clock()
+    if last_hp == nil or (hp - last_hp):length() > 0.02 then last_hp = hp; last_move = now end
+    if last_move == nil or now - last_move > 2.0 then since = nil return end   -- still for 2 s: not worn (or not yet)
+    since = since or now
+    if now - since < ORIGIN_DELAY_S then return end
     done_for = player
-    set_now("gameplay started")
+    set_now("gameplay started, headset worn")
 end)
 
 re.on_draw_ui(function()
