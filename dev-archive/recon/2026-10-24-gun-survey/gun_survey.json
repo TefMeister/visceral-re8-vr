@@ -1,0 +1,515 @@
+{
+    "ri3008_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Trigger < Body",
+            "3 Hammer < Body",
+            "4 Cylinder < Body",
+            "5 Five_Bullet00 < Cylinder",
+            "6 Five_Bullet01 < Cylinder",
+            "7 Five_Bullet02 < Cylinder",
+            "8 Five_Bullet03 < Cylinder",
+            "9 Five_Bullet04 < Cylinder",
+            "10 Seven_Bullet00 < Cylinder",
+            "11 Seven_Bullet01 < Cylinder",
+            "12 Seven_Bullet02 < Cylinder",
+            "13 Seven_Bullet03 < Cylinder",
+            "14 Seven_Bullet04 < Cylinder",
+            "15 Seven_Bullet05 < Cylinder",
+            "16 Seven_Bullet06 < Cylinder",
+            "17 Lid < Body",
+            "18 vfx_muzzle < Body",
+            "19 vfx_muzzle2 < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI3008_SE_BACK_DEFAULT": 1510783764,
+            "SND_MOT_RI3008_SE_HAND": 3102372331,
+            "SND_MOT_RI3008_SE_HAND_WEAK": 686072595,
+            "SND_MOT_RI3008_SE_MVT_AIM": 1394671443,
+            "SND_MOT_RI3008_SE_MVT_READY_HAND": 2428522962,
+            "SND_MOT_RI3008_SE_PICKUP_A": 2607745607,
+            "SND_MOT_RI3008_SE_TAKE_SHELL": 2269678183
+        }
+    },
+    "ri3021_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Slide < Body",
+            "3 Trigger < Body",
+            "4 vfx_muzzle < Body",
+            "5 LoadingGate_FK_0 < Body",
+            "6 ShotgunCartridge_FK_0 < Body",
+            "7 Cartridge < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_A": 3724857694,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_B": 1754729071,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A": 3713528881,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_B": 1162100996,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_END": 1398425233,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2": 727399281,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_A": 2618206409,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_B": 3439966503,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_PUMP": 3138231974,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_A": 2364005535,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_B": 1437816205,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_END": 2854032361,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_A": 4010728799,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_B": 1932276830,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_C": 3115164376,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_D": 1921724503,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_E": 706919401,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_F": 2453698466,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_G": 4023530762,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
+            "SND_MOT_RI_SE_SHOTGUN_SHELL": 2908618300,
+            "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
+        }
+    },
+    "ri3023_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Carrier < Body",
+            "3 Ammo01 < Carrier",
+            "4 Ammo02 < Carrier",
+            "5 Ammo03 < Carrier",
+            "6 Ammo04 < Carrier",
+            "7 Sight < Carrier",
+            "8 Chain01_00 < Carrier",
+            "9 Chain01_end < Chain01_00",
+            "10 vfx_muzzle1 < Carrier",
+            "11 vfx_muzzle2 < Carrier",
+            "12 Lever < Body",
+            "13 Trigger < Body",
+            "14 Chain00_00 < Body",
+            "15 Chain00_end < Chain00_00"
+        ],
+        "sounds": {
+            "SND_MOT_RI3023_SE_HAND": 2885765249,
+            "SND_MOT_RI3023_SE_MVT_AIM": 1961435571,
+            "SND_MOT_RI3023_SE_MVT_GUARD_A": 3823684163,
+            "SND_MOT_RI3023_SE_MVT_GUARD_B": 1475700788,
+            "SND_MOT_RI3023_SE_RELOAD_A": 20648496,
+            "SND_MOT_RI3023_SE_RELOAD_B": 194076821,
+            "SND_MOT_RI3023_SE_RELOAD_END": 3941260967,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335
+        }
+    },
+    "ri3036_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Reload_Slider < Body",
+            "3 vfx_muzzle < Body",
+            "4 Bullet < Body",
+            "5 EmptyBullet < Body",
+            "6 Carrier < Body",
+            "7 Hammer < Carrier",
+            "8 Trigger < Body",
+            "9 Bolt < Body",
+            "10 Bayonet < Body",
+            "11 Cartridge < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_A": 3724857694,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_B": 1754729071,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A": 3713528881,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_B": 1162100996,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_END": 1398425233,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_A": 2618206409,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_B": 3439966503,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_PUMP": 3138231974,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_A": 2364005535,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_B": 1437816205,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_END": 2854032361,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_A": 4010728799,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_B": 1932276830,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_C": 3115164376,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_D": 1921724503,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_E": 706919401,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_F": 2453698466,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_G": 4023530762,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
+            "SND_MOT_RI_SE_SHOTGUN_SHELL": 2908618300,
+            "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
+        }
+    },
+    "ri3040_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Magazine < Body",
+            "3 Slide < Body",
+            "4 Hammer < Body",
+            "5 Trigger < Body",
+            "6 vfx_muzzle < Body",
+            "7 Magazine_second < Body",
+            "8 Cartridge < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI3040_SE_RELOAD_A": 4011733426,
+            "SND_MOT_RI3040_SE_RELOAD_B": 1723664427,
+            "SND_MOT_RI3040_SE_RELOAD_C": 3748353186,
+            "SND_MOT_RI3040_SE_RELOAD_D": 599071332,
+            "SND_MOT_RI3040_SE_RELOAD_E": 1375402122,
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3042_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Magazine < Body",
+            "3 Slide < Body",
+            "4 Trigger < Body",
+            "5 vfx_muzzle < Body",
+            "6 Cartridge < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI3042_SE_GRAB_LEVER": 3835880431,
+            "SND_MOT_RI3042_SE_HAND_MAGAZINE": 890956598,
+            "SND_MOT_RI3042_SE_RELOAD_A": 1306247460,
+            "SND_MOT_RI3042_SE_RELOAD_B": 2626270253,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_A": 3724857694,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_B": 1754729071,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A": 3713528881,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_B": 1162100996,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2": 727399281,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_A": 2618206409,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_B": 3439966503,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_A": 2364005535,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_A": 4010728799,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_B": 1932276830,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_D": 1921724503,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_E": 706919401,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
+            "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
+        }
+    },
+    "ri3046_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Magazine < Body",
+            "3 Bullet < Magazine",
+            "4 Slide < Body",
+            "5 Hammer < Body",
+            "6 Trigger < Body",
+            "7 vfx_muzzle < Body",
+            "8 vfx_muzzle2 < Body",
+            "9 Cartridge < Body",
+            "10 Magazine_second < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI3046_SE_RELOAD_A": 1786646228,
+            "SND_MOT_RI3046_SE_RELOAD_B": 2121001178,
+            "SND_MOT_RI3046_SE_RELOAD_C": 3326354725,
+            "SND_MOT_RI3046_SE_RELOAD_D": 2079149791,
+            "SND_MOT_RI3046_SE_RELOAD_E": 1178490312,
+            "SND_MOT_RI3046_SE_RELOAD_F": 3043993691,
+            "SND_MOT_RI3046_SE_RELOAD_G": 1153937529,
+            "SND_MOT_RI3046_SE_RELOAD_H": 846168023,
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3047_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Magazine < Body",
+            "3 Slide < Body",
+            "4 Trigger < Body",
+            "5 vfx_muzzle < Body",
+            "6 vfx_muzzle2 < Body",
+            "7 Cartridge < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI3047_SE_RELOAD_A": 4094454040,
+            "SND_MOT_RI3047_SE_RELOAD_B": 999252073,
+            "SND_MOT_RI3047_SE_RELOAD_C": 1860130758,
+            "SND_MOT_RI3047_SE_RELOAD_D": 527011809,
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3048_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Magazine < Body",
+            "3 Slide < Body",
+            "4 Trigger < Body",
+            "5 vfx_muzzle < Body",
+            "6 MagazineB_FK_0 < Body",
+            "7 Cartridge < Body",
+            "8 vfx_muzzle2 < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI3048_SE_HAND_MAGAZINE": 390474127,
+            "SND_MOT_RI3048_SE_RELOAD_A": 2654909845,
+            "SND_MOT_RI3048_SE_RELOAD_B": 3994740882,
+            "SND_MOT_RI3048_SE_RELOAD_C": 1028693329,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_A": 3724857694,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_B": 1754729071,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A": 3713528881,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_B": 1162100996,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_END": 1398425233,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2": 727399281,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_A": 2618206409,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_B": 3439966503,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_PUMP": 3138231974,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_A": 2364005535,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_B": 1437816205,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_END": 2854032361,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_A": 4010728799,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_B": 1932276830,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_C": 3115164376,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_D": 1921724503,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_E": 706919401,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_F": 2453698466,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_G": 4023530762,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
+            "SND_MOT_RI_SE_SHOTGUN_SHELL": 2908618300,
+            "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
+        }
+    },
+    "ri3049_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Trigger < Body",
+            "3 Magazine < Body",
+            "4 vfx_muzzle < Body",
+            "5 Scope < Body",
+            "6 Handle < Body",
+            "7 Bolt < Handle",
+            "8 Selecter < Body",
+            "9 Cartridge < Body",
+            "10 Magazine_second < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_A": 3724857694,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_B": 1754729071,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A": 3713528881,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_B": 1162100996,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_END": 1398425233,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2": 727399281,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_A": 2618206409,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_B": 3439966503,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_PUMP": 3138231974,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_A": 2364005535,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_B": 1437816205,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_END": 2854032361,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_A": 4010728799,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_B": 1932276830,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_C": 3115164376,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_D": 1921724503,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_E": 706919401,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_F": 2453698466,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
+            "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
+        }
+    },
+    "ri3050_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 vfx_muzzle < Body",
+            "3 Magazine < Body",
+            "4 Slide < Body",
+            "5 Hammer < Body",
+            "6 Trigger < Body",
+            "7 MagCatch < Body",
+            "8 Magazine_second < Body",
+            "9 Cartridge < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3115_Bullet_00": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 _00 < root"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3115_Bullet_01": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 _00 < root"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3115_Bullet_02": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 _00 < root"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3115_Bullet_03": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 _00 < root"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3115_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Lid < Body",
+            "3 Trigger < Body",
+            "4 Lever < Body",
+            "5 Bullet00 < Body",
+            "6 Bullet01 < Body",
+            "7 Hummer < Body",
+            "8 vfx_muzzle < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3116_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Trigger < Body",
+            "3 Hammer < Body",
+            "4 Cylinder < Body",
+            "5 Bullet00 < Cylinder",
+            "6 Bullet01 < Cylinder",
+            "7 Bullet02 < Cylinder",
+            "8 Bullet03 < Cylinder",
+            "9 Bullet04 < Cylinder",
+            "10 Lid < Body",
+            "11 vfx_muzzle < Body"
+        ],
+        "sounds": null
+    },
+    "ri3122_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Magazine < Body",
+            "3 Slide < Body",
+            "4 Hammer < Body",
+            "5 Trigger < Body",
+            "6 vfx_muzzle < Body",
+            "7 Magazine_second < Body",
+            "8 Cartridge < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3124_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Magazine < Body",
+            "3 Slide < Body",
+            "4 Trigger < Body",
+            "5 vfx_muzzle < Body",
+            "6 Magazine_second < Body",
+            "7 Cartridge < Body",
+            "8 vfx_muzzle2 < Body",
+            "9 Stock < Body"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_MVT_SMALL": 2579496227
+        }
+    },
+    "ri3125_Inventory": {
+        "container": true,
+        "joints": [
+            "0 root < none",
+            "1 Body < root",
+            "2 Trigger < Body",
+            "3 Lever < Body",
+            "4 Selector < Body",
+            "5 Cartridge < Body",
+            "6 vfx_muzzle < Body",
+            "7 Magazine_second < Body",
+            "8 Magazine < Body",
+            "9 chain00_00 < Body",
+            "10 chain00_end < chain00_00",
+            "11 chain01_00 < chain00_00",
+            "12 chain01_end < chain01_00"
+        ],
+        "sounds": {
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_A": 3724857694,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_GUARD_B": 1754729071,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_A": 3713528881,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_B": 1162100996,
+            "SND_MOT_RI_SE_SHOTGUN_HAND_RELOAD_END": 1398425233,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_AIM": 1228826873,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT": 3258035154,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_BACK_DEFAULT2": 727399281,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_A": 2618206409,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_GUARD_B": 3439966503,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_A": 2364005535,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_RELOAD_END": 2854032361,
+            "SND_MOT_RI_SE_SHOTGUN_MVT_WALK": 2594268335,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_A": 4010728799,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_B": 1932276830,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_D": 1921724503,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_E": 706919401,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_H": 1762366329,
+            "SND_MOT_RI_SE_SHOTGUN_PICKUP_I": 3430096898,
+            "SND_MOT_RI_SE_SHOTGUN_TAKE_SHELL": 2638512361
+        }
+    }
+}

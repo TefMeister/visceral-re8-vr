@@ -6,7 +6,7 @@
 -- (get_TriggerIdNameList came back empty) but answers exists(id) for one. A sound id is the RE Engine name hash:
 -- murmur3_32 of the UTF-16LE name, seed 0xFFFFFFFF (39 of 39 known names, checked 2026-10-24). So every name pattern seen
 -- so far is asked of every gun, and the ones a gun knows are written to reframework/data/visceral_re8/gun_survey.json and
--- the log. A wrong guess costs one "no". Guns the save does not own are not there to ask (unlock-all first).
+-- the log. A wrong guess costs one "no". Only the gun in hand is an object (2026-10-24 live): each gun is surveyed when held.
 -- A probe: its own file (code-shape rule), read by nothing else; turn off with SURVEY_ON = false.
 
 local TAG = "[visceral-re8-survey]"
@@ -106,36 +106,43 @@ local function container_of(go)
     return nil
 end
 
-local state = nil   -- nil = waiting, then { guns, gi, ni, names, cont }, then "done"
-local seen_player_at = nil
+-- 2026-10-24 first live run: only the gun IN HAND is an object under the player (1 found, the LEMI), so the guns not held
+-- are not there to ask. Now the survey keeps watching: every RESCAN_SEC it looks again, and each gun object not surveyed
+-- yet (this run or an earlier one: the file is read back) is surveyed once. Equipping each gun once, by hand, by the pad
+-- or by the game's own call, surveys them all.
+local RESCAN_SEC = 2.0
+local state = nil   -- nil = idle, else { g, ni, names, cont }
+local seen_player_at, last_scan = nil, 0
 local result = {}
+pcall(function()
+    local d = json.load_file(SURVEY_FILE)
+    if type(d) == "table" then for k, v in pairs(d) do if type(v) == "table" and type(v.sounds) == "table" then result[k] = v end end end
+end)
 
 re.on_frame(function()
-    if not SURVEY_ON or state == "done" then return end
+    if not SURVEY_ON then return end
     local pgo = player_go()
     if pgo == nil then seen_player_at = nil return end
     seen_player_at = seen_player_at or os.clock()
     if os.clock() - seen_player_at < START_AFTER_SEC then return end
     if state == nil then
+        if os.clock() - last_scan < RESCAN_SEC then return end
+        last_scan = os.clock()
         local guns = {}
         gun_objects(pgo, guns, 0)
-        L(string.format("%d gun object(s) under the player: surveying each (joints + known sounds)", #guns))
-        state = { guns = guns, gi = 1, ni = 1, names = nil }
+        for _, g in ipairs(guns) do
+            if result[g.name] == nil then
+                state = { g = g, ni = 1, names = names_for(g.num), cont = container_of(g.go) }
+                result[g.name] = { joints = joints_of(g.go), sounds = {}, container = state.cont ~= nil }
+                L(string.format("new gun object %s: surveying (joints + known sounds)", g.name))
+                for _, j in ipairs(result[g.name].joints) do L(g.name .. " joint " .. j) end
+                if state.cont == nil then L(g.name .. ": no sound container") end
+                break
+            end
+        end
+        if state == nil then return end
     end
-    local g = state.guns[state.gi]
-    if g == nil then
-        pcall(function() json.dump_file(SURVEY_FILE, result) end)
-        L("survey done: written to reframework/data/" .. SURVEY_FILE)
-        state = "done"
-        return
-    end
-    if state.names == nil then
-        state.names = names_for(g.num)
-        state.cont = container_of(g.go)
-        result[g.name] = { joints = joints_of(g.go), sounds = {}, container = state.cont ~= nil }
-        for _, j in ipairs(result[g.name].joints) do L(g.name .. " joint " .. j) end
-        if state.cont == nil then L(g.name .. ": no sound container") end
-    end
+    local g = state.g
     local r = result[g.name]
     local asked = 0
     while state.cont ~= nil and state.ni <= #state.names and asked < ASKS_PER_FRAME do
@@ -152,8 +159,9 @@ re.on_frame(function()
         local c = 0
         for _ in pairs(r.sounds) do c = c + 1 end
         L(string.format("%s: %d joints, %d of %d sound names known", g.name, #r.joints, c, #state.names))
-        state.gi, state.ni, state.names, state.cont = state.gi + 1, 1, nil, nil
+        pcall(function() json.dump_file(SURVEY_FILE, result) end)
+        state = nil
     end
 end)
 
-L("loaded" .. (SURVEY_ON and ": every owned gun is surveyed once, a few seconds after the player appears" or " (off)"))
+L("loaded" .. (SURVEY_ON and ": every gun object is surveyed once, the first time it is in hand" or " (off)"))
