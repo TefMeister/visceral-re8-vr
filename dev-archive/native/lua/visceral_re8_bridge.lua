@@ -61,6 +61,7 @@ local EXPERIMENTS = {
     { bit = 1, label = "magazine: hide the gun's own magazine the moment it drops (the old way)" },
     { bit = 2, label = "magazine: do NOT carry 'Magazine_second' along with it" },
     { bit = 4, label = "left hand: no smoothing going onto / off the gun" },
+    { bit = 8, label = "let the game do its own reload (once per gun, so the mod learns its slide sound)" },
 }
 local LEFT_NAMES = { [0] = "free", "grip (praydog's two-hand)", "on the slide / bolt", "on the pump", "holding a magazine", "holding a round" }
 local pose_lock = false

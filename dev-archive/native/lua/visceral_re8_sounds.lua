@@ -14,9 +14,14 @@
 -- TreeLayer, tracks, UInt32) / manualTrigger(TreeLayer, tracks, UInt32), from the upper-body motion: 21xx ready (fainter
 -- click), 23xx lowered (louder click), 2422 fire + bolt, 2500 reload. So those two are heard too, and a sound is replayed
 -- through the same call with the newest context it was seen with (that id's own, else any), the container as a last try.
--- With no job set, the bolt / slide / pump take the removed clicks by themselves once heard: back = a lowered (23xx) click,
--- forward = a ready (21xx) click.
--- Settings: reframework/data/visceral_re8/sounds.json ({"6": 123456789, ...}: handling sound number -> game sound id).
+-- 2026-10-24, Tefa: "can you just use the normal game sounds for racking, pumping and racking the bolt, i mean all weapons".
+-- So each gun LEARNS its own handling sounds from the game's own motions, as they play: every run of an upper-body motion is
+-- recorded (the ids in order, with the held gun's number), and the fire (24xx) and reload (25xx) runs are kept per gun.
+-- From the END of the run, because a run may start with other foley: pump back / forward = the fire run's last two (the
+-- game pumps after the shot); bolt up / back / forward / down = the fire run's last four; the slide going home = the reload
+-- run's last (the slide release). The handgun's reload is skipped by our manual reload, so the menu's Experiments has "let the
+-- game do its own reload" for one reload per gun. A job set by hand in the menu still wins.
+-- Settings: reframework/data/visceral_re8/sounds.json ({"jobs": {"6": id}, "learned": {"3046": {"24": [ids], "25": [ids]}}}).
 -- Needs visceral_re8_bridge.lua (the shared array). Reloads live with "Reset scripts".
 
 local TAG = "[visceral-re8-sounds]"
@@ -35,12 +40,31 @@ local JOBS = {
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
 local function L(s) log.info(TAG .. " " .. s) end
 
-local jobs = {}                -- code -> game sound id
+local S_WEAPON_NUM = 97
+local RUN_QUIET_SEC = 2.0      -- a motion run ends when its motion changes, or after this long with no sound
+local FAM_FIRE, FAM_RELOAD = 24, 25
+
+local jobs = {}                -- code -> game sound id, set by hand in the menu
+local learned = {}             -- "3046" -> { ["24"] = { ids }, ["25"] = { ids } }
 pcall(function()
     local d = json.load_file(SOUNDS_FILE)
-    if type(d) == "table" then for k, v in pairs(d) do if tonumber(k) and tonumber(v) then jobs[tonumber(k)] = tonumber(v) end end end
+    if type(d) ~= "table" then return end
+    local j = type(d.jobs) == "table" and d.jobs or d   -- the first file had the jobs at the top
+    for k, v in pairs(j) do if tonumber(k) and tonumber(v) then jobs[tonumber(k)] = tonumber(v) end end
+    if type(d.learned) == "table" then learned = d.learned end
 end)
-local function save() pcall(function() local o = {}; for k, v in pairs(jobs) do o[tostring(k)] = v end; json.dump_file(SOUNDS_FILE, o) end) end
+local function save()
+    pcall(function()
+        local o = {}
+        for k, v in pairs(jobs) do o[tostring(k)] = v end
+        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned })
+    end)
+end
+local function weapon_num()
+    local b = rawget(_G, "visceral_re8_bridge")
+    local n = b and b.ready() and b.r(S_WEAPON_NUM)
+    return n and math.floor(n + 0.5) or 0
+end
 
 local heard, heard_order = {}, {}   -- id -> { n, where, motion, t }
 local played, seq_seen = 0, nil
@@ -63,9 +87,8 @@ local function interesting(name, pname)
     return name == pname or n:find("wp") ~= nil or n:find("ri3") ~= nil or n:find("weapon") ~= nil or n:find("gun") ~= nil
 end
 
-local AUTO_BACK = { 1, 3, 6 }      -- jobs that take the lowered click when none is set
-local AUTO_FWD = { 2, 4, 7 }       -- jobs that take the ready click
-local auto = {}                    -- code -> id picked by itself this session
+local run = nil                    -- the motion run being recorded: { motion, weapon, ids, last }
+local replaying = false            -- our own replay is heard by the same hook: never part of a run
 local ctx = {}                     -- method name -> the newest { this, go, layer, tracks } it was called with
 local ctx_by_id = {}               -- id -> the same, for that id's own newest call
 local seq_m = {}                   -- method name -> method
@@ -81,19 +104,31 @@ local function note(id, where, how, motion)
     h.n = h.n + 1
     h.where, h.how, h.motion, h.t = where, how, motion, os.clock()
     if h.n <= LOG_PER_ID then L(string.format("heard id %d via %s on %s (upper motion %s), #%d", id, how, tostring(where), tostring(motion), h.n)) end
-    -- the removed clicks, given to the handling sounds that have none
-    if motion ~= nil and (how == "weaponTrigger" or how == "manualTrigger") then
-        local fam = math.floor(motion / 100)
-        local list = (fam == 23) and AUTO_BACK or (fam == 21) and AUTO_FWD or nil
-        if list then
-            for _, code in ipairs(list) do
-                if jobs[code] == nil and auto[code] == nil then
-                    auto[code] = id
-                    L(string.format("job %d takes game sound %d by itself (a %s click, motion %d)", code, id, fam == 23 and "lowered" or "ready", motion))
-                end
-            end
-        end
-    end
+end
+
+local function finish_run()
+    local r = run
+    run = nil
+    if r == nil or #r.ids == 0 or r.weapon == 0 then return end
+    local fam = math.floor(r.motion / 100)
+    if fam ~= FAM_FIRE and fam ~= FAM_RELOAD then return end
+    local w, f = tostring(r.weapon), tostring(fam)
+    learned[w] = learned[w] or {}
+    local old = learned[w][f]
+    if old ~= nil and #old >= #r.ids then return end   -- keep the fullest run seen (an empty-gun reload has the most)
+    learned[w][f] = r.ids
+    save()
+    L(string.format("learned gun %s's %s sounds (motion %d): %s", w, fam == FAM_FIRE and "after-the-shot" or "reload", r.motion, table.concat(r.ids, " ")))
+end
+
+-- one id of a weapon motion: part of the run of that motion
+local function record(id, motion)
+    if motion == nil or replaying then return end
+    local now = os.clock()
+    if run ~= nil and (run.motion ~= motion or now - run.last > RUN_QUIET_SEC) then finish_run() end
+    if run == nil then run = { motion = motion, weapon = weapon_num(), ids = {}, last = now } end
+    run.last = now
+    if run.ids[#run.ids] ~= id then run.ids[#run.ids + 1] = id end
 end
 
 -- a context is kept alive (add_ref) only while it is the newest; the one it replaces is let go (release)
@@ -156,6 +191,7 @@ local function hook()
                         store(ctx_by_id, id, name, this, go, layer, tracks)
                     end
                     note(id, "the weapon motion sounds", name, motion)
+                    record(id, motion)
                 end, function(r) return r end)
             end)
             if ok then n = n + 1 end
@@ -168,8 +204,12 @@ pcall(hook)
 local function replay(id, c)
     local m = c and seq_m[c.name]
     if m == nil then return false end
-    if c.name == "weaponTrigger" then return pcall(function() m:call(c.this, c.go, c.layer, c.tracks, id) end) end
-    return pcall(function() m:call(c.this, c.layer, c.tracks, id) end)
+    replaying = true
+    local ok
+    if c.name == "weaponTrigger" then ok = pcall(function() m:call(c.this, c.go, c.layer, c.tracks, id) end)
+    else ok = pcall(function() m:call(c.this, c.layer, c.tracks, id) end) end
+    replaying = false
+    return ok
 end
 
 local function play(id)
@@ -187,7 +227,17 @@ local function play(id)
     return ok, "the player's sound container"
 end
 
-local function job_id(code) return jobs[code] or auto[code] end
+-- the learned sound for a handling sound, for the gun in hand (counted from the end of the run)
+local FROM_END = { [2] = { FAM_RELOAD, 1 }, [3] = { FAM_FIRE, 2 }, [4] = { FAM_FIRE, 1 },
+                   [5] = { FAM_FIRE, 4 }, [6] = { FAM_FIRE, 3 }, [7] = { FAM_FIRE, 2 }, [8] = { FAM_FIRE, 1 } }
+local function learned_id(code)
+    local e = FROM_END[code]
+    local g = e and learned[tostring(weapon_num())]
+    local ids = g and g[tostring(e[1])]
+    if type(ids) ~= "table" or #ids < e[2] then return nil end
+    return tonumber(ids[#ids - e[2] + 1])
+end
+local function job_id(code) return jobs[code] or learned_id(code) end
 
 re.on_pre_application_entry("UpdateHID", function()
     local b = rawget(_G, "visceral_re8_bridge")
@@ -195,6 +245,7 @@ re.on_pre_application_entry("UpdateHID", function()
     local mask = 0
     for code = 1, 8 do if job_id(code) then mask = mask | (1 << code) end end
     b.w(S_SFX_LUA_HAS, mask)
+    if run ~= nil and os.clock() - run.last > RUN_QUIET_SEC then finish_run() end
     local seq = b.r(S_SFX_SEQ)
     if seq_seen == nil then seq_seen = seq return end
     if seq == seq_seen then return end
@@ -203,7 +254,7 @@ re.on_pre_application_entry("UpdateHID", function()
     local id = job_id(code)
     if id then
         local ok, how = play(id)
-        L(string.format("handling sound %d -> game sound %d%s: %s (%s)", code, id, jobs[code] and "" or " (picked by itself)", ok and "played" or "FAILED", how))
+        L(string.format("handling sound %d -> game sound %d%s: %s (%s)", code, id, jobs[code] and "" or " (learned from the game)", ok and "played" or "FAILED", how))
     end
 end)
 
@@ -212,10 +263,16 @@ re.on_draw_ui(function()
     imgui.text(string.format("handling sounds played: %d", played))
     for _, j in ipairs(JOBS) do
         local id = job_id(j.code)
-        imgui.text(string.format("%d. %s: %s%s", j.code, j.name, id and tostring(id) or "(none)", (id and not jobs[j.code]) and " (by itself)" or ""))
+        imgui.text(string.format("%d. %s: %s%s", j.code, j.name, id and tostring(id) or "(none)", (id and not jobs[j.code]) and " (learned)" or ""))
         imgui.same_line()
         if imgui.button("clear##" .. j.code) then jobs[j.code] = nil; save() end
     end
+    local wn = tostring(weapon_num())
+    local g = learned[wn]
+    imgui.text(string.format("gun %s learned: after the shot %s | reload %s", wn,
+        g and g["24"] and table.concat(g["24"], " ") or "(not yet: fire once)",
+        g and g["25"] and table.concat(g["25"], " ") or "(not yet: one game reload)"))
+    if g and imgui.button("forget this gun's learned sounds") then learned[wn] = nil; save(); L("forgot gun " .. wn .. "'s learned sounds") end
     imgui.text("Heard from the player and the guns (newest last). Play, then give it a job:")
     for i = #heard_order, 1, -1 do
         local id = heard_order[i]

@@ -549,7 +549,7 @@ void post_try_attack(void** ret, REFrameworkTypeDefinitionHandle, unsigned long 
 }
 
 int pre_reload_request(int, void**, REFrameworkTypeDefinitionHandle*, unsigned long long) {
-    t_blocked = managed_now();
+    t_blocked = managed_now() && !bridge::experiment(bridge::EX_GAME_RELOAD);   // 2026-10-24: let through once to learn its sounds
     if (!t_blocked) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     static int n = 0;
     if (++n <= 5 || n % 2000 == 0) LOGI("%s reload: the game's reload skipped (#%d; the game asks every frame)", TAG, n);

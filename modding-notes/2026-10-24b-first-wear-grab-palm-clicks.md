@@ -47,3 +47,13 @@
 - `smooth: the left hand was asked to jump ...` at each LG press, and no flash.
 - `rack: wrist to palm ...` (the offset) and Tefa's word on the palm.
 - `job N takes game sound ... by itself` and `handling sound N -> ... played (replayed through ...)`.
+
+## Build 3 (12:35): the game's own handling sounds, every gun
+
+Tefa, 12:30: *"can you just use the normal game sounds for racking, pumping and racking the bolt, i mean all weapons, i was
+overthinking it with the rifle disabled sounds"*. So the removed-click picking (21xx / 23xx) is gone again. Each gun now
+learns its own sounds from the game's motions as they play: the ids of every fire (24xx) and reload (25xx) motion run are
+saved per gun in `visceral_re8/sounds.json` (`learned`), and the handling sounds count from the end of the run: pump back /
+forward = the fire run's last two, bolt up / back / forward / down = its last four, the slide going home = the reload run's
+last. The handgun's reload is ours, so Experiments has "let the game do its own reload" (`EX_GAME_RELOAD`, 8) for one reload
+per gun. `[compile-verified 2026-10-24]`; which ids are which is `[hypothesis]` until heard.

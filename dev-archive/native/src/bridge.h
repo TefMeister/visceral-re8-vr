@@ -74,6 +74,7 @@ enum Experiment : int {        // S_EXPERIMENT bits (menu "Visceral RE8 reload" 
     EX_MAG_HIDE_AT_DROP = 1,   // the old way: the gun's own magazine display switched off the moment the magazine drops
     EX_MAG_NO_SECOND = 2,      // do NOT move "Magazine_second" with "Magazine"
     EX_NO_SMOOTH = 4,          // no smoothing of the left hand going onto / off the gun
+    EX_GAME_RELOAD = 8,        // the game's own reload is let through (its motion plays the gun's handling sounds, learned by the Lua)
 };
 void sfx(Sfx code);            // ask the Lua for a handling sound (plays the plugin's wav itself when the Lua has none)
 bool experiment(Experiment e);
