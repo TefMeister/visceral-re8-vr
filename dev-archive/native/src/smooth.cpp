@@ -26,6 +26,12 @@ Quat g_off_q{0, 0, 0, 1};
 Vec3 g_final_p{};                  // what was last drawn, in the gun hand's frame
 Quat g_final_q{0, 0, 0, 1};
 float g_frame = -1.0f;             // the game solves the arm twice a frame: the second solve gets the same answer
+// 2026-10-24 (worn 15:39, Tefa: with the hand on the grip "hand jitters with handgun too while i walk, rifle does too"): the
+// grip's place comes from the animation's socket, which the walk keeps moving. Once the hand has eased onto the grip, its place
+// on the gun is frozen (in the gun hand's frame) until it lets go, so the walk cannot shake it
+bool g_grip_frozen = false;
+Vec3 g_grip_p{};
+Quat g_grip_q{0, 0, 0, 1};
 
 Quat slerp_from_identity(Quat q, float k) {   // identity -> q by k (0..1), the short way
     if (q.w < 0.0f) q = Quat{-q.x, -q.y, -q.z, -q.w};
@@ -65,7 +71,7 @@ void on_ik(MO* ik) {
         // 2026-10-24 (Tefa: "when inserting the mag, left hand keeps rapidly going in the direction of the insertion and then
         // teleports back onto the mag"): while the hand is ours (slide / pump / bolt / magazine) the grip script's undo moved
         // it toward the controller in a later solve and that was drawn. Ours: the first answer always wins
-        const bool ours = rack::active() || reload::hand_on_mag();
+        const bool ours = rack::active() || reload::hand_on_mag() || g_grip_frozen;
         // (worn 15:27, Tefa: gripping the handgun "hand jumps around a bit like fighting something", and walking with the rifle
         // gripped "the hand jitters a lot around the gripping area"): with LG held the grip is wanted, and the later solves'
         // pulls toward the controller were drawn every frame. An undo is only an undo with LG let go
@@ -87,6 +93,7 @@ void on_ik(MO* ik) {
         g_final_q = qrel;
         return;
     }
+    if (owner != GRIP) g_grip_frozen = false;
     if (owner != g_owner) {
         g_off_p = g_final_p - rel;
         g_off_q = qnorm(qmul(g_final_q, qinv(qrel)));
@@ -96,6 +103,18 @@ void on_ik(MO* ik) {
         g_owner = owner;
     }
     const float k = 1.0f - ease((now_s() - g_t0) / SMOOTH_DOCK_SEC);
+    if (owner == GRIP && k <= 0.0f) {
+        if (!g_grip_frozen) {
+            g_grip_frozen = true;
+            g_grip_p = rel;
+            g_grip_q = qrel;
+            LOGI("%s smooth: the left hand's place on the grip frozen (%.3f %.3f %.3f in the gun hand's frame)", TAG, rel.x, rel.y, rel.z);
+        }
+        g_final_p = g_grip_p;
+        g_final_q = g_grip_q;
+        player::set_pose(target_of(ik), rp + rotate(rq, g_final_p), qnorm(qmul(rq, g_final_q)));
+        return;
+    }
     if (k <= 0.0f) {
         g_final_p = rel;
         g_final_q = qrel;

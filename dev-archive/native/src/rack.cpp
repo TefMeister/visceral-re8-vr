@@ -30,6 +30,7 @@ bool g_have_rest = false;
 
 bool g_needed = false, g_parked = false, g_hand_on = false, g_armed = false, g_pulled = false, g_spent = false;
 bool g_hold_closed = false;
+bool g_from_grip = false;     // LG has been held since the hand was on the grip: the slide waits for it to be let go
 int g_auto = 0;               // 2 = the pump handle is returning by itself
 float g_auto_t0 = 0.0f;
 float g_travel = 0.0f, g_base = 0.0f, g_max_pull = 0.0f;
@@ -281,6 +282,8 @@ void frame() {
     const bool lg = bridge::held(bridge::S_LGRIP), lt = bridge::held(bridge::S_LTRIG), lock = pose_lock();
     const bool may_rack = pump() || g_parked || g_needed || lock || (bolt() && (g_bstate != 0 || g_turn > 0.0f));   // a bolt mid-cycle can always be taken
     if (!lt) g_spent = false;
+    if (!lg) g_from_grip = false;
+    else if (bridge::flag(bridge::S_GRIPPING_WEAPON)) g_from_grip = true;
 
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
         // Tefa 2026-10-18: "suppress weapon docking on the handle when the slide needs racking": with a rack due, the left
@@ -292,7 +295,9 @@ void frame() {
         // 2026-10-24 (Tefa: "LG should go on the slide when held before reaching the activation area and then dock when it's in
         // the area"): LG held takes it in the zone; after a magazine went in, the hand stays on it until LG is let go
         // (reload::hand_on_mag), so it cannot jump straight onto the slide or the bolt
-        const bool want = lg && !reload::hand_on_mag();
+        // (worn 15:39, Tefa: "gripping the handgun with LG and emptying the gun so the slide racks open by itself made the left
+        // hand jump from grip to the slide"): a hand that came from the grip waits for LG to be let go
+        const bool want = lg && !reload::hand_on_mag() && !g_from_grip;
         if (want) {
             float off = 99.0f;
             const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);

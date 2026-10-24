@@ -179,3 +179,15 @@ Build 10: the late-solve "toward the controller = an undo, drawn" rule only appl
 script's pulls were drawn every frame); the pump plays its first half both ways, forward at volume 1.1 through
 `WwiseContainer.trigger(UInt32, RequestInfo)` with `RequestInfo.set_Volume` (found in the MCP type dump; falls back to the
 plain trigger). `[compile-verified 2026-10-24]`
+
+## Eighth wear (15:35-15:40) and build 11
+
+Tefa: the shotgun sound "is really good now"; the hand on the grip still jitters while walking (handgun and rifle); gripping
+the handgun and emptying it (the slide locks open) made the hand jump from the grip to the slide; the game ran poorly
+(a PC restart usually helps); and the start-up height fault: logos and menus sit low, a recenter brings them up but then
+the gun points up when the controller is held naturally `[reported 2026-10-24]`. Log: `grip -> free` then the slide's
+`HAND ON` 0.8 s later with LG still held.
+Build 11: once the hand has eased onto the grip, its place on the gun is frozen in the gun hand's frame until it lets go (the
+walk animation moved the socket); a hand that came from the grip cannot take the slide until LG is let go; the 30
+WwiseContainer trigger hooks are off (they ran Lua on every sound in the game and found nothing new). `[compile-verified
+2026-10-24]`

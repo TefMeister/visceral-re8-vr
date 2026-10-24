@@ -174,6 +174,9 @@ local function store(key, c)
     ctx[key] = c
 end
 
+-- 2026-10-24 (worn 15:39, Tefa: "game is performing very poorly"): the 30 WwiseContainer trigger hooks ran Lua on every
+-- sound the game plays and found nothing the weapon-motion hooks do not (the gun sounds never pass through them). Off.
+local LISTEN_CONTAINERS = false
 local cuts = 0
 local function vr_on() return safe(function() return vrmod:is_hmd_active() end) == true end
 -- one of the held gun's handling sounds (slide, pump, bolt: codes 1-8 of GUN_SOUNDS), which the hand now plays itself
@@ -193,8 +196,9 @@ local function hook()
         local n = 0
         for _, m in ipairs(td:get_methods()) do
             local name = m:get_name()
-            if name:sub(1, 7) == "trigger" and m:get_num_params() >= 1 then
+            if name:sub(1, 7) == "trigger" and m:get_num_params() >= 1 and (LISTEN_CONTAINERS or (trigger_m == nil and m:get_num_params() == 1)) then
                 if trigger_m == nil and m:get_num_params() == 1 then trigger_m = m end
+                if not LISTEN_CONTAINERS then goto next_method end
                 local ok = pcall(function()
                     local sig = {}
                     for _, t in ipairs(m:get_param_types() or {}) do sig[#sig + 1] = t:get_full_name() end
@@ -233,8 +237,9 @@ local function hook()
                 end)
                 if ok then n = n + 1 end
             end
+            ::next_method::
         end
-        L("listening on " .. n .. " WwiseContainer trigger method(s)")
+        L("listening on " .. n .. " WwiseContainer trigger method(s)" .. (LISTEN_CONTAINERS and "" or " (off: the play method only)"))
     end
     local sq = sdk.find_type_definition("app.WwiseWeaponMotionSequence")
     if sq == nil then L("no app.WwiseWeaponMotionSequence type: the weapon handling sounds cannot be heard") return end
