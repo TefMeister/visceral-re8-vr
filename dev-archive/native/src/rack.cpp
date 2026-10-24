@@ -53,6 +53,12 @@ Quat g_rest_rot{0, 0, 0, 1};
 int g_bstate = 0;
 float g_turn = 0.0f;          // 0 = down / locked, 1 = up
 
+// the wrist-to-palm offset in the left IK target's own frame (L_Hand -> L_Palm), measured after each frame's solves
+bool g_palm_ok = false;
+Vec3 g_palm_t{};
+int g_palm_logs = 0, g_palm_misses = 0;
+float g_palm_closest = 99.0f;
+
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
 bool pump() { return g_w != nullptr && g_w->pump; }
 bool bolt() { return g_w != nullptr && g_w->bolt; }
@@ -395,7 +401,47 @@ void late_point() {
     }
     write_joint();
 }
-void render_point() { write_joint(); }
+// 2026-10-24 (Tefa: "gun goes through the left wrist not the palm for LEMI and the shotgun"): the IK target is the wrist,
+// so the hand is moved back by the wrist-to-palm offset. Measured here, after the frame's solves, only when the drawn wrist
+// reached its target (else the arm was short and the numbers would lie)
+void measure_palm() {
+    const auto& s = player::now();
+    static MO* tf_seen = nullptr;
+    static MO *hand = nullptr, *palm = nullptr;
+    if (s.tf == nullptr || s.ik_left == nullptr) return;
+    if (s.tf != tf_seen) {
+        tf_seen = s.tf;
+        hand = joint_by_name(s.tf, L"L_Hand");
+        palm = joint_by_name(s.tf, L"L_Palm");
+        LOGI("%s rack: palm joints %s / %s", TAG, hand ? "L_Hand found" : "L_Hand MISSING", palm ? "L_Palm found" : "L_Palm MISSING (the wrist stays on the slide)");
+    }
+    Vec3 hp, pp, tp;
+    Quat tq;
+    if (hand == nullptr || palm == nullptr || !get_v3(JOINT, hand, "get_Position", hp) || !get_v3(JOINT, palm, "get_Position", pp) ||
+        !player::get_pose(target_of(s.ik_left), tp, tq))
+        return;
+    const float reach = dist(hp, tp);
+    if (reach > PALM_MEASURE_REACH_M) {
+        g_palm_closest = std::fmin(g_palm_closest, reach);
+        if (!g_palm_ok && ++g_palm_misses == 600)
+            LOGI("%s rack: the palm offset is not measured yet: the drawn wrist never came within %.3f m of its target (closest %.3f m)", TAG,
+                 PALM_MEASURE_REACH_M, g_palm_closest);
+        return;
+    }
+    const Vec3 v = rotate(qinv(qnorm(tq)), pp - hp);
+    if (g_palm_logs < 5 && (!g_palm_ok || dist(v, g_palm_t) > 0.005f)) {
+        ++g_palm_logs;
+        LOGI("%s rack: wrist to palm %.3f m (in the hand target's frame %.3f %.3f %.3f), wrist %.3f m from its target", TAG,
+             dist(pp, hp), v.x, v.y, v.z, reach);
+    }
+    g_palm_t = v;
+    g_palm_ok = true;
+}
+
+void render_point() {
+    write_joint();
+    if (PALM_ON_SLIDE) measure_palm();
+}
 
 // 2026-10-24 (Tefa: on the slide the hand "sits there with its wrist ready to rack and hand fully visible on the right
 // hand side"): the menu's three turn sliders turn the hand about the gun's own axes (x right, y up, z forward), in degrees
@@ -428,8 +474,17 @@ void on_ik(MO* ik) {
     if (g_slide_ok) {   // on the slide joint, riding its travel, nudged by the menu sliders (gun axes: x right, y up, z forward)
         const Quat gun = qnorm(qmul(rq, g_slide_gun));
         const Vec3 nudge{bridge::view(bridge::S_SLIDE_HAND_X) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Y) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Z) * 0.01f};
-        const Vec3 pos = rp + rotate(rq, g_slide_pos) + rotate(gun, Vec3{0, 0, z_now() - g_z_anim} + (bridge::has(nudge.x) ? nudge : Vec3{0, 0, 0}));
-        player::set_pose(target_of(ik), pos, qnorm(qmul(slide_hand_turn(gun), rot)));
+        const Quat hand_q = qnorm(qmul(slide_hand_turn(gun), rot));
+        Vec3 offs = rotate(gun, bridge::has(nudge.x) ? nudge : Vec3{0, 0, 0});
+        if (PALM_ON_SLIDE && g_palm_ok && !bolt()) offs = offs - rotate(hand_q, g_palm_t);   // the palm on the part, not the wrist
+        const Vec3 pivot = rp + rotate(rq, g_slide_pos) + rotate(gun, Vec3{0, 0, z_now() - g_z_anim});
+        Quat turn{0, 0, 0, 1};
+        if (bolt() && g_turn > 0.0f) {   // Tefa 2026-10-24: "left hand must follow the bolt racking movement all 4 moves": up and down too
+            const float h = BOLT_TURN_DEG * g_turn * 3.14159265f / 360.0f;
+            const Quat jf = qnorm(qmul(gun, g_rest_rot));   // the bolt joint's frame at rest: it turns about its own Z (write_joint)
+            turn = qnorm(qmul(qmul(jf, Quat{0, 0, std::sin(h), std::cos(h)}), qinv(jf)));
+        }
+        player::set_pose(target_of(ik), pivot + rotate(turn, offs), qnorm(qmul(turn, hand_q)));
         return;
     }
     Vec3 back{0, 0, 0};   // no slide joint: where the hand took hold, slid back with the pull

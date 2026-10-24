@@ -253,13 +253,14 @@ local function village_readings()
     w(S_SLIDE_HAND, hand.x); w(S_SLIDE_HAND + 1, hand.y); w(S_SLIDE_HAND + 2, hand.z)
     w(S_SLIDE_HAND_ROT, hand.rx); w(S_SLIDE_HAND_ROT + 1, hand.ry); w(S_SLIDE_HAND_ROT + 2, hand.rz)
     w(S_EXPERIMENT, experiments)
-    if re8vr then
-        local ok = pcall(function() if re8vr.grip_needs_button ~= dock_needs_button then re8vr.grip_needs_button = dock_needs_button end end)
-        local now = ok and tostring(dock_needs_button) or "not available (not the patched REFramework)"
-        if now ~= dock_told then
-            dock_told = now
-            log.info(TAG .. " left hand docks on the gun only with LG held: " .. now)
-        end
+    -- 2026-10-24 first wear: the patched REFramework switch is gone (stock loader since the scope's 2026-10-01 move), so the
+    -- "LG only" rule is the scope's grip script's own (`grip button 1`, off by default since 2026-10-02 for the scope)
+    local grip_word = rawget(_G, "re8_scope_left_grip")
+    local now = type(grip_word) == "function" and tostring(dock_needs_button) or "not available (the scope's grip script is not loaded)"
+    if now ~= dock_told then
+        dock_told = now
+        if type(grip_word) == "function" then pcall(grip_word, "button", dock_needs_button and "1" or "0") end
+        log.info(TAG .. " left hand docks on the gun only with LG held: " .. now)
     end
     -- 2026-10-19: the rifle showed 0/0 after a reload until the trigger was pulled. Do what the game's own HUD code does on
     -- a change: apply the remaining-ammo driver to its UI and ask its order to show the remaining ammo.

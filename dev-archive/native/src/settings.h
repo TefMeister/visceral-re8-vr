@@ -124,5 +124,13 @@ constexpr float PUMP_BACK_M = -0.080f;
 
 // smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
+constexpr float SMOOTH_JUMP_M = 0.04f;           // the hand asked to move further than this in one frame (in the gun hand's frame) = a
+                                                 // jump made by someone else (the VR layer's dock, the scope's grip script): eased too
+constexpr float SMOOTH_SAME_M = 0.002f;          // a second solve in the same frame asking for a place this close = the same ask
+
+// rack.cpp (2026-10-24, Tefa: "gun goes through the left wrist not the palm for LEMI and the shotgun"): the IK target is the
+// wrist, so on the slide and the pump the hand is moved back by the wrist-to-palm offset (L_Hand -> L_Palm, measured live)
+constexpr bool PALM_ON_SLIDE = true;
+constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close to its target = the arm reached it: measure the palm then
 
 } // namespace vn::settings
