@@ -285,6 +285,56 @@ void begin_drop() {
     LOGI("%s reload: drop with %d rounds in it, %d carried", TAG, g_mag_rounds, player::reserve());
 }
 
+// ---- HANDS-ON MAGAZINE (2026-10-25, Tefa: "to reload the rifle, i have to put my left hand on the mag, press LT to release
+// it, then i can throw it on the ground and non-spent bullets will still be in my inventory, then put a new mag in and
+// continue. so B only ejects the mag on pistols"): with the magazine seated, LG pressed with the left controller within
+// MAG_GRAB_M of it puts the hand on it (the seated-magazine hold the insert already uses); LT then pulls it out straight into
+// the hand (the state the pouch hands a fresh one in), with the eject's bookkeeping: its rounds leave the gun and stay
+// counted, the rest pose is kept for the next seat. Letting go drops it as any carried magazine; the pouch then gives a new
+// one; a pulled-out magazine can also go straight back in.
+bool mag_world(Vec3& p, Quat& q);   // below
+void pull_out() {
+    const int n = player::loaded();
+    if (n < 0) { LOGW("%s reload: %s: no loaded-ammo call found, the magazine stays", TAG, g_id.c_str()); return; }
+    g_mag_rounds = n;
+    g_dry = n == 0;
+    g_drop_gun = g_gun;
+    if (!player::set_loaded(0)) { LOGW("%s reload: %s: no way to empty the gun found, the magazine stays", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
+    bridge::sfx(bridge::SFX_MAG_OUT);
+    Vec3 p, s;
+    Quat q;
+    if (get_v3(JOINT, g_joint, "get_LocalPosition", p) && get_q(JOINT, g_joint, "get_LocalRotation", q)) {
+        if (!get_v3(JOINT, g_joint, "get_LocalScale", s) || s.x < 0.01f) s = Vec3{1, 1, 1};
+        g_rest_pos = p;
+        g_rest_rot = qnorm(q);
+        g_rest_scale = s;
+        capture_port(g_joint);
+        capture_second();
+    }
+    g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
+    set_state(St::IN_HAND, "pulled out by hand (LT)");
+    ghosthand::event("mag", "start");
+    bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
+    log_parts();
+    LOGI("%s reload: %s magazine pulled out by hand with %d rounds in it, %d carried", TAG, g_id.c_str(), g_mag_rounds, player::reserve());
+}
+void grab_frame() {
+    if (!in_play() || g_st != St::SEATED || g_joint == nullptr || rack::active() || pose_lock()) return;
+    if (!g_hand_on_mag) {
+        if (!bridge::pressed(bridge::S_LGRIP)) return;   // on the press only: an LG already held for the grip or the pump never grabs the magazine
+        Vec3 mp, cp;
+        Quat mq;
+        if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return;
+        const float d = dist(mp, cp);
+        if (d > MAG_GRAB_M) return;
+        g_hand_on_mag = true;
+        bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
+        LOGI("%s reload: the left hand on the seated magazine (%.3f m from it): LT pulls it out", TAG, d);
+        return;
+    }
+    if (bridge::pressed(bridge::S_LTRIG)) pull_out();
+}
+
 void pouch_grab() {
     if (!managed_now() || !in_play()) return;
     const float now = now_s();
@@ -560,7 +610,9 @@ void frame() {
             break;
         }
         mag_hand_frame();
-        if (in_play() && bridge::pressed(bridge::S_RB) && g_st == St::SEATED && !rack::active()) begin_drop();
+        grab_frame();
+        // B ejects only on pistols (Tefa 2026-10-25); a gun whose magazine joint is unknown keeps B, having no hand path
+        if (in_play() && bridge::pressed(bridge::S_RB) && g_st == St::SEATED && !rack::active() && (g_w->shape == weapons::Shape::PISTOL || g_joint == nullptr)) begin_drop();
     }
     if (in_pouch() && bridge::pressed(bridge::S_LGRIP)) pouch_grab();
 }
