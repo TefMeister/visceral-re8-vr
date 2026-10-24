@@ -21,6 +21,7 @@
 #include <atomic>
 
 #include "ammo_hud.h"
+#include "body.h"
 #include "breech.h"
 #include "eject.h"
 #include "bridge.h"
@@ -40,7 +41,7 @@ using namespace vn;
 namespace {
 void on_frame() {
     static std::atomic<bool> installed{false};
-    if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); ik::install(); player::probe_types(); }   // hooks need the type database: first game frame
+    if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); ik::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
     bridge::frame_begin();
     player::refresh();                                 // before any feature: the hooks later in the frame read this snapshot
     haptics::frame();
@@ -51,6 +52,7 @@ void on_frame() {
     ammo_hud::frame();
     recoil::frame();
     handstate::frame();
+    body::frame();
 }
 } // namespace
 
@@ -77,8 +79,8 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
     param->functions->on_pre_application_entry("UpdateMotion", []() { recoil::physics_point(); });
     param->functions->on_pre_application_entry("LateUpdateBehavior", []() { recoil::physics_point(); });
     // the gun's joints (magazine, slide) after its own animation, and again before drawing (the engine rewrites them)
-    param->functions->on_post_application_entry("LateUpdateBehavior", []() { reload::late_point(); rack::late_point(); });
-    param->functions->on_post_application_entry("PrepareRendering", []() { reload::render_point(); rack::render_point(); ghosthand::render_point(); });
+    param->functions->on_post_application_entry("LateUpdateBehavior", []() { body::late_point(); reload::late_point(); rack::late_point(); });
+    param->functions->on_post_application_entry("PrepareRendering", []() { body::render_point(); reload::render_point(); rack::render_point(); ghosthand::render_point(); });
     param->functions->on_pre_application_entry("BeginRendering", []() { reload::render_point(); rack::begin_render_point(); });
     return true;
 }

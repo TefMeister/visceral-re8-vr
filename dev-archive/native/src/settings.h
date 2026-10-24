@@ -140,4 +140,13 @@ constexpr float SHELL_HOLD_DOWN_M = 0.07f;       // a shotgun shell from the pou
                                                  // magazine hold (Tefa 2026-10-24: "shell needs to be lowered about 7 cm for now")
 constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close to its target = the arm reached it: measure the palm then
 
+// body.cpp (2026-10-24, Tefa idea 6): the drawn body lags the look / walk direction like Visceral RE2's
+constexpr bool  BODY_TURN_ON = true;
+constexpr float BODY_TURN_GAIN = 3.0f;            // turn rate = gain x the remaining angle (per second): big lags close fast
+constexpr float BODY_TURN_MIN_DEG_S = 40.0f;      // and never slower than this, so a turn finishes
+constexpr float BODY_HEAD_SLACK_DEG = 70.0f;      // standing: the head may look this far off the body before the body follows
+constexpr float BODY_WALK_MIN_MPS = 0.35f;        // moving faster than this = walking: the body faces the travel
+constexpr float BODY_BACKPEDAL_DEG = 100.0f;      // travel further than this from the look = back-pedalling: face the look
+constexpr int   BODY_MAX_JOINTS = 256;
+
 } // namespace vn::settings

@@ -18,6 +18,7 @@ add_library(visceral_re8_native SHARED
     src/reload_pose.cpp
     src/rack.cpp
     src/eject.cpp
+    src/body.cpp
     src/breech.cpp
     src/ammo_hud.cpp
     src/weapons.cpp
