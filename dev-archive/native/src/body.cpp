@@ -114,7 +114,7 @@ float applied_yaw() { return g_theta; }
 void frame() {
     g_write = false;
     const auto& s = player::now();
-    if (!BODY_TURN_ON || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) {
+    if (!BODY_TURN_ON || !bridge::flag(bridge::S_BODY_TURN) || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) {
         g_mode = "off";
         g_theta = 0.0f;
         g_have_last_pos = false;
@@ -241,15 +241,27 @@ void late_point() {
             g_ok[i] = g_j[i] != nullptr && !g_skip[i] && get_v3(JOINT, g_j[i], "get_Position", g_p[i]) && get_q(JOINT, g_j[i], "get_Rotation", g_q[i]);
             if (g_ok[i]) ++got;
         }
+        // 02:10 (Tefa: "the body is a mess ... body swings into the view"): the turn was about the player transform's position,
+        // which is not under Ethan; it is about his own root joint now (its position read before anything is turned)
+        const Vec3 piv = g_ok[0] ? Vec3{g_p[0].x, g_pivot.y, g_p[0].z} : g_pivot;
+        const float before = g_ok[0] ? fwd_yaw(g_q[0]) : 0.0f;
         for (int i = 0; i < n; ++i) {
             if (!g_ok[i]) continue;
-            g_p[i] = g_pivot + rotate(g_rot, g_p[i] - g_pivot);
+            g_p[i] = piv + rotate(g_rot, g_p[i] - piv);
             g_q[i] = qnorm(qmul(g_rot, qnorm(g_q[i])));
             set_any(JOINT, g_j[i], "set_Position", &g_p[i]);
             set_any(JOINT, g_j[i], "set_Rotation", &g_q[i]);
         }
         g_n = n;
-        if (got > 0 && g_ok[0]) { g_wrote_root_yaw = fwd_yaw(g_q[0]); g_root = g_j[0]; g_root_p = g_p[0]; g_root_q = g_q[0]; }
+        if (got > 0 && g_ok[0]) {
+            g_wrote_root_yaw = fwd_yaw(g_q[0]); g_root = g_j[0]; g_root_p = g_p[0]; g_root_q = g_q[0];
+            static float told_t = -10.0f;
+            if (now_s() - told_t > 1.0f) {   // the direction check: after = before + drawn, and after should equal body
+                told_t = now_s();
+                LOGI("%s body: root yaw before %.0f, after %.0f (drawn %+.0f), transform %.0f, body %.0f, look %.0f, pivot %.2f m from the transform", TAG,
+                     before / DEG, g_wrote_root_yaw / DEG, g_theta / DEG, g_tf_yaw / DEG, g_body_yaw / DEG, g_look_yaw / DEG, dist(piv, g_pivot));
+            }
+        }
         g_wrote = got > 0;
         return;
     }

@@ -66,6 +66,7 @@ local EXPERIMENTS = {
 }
 local LEFT_NAMES = { [0] = "free", "grip (praydog's two-hand)", "on the slide / bolt", "on the pump", "holding a magazine", "holding a round" }
 local pose_lock = false
+local body_turn = false   -- 2026-10-25: the body turn (body.cpp) is an experiment: off until switched on here
 local SENTINEL = 54321.0
 local HANDOVER_EVERY_FRAMES = 180
 local HANDOVER_TRIES = 10
@@ -251,6 +252,7 @@ local function village_readings()
     end
     wb(S_INTERACTION_BLOCKED, blocked)
     wb(S_POSE_LOCK, pose_lock)
+    w(103, body_turn and 1 or 0)   -- S_BODY_TURN
     w(29, tonumber(rawget(_G, "hand_poser_held")) or 0)   -- S_POSER_HELD: fingers.cpp stands down while a poser holds a finger
     local hand = hand_for(r(S_WEAPON_NUM))
     w(S_SLIDE_HAND, hand.x); w(S_SLIDE_HAND + 1, hand.y); w(S_SLIDE_HAND + 2, hand.z)
@@ -372,6 +374,8 @@ re.on_draw_ui(function()
         if arr then imgui.text("Left hand: " .. (LEFT_NAMES[math.floor(r(S_HAND_STATE) + 0.5)] or "?")) end
         local changed, v = imgui.checkbox("Hold this pose (a magazine stays in the hand, the hand stays on the slide)", pose_lock)
         if changed then pose_lock = v end
+        local cb, vb = imgui.checkbox("Body turns like RE2 (EXPERIMENTAL: messes up the body and the hands, 2026-10-25)", body_turn)
+        if cb then body_turn = vb end
         local c0, v0 = imgui.checkbox("The left hand goes onto the gun only while LG is held", dock_needs_button)
         if c0 then dock_needs_button = v0 end
         -- 2026-10-24 (Tefa: "multiple spots where the hand can dock and which ever way"): one kept grip spot per gun

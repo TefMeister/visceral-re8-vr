@@ -70,6 +70,7 @@ enum Slot : int {
     S_POSER_HELD = 29,        // WRITTEN BY THE LUA: joints a hand poser (hand_poser.lua) holds right now; fingers.cpp stands down
     S_RACK_TWOHAND = 99,      // WRITTEN BY THE PLUGIN: 1 = the left hand is on a pump: the grip script steers at S_RACK_SOCKET
     S_RACK_SOCKET = 100,      // 100-102, WRITTEN BY THE PLUGIN: where the rack draws the left hand, in the right hand's frame (m)
+    S_BODY_TURN = 103,        // WRITTEN BY THE LUA MENU: 1 = the body turn (body.cpp, experimental) is on
     S_COUNT = 104,
 };
 enum Sfx : int {               // S_SFX_CODE values
