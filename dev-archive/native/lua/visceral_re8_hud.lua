@@ -5,20 +5,24 @@
 -- probe]. Every frame the cross updates, the slots are moved onto the diagonals (the cross turned 45 degrees clockwise,
 -- as the holster spots and the thumb-rest D-pad: up = right shoulder, right = right hip, down = left hip, left = left
 -- shoulder) and the key texts become the spot names, shown beside their slot.
--- 2026-10-24 later (Tefa: "make the thumb rest actually have the d-pad options visible while the thumb is on it", "make
--- the boxes and text a bit larger and move them all to the corners of the screen respectively - not to the very end
--- corners of the screen just further apart"): the cross sits in the middle of the view, the slots far out toward the
--- corners, scaled up; and while the left thumb rests (_G.__visceral_thumbrest_dpad, from re8_vr.lua) the cross is shown
--- (onShow) and the game's hide is refused (onHide skipped) until the thumb lifts.
+-- 2026-10-24 later (Tefa): the cross sits in the middle of the view.
+-- 2026-10-25 (Tefa: "the d-pad menu doesn't appear when i put my thumb on the thumb rest ... all 4 options are visible, but
+-- their boxes are small like squares ... after that, d-pad menu doesn't show at all"): the first version called the cross's
+-- onShow / onHide itself and refused the game's onHide while the thumb rested, which left the game's own open / close state
+-- wrong, and it set the slot panels' scale every frame against the game's own slot animation (the squares). Now: nothing is
+-- called or refused on the cross, and the slots keep the game's own scale. The game opens the cross through
+-- openQuickEquip(GUIRequestOpenQuickEquipParameter) (re8.exe names); its owner and the parameter's fields are listed in the
+-- log the first time the cross is seen, so the thumb-rest door can be wired from the next run.
+-- 2026-10-25 (Tefa: "the boxes have to be closer together ... it's more distracting to look in each corner separately. also
+-- the text saying LEFT HIP and so on is different size and mostly too small to comfortably read in VR"): the slots sit
+-- closer in, and every label gets the same font size (set on the text itself, not a scale of its own size) and no scale.
 
 local TAG = "[visceral-re8-hud]"
 local ON = true
 local CENTER_X, CENTER_Y = 960.0, 540.0   -- the cross's centre: the middle of the game's 1920 x 1080 GUI
-local RX, RY = 560.0, 300.0               -- the slots' distance from the centre (the corners are 960 / 540 away)
-local SLOT_SCALE = 1.35                   -- the slot boxes, larger
-local LABEL_SCALE = 1.5                   -- the spot names, larger
-local LABEL_DY = 110.0                    -- a label sits this far above an upper slot, below a lower one
-local SHOW_WITH_THUMB = true
+local RX, RY = 300.0, 170.0               -- the slots' distance from the centre (was 560 / 300: "too far apart")
+local LABEL_FONT = 44.0                   -- one font size for all four labels (GUI units; the game's HUD text is ~28)
+local LABEL_DY = 90.0                     -- a label sits this far above an upper slot, below a lower one
 
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
 local function L(s) log.info(TAG .. " " .. s) end
@@ -42,9 +46,8 @@ local function child(parent, name)
     return nil
 end
 
-local function scale(o, s) pcall(function() o:call("set_Scale", Vector3f.new(s, s, 1.0)) end) end
-
 local told = false
+local font_told = false
 local function apply(this)
     local layout = safe(function() return this:call("get_layoutPanel") end)
     if layout == nil or safe(function() return layout:call("get_Name") end) ~= "c_layout" then
@@ -59,7 +62,6 @@ local function apply(this)
         local p = child(layout, s.panel)
         if p then
             pcall(function() p:call("set_Position", Vector3f.new(s.x, s.y, 0.0)) end)
-            scale(p, SLOT_SCALE)
             done = done + 1
         end
         local t = child(layout, s.key)
@@ -67,59 +69,74 @@ local function apply(this)
             pcall(function()
                 t:call("set_Message", s.label)
                 t:call("set_Position", Vector3f.new(s.x, s.y + (s.y < 0 and -LABEL_DY or LABEL_DY), 0.0))
+                t:call("set_Scale", Vector3f.new(1.0, 1.0, 1.0))
                 t:call("set_Visible", true)
             end)
-            scale(t, LABEL_SCALE)
+            local ok = pcall(function() t:call("set_FontSize", LABEL_FONT) end)
+            if not font_told then
+                font_told = true
+                L(ok and string.format("labels: font size %.0f set on the texts", LABEL_FONT) or "labels: the text has no set_FontSize: sizes stay the game's")
+            end
         end
     end
-    if not told then told = true; L(string.format("cross redrawn in the middle, slots toward the corners (%d of 4 slot panels found)", done)) end
+    if not told then told = true; L(string.format("cross redrawn in the middle, slots %d / %d from it (%d of 4 slot panels found)", RX, RY, done)) end
 end
 
--- the cross itself (a GUIDriver component), kept from its own updates, else looked for in the scene
-local cross = nil
-local function find_cross()
-    if cross ~= nil and safe(function() return cross:get_address() end) then return cross end
-    local sm = sdk.get_native_singleton("via.SceneManager")
-    local smt = sdk.find_type_definition("via.SceneManager")
-    local scene = sm and smt and safe(function() return sdk.call_native_func(sm, smt, "get_CurrentScene") end)
-    local arr = scene and safe(function() return scene:call("findComponents(System.Type)", sdk.typeof("app.GUIQuickEquip")) end)
-    local els = arr and safe(function() return arr:get_elements() end)
-    cross = els and els[1] or nil
-    return cross
+-- the door for "shown while the thumb rests": list, once, every QuickEquip-named method on the cross's type, its parents,
+-- app.GUIManager and the order / parameter types, with their parameter types
+local listed = false
+local function method_lines(tdef, filter)
+    local out = {}
+    local seen = {}
+    local td = tdef
+    while td ~= nil do
+        for _, m in ipairs(td:get_methods()) do
+            local n = m:get_name()
+            if not seen[n] and (filter == nil or n:lower():find(filter)) then
+                seen[n] = true
+                local ps = {}
+                for _, p in ipairs(m:get_param_types() or {}) do ps[#ps + 1] = p:get_full_name() end
+                out[#out + 1] = td:get_full_name() .. "." .. n .. "(" .. table.concat(ps, ", ") .. ")"
+            end
+        end
+        td = td:get_parent_type()
+    end
+    table.sort(out)
+    return out
 end
-
-local thumb_was = false
-local hides_refused = 0
+local function list_doors(this)
+    if listed then return end
+    listed = true
+    local ok, err = pcall(function()
+        for _, f in ipairs({ "open", "show", "request", "hide", "close" }) do
+            L("cross " .. f .. ": " .. table.concat(method_lines(this:get_type_definition(), f), " | "))
+        end
+        for _, tn in ipairs({ "app.GUIManager", "app.GUIQuickEquipOrder", "app.GUIRequestOpenQuickEquipParameter", "app.PlayerUpdater", "app.PlayerUpdaterFPS" }) do
+            local td = sdk.find_type_definition(tn)
+            if td then
+                L(tn .. ": " .. table.concat(method_lines(td, "quickequip"), " | "))
+                if tn:find("Parameter") or tn:find("Order") then
+                    local fs = {}
+                    for _, fd in ipairs(td:get_fields()) do fs[#fs + 1] = fd:get_name() .. ":" .. fd:get_type():get_full_name() end
+                    L(tn .. " fields: " .. table.concat(fs, ", "))
+                end
+            else
+                L(tn .. ": type not found")
+            end
+        end
+    end)
+    if not ok then L("door listing failed: " .. tostring(err)) end
+end
 
 local td = sdk.find_type_definition("app.GUIQuickEquip")
 local m = td and td:get_method("onLateUpdate")
 if ON and m then
-    -- the post hook has no 'this'; keep it from the pre hook
     local last = nil
-    sdk.hook(m, function(args) last = sdk.to_managed_object(args[2]); cross = last end, function(r) if last then pcall(apply, last) end return r end)
+    sdk.hook(m, function(args) last = sdk.to_managed_object(args[2]) end, function(r)
+        if last then pcall(apply, last); list_doors(last) end
+        return r
+    end)
     L("hooked app.GUIQuickEquip.onLateUpdate")
-    local hide = td:get_method("onHide")
-    if SHOW_WITH_THUMB and hide then
-        sdk.hook(hide, function(args)
-            if rawget(_G, "__visceral_thumbrest_dpad") == true then
-                hides_refused = hides_refused + 1
-                if hides_refused <= 3 then L("the cross wanted to close: kept open while the thumb rests") end
-                return sdk.PreHookResult.SKIP_ORIGINAL
-            end
-        end, function(r) return r end)
-    end
 elseif ON then
     L("app.GUIQuickEquip.onLateUpdate NOT FOUND: the cross stays as the game draws it")
 end
-
--- the thumb on the rest: show the cross; lifted: let it close
-re.on_frame(function()
-    if not ON or not SHOW_WITH_THUMB then return end
-    local thumb = rawget(_G, "__visceral_thumbrest_dpad") == true
-    if thumb == thumb_was then return end
-    thumb_was = thumb
-    local c = find_cross()
-    if c == nil then L("thumb " .. (thumb and "on" or "off") .. ": the cross object is not found yet") return end
-    local ok, err = pcall(function() c:call(thumb and "onShow(System.Boolean)" or "onHide(System.Boolean)", true) end)
-    L(string.format("thumb %s: the cross %s (%s)", thumb and "on the rest" or "lifted", thumb and "shown" or "let close", ok and "ok" or tostring(err)))
-end)
