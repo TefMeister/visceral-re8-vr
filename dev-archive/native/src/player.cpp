@@ -1,5 +1,6 @@
 // player.cpp -- see player.h
 #include "player.h"
+#include "nodock.h"
 
 #include <windows.h>
 
@@ -125,7 +126,9 @@ bool motion_joint_hash(uint32_t hash, Vec3& pos, Quat& rot) {
     auto* m_pos = find_method_deep(td, "getWorldPosition");
     auto* m_rot = find_method_deep(td, "getWorldRotation");
     if (m_idx == nullptr || m_pos == nullptr || m_rot == nullptr) return false;
+    nodock::t_self_read = true;   // our own read: never faked (nodock.cpp)
     auto ri = m_idx->invoke(motion, std::vector<void*>{(void*)(uintptr_t)hash});
+    nodock::t_self_read = false;
     const int idx = (int)ri.dword;
     if (ri.exception_thrown || idx < 0) return false;
     auto rp = m_pos->invoke(motion, std::vector<void*>{(void*)(intptr_t)idx});

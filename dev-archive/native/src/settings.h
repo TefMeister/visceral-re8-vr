@@ -165,6 +165,8 @@ constexpr int   BODY_MAX_JOINTS = 256;
 constexpr bool  FINGER_OPEN_ON = true;
 constexpr float FINGER_OPEN_AMOUNT = 0.45f;       // how far toward the straight rest pose (0 = as animated, 1 = fully open)
 constexpr float FINGER_OPEN_SEC = 0.25f;          // the time to open, and to close again
+constexpr bool  NODOCK_ON = true;                 // nodock.cpp: the game's own left-hand dock is off while LG is up
+constexpr int   NODOCK_FAKE_JOINT = 0;            // the joint index answered instead of the left wrist: 0 = the root, at the feet
 constexpr float FINGER_OPEN_RAMP_M = 0.14f;       // the hand starts opening this far outside the grab zone, fully open at its edge
 
 } // namespace vn::settings
