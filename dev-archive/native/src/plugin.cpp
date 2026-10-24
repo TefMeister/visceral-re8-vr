@@ -22,6 +22,7 @@
 
 #include "ammo_hud.h"
 #include "body.h"
+#include "fingers.h"
 #include "breech.h"
 #include "eject.h"
 #include "bridge.h"
@@ -53,6 +54,7 @@ void on_frame() {
     recoil::frame();
     handstate::frame();
     body::frame();
+    fingers::frame();
 }
 } // namespace
 
@@ -80,7 +82,7 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
     param->functions->on_pre_application_entry("LateUpdateBehavior", []() { recoil::physics_point(); });
     // the gun's joints (magazine, slide) after its own animation, and again before drawing (the engine rewrites them)
     param->functions->on_post_application_entry("LateUpdateBehavior", []() { body::late_point(); reload::late_point(); rack::late_point(); });
-    param->functions->on_post_application_entry("PrepareRendering", []() { body::render_point(); reload::render_point(); rack::render_point(); ghosthand::render_point(); });
-    param->functions->on_pre_application_entry("BeginRendering", []() { reload::render_point(); rack::begin_render_point(); });
+    param->functions->on_post_application_entry("PrepareRendering", []() { body::render_point(); fingers::render_point(); reload::render_point(); rack::render_point(); ghosthand::render_point(); });
+    param->functions->on_pre_application_entry("BeginRendering", []() { reload::render_point(); rack::begin_render_point(); fingers::begin_render(); });
     return true;
 }

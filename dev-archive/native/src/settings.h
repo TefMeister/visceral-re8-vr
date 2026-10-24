@@ -149,4 +149,9 @@ constexpr float BODY_WALK_MIN_MPS = 0.35f;        // moving faster than this = w
 constexpr float BODY_BACKPEDAL_DEG = 100.0f;      // travel further than this from the look = back-pedalling: face the look
 constexpr int   BODY_MAX_JOINTS = 256;
 
+// fingers.cpp (2026-10-24, Tefa): the left hand opens a little in a grab area (slide / pump / bolt, the gun, the pouch)
+constexpr bool  FINGER_OPEN_ON = true;
+constexpr float FINGER_OPEN_AMOUNT = 0.45f;       // how far toward the straight rest pose (0 = as animated, 1 = fully open)
+constexpr float FINGER_OPEN_SEC = 0.15f;          // the time to open, and to close again
+
 } // namespace vn::settings

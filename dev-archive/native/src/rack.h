@@ -21,6 +21,7 @@ void on_ik(MO* ik);      // ik.cpp: the left hand is about to be solved: hold it
 void need(const char* why);   // reload.cpp: a rack / pump is required before the gun fires
 bool needed();
 bool active();                // the left hand is on the slide / bolt / pump
+bool left_near_gun();         // the left controller in a grab area: the slide / pump / bolt part, or the line along the gun (fingers.cpp)
 bool on_pump();
 float travel();               // 0 = rest, 1 = fully back
 void* slide_joint();          // this frame's slide / pump / bolt joint (ghosthand.cpp), or nullptr
