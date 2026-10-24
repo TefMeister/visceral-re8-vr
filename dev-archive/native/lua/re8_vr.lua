@@ -226,6 +226,9 @@ local function update_muzzle_data()
     end
 end
 
+-- Visceral RE8 (2026-10-24, the Lua error log: "cannot set (new_index) into this object"): re8vr is praydog's C++ object and
+-- takes no new fields, so our pad state lives here and in _G.__visceral_thumbrest_dpad (read by the holster)
+local vz_pad = { told_t = 0, why_t = 0, err_told = false }
 local function update_pad_device(device)
     if not vrmod:is_hmd_active() then
         re8vr.is_holding_left_grip = false
@@ -248,8 +251,12 @@ local function update_pad_device(device)
     -- Visceral RE8 (2026-10-24, Tefa: "change d-pad to left thumb rest + right stick up, down, left, right"): the left thumb
     -- rest arrives as the "minimap" action (dev-archive/native/bindings/, a REFramework bindings file in the game folder).
     -- While it is touched the right stick is the D-pad, so it does not also turn the view.
-    local thumbrest_dpad = vrmod:is_action_active(vrmod:get_action_minimap(), vrmod:get_left_joystick())
-    re8vr.thumbrest_dpad = thumbrest_dpad
+    -- 2026-10-24 headset (Tefa: sticks and buttons dead, our own B / pouch fine): an error here stopped the whole pad update
+    -- before the sticks were handed over, and hook errors are not logged. Guarded now; the first error is logged once.
+    local thumbrest_dpad = false
+    local tr_ok, tr_err = pcall(function() thumbrest_dpad = vrmod:is_action_active(vrmod:get_action_minimap(), vrmod:get_left_joystick()) == true end)
+    if not tr_ok and not vz_pad.err_told then vz_pad.err_told = true; log.info("[visceral-re8] pad: thumb rest read failed: " .. tostring(tr_err)) end
+    _G.__visceral_thumbrest_dpad = thumbrest_dpad
     local dpad_axis = vr_right_stick_axis
     if thumbrest_dpad then vr_right_stick_axis = Vector2f.new(0.0, 0.0) end
 
@@ -444,17 +451,29 @@ local function update_pad_device(device)
 
     device:call("set_Button", cur_button)
     device:call("set_ButtonDown", cur_button)
+    -- Visceral RE8 (2026-10-24): proof the pad update reached its end, every 5 s, with what it handed over
+    if os.clock() - vz_pad.told_t > 5.0 then
+        vz_pad.told_t = os.clock()
+        log.info(string.format("[visceral-re8] pad: update reached the end: buttons %s, left stick %.2f %.2f, thumb rest %s",
+            tostring(cur_button), vr_left_stick_axis.x, vr_left_stick_axis.y, tostring(thumbrest_dpad)))
+    end
+end
+
+local function pad_why(s)   -- Visceral RE8 (2026-10-24): why the pad update stopped here, every 5 s
+    if os.clock() - vz_pad.why_t > 5.0 then vz_pad.why_t = os.clock(); log.info("[visceral-re8] pad: " .. s) end
 end
 
 local function update_padman(padman)
     if not vrmod:is_hmd_active() or not vrmod:is_using_controllers() then
         re8vr.is_holding_left_grip = false
+        pad_why(string.format("skipped: hmd active %s, using controllers %s", tostring(vrmod:is_hmd_active()), tostring(vrmod:is_using_controllers())))
         return
     end
 
     local merged_pad = padman:call("get_mergedPad")
 
     if not merged_pad then
+        pad_why("skipped: no merged pad")
         return
     end
 
@@ -469,10 +488,12 @@ local function update_padman(padman)
     local device = merged_pad:get_field("Device")
 
     if not device then
+        pad_why("skipped: the pad has no device")
         return
     end
 
-    update_pad_device(device)
+    local ok_pd, err_pd = pcall(update_pad_device, device)
+    if not ok_pd then pad_why("update_pad_device FAILED: " .. tostring(err_pd)) end
     --merged_pad:call("updateStick")
     --merged_pad:call("updateButton")
 
@@ -488,7 +509,8 @@ local function on_pre_hid_padman_update(args)
 
     local padman = sdk.to_managed_object(args[2])
 
-    update_padman(padman)
+    local ok_pm, err_pm = pcall(update_padman, padman)
+    if not ok_pm then pad_why("update_padman FAILED: " .. tostring(err_pm)) end
 
     --[[padman:call("changeActiveUserPad", device)
     padman:set_field("ActivePad", merged_pad)

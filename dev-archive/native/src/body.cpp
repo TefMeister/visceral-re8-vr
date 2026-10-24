@@ -86,7 +86,9 @@ void frame() {
     Quat look;
     if (!bridge::room_rot_to_world(bridge::hmd_rot(), look)) return;
     g_tf_yaw = fwd_yaw(q);
-    g_look_yaw = fwd_yaw(look);
+    // 2026-10-24 first wear: look and transform read 180 apart while looking straight ahead: the headset's rotation carried
+    // into the world looks down -Z (the camera's convention), the player transform faces +Z
+    g_look_yaw = yaw_of(rotate(look, Vec3{0, 0, -1}));
     const float body_now = wrap_pi(g_tf_yaw + g_theta);
 
     if (bridge::flag(bridge::S_AIMING) || bridge::held(bridge::S_RGRIP)) {
@@ -126,19 +128,21 @@ void late_point() {
     const bool list = n <= 0;
     if (list) n = call_direct<int>(joints, "get_Count", 0);
     if (n <= 0) return;
+    // 2026-10-24 first wear (Tefa's screenshots: Ethan torn into strips): every joint was turned, but a child's world pose
+    // already carries its parent's turn, so each joint was turned again down the chain. Only the ROOT joint is turned now;
+    // the rest of the skeleton hangs off it and follows.
+    auto* j = joint_at(joints, 0, list);
+    Vec3 jp;
+    Quat jq;
+    if (j == nullptr || !get_v3(JOINT, j, "get_Position", jp) || !get_q(JOINT, j, "get_Rotation", jq)) return;
     static bool told = false;
-    if (!told) { told = true; LOGI("%s body: %d joints on the player, turned about the feet by the drawn offset", TAG, n); }
-    for (int i = 0; i < n && i < BODY_MAX_JOINTS; ++i) {
-        auto* j = joint_at(joints, i, list);
-        Vec3 jp;
-        Quat jq;
-        if (j == nullptr || !get_v3(JOINT, j, "get_Position", jp) || !get_q(JOINT, j, "get_Rotation", jq)) continue;
-        Vec3 np = g_pivot + rotate(g_rot, jp - g_pivot);
-        Quat nq = qnorm(qmul(g_rot, qnorm(jq)));
-        set_any(JOINT, j, "set_Position", &np);
-        set_any(JOINT, j, "set_Rotation", &nq);
-        if (i == 0) { g_wrote_root_yaw = fwd_yaw(nq); g_wrote = true; }
-    }
+    if (!told) { told = true; LOGI("%s body: the root joint %s (of %d) is turned about the feet by the drawn offset", TAG, read_string(call_ptr(j, "get_Name")).c_str(), n); }
+    Vec3 np = g_pivot + rotate(g_rot, jp - g_pivot);
+    Quat nq = qnorm(qmul(g_rot, qnorm(jq)));
+    set_any(JOINT, j, "set_Position", &np);
+    set_any(JOINT, j, "set_Rotation", &nq);
+    g_wrote_root_yaw = fwd_yaw(nq);
+    g_wrote = true;
 }
 
 void render_point() {

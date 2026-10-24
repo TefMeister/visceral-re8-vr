@@ -2743,8 +2743,8 @@ local function read_active_dpad_quickslot()
 
     local dial = false
     -- Visceral RE8 (2026-10-24, Tefa): the quick-equip combo is the left thumb rest + right stick, not the weapon dial (LT);
-    -- re8_vr.lua reads the thumb rest every frame (re8vr.thumbrest_dpad)
-    dial = rawget(_G, "re8vr") ~= nil and re8vr.thumbrest_dpad == true
+    -- re8_vr.lua reads the thumb rest every frame (_G.__visceral_thumbrest_dpad)
+    dial = rawget(_G, "__visceral_thumbrest_dpad") == true
 
     local Q = QuickEquipSlotEnum
     if dial then
