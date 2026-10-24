@@ -55,6 +55,7 @@ local jobs = {}                -- code -> sound key, set by hand in the menu
 local names = {}               -- "wwise:<id>" -> the game's own trigger name
 local on_player = {}           -- "wwise:<id>" -> true when the game plays it on the player (OnCharacter), not the weapon
 local cid_of = {}              -- "wwise:<id>" -> the number the game hands the sound container for it (may differ from the id)
+local pump_split_ms = 220      -- where the M1897 pump sound's two halves meet (a first guess; tuned from Tefa's ears)
 local learned = {}             -- "3036" -> { ["24"] = { keys }, ["25"] = { keys } }
 pcall(function()
     local d = json.load_file(SOUNDS_FILE)
@@ -63,6 +64,7 @@ pcall(function()
     if type(d.names) == "table" then names = d.names end
     if type(d.on_player) == "table" then on_player = d.on_player end
     if type(d.cid_of) == "table" then cid_of = d.cid_of end
+    if tonumber(d.pump_split_ms) then pump_split_ms = tonumber(d.pump_split_ms) end
     if type(d.learned) == "table" then
         for w, g in pairs(d.learned) do   -- only the keyed form (the first learned lists were bare slot numbers: dropped)
             if type(g) == "table" then
@@ -77,7 +79,8 @@ local function save()
     pcall(function()
         local o = {}
         for k, v in pairs(jobs) do o[tostring(k)] = v end
-        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names, on_player = on_player, cid_of = cid_of })
+        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names, on_player = on_player, cid_of = cid_of,
+            pump_split_ms = pump_split_ms })
     end)
 end
 local function weapon_num()
@@ -107,6 +110,7 @@ local function interesting(name, pname)
     return name == pname or n:find("wp") ~= nil or n:find("ri3") ~= nil or n:find("weapon") ~= nil or n:find("gun") ~= nil
 end
 
+local GUN_SOUNDS                   -- each gun's own handling sounds (filled further down)
 local run = nil                    -- the motion run being recorded: { motion, weapon, keys, last }
 local replaying = false            -- our own replay is heard by the same hook: never part of a run
 local ctx = {}                     -- key -> the newest { name, this, go, layer, tracks, slot } it was heard with
@@ -166,6 +170,18 @@ local function store(key, c)
     if o ~= nil then drop(o) end
     hold(c)
     ctx[key] = c
+end
+
+local cuts = 0
+local function vr_on() return safe(function() return vrmod:is_hmd_active() end) == true end
+-- one of the held gun's handling sounds (slide, pump, bolt: codes 1-8 of GUN_SOUNDS), which the hand now plays itself
+local function hand_owned(key)
+    local g = GUN_SOUNDS[tostring(weapon_num())]
+    if not g then return false end
+    for code = 1, 8 do
+        for _, k in ipairs(g[code] or {}) do if k:gsub("@%a+$", "") == key then return true end end
+    end
+    return false
 end
 
 local function hook()
@@ -247,6 +263,20 @@ local function hook()
                     if onchar and not on_player[key] then on_player[key] = true end
                     note(key, onchar and "the player" or "the weapon", name, motion)
                     record(key, motion)
+                    -- 2026-10-24 (Tefa: "the original game sounds and animations for rifle after a shot is fired, the bolt racking
+                    -- and gun turning, and for the shotgun the shell guard opening, sound playing and shell flying out, they have
+                    -- to be removed"): in VR, the moment the game's after-shot motion (24xx) plays one of this gun's own
+                    -- handling sounds (the ones the hand plays now), that sound is skipped and the motion jumped to its end
+                    if not replaying and motion ~= nil and math.floor(motion / 100) == 24 and hand_owned(key) and vr_on() then
+                        local f = safe(function() return layer:call("get_Frame") end)
+                        local e = safe(function() return layer:call("get_EndFrame") end)
+                        if e ~= nil then pcall(function() layer:call("set_Frame", e) end) end
+                        cuts = cuts + 1
+                        if cuts <= 6 then
+                            L(string.format("the game's after-shot motion %d cut at frame %s of %s (%s '%s' skipped)", motion, tostring(f), tostring(e), key, tostring(names[key] or "?")))
+                        end
+                        return sdk.PreHookResult.SKIP_ORIGINAL
+                    end
                     in_motion = key
                 end, function(r) in_motion = nil return r end)
             end)
@@ -260,10 +290,77 @@ pcall(hook)
 local function container_of(go)
     return go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.wwise.WwiseContainer")) end)
 end
+-- 2026-10-24 build 7 worn: no weaponTrigger ever reached a WwiseContainer method we can hook (the motion sound goes the
+-- native way), and a made track was accepted but silent. So ASK: every WwiseContainer on the player, its children (3 deep)
+-- and the weapon is asked exists(id); the first that knows the sound plays it. Logged once per sound, with every container
+-- seen and how many triggers it knows, so a silent run still says where the sounds live.
+local known_by = {}                -- key -> the container that knows it (held), or false = none knew it
+local function containers_of(go, out, depth, where)
+    if go == nil or depth > 3 then return end
+    local comps = safe(function() return go:call("get_Components") end)
+    local arr = comps and safe(function() return comps:get_elements() end) or {}
+    local gname = tostring(safe(function() return go:call("get_Name") end) or "?")
+    for _, c in ipairs(arr) do
+        local tn = safe(function() return c:get_type_definition():get_full_name() end)
+        local isc = tn and safe(function() return c:get_type_definition():is_a("via.wwise.WwiseContainer") end)
+        if isc then out[#out + 1] = { c = c, where = where .. gname, tn = tn } end
+    end
+    local tf = safe(function() return go:call("get_Transform") end)
+    local ch = tf and safe(function() return tf:call("get_Child") end)
+    local n = 0
+    while ch ~= nil and n < 64 do
+        local cgo = safe(function() return ch:call("get_GameObject") end)
+        containers_of(cgo, out, depth + 1, where .. gname .. "/")
+        ch = safe(function() return ch:call("get_Next") end)
+        n = n + 1
+    end
+end
+local function find_container(key, id)
+    if known_by[key] ~= nil then return known_by[key] or nil end
+    local list = {}
+    containers_of(player_go(), list, 0, "")
+    local w = rawget(_G, "re8vr") and re8vr.weapon
+    containers_of(w and safe(function() return w:call("get_GameObject") end), list, 0, "weapon ")
+    local seen = {}
+    for _, e in ipairs(list) do
+        local names_arr = safe(function() return e.c:call("get_TriggerIdNameList") end)
+        local count = names_arr and safe(function() return #names_arr:get_elements() end) or -1
+        local yes = safe(function() return e.c:call("exists(System.UInt32)", id) end)
+        seen[#seen + 1] = string.format("%s (%s, %d triggers%s)", e.where, e.tn, count, yes and ", KNOWS IT" or "")
+        if yes == true and not known_by[key] then pcall(function() e.c:add_ref() end); known_by[key] = e.c end
+    end
+    if not known_by[key] then known_by[key] = false end
+    L(string.format("%s '%s': %d containers asked, %s -- %s", key, tostring(names[key] or "?"), #list,
+        known_by[key] and "one knows it" or "NONE knows it", table.concat(seen, "; ")))
+    return known_by[key] or nil
+end
+
+local pending_stops = {}           -- { t, cont, id }: sounds to cut at the split
+re.on_frame(function()
+    local now = os.clock()
+    for i = #pending_stops, 1, -1 do
+        local ps = pending_stops[i]
+        if now >= ps.t then pcall(function() ps.cont:call("stopTriggered(System.UInt32)", ps.id) end); table.remove(pending_stops, i) end
+    end
+end)
+
 local function play(key)
+    local half = key and key:match("@(%a+)$")
+    key = key and key:gsub("@%a+$", "")
     local id = key and tonumber(key:match("^%a+:(%d+)$"))
     if id == nil then return false, "no sound" end
     if trigger_m == nil then return false, "no WwiseContainer.trigger" end
+    local kc = find_container(key, id)
+    if kc ~= nil and pcall(function() trigger_m:call(kc, id) end) then
+        played = played + 1
+        if half == "stop" then
+            pending_stops[#pending_stops + 1] = { t = os.clock() + pump_split_ms / 1000, cont = kc, id = id }
+        elseif half == "seek" then
+            local ok = pcall(function() kc:call("seekTrigger(System.UInt32, System.Int32)", id, pump_split_ms) end)
+            return true, "the container that knows it, from " .. pump_split_ms .. " ms" .. (ok and "" or " (seek FAILED)")
+        end
+        return true, "the container that knows it" .. (half == "stop" and (", cut at " .. pump_split_ms .. " ms") or "")
+    end
     if motion_cont ~= nil then
         local cid = tonumber(cid_of[key]) or id
         local known = safe(function() return motion_cont:call("exists(System.UInt32)", cid) end)
@@ -317,12 +414,17 @@ end
 --   M1897 after a shot (motion 2422): one sound, SHOTGUN_MVT_PUMP -> played as the pump comes back.
 --   F2 Rifle after a shot (2422): GRAB_LEVER, PICKUP_I, PICKUP_H, HAND_RELOAD_A -> up, back, forward, down.
 -- A trigger id is the RE Engine name hash: murmur3_32 of the UTF-16LE name, seed 0xFFFFFFFF (checked on three).
-local GUN_SOUNDS = {
-    ["3046"] = { [1] = { "wwise:3326354725" },                         -- SND_MOT_RI3046_SE_RELOAD_C
-                 [2] = { "wwise:2079149791", "wwise:3043993691" },     -- SND_MOT_RI3046_SE_RELOAD_D, _F
+GUN_SOUNDS = {
+    -- 2026-10-24 headset (Tefa: "racking the slider back on the pistol needs to make a louder click when it's all the way at
+    -- the back"): D joins C at the back; F alone sends it home
+    ["3046"] = { [1] = { "wwise:3326354725", "wwise:2079149791" },     -- SND_MOT_RI3046_SE_RELOAD_C + _D
+                 [2] = { "wwise:3043993691" },                         -- SND_MOT_RI3046_SE_RELOAD_F
                  [9] = { "wwise:1178490312" },                         -- SND_MOT_RI3046_SE_RELOAD_E (0.0 s: out)
                  [10] = { "wwise:2121001178", "wwise:1786646228" } },  -- SND_MOT_RI3046_SE_RELOAD_B, _A (0.6-0.7 s: in)
-    ["3036"] = { [3] = { "wwise:3138231974" }, [4] = {},              -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP (one sound, both ways)
+    -- (Tefa: "shotgun makes both sounds at the low end of the handle, so the sound needs to be cut in half - one "chhk" at
+    -- the bottom and the next one when pushed back up"): the first half at the back (stopped at the split), the second half
+    -- forward (started at the split). The split is `pump_split_ms` in sounds.json, so it can be tuned with "Reset scripts".
+    ["3036"] = { [3] = { "wwise:3138231974@stop" }, [4] = { "wwise:3138231974@seek" },   -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP
                  [11] = { "wwise:2908618300" } },                      -- SND_MOT_RI_SE_SHOTGUN_SHELL
     ["3042"] = { [5] = { "wwise:3835880431" },                         -- SND_MOT_RI3042_SE_GRAB_LEVER
                  [6] = { "wwise:3430096898" },                         -- SND_MOT_RI_SE_SHOTGUN_PICKUP_I

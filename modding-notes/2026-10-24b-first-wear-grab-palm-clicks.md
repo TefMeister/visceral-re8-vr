@@ -141,3 +141,19 @@ it, and plays through it when that container says it knows the sound; else it ma
 holding the id and hands it to the player's `WwiseWeaponMotionSequence.weaponTrigger`, the game's own way. New handling
 sounds: magazine out (LEMI RELOAD_E, F2 RELOAD_A), magazine in (LEMI RELOAD_B + A, F2 RELOAD_B), shell in (SHOTGUN_SHELL).
 `[compile-verified 2026-10-24]`
+
+## Fifth wear (14:47-15:00): the sounds come through
+
+With the container search live (hot-loaded, "Reset scripts"): **every gun's handling sounds play** `[reported 2026-10-24]`.
+The log: four containers on the player (`app.WwiseContainerApp`): `pl1000` and one per gun object
+(`pl1000/ri3042_Inventory`, `.../ri3036_Inventory`, `.../ri3046_Inventory`); the gun's own one knows its sounds (`exists`
+true), the player's does not; none lists names (`get_TriggerIdNameList` empty) `[measured 2026-10-24]`. The made-track route
+and the player's container were silent.
+Tefa's next asks: a louder click at the back of the slide; the magazine insert makes the left hand dart along the insert and
+jump back; the pump's one sound carries both "chhk"s, so split it (back = first half, forward = second); and remove the
+game's own after-shot handling (the rifle's bolt and gun turn, the shotgun's shell guard, its sound and the flying shell).
+Build 8: the slide back plays RELOAD_C + D, home F; the pump sound is stopped at `pump_split_ms` (220, a guess, in
+sounds.json) going back and started from it going forward (`seekTrigger(UInt32, Int32)`); in VR the game's after-shot motion
+(24xx) is jumped to its end the moment it plays one of the gun's hand-owned sounds, and that sound is skipped; the smoothing
+always draws our own placement in later solves while the hand is on the slide / pump / bolt / magazine. `[compile-verified
+2026-10-24]`

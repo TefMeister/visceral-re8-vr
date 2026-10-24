@@ -62,12 +62,16 @@ void on_ik(MO* ik) {
         const bool easing = now_s() - g_t0 < SMOOTH_DOCK_SEC;
         Vec3 cp;
         const Vec3 first = rp + rotate(rq, g_final_p);
-        if (!easing && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) && dist(lp, cp) + SMOOTH_TOWARD_M < dist(first, cp)) {
+        // 2026-10-24 (Tefa: "when inserting the mag, left hand keeps rapidly going in the direction of the insertion and then
+        // teleports back onto the mag"): while the hand is ours (slide / pump / bolt / magazine) the grip script's undo moved
+        // it toward the controller in a later solve and that was drawn. Ours: the first answer always wins
+        const bool ours = rack::active() || reload::hand_on_mag();
+        if (!ours && !easing && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) && dist(lp, cp) + SMOOTH_TOWARD_M < dist(first, cp)) {
             g_final_p = rel;
             g_final_q = qrel;
             return;
         }
-        if (easing || dist(rel, g_final_p) <= SMOOTH_LATE_DOCK_M) player::set_pose(target_of(ik), first, qnorm(qmul(rq, g_final_q)));
+        if (ours || easing || dist(rel, g_final_p) <= SMOOTH_LATE_DOCK_M) player::set_pose(target_of(ik), first, qnorm(qmul(rq, g_final_q)));
         return;
     }
     g_frame = frame;
