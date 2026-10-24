@@ -22,13 +22,20 @@ bool g_was_on = false;
 std::atomic<int> g_faked{0};
 float g_log_t = -10.0f;
 
+int g_seen = 0;
 int pre(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned long long) {
     t_fake = false;
-    if (!g_on || t_self_read || argc < 3) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    // 01:50 (the log: "0 asks answered" while the game docked every frame): the motion-object check never matched, so it is
+    // gone; the left hand IK's joint hash alone names the call. The first calls are logged to show what arrives
     const auto& s = player::now();
-    if (s.motion == nullptr || argv[1] != (void*)s.motion || s.ik_left == nullptr) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
-    auto* lh = field_ptr<uint32_t>(s.ik_left, "<HashJoint2>k__BackingField");
-    if (lh == nullptr || (uint32_t)(uintptr_t)argv[2] != *lh) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    auto* lh = s.ik_left != nullptr ? field_ptr<uint32_t>(s.ik_left, "<HashJoint2>k__BackingField") : nullptr;
+    const uint32_t hash = argc >= 3 ? (uint32_t)(uintptr_t)argv[2] : 0;
+    if (g_seen < 8) {
+        ++g_seen;
+        LOGI("%s nodock: ask #%d: argc %d, this %p (player motion %p), hash %u (left hand %u), on %d, self %d", TAG, g_seen, argc, argc >= 2 ? argv[1] : nullptr,
+             (void*)s.motion, hash, lh ? *lh : 0, g_on ? 1 : 0, t_self_read ? 1 : 0);
+    }
+    if (!g_on || t_self_read || argc < 3 || lh == nullptr || hash != *lh) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     t_fake = true;
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }

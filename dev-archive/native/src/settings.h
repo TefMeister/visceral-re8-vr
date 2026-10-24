@@ -130,6 +130,7 @@ constexpr float PUMP_BACK_M = -0.080f;
 // smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
 constexpr float SMOOTH_TOWARD_M = 0.01f;          // a later solve asking this much closer to the left controller = an undo (drawn)
+constexpr float FREE_TURN_DEVIATION_RAD = 0.35f;  // smooth.cpp: the free hand's target turned this far (20 deg) from its controller prediction = a dock
 constexpr float FREE_DEVIATION_M = 0.04f;         // smooth.cpp: the free hand's target this far from its controller prediction = a dock (put back)
 constexpr int   FREE_LEARN_FRAMES = 5;            // free frames in a row before the controller offset is learned from them
 constexpr float FREE_LEARN_RATE = 0.05f;          // how fast the learned offset follows
@@ -156,6 +157,7 @@ constexpr float BODY_RUN_DEADZONE_DEG = 30.0f;
 constexpr float BODY_RUN_MIN_MPS = 2.4f;          // moving faster than this = running
 constexpr float BODY_FOLLOW_GAIN = 1.0f;          // the catch-up: gain x the remaining angle per second (slow), floor BODY_FOLLOW_MIN_DEG_S
 constexpr float BODY_FOLLOW_MIN_DEG_S = 20.0f;
+constexpr bool  BODY_ALL_JOINTS = true;           // 2026-10-25: the root alone never drew; turn every joint but the arms and the head
 constexpr float BODY_MAX_OFFSET_DEG = 100.0f;     // the drawn body never further than this from the player transform
 constexpr float BODY_WALK_MIN_MPS = 0.35f;        // moving faster than this = walking: the body faces the travel
 constexpr float BODY_BACKPEDAL_DEG = 100.0f;      // travel further than this from the look = back-pedalling: face the look

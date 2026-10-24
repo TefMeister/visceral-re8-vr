@@ -41,6 +41,17 @@ int g_held = 0, g_undone = 0;
 Vec3 g_root_p{};
 Quat g_root_q{0, 0, 0, 1};
 MO* g_root = nullptr;   // the root joint and the turn written at the late write (written again before the draw)
+MO* g_j[BODY_MAX_JOINTS] = {};   // every joint turned this frame (BODY_ALL_JOINTS)
+Vec3 g_p[BODY_MAX_JOINTS] = {};
+Quat g_q[BODY_MAX_JOINTS] = {};
+bool g_ok[BODY_MAX_JOINTS] = {};
+bool g_skip[BODY_MAX_JOINTS] = {};
+int g_n = 0, g_names_n = -1, g_skip_n = 0;
+bool skip_joint(const std::string& nm) {   // the arm chains (the hands stay on the controllers) and the head
+    static const char* words[] = {"Shoulder", "Clavicle", "UpperArm", "Arm", "Elbow", "Forearm", "Wrist", "Hand", "Palm", "Thumb", "Index", "Middle", "Ring", "Pinky", "Head"};
+    for (const char* w : words) if (nm.find(w) != std::string::npos) return true;
+    return false;
+}
 float g_log_t = 0.0f;
 float g_tf_yaw = 0.0f, g_look_yaw = 0.0f;
 bool g_catching = false;        // standing: the body is coming round to the look (until within 2 deg)
@@ -208,6 +219,40 @@ void late_point() {
     // 2026-10-24 first wear (Tefa's screenshots: Ethan torn into strips): every joint was turned, but a child's world pose
     // already carries its parent's turn, so each joint was turned again down the chain. Only the ROOT joint is turned now;
     // the rest of the skeleton hangs off it and follows.
+    // 2026-10-25 01:50 (Tefa, after the write-before-the-draw: "chest and body still the same"): the root alone is never
+    // drawn turned. Every joint is now turned (read ALL first, then written: the 2026-10-24 strips came from reading a child
+    // after its parent was already turned), except the arm chains (the hands stay on the controllers) and the head
+    if (BODY_ALL_JOINTS) {
+        if (n > BODY_MAX_JOINTS) n = BODY_MAX_JOINTS;
+        if (g_names_n != n) {   // the joint names, once per skeleton: which ones are skipped
+            g_names_n = n;
+            g_skip_n = 0;
+            for (int i = 0; i < n; ++i) {
+                auto* ji = joint_at(joints, i, list);
+                const std::string nm = ji ? read_string(call_ptr(ji, "get_Name")) : "";
+                g_skip[i] = skip_joint(nm);
+                if (g_skip[i]) ++g_skip_n;
+            }
+            LOGI("%s body: %d joints, %d of them left alone (arms, hands, head)", TAG, n, g_skip_n);
+        }
+        int got = 0;
+        for (int i = 0; i < n; ++i) {
+            g_j[i] = joint_at(joints, i, list);
+            g_ok[i] = g_j[i] != nullptr && !g_skip[i] && get_v3(JOINT, g_j[i], "get_Position", g_p[i]) && get_q(JOINT, g_j[i], "get_Rotation", g_q[i]);
+            if (g_ok[i]) ++got;
+        }
+        for (int i = 0; i < n; ++i) {
+            if (!g_ok[i]) continue;
+            g_p[i] = g_pivot + rotate(g_rot, g_p[i] - g_pivot);
+            g_q[i] = qnorm(qmul(g_rot, qnorm(g_q[i])));
+            set_any(JOINT, g_j[i], "set_Position", &g_p[i]);
+            set_any(JOINT, g_j[i], "set_Rotation", &g_q[i]);
+        }
+        g_n = n;
+        if (got > 0 && g_ok[0]) { g_wrote_root_yaw = fwd_yaw(g_q[0]); g_root = g_j[0]; g_root_p = g_p[0]; g_root_q = g_q[0]; }
+        g_wrote = got > 0;
+        return;
+    }
     auto* j = joint_at(joints, 0, list);
     Vec3 jp;
     Quat jq;
@@ -230,7 +275,12 @@ void late_point() {
 // joint needed its second write at BeginRendering for the same reason). The turned root is now written again here and at
 // BeginRendering pre, from the turn kept at the late write
 void write_root_again() {
-    if (!g_wrote || g_root == nullptr) return;
+    if (!g_wrote) return;
+    if (BODY_ALL_JOINTS) {
+        for (int i = 0; i < g_n; ++i) if (g_ok[i]) { set_any(JOINT, g_j[i], "set_Position", &g_p[i]); set_any(JOINT, g_j[i], "set_Rotation", &g_q[i]); }
+        return;
+    }
+    if (g_root == nullptr) return;
     set_any(JOINT, g_root, "set_Position", &g_root_p);
     set_any(JOINT, g_root, "set_Rotation", &g_root_q);
 }

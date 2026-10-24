@@ -199,8 +199,14 @@ void on_ik(MO* ik) {
             const Quat cinv = qinv(cq);
             const Vec3 pp = g_cal ? cp + rotate(cq, g_cal_p) : lp;
             const Quat pq = g_cal ? qnorm(qmul(cq, g_cal_q)) : lq;
-            const bool docked = bridge::flag(bridge::S_GRIPPING_WEAPON) || (g_cal && dist(lp, pp) > FREE_DEVIATION_M);
-            if (!docked) {
+            // 01:50 (Tefa: near the pump "the hand still rotates"): within a few cm of the dock spot the docked pose passed the
+            // distance test and its ROTATION was learned, so the hand turned slowly toward the grip. A turn away from the
+            // prediction now counts as a dock, and nothing is learned unless the hand is well away from the gun and the pouch
+            const float turn_away = g_cal ? std::fabs(2.0f * std::acos(std::fmin(1.0f, std::fabs(lq.x * pq.x + lq.y * pq.y + lq.z * pq.z + lq.w * pq.w)))) : 0.0f;
+            const bool docked = bridge::flag(bridge::S_GRIPPING_WEAPON) || (g_cal && (dist(lp, pp) > FREE_DEVIATION_M || turn_away > FREE_TURN_DEVIATION_RAD));
+            const bool clean = !docked && rack::left_gun_closeness() <= 0.0f && !reload::in_pouch();
+            if (!docked && !clean) { /* near the gun: neither learned nor put back */ }
+            else if (clean) {
                 const Vec3 np = rotate(cinv, lp - cp);
                 const Quat nq = qnorm(qmul(cinv, qnorm(lq)));
                 if (++g_free_frames >= FREE_LEARN_FRAMES && std::sqrt(np.x * np.x + np.y * np.y + np.z * np.z) < FREE_OFFSET_MAX_M) {
