@@ -15,6 +15,7 @@
 #include <mmsystem.h>
 
 #include <filesystem>
+#include <map>
 #include <string>
 
 namespace vn::rack {
@@ -38,6 +39,12 @@ float g_travel = 0.0f, g_base = 0.0f, g_max_pull = 0.0f;
 Vec3 g_axis{0, 0, -1};        // the gun's forward in the room, frozen when the pull is armed
 int g_last_loaded = -1;
 int g_log_near = 0;
+
+// 2026-10-24 (Tefa: "when a rifle needs racking then after i switch to a different gun and switch back, it will still
+// require racking - right now it doesn't"): each gun's rack state is kept when it is put away and given back when it
+// returns, so a pending rack, a locked-back slide or a half-worked bolt survive a swap
+struct Kept { bool needed, parked; int bstate; float turn, travel; };
+std::map<std::string, Kept> g_kept;
 
 bool g_capture = false;       // take the hand's turn (and, with no slide joint, its place) at the next left-arm solve
 // the slide joint relative to the right hand target, measured after each frame's animation (late_point)
@@ -246,7 +253,10 @@ void frame() {
     if (!RELOAD_ON) return;
     const std::string id = weapons::canonical(player::now().weapon_id);
     if (id != g_id) {
-        if (g_needed) LOGI("%s rack: %s put away with a rack pending (its rounds went in)", TAG, g_id.c_str());
+        if (g_w != nullptr && !g_id.empty()) {
+            g_kept[g_id] = Kept{g_needed, g_parked, g_bstate, g_turn, bolt() ? g_travel : 0.0f};
+            if (g_needed) LOGI("%s rack: %s put away with a rack pending: kept for when it comes back", TAG, g_id.c_str());
+        }
         g_id = id;
         const auto* w = weapons::find(id);
         g_w = (w != nullptr && (w->rack || w->pump)) ? w : nullptr;
@@ -258,12 +268,24 @@ void frame() {
         g_last_loaded = -1;
         g_log_near = 0;
         eject::reset();
+        if (auto it = g_kept.find(id); g_w != nullptr && it != g_kept.end()) {
+            const Kept k = it->second;
+            g_needed = k.needed;
+            g_parked = k.parked;
+            g_bstate = k.bstate;
+            g_turn = k.turn;
+            g_travel = k.travel;
+            if (k.needed || k.parked || k.bstate != 0) LOGI("%s rack: %s back in hand: %s%s%s", TAG, id.c_str(), k.needed ? "a rack is still due" : "",
+                                                            k.parked ? (k.needed ? ", locked back" : "locked back") : "", k.bstate != 0 ? ", bolt mid-cycle" : "");
+        }
     }
     const auto& s = player::now();
     g_joint = nullptr;   // Village names its gun joints (headset log 2026-10-18: LEMI and F2 have "Slide")
     if (g_w != nullptr && s.weapon_tf != nullptr)
-        for (const wchar_t* n : pump() ? std::initializer_list<const wchar_t*>{L"Reload_Slider", L"Pump", L"Forend"}   // M1897: Reload_Slider
-                                       : std::initializer_list<const wchar_t*>{L"Slide", L"Bolt"})
+        // 2026-10-24 gun survey (dev-archive/recon/2026-10-24-gun-survey): the W870's pump is "Slide"; the WCX's charging
+        // handle is "Handle" (its Bolt is a child of it, so the handle goes first); the Dragoon's is "Lever"
+        for (const wchar_t* n : pump() ? std::initializer_list<const wchar_t*>{L"Reload_Slider", L"Pump", L"Forend", L"Slide"}   // M1897: Reload_Slider
+                                       : std::initializer_list<const wchar_t*>{L"Slide", L"Handle", L"Lever", L"Bolt"})
             if ((g_joint = joint_by_name(s.weapon_tf, n)) != nullptr) break;
     if (g_joint != nullptr && !g_have_rest && get_v3(JOINT, g_joint, "get_LocalPosition", g_rest)) {
         g_have_rest = true;

@@ -84,7 +84,12 @@ void resolve_frame() {
     g_wtf = s.weapon_tf;
     g_joint = (MAG_JOINT_ANIMATE && g_w != nullptr && g_w->reload == Reload::MAG && g_wtf) ? joint_by_name(g_wtf, L"Magazine") : nullptr;   // Village names its gun joints (headset log 2026-10-18)
     g_joint2 = (g_joint != nullptr && !bridge::experiment(bridge::EX_MAG_NO_SECOND)) ? joint_by_name(g_wtf, L"Magazine_second") : nullptr;
-    g_shell = (g_w != nullptr && g_w->reload == Reload::ROUND && g_wtf) ? joint_by_name(g_wtf, L"Bullet") : nullptr;
+    // the round carried in the hand: the M1897's "Bullet"; others from the 2026-10-24 gun survey: W870
+    // ShotgunCartridge_FK_0, Handcannon Bullet00, Wolfsbane Five_Bullet00 (in the cylinder), GM 79 Ammo01 (in the carrier)
+    g_shell = nullptr;
+    if (g_w != nullptr && g_w->reload == Reload::ROUND && g_wtf)
+        for (const wchar_t* n : {L"Bullet", L"ShotgunCartridge_FK_0", L"Bullet00", L"Five_Bullet00", L"Ammo01"})
+            if ((g_shell = joint_by_name(g_wtf, n)) != nullptr) break;
     if (g_shell != nullptr && !g_shell_have_rest && !g_round_in_hand &&
         get_v3(JOINT, g_shell, "get_LocalPosition", g_shell_rest) && get_q(JOINT, g_shell, "get_LocalRotation", g_shell_rest_rot))
         g_shell_have_rest = true;

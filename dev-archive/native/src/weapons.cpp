@@ -20,7 +20,9 @@ const Weapon WEAPONS[] = {
     {"ri3046_Inventory", "LEMI",                       R::MAG,   S::PISTOL,  true,  false},
     {"ri3047_Inventory", "V61 Custom",                 R::MAG,   S::PISTOL,  true,  false},
     {"ri3050_Inventory", "S.T.A.K.E",                  R::MAG,   S::PISTOL,  true,  false},
-    {"ri3115_Inventory", "Rocket Pistol",              R::MAG,   S::PISTOL,  true,  false},
+    // Rocket Pistol: no Magazine and no Slide joint, but a Lid opened by a Lever and two rockets Bullet00 / 01 (gun survey
+    // 2026-10-24), so the game's own reload stays on until its reload has been watched
+    {"ri3115_Inventory", "Rocket Pistol",              R::NONE,  S::PISTOL,  false, false},
     {"ri3122_Inventory", "Samurai Edge - AW Model-01", R::MAG,   S::PISTOL,  true,  false},
     {"ri3124_Inventory", "USM-AI",                     R::MAG,   S::PISTOL,  true,  false},
     {"ri3135_Inventory", "LEMI - Shadows of Rose",     R::MAG,   S::PISTOL,  true,  false},
@@ -42,7 +44,7 @@ const Weapon WEAPONS[] = {
     {"ri3147_Inventory", "M1897 - Shadows of Rose",    R::ROUND, S::LONG,    false, true},
     {"ri3023_Inventory", "GM 79",                      R::ROUND, S::LONG,    false, false, false, B::BREAK},
     {"ri3008_Inventory", "M1851 Wolfsbane",            R::ROUND, S::PISTOL,  false, false, false, B::CYLINDER},
-    {"ri3116_Inventory", "Handcannon PZ",              R::ROUND, S::PISTOL,  false, false, false, B::CYLINDER},   // a revolver [hypothesis]
+    {"ri3116_Inventory", "Handcannon PZ",              R::ROUND, S::PISTOL,  false, false, false, B::CYLINDER},   // a revolver: Cylinder with Bullet00-04 (survey 2026-10-24)
     {"ri3022_Inventory", "Knife (melee)",              R::NONE,  S::PISTOL,  false, false},
     {"ri3044_Inventory", "Knife (melee, 2)",           R::NONE,  S::PISTOL,  false, false},
 };
