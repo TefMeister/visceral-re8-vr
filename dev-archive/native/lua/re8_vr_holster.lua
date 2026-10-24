@@ -719,7 +719,7 @@ end
 
 local function publish_holster_slot_enabled()
     rawset(_G, "__re8_holster_slot_enabled", {
-        hip = CFG.enabled == true and CFG.hip_pistol_enabled ~= false,
+        hip = CFG.enabled == true and CFG.hip_pistol_enabled ~= false and rawget(_G, "__visceral_holsters_on") ~= true,
         knife = CFG.enabled == true and CFG.knife_enabled ~= false,
         medicine = CFG.enabled == true and CFG.medicine_enabled ~= false,
     })
@@ -2751,10 +2751,13 @@ local function read_active_dpad_quickslot()
         local axis = nil
         pcall(function() axis = vrmod:get_right_stick_axis() end)
         if axis then
-            if axis.y and axis.y >= 0.55 and Q and Q.Up ~= nil then return Q.Up, "dial_up" end
-            if axis.y and axis.y <= -0.55 and Q and Q.Down ~= nil then return Q.Down, "dial_down" end
-            if axis.x and axis.x >= 0.55 and Q and Q.Right ~= nil then return Q.Right, "dial_right" end
-            if axis.x and axis.x <= -0.55 and Q and Q.Left ~= nil then return Q.Left, "dial_left" end
+            -- Visceral RE8 (2026-10-24): the diagonals, as re8_vr.lua and the holster spots (cross turned 45 degrees clockwise)
+            if axis.x and axis.y and Q and axis.x * axis.x + axis.y * axis.y >= 0.30 then
+                if axis.x >= 0 and axis.y >= 0 and Q.Up ~= nil then return Q.Up, "dial_up_right" end
+                if axis.x >= 0 and axis.y < 0 and Q.Right ~= nil then return Q.Right, "dial_down_right" end
+                if axis.x < 0 and axis.y < 0 and Q.Down ~= nil then return Q.Down, "dial_down_left" end
+                if axis.x < 0 and axis.y >= 0 and Q.Left ~= nil then return Q.Left, "dial_up_left" end
+            end
         end
     end
 
@@ -7377,7 +7380,7 @@ STOW.publish_visual_mesh_zones = function()
     if CFG.holster_zone_motion_sync ~= true or CFG.enabled ~= true then return end
     local P = get_profile()
     local pos
-    if CFG.hip_pistol_enabled then
+    if CFG.hip_pistol_enabled and rawget(_G, "__visceral_holsters_on") ~= true then
         pos = HJ.slot_world_pos("pistol", P)
         if pos then publish_holster_zone_world("pistol", pos, P) end
     end
@@ -7389,7 +7392,7 @@ STOW.publish_visual_mesh_zones = function()
         pos = HJ.slot_world_pos("medicine", P)
         if pos then publish_holster_zone_world("medicine", pos, P) end
     end
-    if CFG.shoulder_enabled then
+    if CFG.shoulder_enabled and rawget(_G, "__visceral_holsters_on") ~= true then
         pos = HJ.slot_world_pos("longarm", P)
         if pos then publish_holster_zone_world("longarm", pos, P) end
     end
@@ -10137,14 +10140,14 @@ STOW.refresh_zones_for_suppress = function()
 
     local hover = STOW.hover_m()
     local in_any = false
-    if CFG.hip_pistol_enabled then
+    if CFG.hip_pistol_enabled and rawget(_G, "__visceral_holsters_on") ~= true then
         refresh_hmd_holster_zone(hip, "pistol", P,
             P.hip_pistol_trigger_dist or hover, P.hip_pistol_release_dist or (hover + 0.10),
             hand_world or hand_pos, nil)
         in_any = in_any or hip.in_zone
     else hip.in_zone = false end
 
-    if CFG.shoulder_enabled then
+    if CFG.shoulder_enabled and rawget(_G, "__visceral_holsters_on") ~= true then
         refresh_hmd_holster_zone(shoulder, "longarm", P,
             P.shoulder_trigger_dist or hover, P.shoulder_release_dist or (hover + 0.10),
             hand_world or hand_pos, nil)
@@ -10350,11 +10353,11 @@ HOLSTER_CALIB.tick_quick_adjust = function(rj, hip_z, shoulder_z, knife_z, med_z
     local trig = get_right_trigger_pressed() == true
     local target = nil
     local best_d = 1e9
-    if hip_z and hip_z.in_zone and CFG.hip_pistol_enabled then
+    if hip_z and hip_z.in_zone and CFG.hip_pistol_enabled and rawget(_G, "__visceral_holsters_on") ~= true then
         local d = tonumber(hip_z.last_dist) or 0
         if d < best_d then best_d = d; target = "hip" end
     end
-    if shoulder_z and shoulder_z.in_zone and CFG.shoulder_enabled then
+    if shoulder_z and shoulder_z.in_zone and CFG.shoulder_enabled and rawget(_G, "__visceral_holsters_on") ~= true then
         local d = tonumber(shoulder_z.last_dist) or 0
         if d < best_d then best_d = d; target = "shoulder" end
     end
@@ -10710,7 +10713,7 @@ re.on_frame(function()
         shoulder.in_zone = false
         knife.in_zone = false
     else
-    if CFG.hip_pistol_enabled and STOW.holster_zone_active(P, "pistol") then
+    if CFG.hip_pistol_enabled and rawget(_G, "__visceral_holsters_on") ~= true and STOW.holster_zone_active(P, "pistol") then
         -- Torso-anchored hip: world hand vs HMD yaw-only torso world position.
         refresh_hmd_holster_zone(hip, "pistol", P,
             P.hip_pistol_trigger_dist or hover, P.hip_pistol_release_dist or (hover + 0.10),
@@ -10723,7 +10726,7 @@ re.on_frame(function()
         }
     else hip.in_zone = false end
 
-    if CFG.shoulder_enabled and STOW.holster_zone_active(P, "longarm") then
+    if CFG.shoulder_enabled and rawget(_G, "__visceral_holsters_on") ~= true and STOW.holster_zone_active(P, "longarm") then
         refresh_hmd_holster_zone(shoulder, "longarm", P,
             P.shoulder_trigger_dist or hover, P.shoulder_release_dist or (hover + 0.10),
             hand_world or hand_pos, rj)

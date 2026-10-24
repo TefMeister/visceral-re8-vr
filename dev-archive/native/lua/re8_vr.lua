@@ -349,23 +349,21 @@ local function update_pad_device(device)
     end
 
     -- gripping right joystick causes "left trigger" to be pressed (aiming)
-    if vrmod:is_action_active(action_grip, right_joystick) then
+    -- Visceral RE8 (2026-10-24): not while the right hand is in a holster spot (visceral_re8_holsters.lua): the grip is the grab
+    if vrmod:is_action_active(action_grip, right_joystick) and rawget(_G, "__visceral_holster_zone") ~= true then
         cur_button = cur_button | via.hid.GamePadButton.LTrigBottom
         device:call("set_AnalogL", 1.0)
     end
 
     if thumbrest_dpad then -- Visceral RE8 (2026-10-24): was the weapon dial (LT) + left stick
-        -- DPad mimickry
-        if dpad_axis.y >= 0.9 then
-            cur_button = cur_button | via.hid.GamePadButton.LUp
-        elseif dpad_axis.y <= -0.9 then
-            cur_button = cur_button | via.hid.GamePadButton.LDown
-        end
-
-        if dpad_axis.x >= 0.9 then
-            cur_button = cur_button | via.hid.GamePadButton.LRight
-        elseif dpad_axis.x <= -0.9 then
-            cur_button = cur_button | via.hid.GamePadButton.LLeft
+        -- DPad mimickry, on the DIAGONALS (Tefa 2026-10-24): the quick-slot cross turned 45 degrees clockwise, as the
+        -- holster spots: up-right = up (right shoulder), down-right = right (right hip), down-left = down (left hip),
+        -- up-left = left (left shoulder)
+        if dpad_axis.x * dpad_axis.x + dpad_axis.y * dpad_axis.y >= 0.64 then
+            if dpad_axis.x >= 0 and dpad_axis.y >= 0 then cur_button = cur_button | via.hid.GamePadButton.LUp
+            elseif dpad_axis.x >= 0 then cur_button = cur_button | via.hid.GamePadButton.LRight
+            elseif dpad_axis.y < 0 then cur_button = cur_button | via.hid.GamePadButton.LDown
+            else cur_button = cur_button | via.hid.GamePadButton.LLeft end
         end
     else
         if vrmod:is_action_active(action_dpad_up, left_joystick) then
