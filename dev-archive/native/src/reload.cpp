@@ -599,11 +599,33 @@ Quat g_free_rot{0, 0, 0, 1};
 // The IK target is the wrist and its turn differs from the hand joint's by a fixed amount: measured after the solves.
 bool g_tq_ok = false;
 Quat g_tq_off{0, 0, 0, 1};        // hand joint = IK target * this
+// 2026-10-24 (Tefa: "the hand after inserting a mag moves to a spot and stays there, while the gun can be moved around it
+// freely"): the gun's transform read before the arm is solved is where the game's animation holds it, not where the VR hand
+// puts it. So the magazine's seat and its out spot are measured after the solves (render_point) relative to the right hand's
+// IK target, which carries the gun, and placed from that target at the next solve (the way the slide is, rack.cpp)
+bool g_magrel_ok = false;
+Vec3 g_magrel_rest{}, g_magrel_out{};
+Quat g_magrel_rot{0, 0, 0, 1};
+void measure_mag_rel() {
+    Vec3 rp, a, b;
+    Quat rq, qa, qb;
+    if (g_joint == nullptr || !rh_target(rp, rq) || !from_weapon_local(g_rest_pos, g_rest_rot, a, qa) || !from_weapon_local(mag_out_pos(), g_rest_rot, b, qb)) return;
+    const Quat inv = qinv(qnorm(rq));
+    g_magrel_rest = rotate(inv, a - rp);
+    g_magrel_out = rotate(inv, b - rp);
+    g_magrel_rot = qnorm(qmul(inv, qa));
+    g_magrel_ok = true;
+}
 bool mag_world(Vec3& p, Quat& q) {
-    if (g_joint == nullptr) return false;
-    if (g_st == St::INSERT) return from_weapon_local(lerp(mag_out_pos(), g_rest_pos, ease((now_s() - g_t0) / RELOAD_INSERT_SEC)), g_rest_rot, p, q);
-    if (g_st == St::SEATED) return from_weapon_local(g_rest_pos, g_rest_rot, p, q);
-    return false;
+    Vec3 rp;
+    Quat rq;
+    if (g_joint == nullptr || !g_magrel_ok || !rh_target(rp, rq)) return false;
+    const Vec3 rel = g_st == St::INSERT ? lerp(g_magrel_out, g_magrel_rest, ease((now_s() - g_t0) / RELOAD_INSERT_SEC))
+                   : g_st == St::SEATED ? g_magrel_rest : Vec3{0, 0, 0};
+    if (g_st != St::INSERT && g_st != St::SEATED) return false;
+    p = rp + rotate(qnorm(rq), rel);
+    q = qnorm(qmul(qnorm(rq), g_magrel_rot));
+    return true;
 }
 bool hand_on_mag_pose(Vec3& tp, Quat& tq) {   // where the IK target goes so the hand joint holds the magazine (held_pose undone)
     Vec3 mp;
@@ -760,6 +782,7 @@ void late_point() {
 // animation had it, so the measured distance jumped between runs (0.11-0.14 m, then 0.35-0.42 m; 2026-10-19)
 void render_point() {
     if (!hand_on_mag()) measure_target_turn();   // only while the hand is the controller's (or the grip's), not ours
+    if (managed_now() && g_w->reload == Reload::MAG) measure_mag_rel();
     if (managed_now()) { hand_checks(); pose_shell(); }
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();

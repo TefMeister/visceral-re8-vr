@@ -157,3 +157,14 @@ sounds.json) going back and started from it going forward (`seekTrigger(UInt32, 
 (24xx) is jumped to its end the moment it plays one of the gun's hand-owned sounds, and that sound is skipped; the smoothing
 always draws our own placement in later solves while the hand is on the slide / pump / bolt / magazine. `[compile-verified
 2026-10-24]`
+
+## Sixth wear (15:11-15:13) and build 9
+
+Tefa: after a magazine goes in, the left hand goes to a spot and stays while the gun moves freely until LG is let go; the
+pump's halves are the wrong way round; the rifle still plays about a second of the game's own after-shot animation before
+snapping back `[reported 2026-10-24]`. Log: the shotgun's after-shot motion 2422 was cut at frame 31 of 70 (its first
+hand-owned sound), the rifle's after-shot motion is 2400 (not 2422).
+Build 9: the magazine's seat and out spot are measured after the solves relative to the right hand's IK target and placed
+from that target (the gun transform read before the solve is where the game's animation holds it); the pump halves swapped
+(back = second half, forward = first); the after-shot motion (24xx) of a pump / bolt gun is ended by time at frame 8
+(`after_shot_cut_frame` in sounds.json) in VR. `[compile-verified 2026-10-24]`

@@ -56,6 +56,7 @@ local names = {}               -- "wwise:<id>" -> the game's own trigger name
 local on_player = {}           -- "wwise:<id>" -> true when the game plays it on the player (OnCharacter), not the weapon
 local cid_of = {}              -- "wwise:<id>" -> the number the game hands the sound container for it (may differ from the id)
 local pump_split_ms = 220      -- where the M1897 pump sound's two halves meet (a first guess; tuned from Tefa's ears)
+local after_shot_cut_frame = 8 -- the game's after-shot motion (24xx) of a pump / bolt gun is ended at this frame (VR)
 local learned = {}             -- "3036" -> { ["24"] = { keys }, ["25"] = { keys } }
 pcall(function()
     local d = json.load_file(SOUNDS_FILE)
@@ -65,6 +66,7 @@ pcall(function()
     if type(d.on_player) == "table" then on_player = d.on_player end
     if type(d.cid_of) == "table" then cid_of = d.cid_of end
     if tonumber(d.pump_split_ms) then pump_split_ms = tonumber(d.pump_split_ms) end
+    if tonumber(d.after_shot_cut_frame) then after_shot_cut_frame = tonumber(d.after_shot_cut_frame) end
     if type(d.learned) == "table" then
         for w, g in pairs(d.learned) do   -- only the keyed form (the first learned lists were bare slot numbers: dropped)
             if type(g) == "table" then
@@ -80,7 +82,7 @@ local function save()
         local o = {}
         for k, v in pairs(jobs) do o[tostring(k)] = v end
         json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names, on_player = on_player, cid_of = cid_of,
-            pump_split_ms = pump_split_ms })
+            pump_split_ms = pump_split_ms, after_shot_cut_frame = after_shot_cut_frame })
     end)
 end
 local function weapon_num()
@@ -424,7 +426,9 @@ GUN_SOUNDS = {
     -- (Tefa: "shotgun makes both sounds at the low end of the handle, so the sound needs to be cut in half - one "chhk" at
     -- the bottom and the next one when pushed back up"): the first half at the back (stopped at the split), the second half
     -- forward (started at the split). The split is `pump_split_ms` in sounds.json, so it can be tuned with "Reset scripts".
-    ["3036"] = { [3] = { "wwise:3138231974@stop" }, [4] = { "wwise:3138231974@seek" },   -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP
+    -- (worn 15:12, Tefa: swap them, "the sound that plays when pulling the handle down is the one that is now used for when
+    -- pushing it back up"): back = the second half, forward = the first
+    ["3036"] = { [3] = { "wwise:3138231974@seek" }, [4] = { "wwise:3138231974@stop" },   -- SND_MOT_RI_SE_SHOTGUN_MVT_PUMP
                  [11] = { "wwise:2908618300" } },                      -- SND_MOT_RI_SE_SHOTGUN_SHELL
     ["3042"] = { [5] = { "wwise:3835880431" },                         -- SND_MOT_RI3042_SE_GRAB_LEVER
                  [6] = { "wwise:3430096898" },                         -- SND_MOT_RI_SE_SHOTGUN_PICKUP_I
@@ -452,7 +456,29 @@ local function job_keys(code)
 end
 local function job_key(code) local k = job_keys(code); return k and k[1] or nil end
 
+-- (worn 15:13, Tefa: "rifle still plays about a second of the game reloading animation before snapping back into my hand"):
+-- cutting at the first hand-owned sound came at frame ~31 of 70 (about a second). So for a pump / bolt gun in VR the
+-- after-shot motion is ended by time, at after_shot_cut_frame, right after the shot's kick
+local time_cuts = 0
+local function cut_after_shot()
+    if not vr_on() then return end
+    local g = GUN_SOUNDS[tostring(weapon_num())]
+    if not g or not (g[3] or g[5]) then return end
+    local pgo = player_go()
+    local mo = pgo and safe(function() return pgo:call("getComponent(System.Type)", sdk.typeof("via.motion.Motion")) end)
+    local layer = mo and safe(function() return mo:call("getLayer", UPPER_LAYER) end)
+    local m = layer and safe(function() return layer:call("get_MotionID") end)
+    if m == nil or math.floor(m / 100) ~= 24 then return end
+    local f = safe(function() return layer:call("get_Frame") end)
+    local e = safe(function() return layer:call("get_EndFrame") end)
+    if f == nil or e == nil or f < after_shot_cut_frame or f >= e - 0.5 then return end
+    pcall(function() layer:call("set_Frame", e) end)
+    time_cuts = time_cuts + 1
+    if time_cuts <= 6 then L(string.format("the game's after-shot motion %d ended at frame %.1f of %.0f (by time)", m, f, e)) end
+end
+
 re.on_pre_application_entry("UpdateHID", function()
+    pcall(cut_after_shot)
     local b = rawget(_G, "visceral_re8_bridge")
     if not b or not b.ready() then return end
     local mask = 0
