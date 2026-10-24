@@ -710,6 +710,9 @@ void frame() {
     }
     resolve_frame();
     track_pouch();
+    // 2026-10-24 (Tefa: "left hand on the mag does seem to fight the game at first, as it starts throwing the gun and hands
+    // around"): the grip script took the two-handed grip with LG held at the gun and steered the gun at the hand
+    bridge::put(bridge::S_GRIP_VETO, hand_on_mag() ? 1.0f : 0.0f);
     if (g_w == nullptr || g_gun == nullptr) return;
 
     if (g_w->reload == Reload::MAG) {

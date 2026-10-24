@@ -90,3 +90,28 @@ just drops the mag?"*
   (`MAG_HOLD`) undone, corrected by the hand joint's measured turn from its IK target. Nothing can take the slide meanwhile.
 - LG let go while the magazine is going in (before it seats) drops it (`HAND_FALL`, "LG let go before it clicked in").
 - Smoothing knows the magazine as an owner, so the hand eases onto and off it. `[compile-verified 2026-10-24]`
+
+## Third wear (13:49-14:01, build 5) and build 6 (built 14:15, not installed: the game was up)
+
+Tefa: the hand stays on the magazine bottom and letting go before it seats drops it (works); taking the slide closes it at
+once (it then has to be pulled back); the hand on the magazine "fights the game at first" (the gun and hands thrown about);
+the hand still docks without LG and snaps; pumping makes no sound and the gun jumps for a few frames at the end of the pump;
+the pouch shell moves a little with the right controller; on the rifle the left hand leaves the magazine when the controllers
+are far apart and comes back when they are close; no handling sound played at all `[reported 2026-10-24]`.
+Log: the grip script took the two-handed grip (`button=true praydog_docked=true our_grip=true`) right after an insert; and
+the motion-sound UInt32 is 1 or 2 for every motion (2000, 2106, 2305, 2422 ...).
+
+**Found with the REFramework MCP type dump** (the first use of it on this project): the tracks argument of
+`WwiseWeaponMotionSequence.weaponTrigger` is an `app.WwiseWeaponTriggerTracks` (kin: `...WithLayersTracks`,
+`...WithMaterialTracks`, `WwiseSelectableLayaerTriggerTracks`), from `via.wwise.WwiseTriggerTracks`, with `get_TriggerId()` and
+`get_TriggerIdName()`: the game's own Wwise trigger, the same in every run `[inferred-static 2026-10-24]` from the type
+database. So sounds are now keyed `wwise:<trigger id>`, saved with their names, and played with `WwiseContainer.trigger(id)`
+on the weapon (else the player): learned once, in flat or VR, they play in any later run. This also answers Tefa's idea of
+collecting the sounds from the flat-screen game.
+
+Build 6: the late-solve rule draws a later ask that comes back toward the left controller (the grip script's undo of the 10 cm
+dock), which build 4/5 had been holding back (why the unwanted dock showed again); `S_GRIP_VETO` (98) = the hand is on the
+magazine, read by the grip script through `_G.re8_grip_veto` (no grip, praydog's dock undone); a slide or pump taken where the
+game holds it (locked back) stays there; after a hand pump the hand stays on the pump (LT let go before the next).
+The rifle's hand leaving the magazine with the controllers far apart is most likely the arm's reach `[hypothesis]`.
+`[compile-verified 2026-10-24]`

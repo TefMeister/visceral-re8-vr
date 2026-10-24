@@ -127,6 +127,7 @@ constexpr float PUMP_BACK_M = -0.080f;
 
 // smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
+constexpr float SMOOTH_TOWARD_M = 0.01f;          // a later solve asking this much closer to the left controller = an undo (drawn)
 constexpr float SMOOTH_LATE_DOCK_M = 0.15f;       // a later solve of the frame asking this close to the first answer = a late dock: held back
 
 // rack.cpp (2026-10-24, Tefa: "gun goes through the left wrist not the palm for LEMI and the shotgun"): the IK target is the

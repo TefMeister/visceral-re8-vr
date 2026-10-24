@@ -40,24 +40,29 @@ local JOBS = {
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
 local function L(s) log.info(TAG .. " " .. s) end
 
--- 2026-10-24 second wear: the weapon-motion "ids" are 1, 2, ... -- a SLOT in that motion's sound track, not a Wwise id, so
--- slot 1 of the walk and slot 1 of the pump are different sounds. A sound is therefore keyed "<call>:<motion>:<slot>", and it
--- is replayed only with the context (layer, tracks) it was heard with this session; container sounds are "container:<id>".
+-- 2026-10-24 third wear: the weapon-motion UInt32 is 1 or 2 for EVERY motion, so it is not the sound. The sound is the
+-- tracks argument (app.WwiseWeaponTriggerTracks and kin, from via.wwise.WwiseTriggerTracks): get_TriggerId() and
+-- get_TriggerIdName() give the game's own Wwise trigger, which is the same in every run (looked up live with the
+-- REFramework MCP type dump). So a sound is keyed "wwise:<trigger id>", kept with its name, and played with
+-- via.wwise.WwiseContainer.trigger(id) on the object it was heard on (the weapon, else the player): learned once, in flat or
+-- in VR, it plays in any later session. Container sounds are "container:<id>" (also Wwise trigger ids).
 local S_WEAPON_NUM = 97
 local RUN_QUIET_SEC = 2.0      -- a motion run ends when its motion changes, or after this long with no sound
 local FAM_FIRE, FAM_RELOAD = 24, 25
 
 local jobs = {}                -- code -> sound key, set by hand in the menu
+local names = {}               -- "wwise:<id>" -> the game's own trigger name
 local learned = {}             -- "3036" -> { ["24"] = { keys }, ["25"] = { keys } }
 pcall(function()
     local d = json.load_file(SOUNDS_FILE)
     if type(d) ~= "table" then return end
-    if type(d.jobs) == "table" then for k, v in pairs(d.jobs) do if tonumber(k) and type(v) == "string" then jobs[tonumber(k)] = v end end end
+    if type(d.jobs) == "table" then for k, v in pairs(d.jobs) do if tonumber(k) and type(v) == "string" and not v:find("Trigger:") then jobs[tonumber(k)] = v end end end
+    if type(d.names) == "table" then names = d.names end
     if type(d.learned) == "table" then
         for w, g in pairs(d.learned) do   -- only the keyed form (the first learned lists were bare slot numbers: dropped)
             if type(g) == "table" then
-                for f, keys in pairs(g) do
-                    if type(keys) == "table" and type(keys[1]) == "string" then learned[w] = learned[w] or {}; learned[w][f] = keys end
+                for f, keys in pairs(g) do   -- only Wwise trigger keys last between runs
+                    if type(keys) == "table" and type(keys[1]) == "string" and keys[1]:find("^wwise:") then learned[w] = learned[w] or {}; learned[w][f] = keys end
                 end
             end
         end
@@ -67,7 +72,7 @@ local function save()
     pcall(function()
         local o = {}
         for k, v in pairs(jobs) do o[tostring(k)] = v end
-        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned })
+        json.dump_file(SOUNDS_FILE, { jobs = o, learned = learned, names = names })
     end)
 end
 local function weapon_num()
@@ -112,7 +117,7 @@ local function note(key, where, how, motion)
     end
     h.n = h.n + 1
     h.where, h.how, h.motion, h.t = where, how, motion, os.clock()
-    if h.n <= LOG_PER_ID then L(string.format("heard %s on %s (upper motion %s), #%d", key, tostring(where), tostring(motion), h.n)) end
+    if h.n <= LOG_PER_ID then L(string.format("heard %s '%s' on %s (upper motion %s), #%d", key, tostring(names[key] or "?"), tostring(where), tostring(motion), h.n)) end
 end
 
 local function finish_run()
@@ -191,13 +196,16 @@ local function hook()
                     local go = wt and sdk.to_managed_object(args[3]) or nil
                     local layer = sdk.to_managed_object(args[wt and 4 or 3])
                     local tracks = sdk.to_managed_object(args[wt and 5 or 4])
-                    local slot = sdk.to_int64(args[wt and 6 or 5]) & 0xFFFFFFFF
                     local motion = layer and safe(function() return layer:call("get_MotionID") end)
-                    local key = string.format("%s:%s:%d", name, tostring(motion), slot)
-                    if this ~= nil and layer ~= nil and tracks ~= nil and not replaying then
-                        store(key, { name = name, this = this, go = go, layer = layer, tracks = tracks, slot = slot })
+                    local tid = tracks and safe(function() return tracks:call("get_TriggerId") end)
+                    if tid == nil or tid == 0 then return end
+                    local key = "wwise:" .. tostring(tid)
+                    if names[key] == nil then
+                        names[key] = tostring(safe(function() return tracks:call("get_TriggerIdName") end) or "?")
                     end
-                    note(key, "the weapon motion sounds", name, motion)
+                    local onchar = safe(function() return tracks:get_field("OnCharacter") end)
+                    if go ~= nil and not onchar then store(key, { go = go }) end   -- heard on the weapon: played there
+                    note(key, onchar and "the player" or "the weapon", name, motion)
                     record(key, motion)
                 end, function(r) return r end)
             end)
@@ -208,27 +216,26 @@ local function hook()
 end
 pcall(hook)
 
+local function container_of(go)
+    return go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.wwise.WwiseContainer")) end)
+end
 local function play(key)
-    if key == nil then return false, "no sound" end
-    local id = key:match("^container:(%d+)$")
-    if id then
-        local pgo = player_go()
-        local cont = pgo and safe(function() return pgo:call("getComponent(System.Type)", sdk.typeof("via.wwise.WwiseContainer")) end)
-        if trigger_m == nil or cont == nil then return false, "no player sound container" end
-        local ok = pcall(function() trigger_m:call(cont, tonumber(id)) end)
-        if ok then played = played + 1 end
-        return ok, "the player's sound container"
-    end
+    local id = key and tonumber(key:match("^%a+:(%d+)$"))
+    if id == nil then return false, "no sound" end
+    if trigger_m == nil then return false, "no WwiseContainer.trigger" end
     local c = ctx[key]
-    local m = c and seq_m[c.name]
-    if m == nil then return false, "not heard yet this session (the game has to play that motion once first)" end
-    replaying = true
-    local ok
-    if c.name == "weaponTrigger" then ok = pcall(function() m:call(c.this, c.go, c.layer, c.tracks, c.slot) end)
-    else ok = pcall(function() m:call(c.this, c.layer, c.tracks, c.slot) end) end
-    replaying = false
-    if ok then played = played + 1 end
-    return ok, "replayed through " .. c.name
+    local wcont = c and container_of(c.go)
+    if wcont == nil then   -- the weapon in hand now (a later run, or a sound learned in flat)
+        local w = rawget(_G, "re8vr") and re8vr.weapon
+        wcont = container_of(w and safe(function() return w:call("get_GameObject") end))
+    end
+    for _, cont in ipairs({ wcont or false, container_of(player_go()) or false }) do
+        if cont and pcall(function() trigger_m:call(cont, id) end) then
+            played = played + 1
+            return true, (cont == wcont) and "on the weapon" or "on the player"
+        end
+    end
+    return false, "no sound container"
 end
 
 -- the learned sound for a handling sound, for the gun in hand (counted from the end of the run)
@@ -247,8 +254,8 @@ re.on_pre_application_entry("UpdateHID", function()
     local b = rawget(_G, "visceral_re8_bridge")
     if not b or not b.ready() then return end
     local mask = 0
-    for code = 1, 8 do local k = job_key(code); if k and (ctx[k] or k:find("^container:")) then mask = mask | (1 << code) end end
-    b.w(S_SFX_LUA_HAS, mask)   -- a sound not playable yet this session leaves the plugin's own wav (if any) to play
+    for code = 1, 8 do if job_key(code) then mask = mask | (1 << code) end end
+    b.w(S_SFX_LUA_HAS, mask)
     if run ~= nil and os.clock() - run.last > RUN_QUIET_SEC then finish_run() end
     local seq = b.r(S_SFX_SEQ)
     if seq_seen == nil then seq_seen = seq return end
@@ -258,7 +265,7 @@ re.on_pre_application_entry("UpdateHID", function()
     local key = job_key(code)
     if key then
         local ok, how = play(key)
-        L(string.format("handling sound %d -> %s%s: %s (%s)", code, key, jobs[code] and "" or " (learned from the game)", ok and "played" or "FAILED", how))
+        L(string.format("handling sound %d -> %s '%s'%s: %s (%s)", code, key, tostring(names[key] or "?"), jobs[code] and "" or " (learned from the game)", ok and "played" or "FAILED", how))
     end
 end)
 
@@ -282,7 +289,7 @@ re.on_draw_ui(function()
         local key = heard_order[i]
         local h = heard[key]
         if h then
-            imgui.text(string.format("%s  x%d", key, h.n))
+            imgui.text(string.format("%s  %s  motion %s  x%d", key, tostring(names[key] or "?"), tostring(h.motion), h.n))
             imgui.same_line()
             if imgui.button("Play##" .. key) then local ok, how = play(key); L(string.format("Play %s: %s (%s)", key, ok and "played" or "FAILED", how)) end
             for _, j in ipairs(JOBS) do

@@ -379,7 +379,17 @@ void frame() {
             bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: pulled back (%.3f m)", TAG, pulled);
         }
-        if (pump() && g_pulled && g_travel <= 0.10f) { bridge::sfx(bridge::SFX_PUMP_FORWARD); hand_off("pumped back up by hand"); }
+        if (pump() && g_pulled && g_travel <= 0.10f) {
+            // 2026-10-24 (Tefa: "at the end i get a few frames where the gun jumps around"): the hand let go here and was taken
+            // straight back (LG still held), so the grip and the pump fought for it. Now it stays on the pump; LT let go
+            // before the next pump
+            bridge::sfx(bridge::SFX_PUMP_FORWARD);
+            g_pulled = g_armed = false;
+            g_travel = 0.0f;
+            g_spent = true;
+            complete();
+            LOGI("%s rack: pumped back up by hand: the hand stays on the pump", TAG);
+        }
     } else if (!g_pulled && g_travel > 0.0f && !(pump() && g_hand_on)) {   // a pump only springs back once the hand is off it
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }
@@ -400,6 +410,14 @@ void late_point() {
         g_slide_gun = qnorm(qmul(inv, qnorm(gq)));
         g_z_anim = lp.z;
         g_slide_ok = true;
+        if (g_hand_on && !bolt()) {   // 2026-10-24 (Tefa: the slide "closes straight away"): start from where the game holds it
+            const float tr = clamp01((lp.z - g_rest.z) / (pump() ? PUMP_BACK_M : SLIDE_BACK_M));
+            if (tr > g_travel + 0.05f) {
+                g_travel = tr;
+                if (!pump() && tr >= 0.97f) g_pulled = true;   // locked back on an empty gun: it only has to go home
+                LOGI("%s rack: the %s was %.0f%% back when taken: it stays there", TAG, part(), tr * 100.0f);
+            }
+        }
         if (g_hand_on) { g_slide_frozen = true; g_z_anim = z_now(); }   // the joint's own place now = travel offset 0 from here
     }
     write_joint();

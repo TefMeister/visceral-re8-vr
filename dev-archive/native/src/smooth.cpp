@@ -56,9 +56,18 @@ void on_ik(MO* ik) {
     // (Build 2 instead eased any ask that moved between solves: the later solves also ask for places 0.4-0.7 m away every
     // frame, so the free hand was dragged with the gun and lagged -- Tefa: "super janky". Those far asks are left alone
     // again, as in build 1, where nothing looked wrong with them.)
+    // Build 5 (worn 13:49): that also held back the grip script's UNDO of the game's 10 cm dock (made without LG), so the
+    // unwanted dock stayed on screen. A late ask that comes back toward the left controller is an undo: drawn as asked.
     if (g_have && frame == g_frame) {
-        if (now_s() - g_t0 < SMOOTH_DOCK_SEC || dist(rel, g_final_p) <= SMOOTH_LATE_DOCK_M)
-            player::set_pose(target_of(ik), rp + rotate(rq, g_final_p), qnorm(qmul(rq, g_final_q)));
+        const bool easing = now_s() - g_t0 < SMOOTH_DOCK_SEC;
+        Vec3 cp;
+        const Vec3 first = rp + rotate(rq, g_final_p);
+        if (!easing && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) && dist(lp, cp) + SMOOTH_TOWARD_M < dist(first, cp)) {
+            g_final_p = rel;
+            g_final_q = qrel;
+            return;
+        }
+        if (easing || dist(rel, g_final_p) <= SMOOTH_LATE_DOCK_M) player::set_pose(target_of(ik), first, qnorm(qmul(rq, g_final_q)));
         return;
     }
     g_frame = frame;

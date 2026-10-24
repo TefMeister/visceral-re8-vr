@@ -64,6 +64,7 @@ enum Slot : int {
     S_SLIDE_HAND_ROT = 93,    // 93-95, WRITTEN BY THE LUA MENU: the hand on the slide / pump / bolt turned (deg, about the gun's x, y, z)
     S_EXPERIMENT = 96,        // WRITTEN BY THE LUA MENU: Experiment bits, for trying a fix live without a rebuild
     S_WEAPON_NUM = 97,        // WRITTEN BY THE PLUGIN: the held gun's number (ri3046 -> 3046), 0 = none (the menu keeps settings per gun)
+    S_GRIP_VETO = 98,         // WRITTEN BY THE PLUGIN: 1 = the left hand is ours (on the magazine): the scope's grip script must not take it
     S_COUNT = 100,
 };
 enum Sfx : int {               // S_SFX_CODE values

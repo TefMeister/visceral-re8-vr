@@ -35,6 +35,7 @@ local hud_ping_seen = 0
 local S_SLIDE_HAND = 84   -- x, y, z: the hand on the slide, nudged in cm (gun axes: right, up, forward), saved below
 local S_SLIDE_HAND_ROT = 93   -- x, y, z: the same hand turned, degrees about the gun's axes (2026-10-24)
 local S_EXPERIMENT, S_WEAPON_NUM = 96, 97
+local S_GRIP_VETO = 98    -- the plugin: the left hand is ours (on the magazine), the scope's grip script keeps off
 local SLIDE_HAND_FILE = "visceral_re8/slide_hand.json"
 -- 2026-10-24: kept per gun (a pistol slide, a pump and a bolt want different hands); "any" = a gun not set yet
 local HAND_KEYS = { "x", "y", "z", "rx", "ry", "rz" }
@@ -411,3 +412,6 @@ re.on_draw_ui(function()
         imgui.tree_pop()
     end
 end)
+
+-- 2026-10-24: asked by the scope's grip script (re8_vrz_begone_grip.lua) on every pass: true = do not take the grip
+_G.re8_grip_veto = function() return arr ~= nil and r(S_GRIP_VETO) > 0.5 end
