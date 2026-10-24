@@ -149,6 +149,7 @@ constexpr bool  BODY_TURN_ON = true;
 constexpr float BODY_TURN_GAIN = 3.0f;            // turn rate = gain x the remaining angle (per second): big lags close fast
 constexpr float BODY_TURN_MIN_DEG_S = 40.0f;      // and never slower than this, so a turn finishes
 constexpr float BODY_STAND_DEADZONE_DEG = 30.0f;  // standing: the head may look this far off the body before the body comes round to it
+constexpr float BODY_MAX_OFFSET_DEG = 100.0f;     // the drawn body never further than this from the player transform
 constexpr float BODY_STAND_GAIN = 1.5f;           // standing: the gentler catch-up (gain x the remaining angle, per second)
 constexpr float BODY_WALK_MIN_MPS = 0.35f;        // moving faster than this = walking: the body faces the travel
 constexpr float BODY_BACKPEDAL_DEG = 100.0f;      // travel further than this from the look = back-pedalling: face the look

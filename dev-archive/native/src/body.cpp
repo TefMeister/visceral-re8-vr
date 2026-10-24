@@ -40,6 +40,9 @@ int g_held = 0, g_undone = 0;
 float g_log_t = 0.0f;
 float g_tf_yaw = 0.0f, g_look_yaw = 0.0f;
 bool g_catching = false;        // standing: the body is coming round to the look (until within 2 deg)
+float g_body_yaw = 0.0f;        // the body's own facing in the world (2026-10-25)
+bool g_body_init = false;
+bool g_was_blocked = false;
 
 float fwd_yaw(Quat q) { return yaw_of(rotate(q, Vec3{0, 0, 1})); }   // the game's forward is +Z (praydog's re8_vr.lua)
 
@@ -62,13 +65,11 @@ float applied_yaw() { return g_theta; }
 void frame() {
     g_write = false;
     const auto& s = player::now();
-    // 2026-10-25 (Tefa: "Ethans body shakes backwards and forwards and spins around in one place when inventory is open"): the
-    // look is the inventory's then, so the turn is off while a menu / the inventory is up
-    if (!BODY_TURN_ON || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE) ||
-        bridge::flag(bridge::S_INTERACTION_BLOCKED)) {
+    if (!BODY_TURN_ON || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) {
         g_mode = "off";
         g_theta = 0.0f;
         g_have_last_pos = false;
+        g_body_init = false;
         return;
     }
     Vec3 p;
@@ -94,34 +95,53 @@ void frame() {
     // 2026-10-24 first wear: look and transform read 180 apart while looking straight ahead: the headset's rotation carried
     // into the world looks down -Z (the camera's convention), the player transform faces +Z
     g_look_yaw = yaw_of(rotate(look, Vec3{0, 0, -1}));
-    const float body_now = wrap_pi(g_tf_yaw + g_theta);
 
-    if (bridge::flag(bridge::S_AIMING) || bridge::held(bridge::S_RGRIP)) {
+    // 2026-10-25 00:25 (Tefa: "his body should not turn with head turning when walking, right now his body is like attached
+    // to hmd so there is no neck rotation, the whole body is one solid chunk"; the log: standing, the transform itself snaps
+    // after the look in steps, 129 -> 123 -> 80 -> 97 -> 79): the lag used to be an offset ON the transform, so every snap
+    // of the transform turned the drawn body at once. Now the body has its OWN facing in the world (g_body_yaw), turned
+    // toward its target at its own pace whatever the transform does; the drawn offset is that facing minus the transform's.
+    if (!g_body_init) { g_body_yaw = g_tf_yaw; g_body_init = true; }
+    const bool blocked = bridge::flag(bridge::S_INTERACTION_BLOCKED);
+    if (blocked != g_was_blocked) {
+        g_was_blocked = blocked;
+        LOGI("%s body: %s", TAG, blocked ? "a menu / the inventory is up: the body holds still" : "menu closed: the body turns again");
+    }
+    float target = g_body_yaw;
+    float gain = BODY_TURN_GAIN;
+    if (blocked) {
+        // (00:25, Tefa: "ethan's body still goes crazy in the inventory screen"): it holds its facing in the world
+        g_mode = "menu";
+    } else if (bridge::flag(bridge::S_AIMING) || bridge::held(bridge::S_RGRIP)) {
         g_mode = "aim";
-        g_target = wrap_pi(g_look_yaw - g_tf_yaw);
+        target = g_look_yaw;
     } else if (g_speed > BODY_WALK_MIN_MPS) {
-        // back-pedalling (travel more than BODY_BACKPEDAL_DEG from the look) keeps facing the look, as RE2 does
+        // back-pedalling (travel more than BODY_BACKPEDAL_DEG from the look) keeps facing the look, as RE2 does; otherwise
+        // the body faces the travel and the head turns freely on the neck
         const bool backwards = std::fabs(wrap_pi(g_vel_yaw - g_look_yaw)) > BODY_BACKPEDAL_DEG * DEG;
         g_mode = backwards ? "back-pedal" : "walk";
-        g_target = wrap_pi((backwards ? g_look_yaw : g_vel_yaw) - g_tf_yaw);
+        target = backwards ? g_look_yaw : g_vel_yaw;
     } else {
-        // standing (2026-10-25, Tefa: "the RE2 style body has not worked yet, still clunky"; the log: the body parked 25 deg off
-        // the look after a big head turn, because it only ever came round to the slack's EDGE): RE2's body always catches up
-        // with the look, gently; head wobbles inside BODY_STAND_DEADZONE_DEG leave it alone
-        const float off = wrap_pi(g_look_yaw - body_now);
+        // standing: head wobbles inside BODY_STAND_DEADZONE_DEG leave the body alone; past it the body comes round to the
+        // look, gently, all the way (until within 2 deg)
+        const float off = wrap_pi(g_look_yaw - g_body_yaw);
         g_mode = "stand";
-        if (std::fabs(off) > BODY_STAND_DEADZONE_DEG * DEG || g_catching) { g_target = wrap_pi(g_look_yaw - g_tf_yaw); g_catching = std::fabs(off) > 2.0f * DEG; }
-        else g_target = g_theta;
+        gain = BODY_STAND_GAIN;
+        if (std::fabs(off) > BODY_STAND_DEADZONE_DEG * DEG || g_catching) { target = g_look_yaw; g_catching = std::fabs(off) > 2.0f * DEG; }
     }
-    g_theta = move_toward(g_theta, g_target, dt, std::strcmp(g_mode, "stand") == 0 ? BODY_STAND_GAIN : BODY_TURN_GAIN);
+    g_body_yaw = move_toward(g_body_yaw, target, dt, gain);
+    g_target = wrap_pi(target - g_tf_yaw);
+    g_theta = wrap_pi(g_body_yaw - g_tf_yaw);
+    const float lim = BODY_MAX_OFFSET_DEG * DEG;   // never further than this from the transform (the arms hang off it)
+    if (std::fabs(g_theta) > lim) { g_theta = g_theta > 0 ? lim : -lim; g_body_yaw = wrap_pi(g_tf_yaw + g_theta); }
     g_pivot = p;
     g_rot = yaw_quat(g_theta);
     g_write = std::fabs(g_theta) > 0.001f;
 
     if (t - g_log_t > 1.0f) {
         g_log_t = t;
-        LOGI("%s body: mode %s, look %.0f, transform %.0f, drawn %+.0f (target %+.0f), speed %.2f m/s, render check: held %d undone %d", TAG,
-             g_mode, g_look_yaw / DEG, g_tf_yaw / DEG, g_theta / DEG, g_target / DEG, g_speed, g_held, g_undone);
+        LOGI("%s body: mode %s, look %.0f, transform %.0f, body %.0f (drawn %+.0f, target %+.0f), speed %.2f m/s, render check: held %d undone %d", TAG,
+             g_mode, g_look_yaw / DEG, g_tf_yaw / DEG, g_body_yaw / DEG, g_theta / DEG, g_target / DEG, g_speed, g_held, g_undone);
     }
 }
 
