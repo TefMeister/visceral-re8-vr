@@ -12,7 +12,7 @@ import os, re, sys, time
 
 GAME = r"C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE"
 LOG = os.path.join(GAME, "re2_framework_log.txt")
-PAD_CMD = r"~\github-backups\re-village-scope-vr\dev-archive\tools\re8pad_cmd.txt"
+PAD_CMD = os.path.expanduser(r"~\github-backups\re-village-scope-vr\dev-archive\tools\re8pad_cmd.txt")
 # per gun, in milliseconds: let the swap (and an empty gun's own reload) finish, fire, let the pump / bolt play, reload
 STEPS = "wait 4500\nrt 200\nwait 3000\ntap x\n"
 
