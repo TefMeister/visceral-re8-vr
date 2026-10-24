@@ -22,7 +22,7 @@ MO* comp(MO* go, const char* type) {
 }
 
 bool type_is(MO* o, const char* full_name) {
-    auto* td = o ? o->get_type_definition() : nullptr;
+    auto* td = is_managed(o) ? o->get_type_definition() : nullptr;
     for (int i = 0; td != nullptr && i < 12; ++i, td = td->get_parent_type())
         if (td->get_full_name() == full_name) return true;
     return false;
@@ -50,7 +50,7 @@ MO* gun_of(MO* weapon) {
 } // namespace
 
 API::Method* overload(MO* o, const char* name, uint32_t nparams) {
-    for (auto* td = o ? o->get_type_definition() : nullptr; td != nullptr; td = td->get_parent_type())
+    for (auto* td = is_managed(o) ? o->get_type_definition() : nullptr; td != nullptr; td = td->get_parent_type())   // null or stale: nothing
         for (auto* m : td->get_methods())
             if (m != nullptr && m->get_num_params() == nparams && std::strcmp(m->get_name(), name) == 0) return m;
     return nullptr;
@@ -113,7 +113,7 @@ const Snapshot& now() { return g_now; }
 
 bool motion_joint(const char* joint, Vec3& pos, Quat& rot) {
     auto* motion = g_now.motion;
-    const uint32_t hash = motion ? joint_hash(joint) : 0;
+    const uint32_t hash = is_managed(motion) ? joint_hash(joint) : 0;
     if (hash == 0) return false;
     auto* td = motion->get_type_definition();
     auto* m_idx = find_method_deep(td, "getJointIndexByNameHash");
@@ -148,7 +148,7 @@ bool set_pose(MO* tf, const Vec3& pos, const Quat& rot) {
 }
 
 bool try_bool(MO* o, const char* method, bool& out) {
-    auto* m = o ? find_method_deep(o->get_type_definition(), method) : nullptr;
+    auto* m = is_managed(o) ? find_method_deep(o->get_type_definition(), method) : nullptr;
     if (m == nullptr) return false;
     out = m->call<bool>(API::get()->get_vm_context(), (void*)o);
     return true;
@@ -165,7 +165,7 @@ namespace {
 MO* gun() { return g_now.gun; }
 MO* work() { return call_ptr(gun(), "get_work"); }
 bool sub() { return call_direct<int>(gun(), "get_usingBulletIndex", 0) == 1; }
-API::Method* m_of(MO* o, const char* name) { return o ? find_method_deep(o->get_type_definition(), name) : nullptr; }
+API::Method* m_of(MO* o, const char* name) { return is_managed(o) ? find_method_deep(o->get_type_definition(), name) : nullptr; }
 } // namespace
 
 int loaded() {

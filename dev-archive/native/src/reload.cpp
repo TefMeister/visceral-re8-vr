@@ -192,7 +192,7 @@ void tell_hud() {
 
 void set_loaded_on(MO* gun, int n) {   // a gun no longer in hand (put away mid-reload)
     auto* w = call_ptr(gun, "get_work");
-    if (auto* m = w ? find_method_deep(w->get_type_definition(), "set_includeStackSize(System.Int32)") : nullptr)
+    if (auto* m = is_managed(w) ? find_method_deep(w->get_type_definition(), "set_includeStackSize(System.Int32)") : nullptr)
         m->call<void>(API::get()->get_vm_context(), (void*)w, (int32_t)std::max(0, n));
 }
 
@@ -227,7 +227,7 @@ void mag_part_shown(bool show);
 void magazine_shown(bool show) {
     mag_part_shown(show);
     if (show) call_ptr(g_gun, "resetMagazineDisp");
-    else if (auto* m = g_gun ? find_method_deep(g_gun->get_type_definition(), "switchMagazineDisp(System.Boolean)") : nullptr)
+    else if (auto* m = is_managed(g_gun) ? find_method_deep(g_gun->get_type_definition(), "switchMagazineDisp(System.Boolean)") : nullptr)
         m->call<void>(API::get()->get_vm_context(), (void*)g_gun, false);
 }
 
@@ -237,7 +237,7 @@ bool supply() { const int r = player::reserve(); return player::unlimited() || r
 // the magazine as the gun's mesh part (WeaponGunCore.NormalMagazinePartsNo, ...Customized when customizeMagazine):
 // hidden after the gun's animation while it is out (switchMagazineDisp alone showed nothing in the headset, 2026-10-18)
 int mag_part() {
-    if (g_gun == nullptr) return -1;
+    if (!is_managed(g_gun)) return -1;
     bool custom = false;
     player::try_bool(g_gun, "get_customizeMagazine", custom);
     const int* p = field_ptr<int>(g_gun, custom ? "NormalMagazinePartsNoCustomized" : "NormalMagazinePartsNo");

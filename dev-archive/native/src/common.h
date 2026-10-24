@@ -65,7 +65,7 @@ API::Field* find_field_deep(API::TypeDefinition* td, std::string_view name);
 MO* field_obj(MO* o, std::string_view field);      // a reference-type field, or nullptr
 template <typename T>
 T* field_ptr(MO* o, std::string_view field) {      // a value field in place, or nullptr
-    if (o == nullptr) return nullptr;
+    if (!is_managed(o)) return nullptr;   // a stale object (a load freed it) would crash the read, not throw (2026-10-24)
     auto* f = find_field_deep(o->get_type_definition(), field);
     return f != nullptr ? (T*)f->get_data_raw(o, false) : nullptr;
 }
@@ -90,12 +90,16 @@ uintptr_t arg_bits(A a) {
 }
 template <typename T, typename... Args>
 T call_direct(MO* o, std::string_view method, T fallback, Args... args) {
-    if (o == nullptr) return fallback;
+    if (!is_managed(o)) return fallback;   // null, or stale after a load: a raw call on it would crash the game
     auto* m = find_method_deep(o->get_type_definition(), method);
     if (m == nullptr) return fallback;
     if (!args_fit(m, method, {arg_bits(args)...})) return fallback;
     return m->call<T>(API::get()->get_vm_context(), (void*)o, args...);
 }
 MO* component(MO* game_object, const char* type);
+// Stale objects (2026-10-24): every helper that reads an object's type or calls the game raw checks is_managed first
+// (REFramework's own test: readable memory, a type that points back at itself), so an object a load freed is skipped
+// instead of crashing the game. invoke / call_ptr and joints.h keep the plain null check: joints were never seen to
+// pass is_managed in a run [hypothesis], and invoke is used on them.
 
 } // namespace vn

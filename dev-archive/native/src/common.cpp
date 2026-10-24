@@ -16,6 +16,7 @@ bool is_managed(void* p) {
 
 std::string type_name(MO* o) {
     if (o == nullptr) return "null";
+    if (!is_managed(o)) return "stale";
     auto* td = o->get_type_definition();
     return td != nullptr ? td->get_full_name() : "?";
 }
@@ -100,7 +101,7 @@ bool call_quat(MO* o, std::string_view method, Quat& out) {
 }
 
 MO* component(MO* go, const char* type) {
-    if (go == nullptr) return nullptr;
+    if (!is_managed(go)) return nullptr;   // a game object, null or stale after a load
     auto* rt = API::get()->typeof(type);
     if (rt == nullptr) return nullptr;
     // only the System.Type overload is a real function (the plain name has generic stubs; old plugin, 2026-09-04)

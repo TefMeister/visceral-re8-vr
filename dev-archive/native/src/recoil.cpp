@@ -545,7 +545,7 @@ void ik_pass(MO* ik) {   // ik.cpp owns the AnimIK2Bone.calc hook since 2026-10-
 // ---- the shot (on_pre_request_fire / on_post_request_fire, hooked on WeaponGunCore.shoot) ---------------------------
 int chamber_count() {   // get_chamber_bullet_count
     auto* gun = player::now().gun;
-    auto* m = gun ? find_method_deep(gun->get_type_definition(), "getBulletNum") : nullptr;
+    auto* m = is_managed(gun) ? find_method_deep(gun->get_type_definition(), "getBulletNum") : nullptr;
     return m ? m->call<int>(API::get()->get_vm_context(), (void*)gun) : -1;
 }
 bool cancel_after_fire() {   // should_cancel_recoil_after_fire
@@ -557,6 +557,7 @@ bool cancel_after_fire() {   // should_cancel_recoil_after_fire
 }
 bool block_queue() { return cancel_after_fire() || flag(bridge::RF_NEEDS_PUMP) || flag(bridge::RF_NEEDS_RACK) || rack::needed(); }
 int has_loaded_ammo(MO* gun) {   // weapon_gun_has_loaded_ammo: 1 yes, 0 no, -1 unknown
+    if (!is_managed(gun)) return -1;   // null or stale: the getBulletNum line below reads its type
     bool b = false;
     if (player::try_bool(gun, "get_isLoadNumInfinity", b) && b) return 1;
     if (player::try_bool(gun, "get_isMagazineEmpty", b)) return b ? 0 : 1;

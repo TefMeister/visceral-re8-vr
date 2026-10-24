@@ -123,7 +123,7 @@ void clear_hud_children() { S.go = S.xform = S.gui_comp = nullptr; }
 void clear_refs() { S.wig = nullptr; clear_hud_children(); }
 
 bool is_type(MO* o, const char* full) {   // the type or any parent is `full`
-    if (o == nullptr) return false;
+    if (!alive(o)) return false;
     for (auto* td = o->get_type_definition(); td != nullptr; td = td->get_parent_type())
         if (std::strcmp(td->get_full_name().c_str(), full) == 0) return true;
     return false;
@@ -221,6 +221,7 @@ bool is_ammo_go_name(const std::string& n) {
 
 // ---- the world view (ensure_world_view, fix_screen_children_for_world) ---------------------------------------------
 void fix_children(MO* view) {
+    if (!alive(view)) return;
     float hw = 0.0f, hh = 0.0f;
     if (auto* m = find_method_deep(view->get_type_definition(), "get_ScreenSize"); m != nullptr) {
         auto r = m->invoke(view, std::vector<void*>{});
