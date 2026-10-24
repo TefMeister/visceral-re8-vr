@@ -1,5 +1,5 @@
 // rack.h -- the slide / bolt / charging-handle rack and the pump for Village, with the left hand ON the gun
-// (2026-10-18, moved over from Visceral RE7; the gesture is Visceral RE2's, Tefa b165/b166):
+// (2026-10-18, moved over from the RE7 RELOADED mod; the gesture is Visceral RE2's, Tefa b165/b166):
 //   slide / bolt: when the gun is empty or a rack is needed (or "hold this pose" is on): left grip with the left hand on
 //                 the gun line (over the gun hand or ahead of it) puts the hand on; LT = the pull is live; move the left
 //                 controller back along the gun; once fully back, letting go of the left grip sends it forward.

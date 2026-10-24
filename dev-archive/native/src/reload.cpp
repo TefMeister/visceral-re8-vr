@@ -1,4 +1,4 @@
-// reload.cpp -- see reload.h. The state machine is Visceral RE7's / RE2's (same states and timings). Joint space as in
+// reload.cpp -- see reload.h. The state machine is the RE7 RELOADED mod's / Visceral RE2's (same states and timings). Joint space as in
 // RE2: the magazine joint's LOCAL pose is written, after the gun's own animation, and never read back the same frame.
 #include "reload.h"
 #include "reload_internal.h"

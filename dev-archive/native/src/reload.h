@@ -1,6 +1,5 @@
-// reload.h -- manual reloads for Village (2026-10-18). Tefa the same evening: the RE7 reload "for re8 village ... port over
-// the re7 reloading systems". Moved over from Visceral RE7's reload.cpp (itself built on Visceral RE2's, worn there,
-// written from Andyalpa's RELOADED as the specification). Same controls as RE2 / RE7:
+// reload.h -- manual reloads for Village (2026-10-18). Moved over from the RE7 RELOADED mod's reload (built on Visceral
+// RE2's, worn there, written from Andyalpa's RELOADED as the specification). Same controls as RE2 / RE7:
 //   right B          the magazine comes out (the gun reads empty; its rounds stay with that magazine)
 //   left grip in the ammo spot on the left hip   a magazine in the left hand (Andyalpa's Hands Off "ammo_left" spot,
 //                    which buzzes and was waiting for a reload; our own left-hip spot if his is switched off)

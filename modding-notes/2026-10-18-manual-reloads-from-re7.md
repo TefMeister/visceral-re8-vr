@@ -1,12 +1,9 @@
-# 2026-10-18 — Manual reloads, slide rack and pump, moved over from Visceral RE7
+# 2026-10-18 — Manual reloads, slide rack and pump, moved over from the RE7 RELOADED mod
 
 ## Why
 
-The same evening Tefa asked for a C++ RE7 version (recoil, manual reloads, holster spots) from Andyalpa's RE7 VR
-Reloaded, then: *"ah crap, i forgot to tell you to that for re8 village ... i want to do Visceral of re7 when a good half
-a year has passed. please save the re7 build only on this pc and in the private re7 repo on github, then please see if
-you can get the re village weapon id's and port over the re7 reloading systems"*. RE7 is parked in its private repo; its
-reload, rack and hand-state code now runs in Visceral RE8. Village already has holsters (Andyalpa's Hands Off, still
+Tefa asked for the RE7 RELOADED mod's reloading systems (manual reloads, slide rack and pump, hand states) to be
+ported to Village; that reload, rack and hand-state code now runs in Visceral RE8. Village already has holsters (Andyalpa's Hands Off, still
 Lua), so the RE2-style holster spots were not brought over.
 
 ## What came over, and what changed for Village
@@ -77,7 +74,7 @@ Three flat starts to the title screen, closed with a normal close each time (no 
 - **A caught crash at start-up, now gone:** the bridge's first hand-over ran at frame 1, before the plugin had hooked
   its mailbox, so the game's real setter ran with our array (`VMContext: Caught exception code c0000005`, caught by
   REFramework; it was in the earlier runs too). The first hand-over now waits ~3 s (frame 181); the next start attached on
-  that first try with no exception `[verified-live 2026-10-18, n=1]`. Same fix put into the parked RE7 bridge.
+  that first try with no exception `[verified-live 2026-10-18, n=1]`.
 
 Plugin `816bdefb`, installed 22:41. Still never run in the headset.
 

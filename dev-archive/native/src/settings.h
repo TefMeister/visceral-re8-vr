@@ -60,7 +60,7 @@ constexpr int REC_CFG_CHECK_FRAMES = 60;         // how often the saved file's t
 // ghosthand.cpp: record the hands for Ghost Hand BeG0nE while the headset is live (Tefa 2026-10-19: "log everything")
 constexpr bool GHOST_HAND_ON = true;
 
-// reload.cpp / rack.cpp -- moved over from Visceral RE7 / RE2 (2026-10-18). Village has no per-weapon numbers yet, so the
+// reload.cpp / rack.cpp -- moved over from the RE7 RELOADED mod / Visceral RE2 (2026-10-18). Village has no per-weapon numbers yet, so the
 // places are measured from the controllers in the room instead of from the gun's own parts.
 constexpr bool RELOAD_ON = true;
 // eject.cpp (2026-10-24): a pump / bolt gun's spent shell leaves when the hand pulls the pump / bolt back, not at the shot

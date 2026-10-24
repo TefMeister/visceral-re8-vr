@@ -11,7 +11,7 @@
 //                strength scale, full-auto pulses
 //   recoil.cpp   re8_vr_recoil.lua: physical recoil on the hands (spring, per-weapon intensity, one/two hands)
 //                (player.cpp finds the player objects the way praydog's RE8VR.cpp does; json_mini.cpp reads the saved file)
-// Moved over from Visceral RE7 (2026-10-18, Tefa: "port over the re7 reloading systems" to Village):
+// Moved over from the RE7 RELOADED mod (2026-10-18):
 //   reload.cpp   magazines and single rounds by hand, the ammo pouch on the left hip (Andyalpa's ammo_left spot)
 //   rack.cpp     slide / bolt / pump racking with the left hand held on the gun
 //   ik.cpp       the AnimIK2Bone.calc hook recoil and the rack share     weapons.cpp  the Village weapon list

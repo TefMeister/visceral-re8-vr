@@ -4,7 +4,7 @@
 //   right: bare | weapon
 // Written to reframework/data/visceral_re8/hand_state.json whenever it changes ({"left": .., "right": .., "weapon": ..}),
 // shown in the bridge's REFramework menu ("Visceral RE8 reload"), and used to keep the game's block pose out of a reload
-// (the bridge sets __visceral_reload_busy, which our re8_vr.lua honours). Moved over from Visceral RE7, 2026-10-18.
+// (the bridge sets __visceral_reload_busy, which our re8_vr.lua honours). Moved over from the RE7 RELOADED mod, 2026-10-18.
 #pragma once
 
 namespace vn::handstate {

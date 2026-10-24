@@ -1,6 +1,6 @@
 // weapons.h -- every Village weapon we know, by the id the game uses (the weapon owner's name, e.g. "ri3046", written
 // "ri3046_Inventory" in Andyalpa's files; canonical() turns one into the other), with how it reloads by hand
-// (2026-10-18, the reload moved over from Visceral RE7).
+// (2026-10-18, the reload moved over from the RE7 RELOADED mod).
 //
 // The ids and names are Andyalpa's (re8_vr_recoil.lua WEAPON_CATALOG + the two melee ids). How each gun reloads is
 // ours, from what the guns are (magazine / single shells / break action / revolver). Village's gun parts (which joint

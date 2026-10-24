@@ -43,7 +43,7 @@ enum Slot : int {
     S_IS_RELOADING = 58,      // re8vr.is_reloading
     S_AIMING = 59,            // player_is_aiming(): re8vr.order's playerGun aim states, or playerCamera.isGunAim
     S_RECOIL_FLAGS = 60,      // bits, see RecoilFlag (all 0 with the Hands Off pack alone: no file of it sets them)
-    // reload.cpp / rack.cpp (2026-10-18, moved over from Visceral RE7)
+    // reload.cpp / rack.cpp (2026-10-18, moved over from the RE7 RELOADED mod)
     S_LROT = 64, S_RROT = 68,                         // controller rotations, room space (x,y,z,w)
     S_CAM_POS = 72, S_CAM_ROT = 75,                   // the game camera's world pose (rotation x,y,z,w)
     S_IN_AMMO_ZONE = 79,      // __vr_in_ammo_holster_zone: the left hand in Andyalpa's left-hip ammo spot (re8_vr_holster.lua)
