@@ -113,6 +113,7 @@ local function interesting(name, pname)
 end
 
 local GUN_SOUNDS                   -- each gun's own handling sounds (filled further down)
+local gun_sounds                   -- GUN_SOUNDS for a gun number, or its base gun's (VARIANT_OF, further down)
 local run = nil                    -- the motion run being recorded: { motion, weapon, keys, last }
 local replaying = false            -- our own replay is heard by the same hook: never part of a run
 local ctx = {}                     -- key -> the newest { name, this, go, layer, tracks, slot } it was heard with
@@ -181,7 +182,7 @@ local cuts = 0
 local function vr_on() return safe(function() return vrmod:is_hmd_active() end) == true end
 -- one of the held gun's handling sounds (slide, pump, bolt: codes 1-8 of GUN_SOUNDS), which the hand now plays itself
 local function hand_owned(key)
-    local g = GUN_SOUNDS[tostring(weapon_num())]
+    local g = gun_sounds(tostring(weapon_num()))
     if not g then return false end
     for code = 1, 8 do
         for _, k in ipairs(g[code] or {}) do if k:match("^[^@]+") == key then return true end end
@@ -458,6 +459,16 @@ GUN_SOUNDS = {
                  [9] = { "wwise:1306247460" },                         -- SND_MOT_RI3042_SE_RELOAD_A
                  [10] = { "wwise:2626270253" } },                      -- SND_MOT_RI3042_SE_RELOAD_B
 }
+-- 2026-10-24 /pd (Tefa: "can you do all the other guns in the game as well"): the Mercenaries and Shadows of Rose copies
+-- are the same guns, so they use their base gun's sounds; the W870 TAC borrows the M1897's, which are the shared shotgun
+-- names (SND_MOT_RI_SE_SHOTGUN_*, no gun number) [hypothesis] until the gun survey (visceral_re8_gun_survey.lua) or an ear
+-- says otherwise. A sound only plays through a container that knows it (find_container asks exists), so a wrong guess is
+-- silent, not wrong.
+local VARIANT_OF = { ["3081"] = "3046", ["3135"] = "3046",                    -- LEMI - Mercenaries, - Shadows of Rose
+                     ["3087"] = "3042",                                       -- F2 Rifle - Mercenaries
+                     ["3084"] = "3036", ["3147"] = "3036",                    -- M1897 - Mercenaries, - Shadows of Rose
+                     ["3021"] = "3036", ["3085"] = "3036" }                   -- W870 TAC (+ Mercenaries): shared shotgun names
+gun_sounds = function(num) return GUN_SOUNDS[num] or GUN_SOUNDS[VARIANT_OF[num] or ""] end
 local FROM_END = { [2] = { FAM_RELOAD, 1 }, [3] = { FAM_FIRE, 2 }, [4] = { FAM_FIRE, 1 },
                    [5] = { FAM_FIRE, 4 }, [6] = { FAM_FIRE, 3 }, [7] = { FAM_FIRE, 2 }, [8] = { FAM_FIRE, 1 } }
 local function learned_key(code)
@@ -470,7 +481,7 @@ end
 -- the sounds for a handling sound: set by hand in the menu, else the gun's own (GUN_SOUNDS), else counted from the learned run
 local function job_keys(code)
     if jobs[code] then return { jobs[code] } end
-    local g = GUN_SOUNDS[tostring(weapon_num())]
+    local g = gun_sounds(tostring(weapon_num()))
     if g and g[code] then return g[code] end
     local k = learned_key(code)
     return k and { k } or nil
@@ -483,7 +494,7 @@ local function job_key(code) local k = job_keys(code); return k and k[1] or nil 
 local time_cuts = 0
 local function cut_after_shot()
     if not vr_on() then return end
-    local g = GUN_SOUNDS[tostring(weapon_num())]
+    local g = gun_sounds(tostring(weapon_num()))
     if not g or not (g[3] or g[5]) then return end
     local pgo = player_go()
     local mo = pgo and safe(function() return pgo:call("getComponent(System.Type)", sdk.typeof("via.motion.Motion")) end)
