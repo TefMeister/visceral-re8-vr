@@ -67,7 +67,7 @@ class ZonesUi : Form {
 
     // ---- building -------------------------------------------------------------------------------------------------------
     internal static Button Btn(string text, EventHandler onClick, int width = 0) {
-        var b = new Button { Text = text, FlatStyle = FlatStyle.Flat, BackColor = ButtonBack, ForeColor = Ink, Height = 34, AutoSize = width == 0, Margin = new Padding(3) };
+        var b = new SkinButton { Text = text, FlatStyle = FlatStyle.Flat, BackColor = ButtonBack, ForeColor = Ink, Height = 34, AutoSize = width == 0, Margin = new Padding(3) };
         b.FlatAppearance.BorderSize = 0;
         if (width > 0) b.Width = width;
         b.Click += onClick;
@@ -83,7 +83,7 @@ class ZonesUi : Form {
         Controls.Add(top);
         status = new SkinLabel { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 0, 0), ForeColor = Dim };
         var one = Row(42);
-        show = new CheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(4, 6, 12, 0) };
+        show = new SkinCheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(4, 6, 12, 0) };
         show.CheckedChanged += (s, e) => { if (!syncing) SaveAll(); };
         one.Controls.Add(show);
         lookBtn = Btn("SPHERE LOOK: light pillar", (s, e) => NextLook());
@@ -91,8 +91,8 @@ class ZonesUi : Form {
         one.Controls.Add(Btn("GAME FOLDER...", (s, e) => PickFolder()));
         var two = Row(42);
         two.Controls.Add(new SkinLabel { Text = "the sliders set:", AutoSize = true, ForeColor = Dim, Padding = new Padding(0, 8, 6, 0) });
-        thisGun = new RadioButton { Text = "THIS GUN", AutoSize = true, Checked = settings.Get("scope", "gun") != "all", ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(0, 6, 8, 0) };
-        allGuns = new RadioButton { Text = "ALL GUNS", AutoSize = true, Checked = settings.Get("scope", "gun") == "all", ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0) };
+        thisGun = new SkinRadioButton { Text = "THIS GUN", AutoSize = true, Checked = settings.Get("scope", "gun") != "all", ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(0, 6, 8, 0) };
+        allGuns = new SkinRadioButton { Text = "ALL GUNS", AutoSize = true, Checked = settings.Get("scope", "gun") == "all", ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0) };
         EventHandler scope = (s, e) => { if (((RadioButton)s).Checked) { settings.Set("scope", allGuns.Checked ? "all" : "gun"); RefreshFromFile(); } };
         thisGun.CheckedChanged += scope; allGuns.CheckedChanged += scope;
         two.Controls.Add(thisGun); two.Controls.Add(allGuns);

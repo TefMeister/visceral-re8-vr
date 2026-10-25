@@ -116,3 +116,17 @@ none) because which one shows on these meshes is not known `[hypothesis]`. Needs
 game was then closed normally at 11:42). Mesh.setMesh and set_Material take a resource HOLDER (`res:create_holder(
 "via.render.MeshResourceHolder")` / `"via.render.MeshMaterialResourceHolder"`). Fixed (installed 11:47), and a sphere path that
 fails once is never tried again. Andyalpa's holster visuals pass the bare resource too on their path-created branch.
+
+11:48-11:56: the holder fix worked (`sphere mesh: vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh`, no exceptions), but still no
+spheres (Tefa: "i still don't see any spheres, do any of these windows have to be in focus?"; no window needs focus: the game
+script draws them and the windows only write files). `[measured 2026-10-25]` the spheres were made at the title screen (show was
+on) and the save's scene change destroyed them: `findGameObject("visceral_re8_zone_0")` through the REFramework MCP found none, and
+nothing made them again. Also the model's box could not be read at spawn ("half size nil"), so the size was a guess. Fixed
+(installed 11:56): a dead sphere has all made again (at most once a second), the size is measured from the drawn sphere's world
+box (guess 0.5 m half until then), and every 5 s the log says where each sphere is, how big, shown or not, and the look.
+
+Also found: the Hand Poser's buttons did nothing when clicked through Window View (Tefa: "clicking on any of these does not bring
+up the sliders"). Window View posts mouse-down / mouse-up to the control; the stock WinForms button only clicks when it is also
+the topmost window at that desktop spot (WindowFromPoint), and a window used in the headset sits behind others on the desktop.
+Skin.cs SkinButton / SkinCheckBox / SkinRadioButton click on a posted down + up themselves when the stock way did not; tested with
+a topmost window covering the button: the click added all 15 left-finger joints. Used in Hand Poser and Grab Zones.

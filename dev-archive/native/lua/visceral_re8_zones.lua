@@ -52,6 +52,8 @@ local mesh_holders, mesh_failed = {}, {}  -- path -> its holder; paths that fail
 local mesh_used, mesh_half = nil, nil     -- the sphere mesh that loaded, and its measured half size (m)
 local mat_res, mat_applied = {}, {}      -- material index -> resource; ball index -> the material it wears
 local spawn_tried = false
+local last_respawn_t, last_where_t = -10, -10
+local UNMEASURED_HALF_M = 0.5   -- until the model is measured: a 1 m primitive (the usual size) is drawn at its zone's size
 local status = "not drawn yet"
 
 local function bridge() local b = rawget(_G, "visceral_re8_bridge"); if b ~= nil and b.ready() then return b end; return nil end
@@ -239,6 +241,18 @@ re.on_frame(function()
         if next(balls) ~= nil then destroy_all() end
         return
     end
+    -- 11:50 (Tefa: "i still don't see any spheres"): the spheres were made at the title screen and the save's scene change
+    -- destroyed them (findGameObject found none); now a dead sphere has them all made again, at most once a second
+    if spawn_tried then
+        for _, ball in pairs(balls) do
+            if ball and not alive(ball.go) and now - last_respawn_t > 1.0 then
+                last_respawn_t = now
+                log.info(TAG .. " a sphere was destroyed (scene change): making them again")
+                destroy_all()
+                return
+            end
+        end
+    end
     if not spawn_tried then
         spawn_tried = true
         for _, z in ipairs(ZONES) do balls[z.i] = spawn(z.i) end
@@ -249,8 +263,27 @@ re.on_frame(function()
         for i, _ in pairs(balls) do if mat_applied[i] ~= nil and mat_applied[i] ~= m then destroy_all(); return end end
     end
     for i, ball in pairs(balls) do if ball then apply_mat(i, ball); status = "drawn: " .. (mesh_used or "?"):match("[^/]+$") .. ", look: " .. MAT_NAMES[m + 1] end end
-    -- the measured size, unless the size fix in the menu was set by hand
-    local half = (cfg["_visual"].half_set and tonumber(cfg["_visual"].half_m)) or mesh_half or tonumber(cfg["_visual"].half_m) or 0.05
+    -- the measured size, unless the size fix in the menu was set by hand. The model's own box could not be read at spawn
+    -- (11:48: "half size nil"), so it is measured from the drawn sphere's world box once it stands in the world
+    if not mesh_half then
+        for _, ball in pairs(balls) do
+            if ball and ball.on and ball.scale then
+                local w = nil
+                pcall(function()
+                    ball.comp:call("updateBoundingBox")
+                    local wa = ball.comp:call("get_WorldAABB")
+                    if wa then local mn, mx = wa:get_field("minpos"), wa:get_field("maxpos"); if mn and mx then w = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2 end end
+                end)
+                if not w then w = measure(ball.comp) and measure(ball.comp) * ball.scale end
+                if w and w > 0.0005 and w < 1000 then
+                    mesh_half = w / ball.scale
+                    log.info(TAG .. string.format(" sphere model measured in the world: half size %.4f m", mesh_half))
+                    break
+                end
+            end
+        end
+    end
+    local half = (cfg["_visual"].half_set and tonumber(cfg["_visual"].half_m)) or mesh_half or UNMEASURED_HALF_M
     if half < 0.005 then half = 0.005 end
     for _, z in ipairs(ZONES) do
         local ball = balls[z.i]
@@ -260,12 +293,25 @@ re.on_frame(function()
             set_on(ball, ok)
             if ok then
                 local s = (r or 0.05) / half
+                ball.scale = s
                 pcall(function()
                     ball.xform:call("set_Position", Vector3f.new(x, y, zz))
                     ball.xform:call("set_Scale", Vector3f.new(s, s, s))
                 end)
             end
         end
+    end
+    -- every 5 s while shown: where each sphere is, how big, and whether it is on, so a headset run can be read from the log
+    if now - last_where_t > 5.0 then
+        last_where_t = now
+        local parts = {}
+        for _, z in ipairs(ZONES) do
+            local ball = balls[z.i]
+            local x, y, zz, r, on = live(b, z.i)
+            parts[#parts + 1] = string.format("%s %s r %.2f at %.2f %.2f %.2f scale %.3f", z.key, ball and (alive(ball.go) and (ball.on and "SHOWN" or "hidden") or "DEAD") or "none",
+                r or 0, x or 0, y or 0, zz or 0, ball and ball.scale or 0)
+        end
+        log.info(TAG .. " spheres (half " .. string.format("%.3f", half) .. (mesh_half and " measured" or " guessed") .. ", look " .. MAT_NAMES[mat_index() + 1] .. "): " .. table.concat(parts, " | "))
     end
 end)
 
