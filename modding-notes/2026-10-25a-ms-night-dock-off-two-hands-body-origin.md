@@ -107,3 +107,11 @@ Nineteen builds in one night. Tefa worn every one; `[verified-live]` below means
   keep each launch's log (lanes 0.85.0's rule).
 - Filed in mod-ideas, Tefa's words: LG holds the gun whatever the controllers' distance; rubber arms that stretch to keep
   the hand on the gun; the free hand pivoting at the wrist (praydog's 15 cm lever).
+
+## 04:00, the last wear (build 5783045), Tefa's words
+
+> the mag is still in the activation area and jumps back in after i take it out. hand still gripped on the rifle grip handle
+> alongside right hand and it was very hard to get it to dock on the mag. the bolt activation area is too large.
+
+So the 12 cm clear rule, the 25 cm long-gun rule and the 12 cm grab zone did not do what they were meant to, and the bolt's
+grab zone (the whole gun line, 16 cm) is too wide `[reported 2026-10-25, n=1]`. Unread logs; the board carries the four checks.
