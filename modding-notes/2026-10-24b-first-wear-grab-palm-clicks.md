@@ -1,6 +1,6 @@
 # 2026-10-24 (midday): first wear of the handgun build, and what it showed
 
-`/ms` on the home PC, Tefa in the headset, Claude on Opus. Build `6ce3b84` worn, then build 2 of the day installed.
+`/ms` on the home PC, Tefa in the headset, Claude on Opus. Build `efe514c` worn, then build 2 of the day installed.
 
 ## What Tefa saw (12:00-12:04 run)
 
