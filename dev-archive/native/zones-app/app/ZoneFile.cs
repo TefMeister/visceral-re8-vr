@@ -89,6 +89,12 @@ class ZoneFile {
         e["x"] = x; e["y"] = y; e["z"] = z;
     }
 
+    // a whole entry at once (the GUN IN THE RIGHT HAND box's "aim")
+    public static void SetEntry(Dictionary<string, object> all, string group, string zone, Dictionary<string, object> values) {
+        var e = Child(Child(all, group, true), zone, true);
+        foreach (var kv in values) e[kv.Key] = kv.Value;
+    }
+
     public static void SetRadius(Dictionary<string, object> all, string group, string zone, double r) {
         Child(Child(all, group, true), zone, true)["r"] = r;
     }

@@ -321,6 +321,55 @@ end
 local swept = false
 re.on_script_reset(function() destroy_all() end)
 
+-- ---- THE GUN IN THE RIGHT HAND (2026-10-25, Tefa: "can i still tweak where the gun is pointing", then "all please") -------
+-- praydog's VR mode places the right hand (and so the gun) at the controller turned by re8vr.right_hand_rotation_offset and
+-- moved by re8vr.right_hand_position_offset (the controller's own axes: x right, y up, z back). zones.json "aim" (per gun over
+-- "default", from the Grab Zones window's GUN IN THE RIGHT HAND box) turns and moves it further: pitch / yaw / roll in degrees
+-- about the controller's axes, x / y / z in cm (z forward). The offsets as the VR mode set them are kept at load and are what
+-- every adjustment is laid over, so nothing piles up; an all-zero aim puts them back exactly.
+local aim_base_rot, aim_base_pos, aim_applied = nil, nil, nil
+local function aim_capture()
+    if aim_base_rot then return true end
+    local v = rawget(_G, "re8vr")
+    if not v then return false end
+    pcall(function()
+        local q, p = v.right_hand_rotation_offset, v.right_hand_position_offset
+        if q and p then aim_base_rot = Quaternion.new(q.w, q.x, q.y, q.z); aim_base_pos = Vector4f.new(p.x, p.y, p.z, p.w) end
+    end)
+    return aim_base_rot ~= nil
+end
+local function axis_q(ax, ay, az, deg)
+    local h = math.rad(deg or 0) / 2
+    local s = math.sin(h)
+    return Quaternion.new(math.cos(h), ax * s, ay * s, az * s)
+end
+local function aim_for(gun)
+    local g = cfg and cfg[tostring(gun)]
+    local a = type(g) == "table" and g.aim or nil
+    if type(a) ~= "table" then local d = cfg and cfg["default"]; a = type(d) == "table" and d.aim or nil end
+    return type(a) == "table" and a or nil
+end
+local function aim_tick(b)
+    if not aim_capture() then return end
+    local a = aim_for(gun_num(b)) or {}
+    local p, y, r = tonumber(a.pitch) or 0, tonumber(a.yaw) or 0, tonumber(a.roll) or 0
+    local x, u, f = tonumber(a.x) or 0, tonumber(a.y) or 0, tonumber(a.z) or 0
+    local key = string.format("%.2f %.2f %.2f %.2f %.2f %.2f", p, y, r, x, u, f)
+    if key == aim_applied then return end
+    aim_applied = key
+    local v = rawget(_G, "re8vr")
+    pcall(function()
+        local extra = (axis_q(0, 1, 0, y) * axis_q(1, 0, 0, p) * axis_q(0, 0, 1, r)):normalized()
+        v.right_hand_rotation_offset = (extra * aim_base_rot):normalized()
+        v.right_hand_position_offset = Vector4f.new(aim_base_pos.x + x / 100, aim_base_pos.y + u / 100, aim_base_pos.z - f / 100, aim_base_pos.w)
+    end)
+    log.info(TAG .. " the gun in the right hand: turned " .. string.format("%.1f / %.1f / %.1f deg, moved %.1f / %.1f / %.1f cm", p, y, r, x, u, f))
+end
+re.on_script_reset(function()   -- the VR mode's own offsets back, so a reset never leaves the gun turned
+    local v = rawget(_G, "re8vr")
+    if v and aim_base_rot then pcall(function() v.right_hand_rotation_offset = aim_base_rot; v.right_hand_position_offset = aim_base_pos end) end
+end)
+
 local function write_state(b)
     local st = { t = os.time(), gun = gun_num(b), zones = {} }
     local hx, hy, hz, _, hon = live(b, 3)
@@ -344,6 +393,7 @@ re.on_application_entry("UpdateMotion", function()
     local now = os.clock()
     if now - last_reload_t > RELOAD_EVERY_S and now - last_edit_t > EDIT_QUIET_S then last_reload_t = now; load() end
     if now - last_state_t > STATE_EVERY_S then last_state_t = now; write_state(b) end
+    aim_tick(b)
     local show = show_on()
     b.w(S_ZONE_SHOW, show and 1 or 0)
     if not show then

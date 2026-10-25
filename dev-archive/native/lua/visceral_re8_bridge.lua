@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 141   -- 2026-10-25: 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
+local N = 142   -- 2026-10-25: 141 the arc over the gun (cm); 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9
@@ -38,19 +38,30 @@ local S_EXPERIMENT, S_WEAPON_NUM = 96, 97
 local S_GRIP_VETO = 98    -- the plugin: the left hand is ours (on the magazine), the scope's grip script keeps off
 local SLIDE_HAND_FILE = "visceral_re8/slide_hand.json"
 -- 2026-10-24: kept per gun (a pistol slide, a pump and a bolt want different hands); "any" = a gun not set yet
-local HAND_KEYS = { "x", "y", "z", "rx", "ry", "rz" }
-local slide_hands = { any = { x = 0.0, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0 } }
-pcall(function()
+-- 2026-10-25: "arc" (cm), how high the hand arcs over the gun on its way onto the slide / pump / bolt (smooth.cpp)
+local HAND_KEYS = { "x", "y", "z", "rx", "ry", "rz", "arc" }
+local slide_hands = { any = { x = 0.0, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0, arc = 0.0 } }
+local function read_slide_hands()
     local d = json.load_file(SLIDE_HAND_FILE)
     if type(d) ~= "table" then return end
-    if type(d.x) == "number" then d = { any = d } end   -- the file from before 2026-10-24: one hand for every gun
+    if type(d.x) == "number" then   -- the file from before 2026-10-24: one hand for every gun, at the top (per-gun tables may sit beside it)
+        local any, rest = {}, {}
+        for k, v in pairs(d) do if type(v) == "table" then rest[k] = v else any[k] = v end end
+        if not rest.any then rest.any = any end
+        d = rest
+    end
     for gun, t in pairs(d) do
         if type(t) == "table" then
             slide_hands[gun] = {}
             for _, k in ipairs(HAND_KEYS) do slide_hands[gun][k] = type(t[k]) == "number" and t[k] or 0.0 end
         end
     end
-end)
+    if not slide_hands.any then slide_hands.any = { x = 0.0, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0, arc = 0.0 } end
+end
+pcall(read_slide_hands)
+-- 2026-10-25: the Grab Zones window writes this file too (its HAND ON THE BOLT box): read again each second, unless the
+-- in-game sliders moved in the last second (theirs are the newer numbers then)
+local last_hand_read, last_hand_edit = 0.0, -10.0
 local function gun_key(num) return (num and num > 0) and string.format("ri%d", num) or "any" end
 local function hand_for(num) return slide_hands[gun_key(num)] or slide_hands.any end
 -- 2026-10-24 (Tefa: "the guns must not automatically dock with proximity, only LG pressed and held"): the patched
@@ -264,9 +275,12 @@ local function village_readings()
         w(106, NO_VALUE)
     end
     w(29, tonumber(rawget(_G, "hand_poser_held")) or 0)   -- S_POSER_HELD: fingers.cpp stands down while a poser holds a finger
+    local tnow = os.clock()
+    if tnow - last_hand_read > 1.0 and tnow - last_hand_edit > 1.0 then last_hand_read = tnow; pcall(read_slide_hands) end
     local hand = hand_for(r(S_WEAPON_NUM))
     w(S_SLIDE_HAND, hand.x); w(S_SLIDE_HAND + 1, hand.y); w(S_SLIDE_HAND + 2, hand.z)
     w(S_SLIDE_HAND_ROT, hand.rx); w(S_SLIDE_HAND_ROT + 1, hand.ry); w(S_SLIDE_HAND_ROT + 2, hand.rz)
+    w(141, hand.arc or 0.0)   -- S_ARC_CM
     w(S_EXPERIMENT, experiments)
     -- 2026-10-24 first wear: the patched REFramework switch is gone (stock loader since the scope's 2026-10-01 move), so the
     -- "LG only" rule is the scope's grip script's own (`grip button 1`, off by default since 2026-10-02 for the scope)
@@ -435,7 +449,7 @@ re.on_draw_ui(function()
             local c, nv = imgui.slider_float(LABELS[k], hand[k], -lim, lim, "%.1f")
             if c then hand[k] = nv; moved = true end
         end
-        if moved then pcall(function() json.dump_file(SLIDE_HAND_FILE, slide_hands) end) end
+        if moved then last_hand_edit = os.clock(); pcall(function() json.dump_file(SLIDE_HAND_FILE, slide_hands) end) end
         if imgui.tree_node("Experiments (try a fix without restarting)") then
             for _, e in ipairs(EXPERIMENTS) do
                 local on = (experiments & e.bit) ~= 0

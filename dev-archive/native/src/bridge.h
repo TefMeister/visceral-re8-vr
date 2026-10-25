@@ -79,7 +79,8 @@ enum Slot : int {
     S_ZONE_SEQ = 115,         // WRITTEN BY THE LUA MENU: +1 whenever zones.json was saved (zones.cpp re-reads it)
     S_ZONES = 116,            // 116-140, WRITTEN BY THE PLUGIN: five zones x {x, y, z (world, m), radius (m), on}: the magazine grab,
                               // the well (where it goes in), the slide / pump / bolt (on = 1 slide, 2 pump, 3 bolt), the hand point tested
-    S_COUNT = 141,            // 2026-10-25: 136-140 the FRONT GRIP zone (zones.h GRIP)
+    S_ARC_CM = 141,           // WRITTEN BY THE LUA BRIDGE: how high (cm) the left hand arcs over the gun on its way onto / off the slide / pump / bolt (2026-10-25)
+    S_COUNT = 142,            // 2026-10-25: 136-140 the FRONT GRIP zone (zones.h GRIP)
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,

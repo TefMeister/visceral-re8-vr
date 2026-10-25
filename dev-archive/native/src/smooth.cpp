@@ -39,6 +39,12 @@ float g_frame = -1.0f;             // the game solves the arm twice a frame: the
 bool g_grip_frozen = false;
 Vec3 g_grip_p{};
 Quat g_grip_q{0, 0, 0, 1};
+// 2026-10-25 (Tefa: "to put the left hand on the racking bolt, it kind of goes through the back of the weapon a little and i would
+// need to set it so it arches over the back of the gun, then grips the bolt handle"): the hand's ease onto (and off) the slide /
+// pump / bolt went in a straight line in the gun hand's frame, so it cut through the gun. It now rises along the gun's up by
+// up to the arc height (Grab Zones' HAND ON THE BOLT box, bridge S_ARC_CM) at the middle of the ease, and takes SMOOTH_ARC_SEC
+float g_arc_m = 0.0f;
+float g_ease_sec = SMOOTH_DOCK_SEC;
 
 Quat slerp_from_identity(Quat q, float k) {   // identity -> q by k (0..1), the short way
     if (q.w < 0.0f) q = Quat{-q.x, -q.y, -q.z, -q.w};
@@ -197,7 +203,7 @@ void on_ik(MO* ik) {
             player::set_pose(target_of(ik), g_free_p, g_free_q);   // a later solve's dock: the free hand stays put back
             return;
         }
-        const bool easing = now_s() - g_t0 < SMOOTH_DOCK_SEC;
+        const bool easing = now_s() - g_t0 < g_ease_sec;
         Vec3 cp;
         const Vec3 first = rp + rotate(rq, g_final_p);
         // 2026-10-24 (Tefa: "when inserting the mag, left hand keeps rapidly going in the direction of the insertion and then
@@ -265,11 +271,17 @@ void on_ik(MO* ik) {
         g_off_p = g_final_p - rel;
         g_off_q = qnorm(qmul(g_final_q, qinv(qrel)));
         g_t0 = now_s();
-        LOGI("%s smooth: left hand %s -> %s, eased over %.2f s (gap %.3f m)", TAG, owner_name(g_owner), owner_name(owner), SMOOTH_DOCK_SEC,
-             dist(g_final_p, rel));
+        {
+            const float a = bridge::view(bridge::S_ARC_CM);
+            const bool rack_end = owner == RACK || g_owner == RACK;
+            g_arc_m = (rack_end && bridge::has(a) && a > 0.0f) ? std::fmin(a * 0.01f, SMOOTH_ARC_MAX_M) : 0.0f;
+            g_ease_sec = g_arc_m > 0.0f ? SMOOTH_ARC_SEC : SMOOTH_DOCK_SEC;
+        }
+        LOGI("%s smooth: left hand %s -> %s, eased over %.2f s (gap %.3f m, arc %.0f cm)", TAG, owner_name(g_owner), owner_name(owner), g_ease_sec,
+             dist(g_final_p, rel), g_arc_m * 100.0f);
         g_owner = owner;
     }
-    const float k = 1.0f - ease((now_s() - g_t0) / SMOOTH_DOCK_SEC);
+    const float k = 1.0f - ease((now_s() - g_t0) / g_ease_sec);
     if (owner == GRIP && k <= 0.0f) {
         if (!g_grip_frozen || (kept != nullptr && (dist(g_grip_p, rel) > 0.001f))) {
             g_grip_frozen = true;
@@ -288,7 +300,12 @@ void on_ik(MO* ik) {
         g_final_q = qrel;
         return;
     }
-    g_final_p = rel + g_off_p * k;
+    Vec3 lift{0, 0, 0};
+    if (g_arc_m > 0.0f) {   // up along the gun's own up (the zone sliders' "up"), in the gun hand's frame; highest mid-way
+        Quat gq;
+        if (zones::gun_rot(gq)) lift = rotate(qinv(qnorm(rq)), rotate(qnorm(gq), Vec3{0, 1, 0})) * (g_arc_m * 4.0f * k * (1.0f - k));
+    }
+    g_final_p = rel + g_off_p * k + lift;
     g_final_q = qnorm(qmul(slerp_from_identity(g_off_q, k), qrel));
     player::set_pose(target_of(ik), rp + rotate(rq, g_final_p), qnorm(qmul(rq, g_final_q)));
 }
