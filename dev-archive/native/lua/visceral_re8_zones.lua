@@ -48,6 +48,7 @@ local seq = 0
 local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
 local balls = {}          -- i -> { go, xform, on }
+local mesh_holders, mesh_failed = {}, {}  -- path -> its holder; paths that failed once (never retried)
 local mesh_used, mesh_half = nil, nil     -- the sphere mesh that loaded, and its measured half size (m)
 local mat_res, mat_applied = {}, {}      -- material index -> resource; ball index -> the material it wears
 local spawn_tried = false
@@ -96,10 +97,17 @@ local function alive(o)
     local ok2, addr = pcall(function() return o:get_address() end)
     return ok2 and addr ~= nil and addr ~= 0
 end
-local function resource(path, kind)
-    local res = nil
-    pcall(function() res = sdk.create_resource(kind, path); if res then res = res:add_ref() end end)
-    return res
+-- a resource wrapped in the holder the game's setters take. 11:39 (second try): setMesh was handed the bare resource and the
+-- game read garbage inside setMesh (access violation, caught by REFramework, 30 times); Mesh.setMesh / set_Material take a
+-- via.render.MeshResourceHolder / MeshMaterialResourceHolder (REFramework: resource:create_holder)
+local function holder(path, kind, holder_type)
+    local h = nil
+    pcall(function()
+        local res = sdk.create_resource(kind, path)
+        if res then res = res:add_ref(); h = res:create_holder(holder_type) end
+        if h then h = h:add_ref() end
+    end)
+    return h
 end
 local function find_folder()
     local scene = nil
@@ -122,7 +130,7 @@ local function apply_mat(i, ball)
     mat_applied[i] = m
     local path = MATS[m + 1]
     if path == "" then return end      -- "no material": the mesh's own (none) stays; respawning clears a set one
-    if mat_res[m] == nil then mat_res[m] = resource(path, "via.render.MeshMaterialResource") or false end
+    if mat_res[m] == nil then mat_res[m] = holder(path, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
     if mat_res[m] then pcall(function() ball.comp:call("set_Material", mat_res[m]) end) end
 end
 -- the mesh's half size, from its own bounding box, so a sphere is drawn exactly as big as its zone
@@ -161,14 +169,18 @@ local function spawn(i)
     local tries = mesh_used and { mesh_used } or MESHES
     local got = nil
     for _, path in ipairs(tries) do
-        local res = resource(path, "via.render.MeshResource")
-        if res then
-            pcall(function() comp:call("setMesh", res) end)
-            local back = nil
-            pcall(function() back = comp:call("getMesh") end)
-            if back ~= nil then got = path; break end
+        if not mesh_failed[path] then
+            local h = mesh_holders[path] or holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder")
+            if h then
+                mesh_holders[path] = h
+                pcall(function() comp:call("setMesh", h) end)
+                local back = nil
+                pcall(function() back = comp:call("getMesh") end)
+                if back ~= nil then got = path; break end
+            end
+            mesh_failed[path] = true   -- never asked again: a failed setMesh is an error inside the game
+            log.info(TAG .. " sphere mesh " .. path .. ": did not load" .. (h and "" or " (no holder)"))
         end
-        if not mesh_used then log.info(TAG .. " sphere mesh " .. path .. ": did not load") end
     end
     if not got then status = "no sphere mesh would load (see the log)"; pcall(function() go:call("destroy", go) end); return nil end
     if not mesh_used then

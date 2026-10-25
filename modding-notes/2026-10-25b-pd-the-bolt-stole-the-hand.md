@@ -110,3 +110,9 @@ list (`vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh` first), a mesh counts 
 is measured from `get_ModelLocalAABB` so a sphere is exactly its zone's size, and "SPHERE LOOK" (in-game menu and the Grab Zones
 window) cycles Village's shared effect materials (`vfx/mesh/mesh_common_mtr`: light pillar, glass, liquid, mold, axis, dev test,
 none) because which one shows on these meshes is not known `[hypothesis]`. Needs a "Reset scripts" in REFramework to load.
+
+11:39, the second try `[measured 2026-10-25]`: none of the five spheres loaded. setMesh was handed the bare resource from
+`sdk.create_resource`, and the game read garbage inside setMesh (access violation, caught by REFramework, 30 times, no crash; the
+game was then closed normally at 11:42). Mesh.setMesh and set_Material take a resource HOLDER (`res:create_holder(
+"via.render.MeshResourceHolder")` / `"via.render.MeshMaterialResourceHolder"`). Fixed (installed 11:47), and a sphere path that
+fails once is never tried again. Andyalpa's holster visuals pass the bare resource too on their path-created branch.
