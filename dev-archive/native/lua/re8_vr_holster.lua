@@ -4751,6 +4751,9 @@ unequip_current_to_bare_hands = function(preferred_slot)
     local ok = native_stow()
     return ok
 end
+-- Visceral RE8 (2026-10-25): visceral_re8_holsters.lua puts the gun away when the right grip lets go (Tefa: "RG needed to
+-- actually hold the gun in hand"); it uses this proven stow instead of an untested one of its own.
+rawset(_G, "__re8_holster_stow_to_bare", function(slot) return unequip_current_to_bare_hands(slot) == true end)
 
 local HOLSTER_ACTION = { pending = nil, shoot_until = 0 }
 

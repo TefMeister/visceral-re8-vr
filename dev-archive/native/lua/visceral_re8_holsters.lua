@@ -15,6 +15,10 @@
 local TAG = "[visceral-re8-holsters]"
 local ON = true
 _G.__visceral_holsters_on = ON
+local HOLD_TO_KEEP = true     -- the right grip must stay closed to keep a gun in the hand; letting go puts it away
+local AIM_OFF = true          -- the grip no longer presses the game's aim (re8_vr.lua reads __visceral_aim_off)
+local TAKE_ARRIVE_S = 2.0     -- how long a gun just asked for may take to arrive in the hand
+_G.__visceral_aim_off = AIM_OFF
 
 -- spot offsets from the headset (m): side (+ right), up (+ up), forward (+ forward); Visceral RE2's numbers
 local SPOTS = {
@@ -100,9 +104,34 @@ local function buzz(joy, b)
     pcall(function() vrmod:trigger_haptic_vibration(0.0, b.sec, BUZZ_HZ, b.amp, joy) end)
 end
 
+-- The right grip holds the gun (Tefa 2026-10-25: "RG needed to actually hold the gun in hand, that means disabling the AIM
+-- function all together"): letting go puts the gun away, with Andyalpa's proven stow (re8_vr_holster.lua exports it as
+-- __re8_holster_stow_to_bare); the old guess (set_RequestedItem nil) is only the fall-back. The knife is left alone.
+-- Let go before a gun just asked for has arrived: it is put away when it arrives, within TAKE_ARRIVE_S.
+local function stow()
+    local f = rawget(_G, "__re8_holster_stow_to_bare")
+    if type(f) == "function" then
+        local ok, r = pcall(f, nil)
+        return ok and r == true, "Andyalpa's stow"
+    end
+    local wc = weapon_change()
+    return wc ~= nil and put_away(wc), "set_RequestedItem(nil), Andyalpa's stow not found"
+end
+
+local function held_is_knife()
+    local v = rawget(_G, "re8vr")
+    local w = v and v.weapon
+    if w == nil then return false end
+    local r = rawget(_G, "__re8_resolve_equipped_item_id")
+    local id = type(r) == "function" and safe(function() return r(w) end) or nil
+    return type(id) == "string" and id:find("Knife", 1, true) ~= nil
+end
+
 local inside = {}
 local grip_was = false
 local logged_slots = false
+local take_until = 0.0        -- a gun was just asked for (TAKE OUT) and may not be in the hand yet
+local stow_when_here = false  -- the grip let go before it arrived
 
 re.on_pre_application_entry("UpdateBehavior", function()
     _G.__visceral_holster_zone = false
@@ -118,7 +147,29 @@ re.on_pre_application_entry("UpdateBehavior", function()
     local rj = vrmod:get_right_joystick()
     local grip = vrmod:is_action_active(vrmod:get_action_grip(), rj) == true
     local pressed = grip and not grip_was
+    local released = grip_was and not grip
     grip_was = grip
+    if HOLD_TO_KEEP then
+        local now = os.clock()
+        if grip then stow_when_here = false end
+        if released then
+            if v.weapon ~= nil and not held_is_knife() then
+                local ok, how = stow()
+                L(string.format("grip let go: gun PUT AWAY (%s) -> %s", how, ok and "done" or "FAILED"))
+            elseif now < take_until then
+                stow_when_here = true
+            end
+        end
+        if stow_when_here then
+            if v.weapon ~= nil and not held_is_knife() then
+                stow_when_here = false
+                local ok, how = stow()
+                L(string.format("grip let go before the gun arrived: PUT AWAY on arrival (%s) -> %s", how, ok and "done" or "FAILED"))
+            elseif now >= take_until then
+                stow_when_here = false
+            end
+        end
+    end
     if not logged_slots then
         logged_slots = true
         L(string.format("spots on: quick slots Up %s, Right %s, Down %s, Left %s", tostring(SLOT.Up), tostring(SLOT.Right),
@@ -144,6 +195,7 @@ re.on_pre_application_entry("UpdateBehavior", function()
                         L(string.format("grab at %s: PUT AWAY item %s -> %s", s.name, tostring(id), put_away(wc) and "asked" or "FAILED"))
                     else
                         local ok = pcall(function() wc:call("set_RequestedItem", item) end)
+                        if ok then take_until = os.clock() + TAKE_ARRIVE_S end
                         L(string.format("grab at %s: TAKE OUT item %s (quick slot %s) -> %s", s.name, tostring(id), s.slot, ok and "asked" or "FAILED"))
                     end
                 end

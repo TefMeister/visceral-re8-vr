@@ -357,7 +357,10 @@ local function update_pad_device(device)
 
     -- gripping right joystick causes "left trigger" to be pressed (aiming)
     -- Visceral RE8 (2026-10-24): not while the right hand is in a holster spot (visceral_re8_holsters.lua): the grip is the grab
-    if vrmod:is_action_active(action_grip, right_joystick) and rawget(_G, "__visceral_holster_zone") ~= true then
+    -- Visceral RE8 (2026-10-25): and never while the aim is switched off (visceral_re8_holsters.lua sets __visceral_aim_off;
+    -- Tefa: "RG needed to actually hold the gun in hand, that means disabling the AIM function all together")
+    if vrmod:is_action_active(action_grip, right_joystick) and rawget(_G, "__visceral_holster_zone") ~= true
+        and rawget(_G, "__visceral_aim_off") ~= true then
         cur_button = cur_button | via.hid.GamePadButton.LTrigBottom
         device:call("set_AnalogL", 1.0)
     end
