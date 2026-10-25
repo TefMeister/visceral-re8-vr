@@ -104,10 +104,19 @@ class ZoneFile {
         return v != null && v.TryGetValue("show", out s) && s is bool && (bool)s;
     }
 
+    // which material the spheres wear (lua/visceral_re8_zones.lua MATS, the same order): the first one that shows is not known yet
+    public static readonly string[] Looks = { "light pillar", "glass", "liquid", "mold", "axis", "dev test", "no material" };
+    public static int Look(Dictionary<string, object> all) {
+        var v = Child(all, "_visual", false);
+        object m;
+        int i = v != null && v.TryGetValue("mat", out m) && m is double ? (int)(double)m : 0;
+        return i < 0 || i >= Looks.Length ? 0 : i;
+    }
+    public static void SetLook(Dictionary<string, object> all, int i) { Child(all, "_visual", true)["mat"] = (double)(((i % Looks.Length) + Looks.Length) % Looks.Length); }
+
     public static void SetShow(Dictionary<string, object> all, bool on) {
         var v = Child(all, "_visual", true);
         v["show"] = on;
-        if (!v.ContainsKey("half_m")) v["half_m"] = 0.05;
     }
 
     // ---- zones_state.json ---------------------------------------------------------------------------------------------

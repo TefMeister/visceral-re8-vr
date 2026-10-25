@@ -62,7 +62,8 @@ static class Program {
         check(Math.Abs(ZoneFile.Effective(back, "3042", "mag", "y") + 0.02) < 1e-9, "the gun's own offset is kept");
         check(Math.Abs(ZoneFile.Effective(back, "3042", "mag", "x")) < 1e-9, "all three offset numbers are written together");
         check(ZoneFile.Show(back), "the show switch is kept");
-        check(Json.Obj(back["_visual"]).ContainsKey("half_m"), "the ball size fix gets its default");
+        ZoneFile.SetLook(back, 7);
+        check(ZoneFile.Look(back) == 0, "the sphere look wraps round after the last one");
         ZoneFile.Forget(back, "3042", "mag");
         check(double.IsNaN(ZoneFile.Effective(back, "3042", "mag", "y")), "forget drops the gun's own numbers");
         check(Math.Abs(ZoneFile.Effective(back, "3042", "mag", "r") - 0.15) < 1e-9, "...and the default still applies");

@@ -31,17 +31,25 @@ local ZONES = {
 }
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
--- the ball: our own sphere when it ships (natives/stm/visceral_re8/zone_sphere.mesh), else a game item Andyalpa's visuals
--- already spawn in Village (the First Aid Med); half_m is the model's half size, so scale = radius / half_m
-local MESHES = { "visceral_re8/zone_sphere.mesh", "objectroot/setmodel/sm_item/sm_ri10/sm_ri1020/sm_ri1020.mesh",
-                 "objectroot/setmodel/sm_item/sm_ri1020/sm_ri1020.mesh", "item/ri1020/ri1020.mesh" }
-
+-- the sphere: a primitive sphere that ships with Village (its file list, RE8_STM_Release.list), the first that really loads.
+-- 2026-10-25 first wear: "i can't actually see any points on the gun": the first version asked for our own sphere mesh, which
+-- was never made; create_resource still handed back an object, setMesh threw inside the game, and every sphere was empty.
+-- Now a mesh only counts once getMesh gives it back. Its material comes from Village's shared effect materials
+-- (vfx/mesh/mesh_common_mtr, made for these primitive shapes); which one shows is not known yet, so "SPHERE LOOK" cycles them.
+local MESHES = { "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh",
+                 "re_engine_library/vfx_library/mesh/mesh_primitive/sphere.mesh", "systems/develop/shadereditor/sphere.mesh",
+                 "vfx/mesh/mesh_debris/primitive/mesh_0005_debris_sphere_00.mesh" }
+local MATS = { "vfx/mesh/mesh_common_mtr/mesh_0005_lightpillar_material_00.mdf2", "vfx/mesh/mesh_debris/glass00/mesh_0005_debris_glass00_00.mdf2",
+               "vfx/mesh/mesh_common_mtr/mesh_0005_liquid_material_00.mdf2", "vfx/mesh/mesh_common_mtr/mesh_0005_mold_material_00.mdf2",
+               "systems/effect/vfx_default_axis.mdf2", "systems/rendering/materialeditor/st0000/sm00018_vfx_devtest_00.mdf2", "" }
+local MAT_NAMES = { "light pillar", "glass", "liquid", "mold", "axis", "dev test", "no material" }
 local cfg = nil
 local seq = 0
 local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
 local balls = {}          -- i -> { go, xform, on }
-local mesh_res, mdf_res, mesh_used = nil, nil, ""
+local mesh_used, mesh_half = nil, nil     -- the sphere mesh that loaded, and its measured half size (m)
+local mat_res, mat_applied = {}, {}      -- material index -> resource; ball index -> the material it wears
 local spawn_tried = false
 local status = "not drawn yet"
 
@@ -50,7 +58,7 @@ local function load()
     cfg = nil
     pcall(function() cfg = json.load_file(FILE) end)
     if type(cfg) ~= "table" then cfg = {} end
-    if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = { half_m = 0.05 } end
+    if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = {} end
 end
 local function show_on() return cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].show == true end
 local function save()
@@ -107,19 +115,29 @@ local function find_folder()
     end
     return nil
 end
-local function resolve_mesh()
-    if mesh_res then return true end
-    for _, p in ipairs(MESHES) do
-        local m = resource(p, "via.render.MeshResource")
-        if m then
-            mesh_res, mesh_used = m, p
-            mdf_res = resource((p:gsub("%.mesh$", ".mdf2")), "via.render.MeshMaterialResource")
-            log.info(TAG .. " ball mesh: " .. p .. (mdf_res and " (with its material)" or " (NO material found: it may be invisible)"))
-            return true
+local function mat_index() local m = tonumber(cfg["_visual"].mat) or 0; if m < 0 or m >= #MATS then m = 0 end; return m end
+local function apply_mat(i, ball)
+    local m = mat_index()
+    if mat_applied[i] == m then return end
+    mat_applied[i] = m
+    local path = MATS[m + 1]
+    if path == "" then return end      -- "no material": the mesh's own (none) stays; respawning clears a set one
+    if mat_res[m] == nil then mat_res[m] = resource(path, "via.render.MeshMaterialResource") or false end
+    if mat_res[m] then pcall(function() ball.comp:call("set_Material", mat_res[m]) end) end
+end
+-- the mesh's half size, from its own bounding box, so a sphere is drawn exactly as big as its zone
+local function measure(comp)
+    local half = nil
+    pcall(function()
+        comp:call("updateBoundingBox")
+        local la = comp:call("get_ModelLocalAABB")
+        if la then
+            local mn, mx = la:get_field("minpos"), la:get_field("maxpos")
+            if mn and mx then half = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2 end
         end
-    end
-    status = "no mesh for the spheres could be loaded"
-    return false
+    end)
+    if half and half > 0.0005 and half < 100 then return half end
+    return nil
 end
 local function spawn(i)
     local td = sdk.find_type_definition("via.GameObject")
@@ -140,13 +158,30 @@ local function spawn(i)
         if comp then comp = comp:add_ref(); comp:call(".ctor()") end
     end)
     if not comp then status = "no mesh component"; pcall(function() go:call("destroy", go) end); return nil end
-    local ok = pcall(function() comp:call("setMesh", mesh_res) end)
-    if not ok then status = "setMesh failed"; pcall(function() go:call("destroy", go) end); return nil end
-    if mdf_res then pcall(function() comp:call("set_Material", mdf_res) end) end
+    local tries = mesh_used and { mesh_used } or MESHES
+    local got = nil
+    for _, path in ipairs(tries) do
+        local res = resource(path, "via.render.MeshResource")
+        if res then
+            pcall(function() comp:call("setMesh", res) end)
+            local back = nil
+            pcall(function() back = comp:call("getMesh") end)
+            if back ~= nil then got = path; break end
+        end
+        if not mesh_used then log.info(TAG .. " sphere mesh " .. path .. ": did not load") end
+    end
+    if not got then status = "no sphere mesh would load (see the log)"; pcall(function() go:call("destroy", go) end); return nil end
+    if not mesh_used then
+        mesh_used = got
+        mesh_half = measure(comp)
+        log.info(TAG .. " sphere mesh: " .. got .. ", half size " .. tostring(mesh_half))
+    end
     local xform = nil
     pcall(function() xform = go:call("get_Transform") end)
-    status = "drawn (" .. mesh_used .. ")"
-    return { go = go, xform = xform, on = false }
+    status = "drawn: " .. got:match("[^/]+$") .. ", look: " .. MAT_NAMES[mat_index() + 1]
+    local ball = { go = go, comp = comp, xform = xform, on = false }
+    apply_mat(i, ball)
+    return ball
 end
 local function set_on(ball, on)
     if ball.on == on or not alive(ball.go) then return end
@@ -161,6 +196,7 @@ local function destroy_all()
             pcall(function() ball.go:call("destroy", ball.go) end)
         end
         balls[i] = nil
+        mat_applied[i] = nil
     end
     spawn_tried = false
 end
@@ -193,9 +229,16 @@ re.on_frame(function()
     end
     if not spawn_tried then
         spawn_tried = true
-        if resolve_mesh() then for _, z in ipairs(ZONES) do balls[z.i] = spawn(z.i) end end
+        for _, z in ipairs(ZONES) do balls[z.i] = spawn(z.i) end
     end
-    local half = tonumber(cfg["_visual"].half_m) or 0.05
+    -- a new look picked: "no material" needs fresh spheres (a set material cannot be taken off), any other is put on
+    local m = mat_index()
+    if MATS[m + 1] == "" then
+        for i, _ in pairs(balls) do if mat_applied[i] ~= nil and mat_applied[i] ~= m then destroy_all(); return end end
+    end
+    for i, ball in pairs(balls) do if ball then apply_mat(i, ball); status = "drawn: " .. (mesh_used or "?"):match("[^/]+$") .. ", look: " .. MAT_NAMES[m + 1] end end
+    -- the measured size, unless the size fix in the menu was set by hand
+    local half = (cfg["_visual"].half_set and tonumber(cfg["_visual"].half_m)) or mesh_half or tonumber(cfg["_visual"].half_m) or 0.05
     if half < 0.005 then half = 0.005 end
     for _, z in ipairs(ZONES) do
         local ball = balls[z.i]
@@ -265,8 +308,12 @@ re.on_draw_ui(function()
         end
     end
     imgui.spacing()
-    local ch, vh = imgui.slider_float("Sphere model size fix (if the spheres look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or 0.05) * 100, 0.5, 30.0, "%.1f cm")
-    if ch then cfg["_visual"].half_m = vh / 100; save() end
+    if imgui.button("SPHERE LOOK: " .. MAT_NAMES[mat_index() + 1] .. "  (click for the next one, until the spheres show)") then
+        cfg["_visual"].mat = (mat_index() + 1) % #MATS; save()
+    end
+    local ch, vh = imgui.slider_float("Sphere model size fix (if the spheres look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or mesh_half or 0.05) * 100, 0.5, 100.0, "%.1f cm")
+    if ch then cfg["_visual"].half_m = vh / 100; cfg["_visual"].half_set = true; save() end
+    if cfg["_visual"].half_set and imgui.button("Measure the size again (forget the fix)") then cfg["_visual"].half_set = nil; save() end
     if imgui.button("Forget everything (all guns back to the plugin's own zones)") then cfg = { _visual = cfg["_visual"] }; save() end
     imgui.tree_pop()
 end)

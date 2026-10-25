@@ -86,6 +86,8 @@ class ZonesUi : Form {
         show = new CheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(4, 6, 12, 0) };
         show.CheckedChanged += (s, e) => { if (!syncing) SaveAll(); };
         one.Controls.Add(show);
+        lookBtn = Btn("SPHERE LOOK: light pillar", (s, e) => NextLook());
+        one.Controls.Add(lookBtn);
         one.Controls.Add(Btn("GAME FOLDER...", (s, e) => PickFolder()));
         var two = Row(42);
         two.Controls.Add(new SkinLabel { Text = "the sliders set:", AutoSize = true, ForeColor = Dim, Padding = new Padding(0, 8, 6, 0) });
@@ -97,6 +99,16 @@ class ZonesUi : Form {
         top.Controls.Add(two);
         top.Controls.Add(one);
         top.Controls.Add(status);
+    }
+
+    Button lookBtn;
+    // the spheres' material, cycled until one shows in the headset (the first wear showed none, 2026-10-25)
+    void NextLook() {
+        if (file.Folder == null) return;
+        var all = file.Load();
+        ZoneFile.SetLook(all, ZoneFile.Look(all) + 1);
+        try { file.Save(all); } catch (Exception) { }
+        RefreshFromFile();
     }
 
     Button forgetAll;
@@ -170,6 +182,7 @@ class ZonesUi : Form {
         var all = file.Load();
         syncing = true;
         show.Checked = ZoneFile.Show(all);
+        lookBtn.Text = "SPHERE LOOK: " + ZoneFile.Looks[ZoneFile.Look(all)];
         foreach (var b in boxes) b.Load(all, Group(), live);
         syncing = false;
     }

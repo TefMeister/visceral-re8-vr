@@ -98,3 +98,15 @@ also re-reads it when its write time changes (every 20 frames, `ZONE_FILE_CHECK_
 `[verified-numerically 2026-10-25]` self-test 14/14 PASS; against a stand-in game folder the window named the F2 Rifle, showed
 the live distances, and two clicks on "+" wrote `"3042":{"mag":{"r":0.13}}` with `"show":true`. Not yet run beside the real game.
 Plugin e362d3fb installed 10:33 (backup `_backup-2026-10-25-1033-before-visceral-re8-deploy`).
+
+## 11:30, first wear of the zone editor (Tefa: "i can't actually see any points on the gun")
+
+The window connected, the live distances moved and a slider moved the zone (zones.json re-read), but no sphere drew
+`[measured 2026-10-25]`: the script took `visceral_re8/zone_sphere.mesh` (never made) because `sdk.create_resource` hands back an
+object even for a missing file, then `via.render.Mesh.setMesh` threw inside the game four times (`Exception thrown in
+REMethodDefinition::invoke for via.render.Mesh.setMesh`, 11:28:48), so all four spheres were empty. Fixed (installed 11:34,
+backup `_backup-2026-10-25-1134-before-visceral-re8-deploy`): the candidates are Village's own primitive spheres from its file
+list (`vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh` first), a mesh counts only once `getMesh` gives it back, its half size
+is measured from `get_ModelLocalAABB` so a sphere is exactly its zone's size, and "SPHERE LOOK" (in-game menu and the Grab Zones
+window) cycles Village's shared effect materials (`vfx/mesh/mesh_common_mtr`: light pillar, glass, liquid, mold, axis, dev test,
+none) because which one shows on these meshes is not known `[hypothesis]`. Needs a "Reset scripts" in REFramework to load.
