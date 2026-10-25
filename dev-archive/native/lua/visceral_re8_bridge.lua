@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 104   -- 2026-10-25: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
+local N = 106   -- 2026-10-25: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9

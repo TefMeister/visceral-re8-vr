@@ -633,6 +633,18 @@ local function grip_pass(final)
             rack_sock = Vector3f.new(b.r(100), b.r(101), b.r(102))
         end
     end
+    -- 2026-10-25 03:21 (Tefa: "long weapons don't need the left hand dockable on the grip, like pistols do - rifle does that
+    -- at the moment"): on a long gun (bridge slot 104) a grip whose socket is closer than LONG_GRIP_MIN_M to the right hand
+    -- is never taken; only the forestock counts
+    local LONG_GRIP_MIN_M = 0.25
+    do
+        local b = rawget(_G, "visceral_re8_bridge")
+        local long_gun = b ~= nil and b.ready() and (safe(function() return b.r(104) end) or 0) > 0.5
+        if long_gun and not rack_two then
+            local sock = S.frozen and S.frozen.socket or socket_live
+            if sock ~= nil and len(sock) < LONG_GRIP_MIN_M then allowed = false end
+        end
+    end
     local our_grip
     if rack_two then
         if S.take == nil or not S.take.rack then

@@ -62,6 +62,7 @@ float g_last_grab = -10.0f, g_last_dock = -10.0f;
 bool g_pouch_ours = false;        // inside our own pouch spot (used when Andyalpa's ammo spot never reports)
 
 int g_mag_rounds = 0;             // rounds that left with the magazine
+bool g_clear = true;              // a carried magazine has been INSERT_CLEAR_M from the well since it was pulled out
 bool g_dry = false;               // the gun was empty when its magazine came out
 int g_stash = 0;                  // rounds waiting for a rack / pump
 MO* g_drop_gun = nullptr;
@@ -214,6 +215,9 @@ void hand_checks() {
     }
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
+    // 03:21 (the log: "insert at 0.001 m" the frame after every pull-out, so the magazine seated itself again and again until
+    // the hand was yanked clear): a magazine pulled out by hand must first get INSERT_CLEAR_M from the well
+    if (mag && !g_clear) { if (d > INSERT_CLEAR_M) { g_clear = true; LOGI("%s reload: the magazine is clear of the well (%.3f m): it may go back in now", TAG, d); } else return; }
     if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
         static float told = -10.0f;
         if (now - told > 2.0f) { told = now; LOGI("%s reload: at the gun (%.3f m) but not in front of you at gun height", TAG, d); }
@@ -312,6 +316,7 @@ void pull_out() {
         capture_second();
     }
     g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
+    g_clear = false;         // it must leave the well before it can go back in (hand_checks)
     set_state(St::IN_HAND, "pulled out by hand (LT)");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -370,6 +375,7 @@ void pouch_grab() {
         bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
         return;
     }
+    g_clear = true;   // from the pouch: nowhere near the well
     set_state(St::IN_HAND, "taken from the ammo spot");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
