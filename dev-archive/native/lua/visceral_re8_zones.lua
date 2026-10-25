@@ -197,6 +197,28 @@ local function spawn(i)
         mesh_half = measure(comp)
         log.info(TAG .. " sphere mesh: " .. got .. ", half size " .. tostring(mesh_half))
     end
+    -- 13:12 (fourth wear: SHOWN at the gun, the right size, every look, still nothing seen): a Mesh component made from
+    -- script draws only once it is enabled, set to draw by default, and sent to every render output; Andyalpa's holster
+    -- visuals (re8_vr_holster_visuals.lua clear_mesh_depth_ignore, set_output_all) switch all three on, this never did
+    pcall(function() comp:call("set_Enabled", true) end)
+    pcall(function() comp:call("set_DrawDefault", true) end)
+    pcall(function()
+        local et = sdk.find_type_definition("via.render.RenderOutputID")
+        local f = et and et:get_field("All")
+        comp:call("set_RenderOutputID", f and f:get_data(nil) or 31)
+    end)
+    pcall(function() comp:call("set_IgnoreDepth", false) end)
+    pcall(function() go:call("set_DrawSelf", true) end)
+    pcall(function() go:call("set_UpdateSelf", true) end)
+    if i == 0 then
+        local e, dd, out, ds, act = "?", "?", "?", "?", "?"
+        pcall(function() e = tostring(comp:call("get_Enabled")) end)
+        pcall(function() dd = tostring(comp:call("get_DrawDefault")) end)
+        pcall(function() out = tostring(comp:call("get_RenderOutputID")) end)
+        pcall(function() ds = tostring(go:call("get_DrawSelf")) end)
+        pcall(function() act = tostring(go:call("get_Active")) end)
+        log.info(TAG .. " sphere 0 made: mesh enabled " .. e .. ", draw default " .. dd .. ", render output " .. out .. ", object draws " .. ds .. ", active " .. act)
+    end
     local xform = nil
     pcall(function() xform = go:call("get_Transform") end)
     status = "drawn: " .. got:match("[^/]+$") .. ", look: " .. MAT_NAMES[mat_index() + 1]
@@ -209,6 +231,7 @@ local function set_on(ball, on)
     ball.on = on
     pcall(function() ball.go:call("setActive", on) end)
     pcall(function() ball.go:call("set_DrawSelf", on) end)
+    if on and ball.comp then pcall(function() ball.comp:call("set_Enabled", true) end); pcall(function() ball.comp:call("set_DrawDefault", true) end) end
 end
 local function destroy_all()
     for i, ball in pairs(balls) do
