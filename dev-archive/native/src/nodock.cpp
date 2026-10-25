@@ -65,11 +65,14 @@ bool on() { return g_on; }
 
 void frame() {
     const auto& s = player::now();
-    g_on = NODOCK_ON && bridge::live() && s.weapon != nullptr && !bridge::held(bridge::S_LGRIP) && !rack::active() &&
-           !reload::mag_in_hand() && !reload::round_in_hand();
+    // 03:35 (Tefa: with LG held the hand "still docked on the rifle grip instead, like holding a pistol", the pistol "hops on
+    // the grip when racking is needed"): the dock was handed back whenever LG was held, and then it fought every hand of ours.
+    // Now it is off whenever a gun is in hand, except when the grip script asks for it (bridge slot 105: a pistol with no
+    // kept grip spot yet, LG held, nothing vetoing), so a first spot can still be learned from it
+    g_on = NODOCK_ON && bridge::live() && s.weapon != nullptr && bridge::view(bridge::S_DOCK_ALLOW) < 0.5f;
     if (g_on != g_was_on) {
         g_was_on = g_on;
-        LOGI("%s nodock: the game's own left-hand dock is %s (%d asks answered with the root joint so far)", TAG, g_on ? "OFF (LG up)" : "allowed (LG held, or no gun)", g_faked.load());
+        LOGI("%s nodock: the game's own left-hand dock is %s (%d asks answered with the root joint so far)", TAG, g_on ? "OFF" : "allowed (the grip script asked, or no gun)", g_faked.load());
     }
 }
 

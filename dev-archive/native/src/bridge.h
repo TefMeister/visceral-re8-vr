@@ -70,6 +70,7 @@ enum Slot : int {
     S_POSER_HELD = 29,        // WRITTEN BY THE LUA: joints a hand poser (hand_poser.lua) holds right now; fingers.cpp stands down
     S_RACK_TWOHAND = 99,      // WRITTEN BY THE PLUGIN: 1 = the left hand is on a pump: the grip script steers at S_RACK_SOCKET
     S_RACK_SOCKET = 100,      // 100-102, WRITTEN BY THE PLUGIN: where the rack draws the left hand, in the right hand's frame (m)
+    S_DOCK_ALLOW = 105,       // WRITTEN BY THE GRIP SCRIPT: 1 = let the game dock the left hand now (a pistol's first grip spot is learned from it)
     S_LONG_GUN = 104,         // WRITTEN BY THE PLUGIN: 1 = the gun in hand is a long gun (the grip script allows no grip near the right hand)
     S_BODY_TURN = 103,        // WRITTEN BY THE LUA MENU: 1 = the body turn (body.cpp, experimental) is on
     S_COUNT = 106,

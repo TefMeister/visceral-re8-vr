@@ -645,6 +645,20 @@ local function grip_pass(final)
             if sock ~= nil and len(sock) < LONG_GRIP_MIN_M then allowed = false end
         end
     end
+    -- 03:35: the plugin keeps the game's own dock off; it is let through (bridge slot 105) only to learn a pistol's first
+    -- grip spot: LG held, a short gun, no kept spot and no take yet, nothing vetoing
+    do
+        local b = rawget(_G, "visceral_re8_bridge")
+        if b ~= nil and b.ready() then
+            local long_gun = (safe(function() return b.r(104) end) or 0) > 0.5
+            local want = (holding and allowed and not long_gun and S.frozen == nil and S.take == nil) and 1 or 0
+            if want ~= S.dock_allow_told then
+                S.dock_allow_told = want
+                L(want == 1 and "the game's dock let through: a first grip spot for this gun is wanted" or "the game's dock kept off")
+            end
+            b.w(105, want)
+        end
+    end
     local our_grip
     if rack_two then
         if S.take == nil or not S.take.rack then
