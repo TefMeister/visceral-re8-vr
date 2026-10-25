@@ -322,10 +322,14 @@ void grab_frame() {
     if (!in_play() || g_st != St::SEATED || g_joint == nullptr || rack::active() || pose_lock()) return;
     if (!g_hand_on_mag) {
         if (!bridge::pressed(bridge::S_LGRIP)) return;   // on the press only: an LG already held for the grip or the pump never grabs the magazine
+        // 03:06 (the rifle: no grab, the hand went to the bolt or the grip): the controller sits ~15 cm behind the drawn hand,
+        // so the hand's own place (the left IK target, where it was drawn last frame) is measured, and every press is logged
+        const auto& s = player::now();
         Vec3 mp, cp;
-        Quat mq;
-        if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return;
+        Quat mq, cq;
+        if (!mag_world(mp, mq) || s.ik_left == nullptr || !player::get_pose(field_obj(s.ik_left, "Target"), cp, cq)) return;
         const float d = dist(mp, cp);
+        LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, MAG_GRAB_M);
         if (d > MAG_GRAB_M) return;
         g_hand_on_mag = true;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -510,6 +514,14 @@ void mag_hand_frame() {   // UpdateBehavior: let go before the click drops it; l
     }
 }
 } // namespace
+bool hand_near_mag() {
+    if (!managed_now() || g_w->reload != Reload::MAG || g_joint == nullptr || g_st != St::SEATED) return false;
+    const auto& s = player::now();
+    Vec3 mp, cp;
+    Quat mq, cq;
+    if (!mag_world(mp, mq) || s.ik_left == nullptr || !player::get_pose(field_obj(s.ik_left, "Target"), cp, cq)) return false;
+    return dist(mp, cp) <= MAG_GRAB_M;
+}
 bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_hand_on_mag); }
 
 void on_ik(MO* ik) {

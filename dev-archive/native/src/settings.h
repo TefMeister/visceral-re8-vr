@@ -72,7 +72,7 @@ constexpr float RELOAD_INSERT_SEC = 0.19f;       // a new one slides in
 constexpr float RELOAD_TARGET_REACH_M = 0.02f;   // the drawn wrist this close to its IK target = the arm reached it (measure then)
 constexpr float RELOAD_MAG_DROP_M = 0.09f;       // how far below its seat the magazine slides out (gun's local -Y, a guess)
 constexpr float RELOAD_DOCK_COOLDOWN_SEC = 0.35f;
-constexpr float MAG_GRAB_M = 0.14f;               // reload.cpp: the left controller this close to the seated magazine, LG pressed = the hand goes onto it (LT then pulls it out)
+constexpr float MAG_GRAB_M = 0.18f;               // reload.cpp: the left controller this close to the seated magazine, LG pressed = the hand goes onto it (LT then pulls it out)
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in

@@ -8,6 +8,8 @@
 #include "settings.h"
 
 #include <atomic>
+#include <windows.h>
+#include <psapi.h>
 
 namespace vn::nodock {
 
@@ -23,8 +25,19 @@ std::atomic<int> g_faked{0};
 float g_log_t = -10.0f;
 
 int g_seen = 0;
-int pre(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned long long) {
+uintptr_t g_ref_lo = 0, g_ref_hi = 0;   // REFramework's own module (DINPUT8.dll): only ITS asks are faked
+void find_ref_module() {
+    HMODULE h = GetModuleHandleW(L"dinput8.dll");
+    MODULEINFO mi{};
+    if (h != nullptr && GetModuleInformation(GetCurrentProcess(), h, &mi, sizeof mi)) { g_ref_lo = (uintptr_t)mi.lpBaseOfDll; g_ref_hi = g_ref_lo + mi.SizeOfImage; }
+    LOGI("%s nodock: REFramework's module %s", TAG, g_ref_lo ? "found: only asks returning into it are answered with the root" : "NOT found: the fake stays off");
+}
+int pre(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned long long ret_addr) {
     t_fake = false;
+    // 03:12 (a crash in the game's own code with a garbage object, 0.6 s after a headset tracking blip): the game rebuilds
+    // its IK joints through this same call; answering ITS asks with the root joint is not safe. praydog's asks return into
+    // REFramework's module; the game's return into re8.exe. Only the former are faked
+    if (g_ref_lo == 0 || ret_addr < g_ref_lo || ret_addr >= g_ref_hi) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     // 01:50 (the log: "0 asks answered" while the game docked every frame): the motion-object check never matched, so it is
     // gone; the left hand IK's joint hash alone names the call. The first calls are logged to show what arrives
     const auto& s = player::now();
@@ -61,6 +74,7 @@ void frame() {
 }
 
 void install() {
+    find_ref_module();
     auto* m = API::get()->tdb()->find_method("via.motion.Motion", "getJointIndexByNameHash");
     if (m == nullptr) { LOGW("%s nodock: via.motion.Motion.getJointIndexByNameHash NOT FOUND: the game's dock stays", TAG); return; }
     m->add_hook(pre, post, false);

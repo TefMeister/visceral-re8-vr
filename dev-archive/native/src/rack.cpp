@@ -397,7 +397,7 @@ void frame() {
         // (reload::hand_on_mag), so it cannot jump straight onto the slide or the bolt
         // (worn 15:39, Tefa: "gripping the handgun with LG and emptying the gun so the slide racks open by itself made the left
         // hand jump from grip to the slide"): a hand that came from the grip waits for LG to be let go
-        const bool want = lg && !reload::hand_on_mag() && !g_from_grip;
+        const bool want = lg && !reload::hand_on_mag() && !reload::hand_near_mag() && !g_from_grip;   // (2026-10-25: the magazine first)
         if (want) {
             float off = 99.0f;
             const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);

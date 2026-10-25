@@ -31,10 +31,25 @@ local function set_now(why)
     return true
 end
 
+-- 03:15 (Tefa: "automatic height fix did not work, can it somehow check the height as the very first thing before the game
+-- starts?"): REFramework's recenter is yaw only, so what lifts the picture is the HEADSET's own recenter, which moves the
+-- whole tracking space while REFramework keeps its old origin: the body then sits higher than the hands. Two more triggers:
+-- the first frames the headset is active at all (title screens included), and any sudden jump of the headset's position
+-- between two frames (a system recenter; a head never moves JUMP_M in one frame)
+local JUMP_M = 0.25
+local early_done = false
+local prev_hp = nil
 re.on_frame(function()
     if not ON then return end
+    if not safe(function() return vrmod:is_hmd_active() end) then since = nil return end
+    local hp0 = safe(function() return vrmod:get_position(0) end)
+    if hp0 ~= nil then
+        if prev_hp ~= nil and (hp0 - prev_hp):length() > JUMP_M then set_now(string.format("the headset jumped %.2f m in one frame: a system recenter", (hp0 - prev_hp):length())) end
+        prev_hp = hp0
+        if not early_done and safe(function() return vrmod:is_using_controllers() end) then early_done = true set_now("the headset first active") end
+    end
     local v = rawget(_G, "re8vr")
-    if v == nil or not safe(function() return vrmod:is_hmd_active() end) then since = nil return end
+    if v == nil then since = nil return end
     local player = safe(function() return v.player end)
     if player == nil or safe(function() return v.can_use_hands end) ~= true then since = nil return end
     if done_for == player then return end
