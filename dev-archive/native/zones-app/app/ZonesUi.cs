@@ -1,8 +1,8 @@
-// ZonesUi.cs -- the Grab Zones window. Top: the game and the gun in hand, SHOW THE BALLS, and whether the sliders set THIS GUN
+// ZonesUi.cs -- the Grab Zones window. Top: the game and the gun in hand, SHOW THE SPHERES, and whether the sliders set THIS GUN
 // or ALL GUNS. Then one box per zone (the magazine grab, the well, the slide / pump / bolt): its live line ("hand 14 cm away,
 // needs 12", green when the hand is inside), four sliders (forward / back, up / down, right / left, size) each with - and +
 // buttons for half-centimetre steps (easier than dragging with a VR pointer), and RESET. Every change goes into zones.json at
-// once; the plugin moves the zone and the ball within a third of a second. Large type, so Window View can hang it in the headset.
+// once; the plugin moves the zone and its sphere within a third of a second. Large type, so Window View can hang it in the headset.
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -77,7 +77,7 @@ class ZonesUi : Form {
         Controls.Add(top);
         status = new Label { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 0, 0), ForeColor = Dim };
         var one = Row(42);
-        show = new CheckBox { Text = "SHOW THE BALLS ON THE GUN", AutoSize = true, ForeColor = Ink, Padding = new Padding(4, 6, 12, 0) };
+        show = new CheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, Padding = new Padding(4, 6, 12, 0) };
         show.CheckedChanged += (s, e) => { if (!syncing) SaveAll(); };
         one.Controls.Add(show);
         one.Controls.Add(Btn("GAME FOLDER...", (s, e) => PickFolder()));

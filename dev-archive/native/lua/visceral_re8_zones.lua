@@ -118,7 +118,7 @@ local function resolve_mesh()
             return true
         end
     end
-    status = "no mesh for the balls could be loaded"
+    status = "no mesh for the spheres could be loaded"
     return false
 end
 local function spawn(i)
@@ -218,10 +218,10 @@ end)
 re.on_draw_ui(function()
     if not imgui.tree_node("Visceral RE8 grab zones") then return end
     local b = bridge()
-    local c, v = imgui.checkbox("Show the zones on the gun (balls that ride it)", show_on())
+    local c, v = imgui.checkbox("Show the zones on the gun (spheres that ride it)", show_on())
     if c then cfg["_visual"].show = v; save() end
     imgui.text("Also in the Grab Zones window on the desktop (for Window View in the headset).")
-    imgui.text("Balls: " .. status)
+    imgui.text("Spheres: " .. status)
     if not b then imgui.text("(the bridge is not up: no gun readings)"); imgui.tree_pop(); return end
     local n = gun_num(b)
     imgui.text(n > 0 and ("Gun in hand: " .. tostring(n) .. (edit_defaults and "  (editing the DEFAULTS for every gun)" or "  (editing this gun's own zones)")) or "No gun in hand: the sliders edit the defaults")
@@ -265,7 +265,7 @@ re.on_draw_ui(function()
         end
     end
     imgui.spacing()
-    local ch, vh = imgui.slider_float("Ball model size fix (if the balls look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or 0.05) * 100, 0.5, 30.0, "%.1f cm")
+    local ch, vh = imgui.slider_float("Sphere model size fix (if the spheres look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or 0.05) * 100, 0.5, 30.0, "%.1f cm")
     if ch then cfg["_visual"].half_m = vh / 100; save() end
     if imgui.button("Forget everything (all guns back to the plugin's own zones)") then cfg = { _visual = cfg["_visual"] }; save() end
     imgui.tree_pop()
