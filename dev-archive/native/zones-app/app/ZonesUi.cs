@@ -120,15 +120,9 @@ class ZonesUi : Form {
     // (2026-10-25, Tefa: "can you just have the one look and not be able to choose anything else?": the SPHERE LOOK button is
     // gone; the spheres always wear "axis", the one seen drawing. Picking "no material" had crashed the game.)
 
-    Button forgetAll;
-    DateTime forgetArmed = DateTime.MinValue;
-    void BuildBottom() {
-        var bottom = Row(46);
-        bottom.Dock = DockStyle.Bottom;
-        forgetAll = Btn("FORGET THIS GUN'S ZONES", (s, e) => ForgetGroup());
-        bottom.Controls.Add(forgetAll);
-        Controls.Add(bottom);
-    }
+    // 2026-10-25 (Tefa: "please remove that, i'm afraid to accidentally press it, i'll just ask you if i ever need to clear all of
+    // it"): the FORGET THIS GUN'S / ALL-GUNS ZONES button is gone (a session clears zones.json by hand when asked)
+    void BuildBottom() { }
 
     // ---- the game ---------------------------------------------------------------------------------------------------------
     void UseFolder(string folder, bool remember) {
@@ -190,11 +184,7 @@ class ZonesUi : Form {
         }
         foreach (var b in boxes) b.ShowLive(live);
         pairsBox.Poll();
-        if (forgetArmed != DateTime.MinValue && (DateTime.Now - forgetArmed).TotalSeconds > 3) { forgetArmed = DateTime.MinValue; forgetAll.Text = ForgetText(); }
-        else if (forgetArmed == DateTime.MinValue) forgetAll.Text = ForgetText();
     }
-
-    string ForgetText() { return Group() == "default" ? "FORGET THE ALL-GUNS ZONES" : "FORGET THIS GUN'S ZONES"; }
 
     void RefreshFromFile() {
         if (file.Folder == null) return;
@@ -240,15 +230,6 @@ class ZonesUi : Form {
         if (file.Folder == null) return;
         var all = file.Load();
         ZoneFile.Forget(all, Group(), zone);
-        try { file.Save(all); } catch (Exception) { }
-        RefreshFromFile();
-    }
-
-    void ForgetGroup() {   // two clicks within three seconds, no pop-up (awkward inside the headset)
-        if (forgetArmed == DateTime.MinValue) { forgetArmed = DateTime.Now; forgetAll.Text = "SURE? CLICK AGAIN"; return; }
-        forgetArmed = DateTime.MinValue;
-        var all = file.Load();
-        all.Remove(Group());
         try { file.Save(all); } catch (Exception) { }
         RefreshFromFile();
     }

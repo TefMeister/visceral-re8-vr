@@ -551,7 +551,8 @@ re.on_draw_ui(function()
     local ch, vh = imgui.slider_float("Sphere model size fix (if the spheres look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or mesh_half or 0.05) * 100, 0.5, 100.0, "%.1f cm")
     if ch then cfg["_visual"].half_m = vh / 100; cfg["_visual"].half_set = true; save() end
     if cfg["_visual"].half_set and imgui.button("Measure the size again (forget the fix)") then cfg["_visual"].half_set = nil; save() end
-    if imgui.button("Forget everything (all guns back to the plugin's own zones)") then cfg = { _visual = cfg["_visual"] }; save() end
+    -- (2026-10-25, Tefa: "i'm afraid to accidentally press it, i'll just ask you if i ever need to clear all of it": the
+    -- "Forget everything" button is gone, as in the Grab Zones window)
     imgui.tree_pop()
 end)
 
