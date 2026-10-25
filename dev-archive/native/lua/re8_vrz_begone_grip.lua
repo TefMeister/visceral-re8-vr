@@ -716,7 +716,12 @@ local function grip_pass(final)
         release_take()
         our_grip = false
     elseif S.take ~= nil then
-        our_grip = allowed and (holding or keep_ok)
+        -- 2026-10-25 15:50 (Tefa, after shooting the rifle: "if anything is already docked, it must stay docked until LG is
+        -- released, even if the requirements are not met anymore, like a weapon needs racking ... and then only go back with LG
+        -- once requirements are met"; the log: `rack NEEDED (the bolt after the shot)` and in the same frame our_grip=false with
+        -- the button held): a grip already held stays while LG is held, whatever falls due meanwhile; the requirements (the
+        -- veto, the long gun's near-grip rule) only stop a NEW take
+        our_grip = holding
     else
         local near = cpp_grip or (d_take ~= nil and d_take <= dock_m)
         -- after the hand pulled away, it must leave the dock zone once before the auto-dock may take it again
