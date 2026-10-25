@@ -25,7 +25,7 @@ class ZonesUi : Form {
     bool syncing;
 
     Label status;
-    Panel scroll;
+    SkinPanel scroll;
     CheckBox show;
     RadioButton thisGun, allGuns;
     readonly List<ZoneBox> boxes = new List<ZoneBox>();
@@ -37,9 +37,12 @@ class ZonesUi : Form {
         ClientSize = new Size(620, 1010);
         MinimumSize = new Size(520, 600);
         StartPosition = FormStartPosition.CenterScreen;
-        try { Icon = new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "grab_zones.ico")); } catch (Exception) { }
+        string ico = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "grab_zones.ico");
+        try { Icon = new Icon(ico); } catch (Exception) { }
+        DoubleBuffered = true;
+        Backdrop.Init(this, ico, Back);   // the icon, pixelated and faint, behind the whole window (Tefa 2026-10-25)
 
-        scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Back, Padding = new Padding(8) };
+        scroll = new SkinPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(8) };
         Controls.Add(scroll);
         boxes.Add(new ZoneBox(this, "mag", "GRAB THE MAGAZINE", "left grip on the seated magazine"));
         boxes.Add(new ZoneBox(this, "well", "THE WELL", "where a magazine goes back in (long guns)"));
@@ -59,6 +62,8 @@ class ZonesUi : Form {
         Poll();
     }
 
+    protected override void OnPaintBackground(PaintEventArgs e) { Backdrop.PaintUnder(this, e.Graphics); }
+
     // ---- building -------------------------------------------------------------------------------------------------------
     internal static Button Btn(string text, EventHandler onClick, int width = 0) {
         var b = new Button { Text = text, FlatStyle = FlatStyle.Flat, BackColor = ButtonBack, ForeColor = Ink, Height = 34, AutoSize = width == 0, Margin = new Padding(3) };
@@ -69,22 +74,22 @@ class ZonesUi : Form {
     }
 
     static FlowLayoutPanel Row(int height) {
-        return new FlowLayoutPanel { Dock = DockStyle.Top, Height = height, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, BackColor = Back, Padding = new Padding(6, 2, 6, 0) };
+        return new FlowLayoutPanel { Dock = DockStyle.Top, Height = height, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, BackColor = Color.Transparent, Padding = new Padding(6, 2, 6, 0) };
     }
 
     void BuildTop() {
-        var top = new Panel { Dock = DockStyle.Top, Height = 124, BackColor = Back };
+        var top = new SkinPanel { Dock = DockStyle.Top, Height = 124, Tint = Color.FromArgb(120, Back) };
         Controls.Add(top);
-        status = new Label { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 0, 0), ForeColor = Dim };
+        status = new SkinLabel { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 0, 0), ForeColor = Dim };
         var one = Row(42);
-        show = new CheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, Padding = new Padding(4, 6, 12, 0) };
+        show = new CheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(4, 6, 12, 0) };
         show.CheckedChanged += (s, e) => { if (!syncing) SaveAll(); };
         one.Controls.Add(show);
         one.Controls.Add(Btn("GAME FOLDER...", (s, e) => PickFolder()));
         var two = Row(42);
-        two.Controls.Add(new Label { Text = "the sliders set:", AutoSize = true, ForeColor = Dim, Padding = new Padding(0, 8, 6, 0) });
-        thisGun = new RadioButton { Text = "THIS GUN", AutoSize = true, Checked = settings.Get("scope", "gun") != "all", ForeColor = Ink, Padding = new Padding(0, 6, 8, 0) };
-        allGuns = new RadioButton { Text = "ALL GUNS", AutoSize = true, Checked = settings.Get("scope", "gun") == "all", ForeColor = Ink, Padding = new Padding(0, 6, 0, 0) };
+        two.Controls.Add(new SkinLabel { Text = "the sliders set:", AutoSize = true, ForeColor = Dim, Padding = new Padding(0, 8, 6, 0) });
+        thisGun = new RadioButton { Text = "THIS GUN", AutoSize = true, Checked = settings.Get("scope", "gun") != "all", ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(0, 6, 8, 0) };
+        allGuns = new RadioButton { Text = "ALL GUNS", AutoSize = true, Checked = settings.Get("scope", "gun") == "all", ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0) };
         EventHandler scope = (s, e) => { if (((RadioButton)s).Checked) { settings.Set("scope", allGuns.Checked ? "all" : "gun"); RefreshFromFile(); } };
         thisGun.CheckedChanged += scope; allGuns.CheckedChanged += scope;
         two.Controls.Add(thisGun); two.Controls.Add(allGuns);
@@ -207,16 +212,16 @@ class ZonesUi : Form {
 
         public ZoneBox(ZonesUi ui, string slot, string title, string what) {
             this.ui = ui; this.slot = slot; this.title = title; key = slot == "part" ? "slide" : slot;
-            Dock = DockStyle.Top; Height = 276; BackColor = Back; Padding = new Padding(0, 6, 0, 6);
-            var inner = new Panel { Dock = DockStyle.Fill, BackColor = Panel2, Padding = new Padding(8, 4, 8, 4) };
+            Dock = DockStyle.Top; Height = 276; BackColor = Color.Transparent; Padding = new Padding(0, 6, 0, 6);
+            var inner = new SkinPanel { Dock = DockStyle.Fill, Tint = Color.FromArgb(150, Panel2), Padding = new Padding(8, 4, 8, 4) };
             Controls.Add(inner);
-            head = new Label { Dock = DockStyle.Top, Height = 28, Font = new Font("Segoe UI Semibold", 12f), ForeColor = Ink };
-            note = new Label { Dock = DockStyle.Top, Height = 24, ForeColor = Dim, Text = what };
+            head = new SkinLabel { Dock = DockStyle.Top, Height = 28, Font = new Font("Segoe UI Semibold", 12f), ForeColor = Ink };
+            note = new SkinLabel { Dock = DockStyle.Top, Height = 24, ForeColor = Dim, Text = what };
             fwd = new Slider(this, "forward / back", -OFFSET_MM, OFFSET_MM, true);
             up = new Slider(this, "up / down", -OFFSET_MM, OFFSET_MM, true);
             right = new Slider(this, "right / left", -OFFSET_MM, OFFSET_MM, true);
             size = new Slider(this, "size", SIZE_MIN_MM, SIZE_MAX_MM, false);
-            var reset = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Panel2, FlowDirection = FlowDirection.RightToLeft };
+            var reset = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Color.Transparent, FlowDirection = FlowDirection.RightToLeft };
             reset.Controls.Add(Btn("RESET", (s, e) => ui.Forget(key)));
             foreach (Control c in new Control[] { reset, size, right, up, fwd, note, head }) inner.Controls.Add(c);
         }
@@ -270,7 +275,7 @@ class ZonesUi : Form {
     // a labelled slider in millimetres, shown in centimetres, with - / + buttons
     class Slider : Panel {
         readonly ZoneBox box;
-        readonly TrackBar bar;
+        readonly FancySlider bar;
         readonly Label value;
         readonly bool signed;
         bool setting;
@@ -279,14 +284,14 @@ class ZonesUi : Form {
 
         public Slider(ZoneBox box, string label, int min, int max, bool signed) {
             this.box = box; this.signed = signed;
-            Dock = DockStyle.Top; Height = 40; BackColor = Panel2;
-            var name = new Label { Text = label, Dock = DockStyle.Left, Width = 128, ForeColor = Dim, Padding = new Padding(0, 8, 0, 0) };
-            value = new Label { Dock = DockStyle.Right, Width = 82, ForeColor = Ink, TextAlign = ContentAlignment.MiddleRight };
+            Dock = DockStyle.Top; Height = 40; BackColor = Color.Transparent;
+            var name = new SkinLabel { Text = label, Dock = DockStyle.Left, Width = 128, ForeColor = Dim, Padding = new Padding(0, 8, 0, 0) };
+            value = new SkinLabel { Dock = DockStyle.Right, Width = 82, ForeColor = Ink, TextAlign = ContentAlignment.MiddleRight };
             var minus = Btn("−", (s, e) => Nudge(-NUDGE_MM), 40); minus.Dock = DockStyle.Right;
             var plus = Btn("+", (s, e) => Nudge(NUDGE_MM), 40); plus.Dock = DockStyle.Right;
             minus.Font = plus.Font = new Font("Segoe UI Semibold", 13f);
-            var gap = new Panel { Dock = DockStyle.Right, Width = 4, BackColor = Panel2 };
-            bar = new TrackBar { Dock = DockStyle.Fill, Minimum = min, Maximum = max, TickStyle = TickStyle.None, SmallChange = 1, LargeChange = 10, BackColor = Panel2, AutoSize = false, Height = 34 };
+            var gap = new Panel { Dock = DockStyle.Right, Width = 4, BackColor = Color.Transparent };
+            bar = new FancySlider { Dock = DockStyle.Fill, Minimum = min, Maximum = max, SmallChange = 1, LargeChange = 10, Signed = signed };
             bar.ValueChanged += (s, e) => { ShowValue(); if (!setting) { Touched = true; box.Changed(); } };
             Controls.Add(bar); Controls.Add(minus); Controls.Add(gap); Controls.Add(plus); Controls.Add(value); Controls.Add(name);
             ShowValue();
