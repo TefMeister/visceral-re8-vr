@@ -73,7 +73,9 @@ enum Slot : int {
     S_DOCK_ALLOW = 105,       // WRITTEN BY THE GRIP SCRIPT: 1 = let the game dock the left hand now (a pistol's first grip spot is learned from it)
     S_LONG_GUN = 104,         // WRITTEN BY THE PLUGIN: 1 = the gun in hand is a long gun (the grip script allows no grip near the right hand)
     S_BODY_TURN = 103,        // WRITTEN BY THE LUA MENU: 1 = the body turn (body.cpp, experimental) is on
-    S_COUNT = 106,
+    S_LHAND_OFF = 106,        // 106-108, WRITTEN BY THE LUA: praydog's re8vr.left_hand_position_offset (the hand 15 cm ahead of the controller)
+    S_LHAND_ROT_OFF = 109,    // 109-112, WRITTEN BY THE LUA: re8vr.left_hand_rotation_offset (x,y,z,w)
+    S_COUNT = 114,
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,

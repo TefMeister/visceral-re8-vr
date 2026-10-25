@@ -100,6 +100,17 @@ Quat g_free_q{0, 0, 0, 1};
 int g_free_told = 0;
 int g_free_count = 0;
 float g_free_log_t = -10.0f;
+// 03:50 (Tefa: the free hand "swings the whole arm around like the motion controller is the centre", some launches, not
+// others; the log: 29 interaction-profile switches in 20 minutes, each after the controllers dropped out of tracking): the
+// put-back used an offset learned over time, which a bad moment could poison. praydog's own offsets now come through the
+// bridge each frame (slots 106-112), and the prediction is exactly his placement: controller + rotated position offset
+bool praydog_offsets(Vec3& p, Quat& q) {
+    const float x = bridge::view(bridge::S_LHAND_OFF);
+    if (!bridge::has(x)) return false;
+    p = Vec3{x, bridge::view((bridge::Slot)(bridge::S_LHAND_OFF + 1)), bridge::view((bridge::Slot)(bridge::S_LHAND_OFF + 2))};
+    q = qnorm(Quat{bridge::view(bridge::S_LHAND_ROT_OFF), bridge::view((bridge::Slot)(bridge::S_LHAND_ROT_OFF + 1)), bridge::view((bridge::Slot)(bridge::S_LHAND_ROT_OFF + 2)), bridge::view((bridge::Slot)(bridge::S_LHAND_ROT_OFF + 3))});
+    return std::isfinite(p.x) && std::isfinite(q.w);
+}
 bool controller_now(Vec3& p, Quat& q) {
     if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), p) || !bridge::room_rot_to_world(bridge::view_quat(bridge::S_LROT), q)) return false;
     q = qnorm(q);
@@ -141,6 +152,11 @@ void on_ik(MO* ik) {
     // fell through to the hold-back below, which is measured from the gun hand that the dock had just turned toward the
     // controller, so the hand followed the gun. Now every solve of a free hand (LG up) is checked against the controller
     const bool free_now = !bridge::held(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !bridge::flag(bridge::S_IS_RELOADING);
+    {   // praydog's exact offsets replace whatever was learned, every frame
+        Vec3 po;
+        Quat ro;
+        if (praydog_offsets(po, ro)) { g_cal = true; g_cal_p = po; g_cal_q = ro; }
+    }
     if (free_now && g_cal) {
         Vec3 cp;
         Quat cq;

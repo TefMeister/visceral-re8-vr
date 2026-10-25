@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 106   -- 2026-10-25: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
+local N = 114   -- 2026-10-25: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9
@@ -253,6 +253,16 @@ local function village_readings()
     wb(S_INTERACTION_BLOCKED, blocked)
     wb(S_POSE_LOCK, pose_lock)
     w(103, body_turn and 1 or 0)   -- S_BODY_TURN
+    -- 03:50: praydog's own hand offsets, so the plugin's free-hand put-back predicts exactly what he places (no learning)
+    local v8 = rawget(_G, "re8vr")
+    local po = v8 and safe(function() return v8.left_hand_position_offset end)
+    local ro = v8 and safe(function() return v8.left_hand_rotation_offset end)
+    if po and ro then
+        w(106, po.x); w(107, po.y); w(108, po.z)
+        w(109, ro.x); w(110, ro.y); w(111, ro.z); w(112, ro.w)
+    else
+        w(106, NO_VALUE)
+    end
     w(29, tonumber(rawget(_G, "hand_poser_held")) or 0)   -- S_POSER_HELD: fingers.cpp stands down while a poser holds a finger
     local hand = hand_for(r(S_WEAPON_NUM))
     w(S_SLIDE_HAND, hand.x); w(S_SLIDE_HAND + 1, hand.y); w(S_SLIDE_HAND + 2, hand.z)
