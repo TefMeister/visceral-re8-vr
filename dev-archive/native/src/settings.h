@@ -73,7 +73,12 @@ constexpr float RELOAD_TARGET_REACH_M = 0.02f;   // the drawn wrist this close t
 constexpr float RELOAD_MAG_DROP_M = 0.09f;       // how far below its seat the magazine slides out (gun's local -Y, a guess)
 constexpr float RELOAD_DOCK_COOLDOWN_SEC = 0.35f;
 constexpr float MAG_GRAB_M = 0.12f;               // (0.18 took the forestock grab too, 03:21)
-constexpr float INSERT_CLEAR_M = 0.12f;           // reload.cpp: a magazine pulled out by hand must get this far from the well before it can go back in               // reload.cpp: the left controller this close to the seated magazine, LG pressed = the hand goes onto it (LT then pulls it out)
+// reload.cpp: the left hand (its IK target, where it was drawn) this close to the seated magazine, LG pressed = the hand goes onto
+// it (LT then pulls it out). Last wear 2026-10-25 03:52: real grabs measured 0.080-0.118 m, so 0.12 is right
+// 2026-10-25 (the last wear: the pulled magazine "jumps back in"; the log: clear at 0.126 m and "insert at 0.126 m (need 0.16)" the
+// same frame): the old clear distance (0.12) lay INSIDE the insert distance (0.16 on a long gun), so "clear" and "back in" were the
+// same moment. Now a pulled-out magazine must get this much FURTHER than the insert distance before it may go back in
+constexpr float INSERT_CLEAR_MARGIN_M = 0.10f;    // long gun: clear at 0.26 m from the well; pistol (controller distance): 0.34 m
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in
@@ -109,6 +114,12 @@ constexpr float RACK_GRAB_M = 0.16f;             // left controller this close t
 constexpr float RACK_GRAB_AHEAD_MAX_M = 0.70f;   // ... and no further ahead along the barrel than this
 constexpr float RACK_GRAB_BEHIND_M = 0.10f;      // ... or behind the gun hand than this (a pistol slide sits over the hand)
 constexpr float RACK_JOINT_GRAB_M = 0.14f;       // the left controller this close to the slide / pump joint = can take hold
+// 2026-10-25 (the last wear, Tefa: "the bolt activation area is too large", "hand still gripped on the rifle grip handle alongside
+// right hand"): the F2's bolt joint sits 13 cm from its magazine joint, and the bolt zone was measured from the CONTROLLER (which
+// sits ~15 cm behind the drawn hand) while the magazine's is measured from the drawn hand, so every reach for the magazine that
+// missed it by a few cm was taken by the bolt and the hand was held up at the bolt, beside the right hand. The bolt is now measured
+// from the drawn hand (the left IK target, the same point as the magazine) and takes only close to its joint
+constexpr float RACK_BOLT_GRAB_M = 0.09f;        // the drawn left hand this close to the bolt joint = can take hold (the magazine wins within MAG_GRAB_M)
                                                  // (0.20 until 2026-10-24: Tefa "hand must not go straight onto the slider or the bolt after
                                                  // inserting a mag, there has to be a tighter zone"; it also needs a fresh LG press now)
 constexpr float RACK_GRAB_ANY_M = 0.30f;          // ... or simply this close to the right controller (the gun-line test may be off)

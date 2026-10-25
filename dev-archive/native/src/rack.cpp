@@ -177,11 +177,23 @@ float along_gun() {
     return d.x * g_axis.x + d.y * g_axis.y + d.z * g_axis.z;
 }
 // the left controller on the gun line: over the gun hand or ahead of it along the barrel, close to the line
-bool near_joint(float& d) {   // the left controller (carried into the world) near the slide / pump joint itself
+// the bolt (2026-10-25): measured from the drawn left hand (its IK target, where it was drawn last frame), the same point the
+// magazine grab uses (reload.cpp grab_frame), with its own, tighter radius. The slide and the pump keep the controller and
+// RACK_JOINT_GRAB_M: Tefa 2026-10-25 "shotgun is fine now!", so they are left as they are
+bool grab_point(Vec3& lp) {
+    if (bolt()) {
+        const auto& s = player::now();
+        Quat q;
+        if (s.ik_left != nullptr && player::get_pose(field_obj(s.ik_left, "Target"), lp, q)) return true;
+    }
+    return bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp);
+}
+float joint_grab_m() { return bolt() ? RACK_BOLT_GRAB_M : RACK_JOINT_GRAB_M; }
+bool near_joint(float& d) {   // the left hand near the slide / pump / bolt joint itself
     Vec3 jp, lp;
-    if (g_joint == nullptr || !get_v3(JOINT, g_joint, "get_Position", jp) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) return false;
+    if (g_joint == nullptr || !get_v3(JOINT, g_joint, "get_Position", jp) || !grab_point(lp)) return false;
     d = dist(jp, lp);
-    return d <= RACK_JOINT_GRAB_M;
+    return d <= joint_grab_m();
 }
 bool on_gun_line(float& off) {
     const Vec3 fwd = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
@@ -404,8 +416,12 @@ void frame() {
             if (g_log_near < 30 && (bridge::pressed(bridge::S_LGRIP) || is_near)) {
                 ++g_log_near;
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
-                LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
-                     RACK_GRAB_M, is_near ? "HAND ON" : "too far", f.x, f.y, f.z, v.x, v.y, v.z);
+                if (g_joint != nullptr)
+                    LOGI("%s rack: left hand %.3f m from the %s joint (need %.2f, %s): %s", TAG, off, part(), joint_grab_m(),
+                         bolt() ? "the drawn hand" : "the controller", is_near ? "HAND ON" : "too far");
+                else
+                    LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
+                         RACK_GRAB_M, is_near ? "HAND ON" : "too far", f.x, f.y, f.z, v.x, v.y, v.z);
             }
             if (is_near && bolt()) {   // Tefa 2026-10-19: "the left grip must already grip it and hold on, but not move the bolt until LT is pressed"
                 g_hand_on = g_capture = true;

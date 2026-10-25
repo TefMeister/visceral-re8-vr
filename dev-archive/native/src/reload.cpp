@@ -62,7 +62,7 @@ float g_last_grab = -10.0f, g_last_dock = -10.0f;
 bool g_pouch_ours = false;        // inside our own pouch spot (used when Andyalpa's ammo spot never reports)
 
 int g_mag_rounds = 0;             // rounds that left with the magazine
-bool g_clear = true;              // a carried magazine has been INSERT_CLEAR_M from the well since it was pulled out
+bool g_clear = true;              // a carried magazine has been clear of the well (the insert distance + INSERT_CLEAR_MARGIN_M) since it was pulled out
 bool g_dry = false;               // the gun was empty when its magazine came out
 int g_stash = 0;                  // rounds waiting for a rack / pump
 MO* g_drop_gun = nullptr;
@@ -216,8 +216,14 @@ void hand_checks() {
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
     // 03:21 (the log: "insert at 0.001 m" the frame after every pull-out, so the magazine seated itself again and again until
-    // the hand was yanked clear): a magazine pulled out by hand must first get INSERT_CLEAR_M from the well
-    if (mag && !g_clear) { if (d > INSERT_CLEAR_M) { g_clear = true; LOGI("%s reload: the magazine is clear of the well (%.3f m): it may go back in now", TAG, d); } else return; }
+    // the hand was yanked clear): a magazine pulled out by hand must first get clear of the well (dock_need() + INSERT_CLEAR_MARGIN_M)
+    // 2026-10-25 (the last wear: "jumps back in"; the log: clear at 0.126 and "insert at 0.126 (need 0.16)" the same frame): the
+    // clear distance must lie OUTSIDE the insert distance, so it is the insert distance plus a margin
+    if (mag && !g_clear) {
+        const float clear_at = dock_need() + INSERT_CLEAR_MARGIN_M;
+        if (d > clear_at) { g_clear = true; LOGI("%s reload: the magazine is clear of the well (%.3f m, needed %.2f): it may go back in within %.2f now", TAG, d, clear_at, dock_need()); }
+        else return;
+    }
     if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
         static float told = -10.0f;
         if (now - told > 2.0f) { told = now; LOGI("%s reload: at the gun (%.3f m) but not in front of you at gun height", TAG, d); }
