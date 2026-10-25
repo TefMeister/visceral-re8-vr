@@ -54,8 +54,12 @@ local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_tes
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
 local MATS = { "OWN", "vfx/mesh/mesh_common_mtr/mesh_0005_lightpillar_material_00.mdf2", "vfx/mesh/mesh_debris/glass00/mesh_0005_debris_glass00_00.mdf2",
                "vfx/mesh/mesh_common_mtr/mesh_0005_liquid_material_00.mdf2", "vfx/mesh/mesh_common_mtr/mesh_0005_mold_material_00.mdf2",
-               "systems/effect/vfx_default_axis.mdf2", "" }
-local MAT_NAMES = { "its own", "light pillar", "glass", "liquid", "mold", "axis", "no material" }
+               "systems/effect/vfx_default_axis.mdf2" }
+local MAT_NAMES = { "its own", "light pillar", "glass", "liquid", "mold", "axis" }
+-- 2026-10-25 22:06 (Tefa: "when i clicked on the next one, no solid shape it was i think, the game crashed"): "no material"
+-- is gone from the cycle. Picking it threw every sphere away and made them again, and the remake's setMesh threw inside the
+-- game five times (the log, 22:06:26) and then the game crashed (re8.exe+0x415879c). Kept log and dump: D:/RE Village
+-- REFramework builds/logs/*2026-10-25-2206*. A saved look past the end falls back to the first (mat_index).
 local cfg = nil
 local seq = 0
 local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
