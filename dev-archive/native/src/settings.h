@@ -125,6 +125,7 @@ constexpr float RACK_BOLT_GRAB_M = 0.09f;        // the drawn left hand this clo
 // zones.cpp (2026-10-25): the grab zones can be moved and resized from the menu (zones.json); this is the size of the drawn dot at the
 // point the tests measure from (the drawn left hand, or the controller for the slide / pump)
 constexpr float ZONE_HAND_MARK_M = 0.02f;
+constexpr int   ZONE_FILE_CHECK_FRAMES = 20;      // how often zones.json's write time is checked (a save from the Grab Zones window)
                                                  // (0.20 until 2026-10-24: Tefa "hand must not go straight onto the slider or the bolt after
                                                  // inserting a mag, there has to be a tighter zone"; it also needs a fresh LG press now)
 constexpr float RACK_GRAB_ANY_M = 0.30f;          // ... or simply this close to the right controller (the gun-line test may be off)

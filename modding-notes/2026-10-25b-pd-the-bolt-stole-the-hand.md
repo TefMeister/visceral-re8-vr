@@ -87,3 +87,14 @@ numbers into actual sliders and movable areas that ride the gun all the time". B
   A "ball model size fix" slider sets the model's half size (the Med model's is a guess, 5 cm).
 - Not in it yet: the forestock grip zone (the grip script's own, `GRIP_DOCK_M` 10 cm around the kept socket) and the magazine
   HOLD pose. Both could join the same file.
+
+## 10:30, the Grab Zones window (Tefa: "can you make the gun grip activation sliders a separate thing just like you did with the hand poser, so i can use it with Window View")
+
+Built in `dev-archive/native/zones-app/` (C#, like Hand Poser), installed on the home PC with a desktop icon "Grab Zones".
+Same sliders as the in-game menu, large type, − / + buttons for half-centimetre steps, live "hand N cm away, needs R" per zone
+(green inside), THIS GUN / ALL GUNS, SHOW THE BALLS, RESET per zone, FORGET (two clicks). It writes zones.json; the plugin now
+also re-reads it when its write time changes (every 20 frames, `ZONE_FILE_CHECK_FRAMES`), and the zones script writes
+`zones_state.json` four times a second, re-reads zones.json twice a second, and takes "show the balls" from the file.
+`[verified-numerically 2026-10-25]` self-test 14/14 PASS; against a stand-in game folder the window named the F2 Rifle, showed
+the live distances, and two clicks on "+" wrote `"3042":{"mag":{"r":0.13}}` with `"show":true`. Not yet run beside the real game.
+Plugin e362d3fb installed 10:33 (backup `_backup-2026-10-25-1033-before-visceral-re8-deploy`).

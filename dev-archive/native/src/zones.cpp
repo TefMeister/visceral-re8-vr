@@ -79,12 +79,27 @@ const std::map<std::string, Entry>* group(const std::string& name) {
     auto it = g_file.find(name);
     return it == g_file.end() ? nullptr : &it->second;
 }
+
+// the file's write time, so a save from outside the game (the Grab Zones window, zones-app/) is picked up too
+bool file_changed() {
+    static FILETIME last{};
+    static bool have = false;
+    WIN32_FILE_ATTRIBUTE_DATA a{};
+    if (!GetFileAttributesExW(path().c_str(), GetFileExInfoStandard, &a)) return false;
+    if (have && CompareFileTime(&a.ftLastWriteTime, &last) == 0) return false;
+    const bool first = !have;
+    have = true;
+    last = a.ftLastWriteTime;
+    return !first;
+}
 } // namespace
 
 void frame() {
-    if (!g_loaded) load();
+    static int n = 0;
+    if (!g_loaded) { load(); file_changed(); }
     const float seq = bridge::view(bridge::S_ZONE_SEQ);
     if (seq != bridge::NO_VALUE && seq != g_seq_seen) { g_seq_seen = seq; if (seq > 0.0f) load(); }
+    if (++n % ZONE_FILE_CHECK_FRAMES == 0 && file_changed()) load();
 }
 
 Zone get(Key k, const char* part) {

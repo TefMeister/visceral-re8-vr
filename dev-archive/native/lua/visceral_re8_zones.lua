@@ -11,9 +11,17 @@
 -- zones.json: { "default": { "mag": {x,y,z,r}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...} },
 --               "3042": { ... the same, for one gun (its number) ... }, "_visual": { "half_m": 0.05 } }
 -- x, y, z: metres from the zone's own joint, in the gun's axes; r: the radius in metres. A missing number keeps the plugin's own.
+-- "_visual": { "half_m": the ball model's half size, "show": true = draw the balls }.
+--
+-- The same numbers can be set from outside the game with the Grab Zones window (zones-app/, a desktop window Window View can
+-- hang in the headset, Tefa 2026-10-25: "a separate thing just like you did with the hand poser"). For it this file writes
+-- visceral_re8/zones_state.json four times a second (the gun in hand, each zone's size and how far the hand is from it), and
+-- re-reads zones.json twice a second, so a save from the window shows here at once.
 
 local TAG = "[visceral-re8-zones]"
 local FILE = "visceral_re8/zones.json"
+local STATE_FILE = "visceral_re8/zones_state.json"
+local STATE_EVERY_S, RELOAD_EVERY_S, EDIT_QUIET_S = 0.25, 0.5, 0.6
 local S_WEAPON_NUM, S_ZONE_SHOW, S_ZONE_SEQ, S_ZONES = 97, 114, 115, 116
 local ZONES = {
     { i = 0, key = "mag",  label = "Grab the magazine (left grip on it)" },
@@ -29,8 +37,8 @@ local MESHES = { "visceral_re8/zone_sphere.mesh", "objectroot/setmodel/sm_item/s
                  "objectroot/setmodel/sm_item/sm_ri1020/sm_ri1020.mesh", "item/ri1020/ri1020.mesh" }
 
 local cfg = nil
-local show = false
 local seq = 0
+local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
 local balls = {}          -- i -> { go, xform, on }
 local mesh_res, mdf_res, mesh_used = nil, nil, ""
@@ -44,7 +52,9 @@ local function load()
     if type(cfg) ~= "table" then cfg = {} end
     if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = { half_m = 0.05 } end
 end
+local function show_on() return cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].show == true end
 local function save()
+    last_edit_t = os.clock()
     pcall(function() json.dump_file(FILE, cfg) end)
     seq = seq + 1
     local b = bridge()
@@ -155,9 +165,27 @@ local function destroy_all()
     spawn_tried = false
 end
 
+local function write_state(b)
+    local st = { t = os.time(), gun = gun_num(b), zones = {} }
+    local hx, hy, hz, _, hon = live(b, 3)
+    for _, z in ipairs(ZONES) do
+        if z.key ~= "hand" then
+            local x, y, zz, r, on = live(b, z.i)
+            local e = { key = zone_key(z, b), on = (on or 0) > 0.5, r_cm = (r or 0) * 100 }
+            if e.on and (hon or 0) > 0.5 then e.hand_cm = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) * 100 end
+            st.zones[#st.zones + 1] = e
+        end
+    end
+    pcall(function() json.dump_file(STATE_FILE, st) end)
+end
+
 re.on_frame(function()
     local b = bridge()
     if not b then return end
+    local now = os.clock()
+    if now - last_reload_t > RELOAD_EVERY_S and now - last_edit_t > EDIT_QUIET_S then last_reload_t = now; load() end
+    if now - last_state_t > STATE_EVERY_S then last_state_t = now; write_state(b) end
+    local show = show_on()
     b.w(S_ZONE_SHOW, show and 1 or 0)
     if not show then
         if next(balls) ~= nil then destroy_all() end
@@ -190,8 +218,9 @@ end)
 re.on_draw_ui(function()
     if not imgui.tree_node("Visceral RE8 grab zones") then return end
     local b = bridge()
-    local c, v = imgui.checkbox("Show the zones on the gun (balls that ride it)", show)
-    if c then show = v end
+    local c, v = imgui.checkbox("Show the zones on the gun (balls that ride it)", show_on())
+    if c then cfg["_visual"].show = v; save() end
+    imgui.text("Also in the Grab Zones window on the desktop (for Window View in the headset).")
     imgui.text("Balls: " .. status)
     if not b then imgui.text("(the bridge is not up: no gun readings)"); imgui.tree_pop(); return end
     local n = gun_num(b)
@@ -237,7 +266,7 @@ re.on_draw_ui(function()
     end
     imgui.spacing()
     local ch, vh = imgui.slider_float("Ball model size fix (if the balls look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or 0.05) * 100, 0.5, 30.0, "%.1f cm")
-    if ch then cfg["_visual"].half_m = vh / 100; pcall(function() json.dump_file(FILE, cfg) end) end
+    if ch then cfg["_visual"].half_m = vh / 100; save() end
     if imgui.button("Forget everything (all guns back to the plugin's own zones)") then cfg = { _visual = cfg["_visual"] }; save() end
     imgui.tree_pop()
 end)
