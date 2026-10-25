@@ -62,7 +62,7 @@ float g_last_grab = -10.0f, g_last_dock = -10.0f;
 bool g_pouch_ours = false;        // inside our own pouch spot (used when Andyalpa's ammo spot never reports)
 
 int g_mag_rounds = 0;             // rounds that left with the magazine
-bool g_clear = true;              // a carried magazine has been clear of the well (the insert distance + INSERT_CLEAR_MARGIN_M) since it was pulled out
+bool g_lt_to_seat = false;        // a magazine pulled out by hand: it goes back in only on a fresh LT press at the well (Tefa 2026-10-25)
 bool g_dry = false;               // the gun was empty when its magazine came out
 int g_stash = 0;                  // rounds waiting for a rack / pump
 MO* g_drop_gun = nullptr;
@@ -215,21 +215,25 @@ void hand_checks() {
     }
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
-    // 03:21 (the log: "insert at 0.001 m" the frame after every pull-out, so the magazine seated itself again and again until
-    // the hand was yanked clear): a magazine pulled out by hand must first get clear of the well (dock_need() + INSERT_CLEAR_MARGIN_M)
-    // 2026-10-25 (the last wear: "jumps back in"; the log: clear at 0.126 and "insert at 0.126 (need 0.16)" the same frame): the
-    // clear distance must lie OUTSIDE the insert distance, so it is the insert distance plus a margin
-    if (mag && !g_clear) {
-        const float clear_at = dock_need() + INSERT_CLEAR_MARGIN_M;
-        if (d > clear_at) { g_clear = true; LOGI("%s reload: the magazine is clear of the well (%.3f m, needed %.2f): it may go back in within %.2f now", TAG, d, clear_at, dock_need()); }
-        else return;
-    }
     if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
         static float told = -10.0f;
         if (now - told > 2.0f) { told = now; LOGI("%s reload: at the gun (%.3f m) but not in front of you at gun height", TAG, d); }
         return;
     }
     if (d > dock_need() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
+    // 03:21 and 03:53 (the log: "insert at 0.001 m", later "insert at 0.126 m", the frame after every pull-out: the magazine seated
+    // itself again at once). Tefa 2026-10-25: "LT must be pressed again for it to go back in". So a magazine pulled out by hand
+    // sits at the well until a fresh LT press (not the pull-out's own, hence the short wait); one from the pouch seats by itself
+    if (mag && g_lt_to_seat && INSERT_NEEDS_LT) {
+        static float told = -10.0f;
+        if (now - g_t0 < INSERT_LT_MIN_SEC) return;
+        if (!bridge::pressed(bridge::S_LTRIG)) {
+            if (now - told > 2.0f) { told = now; LOGI("%s reload: the pulled-out magazine is at the well (%.3f m): press LT to seat it", TAG, d); }
+            return;
+        }
+        LOGI("%s reload: LT pressed at the well: the pulled-out magazine goes back in", TAG);
+        g_lt_to_seat = false;
+    }
     g_last_dock = now;
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
     if (mag) {
@@ -322,7 +326,7 @@ void pull_out() {
         capture_second();
     }
     g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
-    g_clear = false;         // it must leave the well before it can go back in (hand_checks)
+    g_lt_to_seat = true;     // it goes back in only on a fresh LT press at the well (hand_checks)
     set_state(St::IN_HAND, "pulled out by hand (LT)");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -381,7 +385,7 @@ void pouch_grab() {
         bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
         return;
     }
-    g_clear = true;   // from the pouch: nowhere near the well
+    g_lt_to_seat = false;   // from the pouch: it seats by itself when brought to the gun
     set_state(St::IN_HAND, "taken from the ammo spot");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);

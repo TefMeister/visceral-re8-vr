@@ -37,3 +37,11 @@ Rifle: LG on the magazine (within 12 cm), LT: it comes out and STAYS out while t
 after the hand has been 26 cm away first (log `clear of the well (... needed 0.26)`). Reaching for the magazine and missing no
 longer puts the hand on the bolt; the bolt takes only within 9 cm of its handle (log `from the bolt joint (need 0.09, the drawn
 hand)`). The hand next to the right hand should be gone. Not yet looked at: the pistol rules from mod-ideas (board row).
+
+## 09:20, Tefa: "can this be set so that LT must be pressed again for it to go back in, that would solve this problem for good"
+
+Agreed and built (a3bf6318, installed 09:40, backup `_backup-2026-10-25-0940-before-visceral-re8-deploy`). The 26 cm clear rule is
+gone. A magazine pulled out by hand now sits at the well, however close, until a fresh LT press while it is at the gun (`INSERT_NEEDS_LT`;
+the pull-out's own press cannot count: 0.25 s wait, `INSERT_LT_MIN_SEC`). Log: `the pulled-out magazine is at the well (...): press LT
+to seat it` every 2 s while it waits, then `LT pressed at the well: the pulled-out magazine goes back in`. A fresh magazine from the
+pouch still seats by itself when brought to the gun (unchanged; LT there too if Tefa wants it).

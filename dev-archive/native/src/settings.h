@@ -76,9 +76,11 @@ constexpr float MAG_GRAB_M = 0.12f;               // (0.18 took the forestock gr
 // reload.cpp: the left hand (its IK target, where it was drawn) this close to the seated magazine, LG pressed = the hand goes onto
 // it (LT then pulls it out). Last wear 2026-10-25 03:52: real grabs measured 0.080-0.118 m, so 0.12 is right
 // 2026-10-25 (the last wear: the pulled magazine "jumps back in"; the log: clear at 0.126 m and "insert at 0.126 m (need 0.16)" the
-// same frame): the old clear distance (0.12) lay INSIDE the insert distance (0.16 on a long gun), so "clear" and "back in" were the
-// same moment. Now a pulled-out magazine must get this much FURTHER than the insert distance before it may go back in
-constexpr float INSERT_CLEAR_MARGIN_M = 0.10f;    // long gun: clear at 0.26 m from the well; pistol (controller distance): 0.34 m
+// same frame, because the old clear distance (0.12) lay inside the insert distance). Tefa, 09:20: "can this be set so that LT must
+// be pressed again for it to go back in, that would solve this problem for good". So a magazine pulled out by hand goes back in
+// only on a fresh LT press while it is at the well; a fresh one from the pouch still seats by itself when brought to the gun
+constexpr bool  INSERT_NEEDS_LT = true;
+constexpr float INSERT_LT_MIN_SEC = 0.25f;        // the pull-out's own LT press (the same frame) never counts as the seat press
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in
