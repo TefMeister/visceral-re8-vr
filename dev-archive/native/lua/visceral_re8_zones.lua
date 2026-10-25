@@ -46,7 +46,9 @@ local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", lab
 -- weapon's own mesh and material holders, already loaded by the game; every mesh loaded fresh from a path has drawn nothing in
 -- five tries. So first choice is now "GUN": each zone is a small copy of the gun in hand, in its own material. It is made only
 -- once a gun is in hand. If even that draws nothing, the fault is not the mesh.
-local MESHES = { "GUN", "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh",
+-- 14:23 (Tefa: "yessss!!! guns everywhere"): the gun copies SHOWED once the spheres were made in the update step, so the
+-- mesh was never the fault. The round test ball is first again; zones.json "_visual": { "shape": "gun" } brings the guns back.
+local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh", "GUN",
                  "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
                  "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh",
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
@@ -196,6 +198,7 @@ local function spawn(i)
     end)
     if not comp then status = "no mesh component"; pcall(function() go:call("destroy", go) end); return nil end
     local tries = mesh_used and { mesh_used } or MESHES
+    if not mesh_used and cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].shape == "gun" then tries = { "GUN" } end
     local got, gun_copy = nil, false
     for _, path in ipairs(tries) do
         if path == "GUN" then
