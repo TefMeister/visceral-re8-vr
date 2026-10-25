@@ -1,0 +1,15 @@
+{
+    "display": "weapon",
+    "force_open_interval_s": 2.0,
+    "keep_open": true,
+    "mode": "manual",
+    "off_forward": 0.5720000267028809,
+    "off_right": -0.1469999998807907,
+    "off_up": -0.7850000262260437,
+    "poll_s": 0.35,
+    "rot_pitch": 122.0999984741211,
+    "rot_roll": -73.19999694824219,
+    "rot_yaw": -9.600000381469727,
+    "scale": 0.05000000074505806,
+    "set_world_view": true
+}
