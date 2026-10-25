@@ -213,6 +213,22 @@ bool on_gun_line(float& off) {
     if (ahead >= -RACK_GRAB_BEHIND_M && ahead <= RACK_GRAB_AHEAD_MAX_M && off <= RACK_GRAB_M) return true;
     return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT)) <= RACK_GRAB_ANY_M;   // the line may be off (2026-10-18)
 }
+// 2026-10-25 (Tefa: "if a gun needs racking, left hand goes on the racking bolt/slide automatically when LG is pressed in the
+// docking activation zone, has to be a quick but smooth hand travel"): the left controller inside the FRONT GRIP zone, as
+// smooth.cpp publishes it (world centre, radius, on). With a rack due, a fresh LG there takes the slide / pump / bolt, and the
+// ease onto it (smooth.cpp, the arc over the gun) carries the hand from the grip
+bool in_grip_zone() {
+    const int s = bridge::S_ZONES + (int)zones::GRIP * 5;
+    const float x = bridge::view((bridge::Slot)(s + 0)), y = bridge::view((bridge::Slot)(s + 1)),
+                z = bridge::view((bridge::Slot)(s + 2)), r = bridge::view((bridge::Slot)(s + 3)),
+                on = bridge::view((bridge::Slot)(s + 4));
+    if (!bridge::has(x) || !bridge::has(r) || !bridge::has(on) || on < 0.5f || r <= 0.0f) return false;
+    Vec3 lp;
+    if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) return false;
+    Vec3 c;
+    c.x = x; c.y = y; c.z = z;
+    return dist(c, lp) <= r;
+}
 
 void complete() {
     const bool was = g_needed;
@@ -420,10 +436,17 @@ void frame() {
         // (reload::hand_on_mag), so it cannot jump straight onto the slide or the bolt
         // (worn 15:39, Tefa: "gripping the handgun with LG and emptying the gun so the slide racks open by itself made the left
         // hand jump from grip to the slide"): a hand that came from the grip waits for LG to be let go
-        const bool want = lg && !reload::hand_on_mag() && !reload::hand_near_mag() && !g_from_grip;   // (2026-10-25: the magazine first)
+        // 2026-10-25 (Tefa, see in_grip_zone): a rack due + a fresh LG inside the front grip zone takes the part even from the grip
+        const bool due = g_needed || g_parked || (bolt() && (g_bstate != 0 || g_turn > 0.0f));
+        const bool from_zone = due && bridge::pressed(bridge::S_LGRIP) && in_grip_zone();
+        const bool want = lg && !reload::hand_on_mag() && !reload::hand_near_mag() && (!g_from_grip || from_zone);   // (2026-10-25: the magazine first)
         if (want) {
             float off = 99.0f;
-            const bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
+            bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
+            if (!is_near && from_zone) {
+                is_near = true;
+                LOGI("%s rack: LG at the front grip with a rack due: the hand goes onto the %s", TAG, part());
+            }
             if (g_log_near < 30 && (bridge::pressed(bridge::S_LGRIP) || is_near)) {
                 ++g_log_near;
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
