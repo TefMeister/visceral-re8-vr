@@ -5786,6 +5786,19 @@ STOW.tick_native_weapon_change_unstick = function()
         if (not weapon or not managed_object_alive(weapon)) and item_internal then
             weapon = get_item_weapon(item_internal)
         end
+        -- 2026-10-25 (Visceral RE8, Fable; both crashes of the day): this path "finished" a stalled native swap by forcing
+        -- equipWeapon with whatever get_item_weapon handed back, and for the requested ri5003 / ri5052 that was an item that is
+        -- no gun and no knife; the game's equipWeapon threw inside, and 1.5 s later requestMotion on that object killed the
+        -- game. Only a gun or a knife is finished here; anything else is left to the game, said once in the log
+        local kind = weapon and classify_item_core(weapon) or nil
+        if kind == nil or kind == "UTIL" or kind == "MED" then
+            NATIVE_WEAPON_SEL.req_finish_done_t = now + 2.0
+            if NATIVE_WEAPON_SEL.refused_req_id ~= req_id then
+                NATIVE_WEAPON_SEL.refused_req_id = req_id
+                log.info(string.format("[re8_vr_holster] stalled swap to %s NOT finished by hand: the item is %s, not a gun or a knife (left to the game)", tostring(req_id), tostring(kind or "of no known kind")))
+            end
+            return
+        end
         if item_internal and weapon and managed_object_alive(weapon) then
             local prev = get_active_weapon_object()
             local ok = native_equip(item_internal, weapon, "dpad_req_finish")

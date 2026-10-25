@@ -167,3 +167,38 @@ controller frame, which nobody could see.
 **The crash at 13:37:55.** Inside the game's app.WeaponCore.requestMotion (from app.PlayerMotionController.update), RCX
 0x100000000, one second after a stacked take, after a bolt hold and a free -> slide -> free hand change. Dump and log kept in
 `D:\RE Village REFramework builds\logs\` (reframework_crash-2026-10-25-1337.dmp, re2_framework_log-2026-10-25-1400-crash.txt).
+
+
+## 16:30 The two crashes of the day, read from the logs (Fable)
+
+Both crashes (13:37:55 and 14:33:47) are the same event, step for step:
+
+1. A Lua call of `app.PlayerWeaponChange.equipWeapon` throws an access violation inside the game, at the same instruction both
+   times (re8.exe+0x3386b65); REFramework catches it and carries on. One millisecond later a Lua call of
+   `app.EquipController.equipWeapon` throws too (the second time through a garbage pointer, RIP on the heap).
+2. The weapon in hand becomes an inventory item the plugin does not know: `ri5003_Inventory` the first time, `ri5052_Inventory`
+   the second (no joints, no gun transform, not in `weapon-ids.md`; neither is a knife, those are ri3022 / ri3044). Neither item
+   was in hand at any other moment today.
+3. 1.5 s later `app.PlayerSecondUpdater.update -> app.PlayerMotionController.update -> app.WeaponCore.requestMotion` jumps through
+   that object's type record and lands in `.data` (re8.exe+0x94676a0, in the .data section; RIP == RAX both times) and the game
+   dies. Both crashes had the rifle with a rack pending, and both followed a hand reload shortly before; that is the moment Tefa
+   also tied them to ("taking the mag out with LG does something to make it crash shortly after the reload").
+
+The caller is Andyalpa's holster script (our copy, `re8_vr_holster.lua`): `tick_native_weapon_change_unstick` watches the
+game's own requested item (`PlayerWeaponChange.get_RequestedItem`, a D-pad / quick-slot request; in Visceral RE8 the D-pad is the
+right stick while the left thumb rests on the thumb rest) and, when the native swap has not finished within 0.2 s, "finishes" it
+in Lua: `native_equip -> equipWeapon`. Its `get_item_weapon` hands back ANY `app.ItemCore` as "the weapon", so an item that is
+no gun and no knife reaches `equipWeapon(app.WeaponCore)`. Why the native swap stalls at that moment is not known (our held hands
+and the pending rack are the suspects); it does not matter for the fix.
+
+Two guards, both installed 16:30 (plugin rebuilt, `src/equipguard.cpp`; the holster script):
+
+- **Plugin:** `app.PlayerWeaponChange.equipWeapon`, `app.EquipController.equipWeapon` and `EquipController.set_equipWeaponRight`
+  are hooked; a call that returns into REFramework's module (a script, told apart as nodock.cpp does) with an object that is not an
+  `app.WeaponCore` that is a gun the plugin knows or a knife (`app.WeaponMeleeCore`) is skipped and logged with the object's name
+  and type (`equip guard: a script asked ... REFUSED`). The game's own calls are never touched.
+- **Holster script:** the stalled-swap finish only runs for a gun or a knife (`classify_item_core`); anything else is left to the
+  game and said once in the log (`stalled swap to ri5052 NOT finished by hand`).
+
+What proves it: the next time those lines appear and the game keeps running. If the game crashes with no such line, the reading
+is wrong. Still to learn: what ri5003 / ri5052 are (the guard's log line names their type).
