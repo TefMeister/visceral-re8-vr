@@ -16,7 +16,10 @@ local TAG = "[visceral-re8-holsters]"
 local ON = true
 _G.__visceral_holsters_on = ON
 local HOLD_TO_KEEP = true     -- the right grip must stay closed to keep a gun in the hand; letting go puts it away
-local AIM_OFF = true          -- the grip no longer presses the game's aim (re8_vr.lua reads __visceral_aim_off)
+-- Tefa 2026-10-25, before the first try: "instead of disabling aim, can we just get rid of the button for it and swap it for
+-- RG weapon held". So the grip keeps pressing the game's aim (holding = aiming, as the game always fired), and there is no
+-- other aim button. true = the grip stops pressing the aim (untried: RE8 may not fire without it).
+local AIM_OFF = false         -- re8_vr.lua reads __visceral_aim_off
 local TAKE_ARRIVE_S = 2.0     -- how long a gun just asked for may take to arrive in the hand
 _G.__visceral_aim_off = AIM_OFF
 
