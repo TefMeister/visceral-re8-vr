@@ -79,3 +79,31 @@ Nineteen builds in one night. Tefa worn every one; `[verified-live]` below means
 - Hand holds, grip spots and the kept palm offset live in `reframework/data/visceral_re8/` (`hand_holds.json`,
   `grip_spots.json`); the bridge array is 104 floats now (slots 29, 99-103 new).
 - Ghost Hand (BeG0nE) at 23:14: the left hand jumped 117 times while the controller was calm, before the dock was switched off.
+
+## 03:00 to 03:55: the magazine comes out by hand, a crash, and the "off" hands measured
+
+- **The hands-on magazine WORKS** `[verified-live 2026-10-25, n=1]`: Tefa: "the mag eject actually kinda works!! unbelievable
+  ... it does come out and stay in my hand, i can throw it on the floor and get a new one from the pouch". The first version
+  needed LT hammered with the hand yanked away: the pulled magazine appeared at the well and the insert check seated it again
+  the same instant (log: "insert at 0.001 m" after every pull-out). Now it must get 12 cm clear of the well first
+  (`INSERT_CLEAR_M`); the grab zone is 12 cm, measured from the drawn hand (the controller sits ~15 cm behind it, so the
+  first version never reached); the grab wins over the rack and the grip while the hand is near the magazine.
+- **A crash at 03:12:09** (access violation in re8.exe with a garbage object, 0.6 s after a headset tracking blip,
+  `reframework_crash.dmp`). `[hypothesis]`: the game rebuilt its hand IK through `getJointIndexByNameHash` and got the root
+  joint from nodock. Since then nodock answers only asks whose return address lies in REFramework's module (DINPUT8.dll).
+  No crash in the three runs after `[reported 2026-10-25, n=3]`.
+- **The game's own dock is off whenever a gun is in hand** (not only with LG up): with LG held it was handed back and fought
+  every hand of ours (160 docks in one run: "docked on the rifle grip like holding a pistol", the pistol "hops on the grip
+  when racking is needed"). The grip script lets it through (bridge slot 105) only to learn a pistol's first grip spot. Also:
+  no two-handed grip while the magazine is out or a rack is due; on a long gun no grip closer than 25 cm to the right hand.
+- **The height fix works** (Tefa) once the origin is also set on the first active frame and on any 25 cm headset jump.
+- **The "off" hands, measured**: Tefa: "sometimes it does, other times it doesn't ... more when i sit and play in darker
+  conditions ... one launch the guns are fine, next launch they are off ... tonight it was right just one time". The log of
+  the "off" run: 29 `XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED` events in 20 minutes, each right after `pad: skipped:
+  using controllers false` (the controllers dropped out of tracking and came back) `[measured 2026-10-25]`. That count is
+  the measure. Our put-back's learned offset could be poisoned by such a moment; it now uses praydog's own
+  `left_hand_position_offset` / `left_hand_rotation_offset` through the bridge (slots 106-112) every frame, so any "off"
+  hand from here is the tracking, not ours. The log is overwritten at every launch, so the "right" run could not be compared:
+  keep each launch's log (lanes 0.85.0's rule).
+- Filed in mod-ideas, Tefa's words: LG holds the gun whatever the controllers' distance; rubber arms that stretch to keep
+  the hand on the gun; the free hand pivoting at the wrist (praydog's 15 cm lever).
