@@ -130,3 +130,14 @@ up the sliders"). Window View posts mouse-down / mouse-up to the control; the st
 the topmost window at that desktop spot (WindowFromPoint), and a window used in the headset sits behind others on the desktop.
 Skin.cs SkinButton / SkinCheckBox / SkinRadioButton click on a posted down + up themselves when the stock way did not; tested with
 a topmost window covering the button: the click added all 15 left-finger joints. Used in Hand Poser and Grab Zones.
+
+## 12:15, third sphere wear: still nothing; the test ball
+
+Tefa: "spheres still did not show up, i went through all the sphere designs and nothing showed". The 5 s log line
+`[measured 2026-10-25]` had all four spheres SHOWN at the gun (30.3, -29.6, 66.6) at the right size (half 0.566 m measured,
+scale 0.21 for the 12 cm magazine zone): the objects existed and drew nothing. An RE Engine mesh draws only with a material whose
+names match its own slots; the shared effect materials never did. Village ships a development test ball WITH its own material:
+`environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh` + `.mdf2` (found in RE8_STM_Release.list by
+looking for round meshes with a same-named mdf2; two balloons the same way as fall-backs). Installed 12:48 (backup
+`_backup-2026-10-25-1248-before-visceral-re8-deploy`); the look list starts with "its own" (the mesh's own material), and the
+saved look moved to a new key so an old pick does not carry over. Unseen.

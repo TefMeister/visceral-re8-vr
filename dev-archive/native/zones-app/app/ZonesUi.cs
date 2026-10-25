@@ -86,7 +86,7 @@ class ZonesUi : Form {
         show = new SkinCheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(4, 6, 12, 0) };
         show.CheckedChanged += (s, e) => { if (!syncing) SaveAll(); };
         one.Controls.Add(show);
-        lookBtn = Btn("SPHERE LOOK: light pillar", (s, e) => NextLook());
+        lookBtn = Btn("SPHERE LOOK: its own", (s, e) => NextLook());
         one.Controls.Add(lookBtn);
         one.Controls.Add(Btn("GAME FOLDER...", (s, e) => PickFolder()));
         var two = Row(42);

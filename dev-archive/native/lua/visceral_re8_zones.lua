@@ -36,13 +36,19 @@ local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", lab
 -- was never made; create_resource still handed back an object, setMesh threw inside the game, and every sphere was empty.
 -- Now a mesh only counts once getMesh gives it back. Its material comes from Village's shared effect materials
 -- (vfx/mesh/mesh_common_mtr, made for these primitive shapes); which one shows is not known yet, so "SPHERE LOOK" cycles them.
-local MESHES = { "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh",
-                 "re_engine_library/vfx_library/mesh/mesh_primitive/sphere.mesh", "systems/develop/shadereditor/sphere.mesh",
-                 "vfx/mesh/mesh_debris/primitive/mesh_0005_debris_sphere_00.mesh" }
-local MATS = { "vfx/mesh/mesh_common_mtr/mesh_0005_lightpillar_material_00.mdf2", "vfx/mesh/mesh_debris/glass00/mesh_0005_debris_glass00_00.mdf2",
+-- 12:15 (third wear, Tefa: "i went through all the sphere designs and nothing showed"): the log had every sphere SHOWN at the
+-- gun, at the right size (half 0.566 m measured), so they existed but drew nothing: an RE Engine mesh only draws with a material
+-- whose names match its own slots, and the shared effect materials did not. Village ships a development "test ball" WITH its
+-- own material (environment/props/resource/sm0x/sm00_111_testball), so that is the sphere now, in its own material ("its
+-- own" look, the first); two balloons with their own materials are the fall-backs; the bare primitives come last.
+local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh",
+                 "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
+                 "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh",
+                 "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
+local MATS = { "OWN", "vfx/mesh/mesh_common_mtr/mesh_0005_lightpillar_material_00.mdf2", "vfx/mesh/mesh_debris/glass00/mesh_0005_debris_glass00_00.mdf2",
                "vfx/mesh/mesh_common_mtr/mesh_0005_liquid_material_00.mdf2", "vfx/mesh/mesh_common_mtr/mesh_0005_mold_material_00.mdf2",
-               "systems/effect/vfx_default_axis.mdf2", "systems/rendering/materialeditor/st0000/sm00018_vfx_devtest_00.mdf2", "" }
-local MAT_NAMES = { "light pillar", "glass", "liquid", "mold", "axis", "dev test", "no material" }
+               "systems/effect/vfx_default_axis.mdf2", "" }
+local MAT_NAMES = { "its own", "light pillar", "glass", "liquid", "mold", "axis", "no material" }
 local cfg = nil
 local seq = 0
 local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
@@ -125,13 +131,14 @@ local function find_folder()
     end
     return nil
 end
-local function mat_index() local m = tonumber(cfg["_visual"].mat) or 0; if m < 0 or m >= #MATS then m = 0 end; return m end
+local function mat_index() local m = tonumber(cfg["_visual"].look) or 0; if m < 0 or m >= #MATS then m = 0 end; return m end
 local function apply_mat(i, ball)
     local m = mat_index()
     if mat_applied[i] == m then return end
     mat_applied[i] = m
     local path = MATS[m + 1]
     if path == "" then return end      -- "no material": the mesh's own (none) stays; respawning clears a set one
+    if path == "OWN" then path = (mesh_used or ""):gsub("%.mesh$", ".mdf2") end   -- the material made for this very mesh
     if mat_res[m] == nil then mat_res[m] = holder(path, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
     if mat_res[m] then pcall(function() ball.comp:call("set_Material", mat_res[m]) end) end
 end
@@ -367,7 +374,7 @@ re.on_draw_ui(function()
     end
     imgui.spacing()
     if imgui.button("SPHERE LOOK: " .. MAT_NAMES[mat_index() + 1] .. "  (click for the next one, until the spheres show)") then
-        cfg["_visual"].mat = (mat_index() + 1) % #MATS; save()
+        cfg["_visual"].look = (mat_index() + 1) % #MATS; save()
     end
     local ch, vh = imgui.slider_float("Sphere model size fix (if the spheres look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or mesh_half or 0.05) * 100, 0.5, 100.0, "%.1f cm")
     if ch then cfg["_visual"].half_m = vh / 100; cfg["_visual"].half_set = true; save() end

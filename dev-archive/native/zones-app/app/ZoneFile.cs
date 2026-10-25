@@ -105,14 +105,14 @@ class ZoneFile {
     }
 
     // which material the spheres wear (lua/visceral_re8_zones.lua MATS, the same order): the first one that shows is not known yet
-    public static readonly string[] Looks = { "light pillar", "glass", "liquid", "mold", "axis", "dev test", "no material" };
+    public static readonly string[] Looks = { "its own", "light pillar", "glass", "liquid", "mold", "axis", "no material" };
     public static int Look(Dictionary<string, object> all) {
         var v = Child(all, "_visual", false);
         object m;
-        int i = v != null && v.TryGetValue("mat", out m) && m is double ? (int)(double)m : 0;
+        int i = v != null && v.TryGetValue("look", out m) && m is double ? (int)(double)m : 0;
         return i < 0 || i >= Looks.Length ? 0 : i;
     }
-    public static void SetLook(Dictionary<string, object> all, int i) { Child(all, "_visual", true)["mat"] = (double)(((i % Looks.Length) + Looks.Length) % Looks.Length); }
+    public static void SetLook(Dictionary<string, object> all, int i) { Child(all, "_visual", true)["look"] = (double)(((i % Looks.Length) + Looks.Length) % Looks.Length); }
 
     public static void SetShow(Dictionary<string, object> all, bool on) {
         var v = Child(all, "_visual", true);
