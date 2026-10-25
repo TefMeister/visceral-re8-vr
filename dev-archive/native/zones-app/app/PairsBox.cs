@@ -47,6 +47,9 @@ class PairsBox : Panel {
     const double M_PER_CM = 0.01;
     // a new pair's first numbers (cm): the activation sphere a little ahead of the gun hand, the landing spot just in front of it
     const double NEW_AZ_CM = 15, NEW_AR_CM = 6, NEW_LY_CM = 3, NEW_LZ_CM = 12;
+    // the sliders' reach from the gun hand (Tefa 2026-10-25: "could not be moved across the weapons whole length"): the stock
+    // behind the hand, the barrel well ahead of it on the long guns
+    const double BACK_CM = -60, AHEAD_CM = 100, SIDE_CM = 40;
     static readonly Color Panel2 = Color.FromArgb(40, 43, 55), Ink = Color.FromArgb(235, 235, 240), Dim = Color.FromArgb(155, 160, 175);
     static readonly Color Back = Color.FromArgb(28, 30, 38);
 
@@ -85,10 +88,10 @@ class PairsBox : Panel {
         nameRow.Controls.Add(new SkinLabel { Text = "what it is for:", Dock = DockStyle.Left, Width = 150, ForeColor = Dim, Padding = new Padding(0, 8, 0, 0) });
         name.TextChanged += (s, e) => { if (!syncing) Changed(); };
         values = new ValueBox("WHERE", "the activation sphere and the landing spot, from the gun hand, in the gun's axes", new[] {
-            new ValueRow("az", "START: forward / back", "cm", -40, 40, 0.5), new ValueRow("ay", "START: up / down", "cm", -40, 40, 0.5),
-            new ValueRow("ax", "START: right / left", "cm", -40, 40, 0.5), new ValueRow("ar", "START: sphere size", "cm", 1, 30, 0.5),
-            new ValueRow("lz", "LAND: forward / back", "cm", -40, 40, 0.5), new ValueRow("ly", "LAND: up / down", "cm", -40, 40, 0.5),
-            new ValueRow("lx", "LAND: right / left", "cm", -40, 40, 0.5) }, () => Changed(), btn);
+            new ValueRow("az", "START: forward / back", "cm", BACK_CM, AHEAD_CM, 0.5), new ValueRow("ay", "START: up / down", "cm", -SIDE_CM, SIDE_CM, 0.5),
+            new ValueRow("ax", "START: right / left", "cm", -SIDE_CM, SIDE_CM, 0.5), new ValueRow("ar", "START: sphere size", "cm", 1, 30, 0.5),
+            new ValueRow("lz", "LAND: forward / back", "cm", BACK_CM, AHEAD_CM, 0.5), new ValueRow("ly", "LAND: up / down", "cm", -SIDE_CM, SIDE_CM, 0.5),
+            new ValueRow("lx", "LAND: right / left", "cm", -SIDE_CM, SIDE_CM, 0.5) }, () => Changed(), btn);
         foreach (var c in new Control[] { values, nameRow, nav, which, note, head }) inner.Controls.Add(c);   // docked top: added last = shown first
         saveTimer.Tick += (s, e) => { saveTimer.Stop(); Save(); };
         ShowPair();

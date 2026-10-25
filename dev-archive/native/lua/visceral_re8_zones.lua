@@ -38,6 +38,11 @@ local ZONES = {
 }
 local S_PAIR_ACT, S_PAIR_LAND = 142, 147   -- written by the plugin: {x, y, z, r, on} each
 local PAIR_DOTS, PAIR_DOT_R = 4, 0.008     -- the dotted line: this many beads, this big (m)
+-- 23:20 (Tefa: "the start sphere did not grow or shrink with size change ... when i did move one the other sphere moved with it
+-- as well, just a different amount and i could not see the dotted line"): the log had every size right (start r 0.14,
+-- scale 1.34; dots scale 0.075), so the drawn spheres do not follow their scale; the beads then drew as big as the ends and
+-- looked like a second sphere sliding. Off until the drawn size follows the number
+local PAIR_DOTS_SHOWN = false
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
 -- the sphere: a primitive sphere that ships with Village (its file list, RE8_STM_Release.list), the first that really loads.
@@ -121,6 +126,7 @@ local function live(b, i)   -- x, y, z, r, on of zone i from the plugin (5 and u
     if i < 5 then return raw5(b, S_ZONES + i * 5) end
     if i == 5 then return raw5(b, S_PAIR_ACT) end
     if i == 6 then return raw5(b, S_PAIR_LAND) end
+    if not PAIR_DOTS_SHOWN then return nil, nil, nil, 0, 0 end
     local ax, ay, az, _, aon = raw5(b, S_PAIR_ACT)
     local lx, ly, lz, _, lon = raw5(b, S_PAIR_LAND)
     if not (ax and lx and aon and lon) then return nil, nil, nil, 0, 0 end
