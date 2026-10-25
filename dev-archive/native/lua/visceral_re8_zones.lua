@@ -62,6 +62,11 @@ local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
 local balls = {}          -- i -> { go, xform, on }
 local mesh_holders, mesh_failed = {}, {}  -- path -> its holder; paths that failed once (never retried)
+-- 14:40 (Tefa: "handguns were showing instead of spheres"): on a fresh game start the ball's model was not loaded yet the first
+-- time it was asked for (create_resource starts the loading; the mesh only comes back once it is in), so it counted as "did
+-- not load" and the gun copy (the pistol in hand) stood in. A mesh is now waited for, MESH_WAIT_S, before the next one is tried
+local MESH_WAIT_S = 10.0
+local mesh_first_try = {}                -- path -> when it was first asked for
 local mesh_used, mesh_half = nil, nil     -- the sphere mesh that loaded, and its measured half size (m)
 local mat_res, mat_applied = {}, {}      -- material index -> resource; ball index -> the material it wears
 local spawn_tried = false
@@ -199,7 +204,7 @@ local function spawn(i)
     if not comp then status = "no mesh component"; pcall(function() go:call("destroy", go) end); return nil end
     local tries = mesh_used and { mesh_used } or MESHES
     if not mesh_used and cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].shape == "gun" then tries = { "GUN" } end
-    local got, gun_copy = nil, false
+    local got, gun_copy, waiting = nil, false, nil
     for _, path in ipairs(tries) do
         if path == "GUN" then
             local wm = weapon_mesh()
@@ -217,7 +222,8 @@ local function spawn(i)
             -- 14:32 (Tefa changed the look, the spheres were made again and none came back: "sphere mesh ...testball...: did
             -- not load", then nothing): the holder kept from the first making had gone stale. The kept one is tried, then a
             -- fresh one, and a mesh that ever loaded is never written off
-            local tries_h = { mesh_holders[path], holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder") }
+            local fresh = holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder")
+            local tries_h = { mesh_holders[path], fresh }
             for _, h in ipairs(tries_h) do
                 if h and not got then
                     pcall(function() comp:call("setMesh", h) end)
@@ -227,10 +233,14 @@ local function spawn(i)
                 end
             end
             if got then break end
+            if not mesh_holders[path] then mesh_holders[path] = fresh end   -- kept, so the loading goes on
+            mesh_first_try[path] = mesh_first_try[path] or os.clock()
+            if os.clock() - mesh_first_try[path] < MESH_WAIT_S then waiting = path; break end   -- still loading: ask again in a second
             if path ~= mesh_used then mesh_failed[path] = true end   -- never asked again: a failed setMesh is an error inside the game
-            log.info(TAG .. " sphere mesh " .. path .. ": did not load")
+            log.info(TAG .. " sphere mesh " .. path .. ": did not load in " .. MESH_WAIT_S .. " s")
         end
     end
+    if not got and waiting then status = "the sphere model is still loading"; pcall(function() go:call("destroy", go) end); return nil end
     if not got then status = "no sphere mesh would load (see the log)"; pcall(function() go:call("destroy", go) end); mesh_used = nil; return nil end
     if not mesh_used then
         mesh_used = got
