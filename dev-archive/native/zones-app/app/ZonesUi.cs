@@ -62,7 +62,8 @@ class ZonesUi : Form {
         Poll();
     }
 
-    protected override void OnPaintBackground(PaintEventArgs e) { Backdrop.PaintUnder(this, e.Graphics); }
+    protected override void OnPaintBackground(PaintEventArgs e) { Backdrop.PaintUnder(this, e.Graphics, e.ClipRectangle); }
+    protected override CreateParams CreateParams { get { return Backdrop.Composited(base.CreateParams); } }
 
     // ---- building -------------------------------------------------------------------------------------------------------
     internal static Button Btn(string text, EventHandler onClick, int width = 0) {
