@@ -214,19 +214,24 @@ local function spawn(i)
             end
             if i == 0 then log.info(TAG .. " sphere from the gun in hand: " .. (wm and (h and "setMesh gave nothing back" or "no mesh holder on the weapon") or "no weapon mesh") .. ", trying the sphere files") end
         elseif not mesh_failed[path] then
-            local h = mesh_holders[path] or holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder")
-            if h then
-                mesh_holders[path] = h
-                pcall(function() comp:call("setMesh", h) end)
-                local back = nil
-                pcall(function() back = comp:call("getMesh") end)
-                if back ~= nil then got = path; break end
+            -- 14:32 (Tefa changed the look, the spheres were made again and none came back: "sphere mesh ...testball...: did
+            -- not load", then nothing): the holder kept from the first making had gone stale. The kept one is tried, then a
+            -- fresh one, and a mesh that ever loaded is never written off
+            local tries_h = { mesh_holders[path], holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder") }
+            for _, h in ipairs(tries_h) do
+                if h and not got then
+                    pcall(function() comp:call("setMesh", h) end)
+                    local back = nil
+                    pcall(function() back = comp:call("getMesh") end)
+                    if back ~= nil then got = path; mesh_holders[path] = h end
+                end
             end
-            mesh_failed[path] = true   -- never asked again: a failed setMesh is an error inside the game
-            log.info(TAG .. " sphere mesh " .. path .. ": did not load" .. (h and "" or " (no holder)"))
+            if got then break end
+            if path ~= mesh_used then mesh_failed[path] = true end   -- never asked again: a failed setMesh is an error inside the game
+            log.info(TAG .. " sphere mesh " .. path .. ": did not load")
         end
     end
-    if not got then status = "no sphere mesh would load (see the log)"; pcall(function() go:call("destroy", go) end); return nil end
+    if not got then status = "no sphere mesh would load (see the log)"; pcall(function() go:call("destroy", go) end); mesh_used = nil; return nil end
     if not mesh_used then
         mesh_used = got
         mesh_half = measure(comp)
@@ -280,6 +285,32 @@ local function destroy_all()
     spawn_tried = false
 end
 
+-- 14:26 (Tefa, a screenshot: copies of the rifle and spheres hanging in the air where the gun had been): "Reset scripts" throws
+-- this script's memory away but not the objects it made, so every reset left its spheres behind, frozen. They are destroyed
+-- at a reset now, and any left by an older run (same names) are found and destroyed before the first making
+local function sweep_leftovers()
+    local scene = nil
+    pcall(function()
+        local sm = sdk.get_native_singleton("via.SceneManager")
+        if sm then scene = sdk.call_native_func(sm, sdk.find_type_definition("via.SceneManager"), "get_CurrentScene") end
+    end)
+    if not scene then return end
+    local n = 0
+    for _, z in ipairs(ZONES) do
+        for _ = 1, 20 do   -- several resets: several with one name
+            local go = nil
+            pcall(function() go = scene:call("findGameObject(System.String)", "visceral_re8_zone_" .. z.i) end)
+            if not go then break end
+            pcall(function() go:call("setActive", false) end)
+            pcall(function() go:call("destroy", go) end)
+            n = n + 1
+        end
+    end
+    if n > 0 then log.info(TAG .. " " .. n .. " sphere(s) left by an earlier run destroyed") end
+end
+local swept = false
+re.on_script_reset(function() destroy_all() end)
+
 local function write_state(b)
     local st = { t = os.time(), gun = gun_num(b), zones = {} }
     local hx, hy, hz, _, hon = live(b, 3)
@@ -324,6 +355,7 @@ re.on_application_entry("UpdateMotion", function()
     -- made once a gun is in hand (the gun copy needs one), at most once a second until one is made
     if not spawn_tried and gun_num(b) > 0 and now - last_respawn_t > 1.0 then
         last_respawn_t = now
+        if not swept then swept = true; sweep_leftovers() end
         local any = false
         for _, z in ipairs(ZONES) do balls[z.i] = spawn(z.i); any = any or balls[z.i] ~= nil end
         spawn_tried = any
