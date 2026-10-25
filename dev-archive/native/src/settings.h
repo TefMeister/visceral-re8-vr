@@ -122,6 +122,9 @@ constexpr float RACK_JOINT_GRAB_M = 0.14f;       // the left controller this clo
 // missed it by a few cm was taken by the bolt and the hand was held up at the bolt, beside the right hand. The bolt is now measured
 // from the drawn hand (the left IK target, the same point as the magazine) and takes only close to its joint
 constexpr float RACK_BOLT_GRAB_M = 0.09f;        // the drawn left hand this close to the bolt joint = can take hold (the magazine wins within MAG_GRAB_M)
+// zones.cpp (2026-10-25): the grab zones can be moved and resized from the menu (zones.json); this is the size of the drawn dot at the
+// point the tests measure from (the drawn left hand, or the controller for the slide / pump)
+constexpr float ZONE_HAND_MARK_M = 0.02f;
                                                  // (0.20 until 2026-10-24: Tefa "hand must not go straight onto the slider or the bolt after
                                                  // inserting a mag, there has to be a tighter zone"; it also needs a fresh LG press now)
 constexpr float RACK_GRAB_ANY_M = 0.30f;          // ... or simply this close to the right controller (the gun-line test may be off)

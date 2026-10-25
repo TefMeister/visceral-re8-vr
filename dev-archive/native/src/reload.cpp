@@ -10,6 +10,7 @@
 #include "rack.h"
 #include "settings.h"
 #include "weapons.h"
+#include "zones.h"
 
 #include <algorithm>
 #include <string>
@@ -132,12 +133,12 @@ bool port_world(Vec3& out) {
 float dock_dist() {
     Vec3 port, item;
     Quat q;
-    if (g_w->shape == weapons::Shape::LONG && port_world(port) && held_pose(item, q)) return dist(item, port);
+    if (g_w->shape == weapons::Shape::LONG && port_world(port) && held_pose(item, q)) return dist(item, zones::center(zones::WELL, port));
     return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT));
 }
 float dock_need() {
     Vec3 port;
-    if (g_w->shape == weapons::Shape::LONG) return port_world(port) ? DOCK_ITEM_M : DOCK_LONG_M;
+    if (g_w->shape == weapons::Shape::LONG) return port_world(port) ? zones::radius(zones::WELL) : DOCK_LONG_M;
     return DOCK_PISTOL_M;
 }
 // 2026-10-18 headset run: a shell went in 0.6 s after the grab, still at the hip (a long gun held low is within reach of
@@ -343,9 +344,9 @@ void grab_frame() {
         Vec3 mp, cp;
         Quat mq, cq;
         if (!mag_world(mp, mq) || s.ik_left == nullptr || !player::get_pose(field_obj(s.ik_left, "Target"), cp, cq)) return;
-        const float d = dist(mp, cp);
-        LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, MAG_GRAB_M);
-        if (d > MAG_GRAB_M) return;
+        const float d = dist(zones::center(zones::MAG, mp), cp), need = zones::radius(zones::MAG);   // the zone (zones.json) over MAG_GRAB_M
+        LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, need);
+        if (d > need) return;
         g_hand_on_mag = true;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s reload: the left hand on the seated magazine (%.3f m from it): LT pulls it out", TAG, d);
@@ -536,7 +537,19 @@ bool hand_near_mag() {
     Vec3 mp, cp;
     Quat mq, cq;
     if (!mag_world(mp, mq) || s.ik_left == nullptr || !player::get_pose(field_obj(s.ik_left, "Target"), cp, cq)) return false;
-    return dist(mp, cp) <= MAG_GRAB_M;
+    return dist(zones::center(zones::MAG, mp), cp) <= zones::radius(zones::MAG);
+}
+// the zones the menu draws (zones.h): the magazine grab and the well, every frame; the well is measured while the magazine
+// sits in it, so it is known before the first pull-out too
+void publish_zones() {
+    if (!managed_now() || g_w->reload != Reload::MAG) { zones::clear(zones::MAG); zones::clear(zones::WELL); return; }
+    Vec3 mp, port;
+    Quat mq;
+    if (g_st == St::SEATED && g_joint != nullptr) capture_port(g_joint);
+    if (g_st == St::SEATED && mag_world(mp, mq)) zones::publish(zones::MAG, zones::center(zones::MAG, mp), zones::radius(zones::MAG));
+    else zones::clear(zones::MAG);
+    if (g_w->shape == weapons::Shape::LONG && port_world(port)) zones::publish(zones::WELL, zones::center(zones::WELL, port), zones::radius(zones::WELL));
+    else zones::clear(zones::WELL);
 }
 bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_hand_on_mag); }
 
@@ -657,6 +670,7 @@ void late_point() {
 void render_point() {
     if (!hand_on_mag()) measure_target_turn();   // only while the hand is the controller's (or the grip's), not ours
     if (managed_now() && g_w->reload == Reload::MAG) measure_mag_rel();
+    publish_zones();
     if (managed_now()) { hand_checks(); pose_shell(); }
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();

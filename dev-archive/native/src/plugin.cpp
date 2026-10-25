@@ -36,6 +36,7 @@
 #include "rack.h"
 #include "recoil.h"
 #include "reload.h"
+#include "zones.h"
 #include "weapons.h"
 
 using namespace vn;
@@ -48,6 +49,7 @@ void on_frame() {
     player::refresh();                                 // before any feature: the hooks later in the frame read this snapshot
     haptics::frame();
     weapons::watch();
+    zones::frame();
     reload::frame();
     breech::frame();
     rack::frame();

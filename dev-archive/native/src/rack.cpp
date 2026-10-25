@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "weapons.h"
 #include "json_mini.h"
+#include "zones.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -188,12 +189,21 @@ bool grab_point(Vec3& lp) {
     }
     return bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp);
 }
-float joint_grab_m() { return bolt() ? RACK_BOLT_GRAB_M : RACK_JOINT_GRAB_M; }
-bool near_joint(float& d) {   // the left hand near the slide / pump / bolt joint itself
+float joint_grab_m() { return zones::radius(zones::PART, part()); }   // zones.json over RACK_BOLT_GRAB_M / RACK_JOINT_GRAB_M
+bool near_joint(float& d) {   // the left hand near the slide / pump / bolt zone (the joint, moved by the zone's offset)
     Vec3 jp, lp;
     if (g_joint == nullptr || !get_v3(JOINT, g_joint, "get_Position", jp) || !grab_point(lp)) return false;
-    d = dist(jp, lp);
+    d = dist(zones::center(zones::PART, jp, part()), lp);
     return d <= joint_grab_m();
+}
+// the zones the menu draws (zones.h): the slide / pump / bolt zone and the point the hand is measured from, every frame
+void publish_zones() {
+    Vec3 jp, lp;
+    if (g_w != nullptr && g_joint != nullptr && get_v3(JOINT, g_joint, "get_Position", jp))
+        zones::publish(zones::PART, zones::center(zones::PART, jp, part()), joint_grab_m(), (float)(pump() ? zones::PK_PUMP : bolt() ? zones::PK_BOLT : zones::PK_SLIDE));
+    else zones::clear(zones::PART);
+    if (g_w != nullptr && grab_point(lp)) zones::publish(zones::HAND, lp, zones::radius(zones::HAND));
+    else zones::clear(zones::HAND);
 }
 bool on_gun_line(float& off) {
     const Vec3 fwd = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
@@ -378,6 +388,7 @@ void frame() {
         if (!get_q(JOINT, g_joint, "get_LocalRotation", g_rest_rot)) g_rest_rot = Quat{0, 0, 0, 1};
         LOGI("%s rack: %s %s joint rests at local %.3f %.3f %.3f", TAG, g_id.c_str(), part(), g_rest.x, g_rest.y, g_rest.z);
     }
+    publish_zones();
     if (g_w == nullptr || s.gun == nullptr || !bridge::live()) { hand_off("no gun / no headset"); return; }
 
     const int loaded = player::loaded();

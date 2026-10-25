@@ -75,7 +75,11 @@ enum Slot : int {
     S_BODY_TURN = 103,        // WRITTEN BY THE LUA MENU: 1 = the body turn (body.cpp, experimental) is on
     S_LHAND_OFF = 106,        // 106-108, WRITTEN BY THE LUA: praydog's re8vr.left_hand_position_offset (the hand 15 cm ahead of the controller)
     S_LHAND_ROT_OFF = 109,    // 109-112, WRITTEN BY THE LUA: re8vr.left_hand_rotation_offset (x,y,z,w)
-    S_COUNT = 114,
+    S_ZONE_SHOW = 114,        // WRITTEN BY THE LUA MENU: 1 = draw the grab zones on the gun (lua/visceral_re8_zones.lua)
+    S_ZONE_SEQ = 115,         // WRITTEN BY THE LUA MENU: +1 whenever zones.json was saved (zones.cpp re-reads it)
+    S_ZONES = 116,            // 116-135, WRITTEN BY THE PLUGIN: four zones x {x, y, z (world, m), radius (m), on}: the magazine grab,
+                              // the well (where it goes in), the slide / pump / bolt (on = 1 slide, 2 pump, 3 bolt), the hand point tested
+    S_COUNT = 136,
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,
