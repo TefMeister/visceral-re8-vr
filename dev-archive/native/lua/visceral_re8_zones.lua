@@ -291,7 +291,10 @@ local function write_state(b)
     pcall(function() json.dump_file(STATE_FILE, st) end)
 end
 
-re.on_frame(function()
+-- 14:30 (sixth wear: even a copy of the held gun, switched fully on, SHOWN at the gun, was never seen): every sphere was made,
+-- moved and switched in re.on_frame, the PRESENT step, after the game has gathered what to draw. Andyalpa's holster visuals,
+-- which do draw, make and move theirs in the game's own update (on_application_entry "UpdateMotion"). So this runs there now
+re.on_application_entry("UpdateMotion", function()
     local b = bridge()
     if not b then return end
     local now = os.clock()

@@ -214,8 +214,12 @@ local S = { take = nil, takes = 0, undone = 0, undone_logged = false, steer_deg 
 S.frozen = nil          -- the last frozen socket, kept across a quick release/re-take
 S.last_release = -1e9
 local function release_take()
-    if S.take ~= nil then S.last_release = os.clock() end
+    if S.take ~= nil then
+        S.last_release = os.clock()
+        if S.last_steer ~= nil then S.fade = { steer = S.last_steer, t0 = os.clock() } end   -- the turn fades out (STEER_EASE_S)
+    end
     S.take = nil
+    S.last_steer = nil
 end
 S.weapon = nil          -- the weapon the frozen socket was measured on (its address); a change forgets the socket
 S.cand = nil            -- the live socket being watched for steadiness: { socket, t0 }
@@ -294,6 +298,18 @@ local function angle_between_deg(a, b)   -- two unit vectors
     return math.deg(math.acos(math.max(-1, math.min(1, d))))
 end
 -- the shortest turn taking unit vector a onto unit vector b; no roll about the line
+-- 2026-10-25 (Tefa: "my left hand grips the front end nicely, hand moves smoothly but the weapon teleports to the left hand -
+-- needs looking at if can be made smooth too"): the turn that points the gun at the left hand was applied in full on the very
+-- frame the grip was taken, and dropped in full on the frame it was let go. It now grows in over STEER_EASE_S after a take
+-- (the same 0.15 s the plugin eases the HAND onto the gun with, smooth.cpp SMOOTH_DOCK_SEC) and fades out over the same time
+-- after a release, so the gun swings to the hand instead of jumping
+local STEER_EASE_S = 0.15
+local function ease01(t) if t <= 0 then return 0 elseif t >= 1 then return 1 end return t * t * (3 - 2 * t) end
+local function part_of(q, k)   -- identity -> q by k (0..1), the short way (normalised lerp: plenty for 0.15 s)
+    local w, x, y, z = q.w, q.x, q.y, q.z
+    if w < 0 then w, x, y, z = -w, -x, -y, -z end
+    return Quaternion.new(1 + (w - 1) * k, x * k, y * k, z * k):normalized()
+end
 local function shortest_arc(a, b)
     local d = a.x * b.x + a.y * b.y + a.z * b.z
     if d < -0.9999 then return Quaternion.new(1, 0, 0, 0) end   -- opposite: refuse rather than flip the gun
@@ -746,6 +762,11 @@ local function grip_pass(final)
                 dr * 100, GRIP_LETGO_M * 100, da, GRIP_LETGO_DEG, tostring(cpp_grip), tostring(holding)))
         end
         release_take()
+        if S.fade ~= nil then   -- the gun swings back to one-handed aim over STEER_EASE_S instead of jumping
+            local k = 1 - ease01((os.clock() - S.fade.t0) / STEER_EASE_S)
+            if k <= 0 then S.fade = nil
+            else set_ik(v, v.right_hand_ik, v.right_hand_ik_transform, rp, (part_of(S.fade.steer, k) * rr):normalized()) end
+        end
         -- stacked only: the rifle already follows the right hand alone; draw the left hand at the captured spot
         -- (rifle only: the spot was captured on it)
         if not stacked or not rifle_scope or not g.on or g.pos == nil then return end
@@ -797,6 +818,7 @@ local function grip_pass(final)
         end
     end
     safe(function() v.was_gripping_weapon = true end)   -- so praydog's own scripts (haptics) see the grip we keep
+    if S.take.t0 == nil then S.take.t0 = os.clock(); S.fade = nil end   -- the steering grows in from here (STEER_EASE_S)
     S.stage = "socket drift"
     local socket_ref = GRIP_FREEZE_SOCKET and S.take.socket or (socket_live or S.take.socket)
     if socket_live ~= nil then
@@ -818,6 +840,9 @@ local function grip_pass(final)
         local hand_dir = unit(sub(lp, rp))
         if frozen_dir ~= nil and hand_dir ~= nil then steer = shortest_arc(frozen_dir, hand_dir) end
     end
+    local k_in = ease01((os.clock() - S.take.t0) / STEER_EASE_S)
+    if k_in < 1 then steer = part_of(steer, k_in) end
+    S.last_steer = steer
     S.stage = "apply right hand"
     S.steer_deg = quat_deg(steer)
     local rr_new = (steer * rr):normalized()
