@@ -29,7 +29,15 @@ local ZONES = {
     { i = 2, key = "part", label = "The slide / pump / bolt (left grip on it)" },
     { i = 3, key = "hand", label = "The point the hand is measured from" },
     { i = 4, key = "grip", label = "The front grip: this gun's kept grip spot (left grip in it takes the gun two-handed)" },
+    -- the hand pair picked in the Grab Zones window (src/pairs.h, 2026-10-25): the big sphere = where the left grip activates it,
+    -- the small dot = where the hand lands, and a dotted line from one to the other. Not in this menu (the window edits them)
+    { i = 5, key = "pair-act", pair = true },
+    { i = 6, key = "pair-land", pair = true },
+    { i = 7, key = "pair-dot", pair = true }, { i = 8, key = "pair-dot", pair = true },
+    { i = 9, key = "pair-dot", pair = true }, { i = 10, key = "pair-dot", pair = true },
 }
+local S_PAIR_ACT, S_PAIR_LAND = 142, 147   -- written by the plugin: {x, y, z, r, on} each
+local PAIR_DOTS, PAIR_DOT_R = 4, 0.008     -- the dotted line: this many beads, this big (m)
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
 -- the sphere: a primitive sphere that ships with Village (its file list, RE8_STM_Release.list), the first that really loads.
@@ -52,10 +60,10 @@ local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_tes
                  "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
                  "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh",
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
-local MATS = { "OWN", "vfx/mesh/mesh_common_mtr/mesh_0005_lightpillar_material_00.mdf2", "vfx/mesh/mesh_debris/glass00/mesh_0005_debris_glass00_00.mdf2",
-               "vfx/mesh/mesh_common_mtr/mesh_0005_liquid_material_00.mdf2", "vfx/mesh/mesh_common_mtr/mesh_0005_mold_material_00.mdf2",
-               "systems/effect/vfx_default_axis.mdf2" }
-local MAT_NAMES = { "its own", "light pillar", "glass", "liquid", "mold", "axis" }
+-- 2026-10-25 (Tefa: "can you just have the one look and not be able to choose anything else?"): the spheres always wear the
+-- "axis" material, the one seen drawing; the look buttons (here and in the Grab Zones window) are gone
+local MATS = { "systems/effect/vfx_default_axis.mdf2" }
+local MAT_NAMES = { "axis" }
 -- 2026-10-25 22:06 (Tefa: "when i clicked on the next one, no solid shape it was i think, the game crashed"): "no material"
 -- is gone from the cycle. Picking it threw every sphere away and made them again, and the remake's setMesh threw inside the
 -- game five times (the log, 22:06:26) and then the game crashed (re8.exe+0x415879c). Kept log and dump: D:/RE Village
@@ -108,9 +116,16 @@ local function zone_key(z, b)
     local on = b and b.r(S_ZONES + 2 * 5 + 4) or 0
     return PART_NAMES[math.floor((on or 0) + 0.5)] or "slide"
 end
-local function live(b, i)   -- x, y, z, r, on of zone i from the plugin
-    local s = S_ZONES + i * 5
-    return b.r(s), b.r(s + 1), b.r(s + 2), b.r(s + 3), b.r(s + 4)
+local function raw5(b, s) return b.r(s), b.r(s + 1), b.r(s + 2), b.r(s + 3), b.r(s + 4) end
+local function live(b, i)   -- x, y, z, r, on of zone i from the plugin (5 and up: the shown hand pair)
+    if i < 5 then return raw5(b, S_ZONES + i * 5) end
+    if i == 5 then return raw5(b, S_PAIR_ACT) end
+    if i == 6 then return raw5(b, S_PAIR_LAND) end
+    local ax, ay, az, _, aon = raw5(b, S_PAIR_ACT)
+    local lx, ly, lz, _, lon = raw5(b, S_PAIR_LAND)
+    if not (ax and lx and aon and lon) then return nil, nil, nil, 0, 0 end
+    local t = (i - 6) / (PAIR_DOTS + 1)
+    return ax + (lx - ax) * t, ay + (ly - ay) * t, az + (lz - az) * t, PAIR_DOT_R, math.min(aon, lon)
 end
 
 -- ---- the balls --------------------------------------------------------------------------------------------------------------
@@ -147,7 +162,7 @@ local function find_folder()
     end
     return nil
 end
-local function mat_index() local m = tonumber(cfg["_visual"].look) or 0; if m < 0 or m >= #MATS then m = 0 end; return m end
+local function mat_index() return 0 end   -- one look only (2026-10-25)
 local function apply_mat(i, ball)
     if ball.gun_copy then return end
     local m = mat_index()
@@ -378,7 +393,7 @@ local function write_state(b)
     local st = { t = os.time(), gun = gun_num(b), zones = {} }
     local hx, hy, hz, _, hon = live(b, 3)
     for _, z in ipairs(ZONES) do
-        if z.key ~= "hand" then
+        if z.key ~= "hand" and not z.pair then
             local x, y, zz, r, on = live(b, z.i)
             local e = { key = zone_key(z, b), on = (on or 0) > 0.5, r_cm = (r or 0) * 100 }
             if e.on and (hon or 0) > 0.5 then e.hand_cm = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) * 100 end
@@ -533,9 +548,6 @@ re.on_draw_ui(function()
         end
     end
     imgui.spacing()
-    if imgui.button("SPHERE LOOK: " .. MAT_NAMES[mat_index() + 1] .. "  (click for the next one, until the spheres show)") then
-        cfg["_visual"].look = (mat_index() + 1) % #MATS; save()
-    end
     local ch, vh = imgui.slider_float("Sphere model size fix (if the spheres look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or mesh_half or 0.05) * 100, 0.5, 100.0, "%.1f cm")
     if ch then cfg["_visual"].half_m = vh / 100; cfg["_visual"].half_set = true; save() end
     if cfg["_visual"].half_set and imgui.button("Measure the size again (forget the fix)") then cfg["_visual"].half_set = nil; save() end

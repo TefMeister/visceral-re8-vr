@@ -31,6 +31,7 @@ class ZonesUi : Form {
     readonly List<ZoneBox> boxes = new List<ZoneBox>();
     // 2026-10-25 (Tefa: "all please"): the hand on the slide / pump / bolt (and its arc over the gun), and the gun in the right hand
     ValueBox handBox, aimBox;
+    PairsBox pairsBox;   // 2026-10-25: the numbered hand pairs (PairsBox.cs)
     DateTime lastHandWrite = DateTime.MinValue;
 
     public ZonesUi(string gameArg) {
@@ -60,7 +61,9 @@ class ZonesUi : Form {
             new ValueRow("pitch", "aim up / down", "°", -45, 45, 1), new ValueRow("yaw", "aim left / right", "°", -45, 45, 1),
             new ValueRow("roll", "roll", "°", -45, 45, 1), new ValueRow("z", "forward / back", "cm", -10, 10, 0.5),
             new ValueRow("y", "up / down", "cm", -10, 10, 0.5), new ValueRow("x", "right / left", "cm", -10, 10, 0.5) }, () => Changed(), (t, h) => Btn(t, h));
-        scroll.Controls.Add(aimBox);    // docked top: added first = shown last
+        pairsBox = new PairsBox(file, () => Group() == "default" ? "any" : Group(), (t, h) => Btn(t, h));
+        scroll.Controls.Add(pairsBox);  // docked top: added first = shown last
+        scroll.Controls.Add(aimBox);
         scroll.Controls.Add(handBox);
         for (int i = boxes.Count - 1; i >= 0; i--) scroll.Controls.Add(boxes[i]);   // docked top: added last = shown first
         BuildTop();
@@ -101,8 +104,6 @@ class ZonesUi : Form {
         show = new SkinCheckBox { Text = "SHOW THE SPHERES ON THE GUN", AutoSize = true, ForeColor = Ink, BackColor = Color.Transparent, Padding = new Padding(4, 6, 12, 0) };
         show.CheckedChanged += (s, e) => { if (!syncing) SaveAll(); };
         one.Controls.Add(show);
-        lookBtn = Btn("SPHERE LOOK: its own", (s, e) => NextLook());
-        one.Controls.Add(lookBtn);
         one.Controls.Add(Btn("GAME FOLDER...", (s, e) => PickFolder()));
         var two = Row(42);
         two.Controls.Add(new SkinLabel { Text = "the sliders set:", AutoSize = true, ForeColor = Dim, Padding = new Padding(0, 8, 6, 0) });
@@ -116,15 +117,8 @@ class ZonesUi : Form {
         top.Controls.Add(status);
     }
 
-    Button lookBtn;
-    // the spheres' material, cycled until one shows in the headset (the first wear showed none, 2026-10-25)
-    void NextLook() {
-        if (file.Folder == null) return;
-        var all = file.Load();
-        ZoneFile.SetLook(all, ZoneFile.Look(all) + 1);
-        try { file.Save(all); } catch (Exception) { }
-        RefreshFromFile();
-    }
+    // (2026-10-25, Tefa: "can you just have the one look and not be able to choose anything else?": the SPHERE LOOK button is
+    // gone; the spheres always wear "axis", the one seen drawing. Picking "no material" had crashed the game.)
 
     Button forgetAll;
     DateTime forgetArmed = DateTime.MinValue;
@@ -142,6 +136,7 @@ class ZonesUi : Form {
         if (remember) settings.Set("game", folder);
         lastZonesWrite = DateTime.MinValue;
         RefreshFromFile();
+        pairsBox.Reload();
     }
 
     void PickFolder() {
@@ -194,6 +189,7 @@ class ZonesUi : Form {
             handBox.Title = "HAND ON THE " + part;
         }
         foreach (var b in boxes) b.ShowLive(live);
+        pairsBox.Poll();
         if (forgetArmed != DateTime.MinValue && (DateTime.Now - forgetArmed).TotalSeconds > 3) { forgetArmed = DateTime.MinValue; forgetAll.Text = ForgetText(); }
         else if (forgetArmed == DateTime.MinValue) forgetAll.Text = ForgetText();
     }
@@ -207,7 +203,6 @@ class ZonesUi : Form {
         var all = file.Load();
         syncing = true;
         show.Checked = ZoneFile.Show(all);
-        lookBtn.Text = "SPHERE LOOK: " + ZoneFile.Looks[ZoneFile.Look(all)];
         foreach (var b in boxes) b.Load(all, Group(), live);
         try { string hp = HandFile.PathIn(file); lastHandWrite = hp != null && File.Exists(hp) ? File.GetLastWriteTime(hp) : DateTime.MinValue; } catch (IOException) { }
         var hands = HandFile.Load(file);

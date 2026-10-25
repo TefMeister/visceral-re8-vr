@@ -17,6 +17,7 @@ add_library(visceral_re8_native SHARED
     src/ik.cpp
     src/reload.cpp
     src/zones.cpp
+    src/pairs.cpp
     src/reload_pose.cpp
     src/rack.cpp
     src/eject.cpp

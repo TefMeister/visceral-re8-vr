@@ -3,6 +3,7 @@
 #include "zones.h"
 #include "bridge.h"
 #include "joints.h"
+#include "pairs.h"
 #include "player.h"
 #include "rack.h"
 #include "reload.h"
@@ -20,9 +21,9 @@ using namespace joints;
 using namespace vn::settings;
 
 namespace {
-enum Owner : int { CONTROLLER = 0, GRIP = 1, RACK = 2, MAG = 3 };
+enum Owner : int { CONTROLLER = 0, GRIP = 1, RACK = 2, MAG = 3, PAIR = 4 };
 const char* owner_name(int o) {
-    return o == GRIP ? "the two-handed grip" : o == RACK ? "the slide / pump / bolt" : o == MAG ? "the magazine going in" : "the controller";
+    return o == GRIP ? "the two-handed grip" : o == RACK ? "the slide / pump / bolt" : o == MAG ? "the magazine going in" : o == PAIR ? "a hand pair's landing spot" : "the controller";
 }
 
 bool g_have = false;
@@ -209,7 +210,7 @@ void on_ik(MO* ik) {
         // 2026-10-24 (Tefa: "when inserting the mag, left hand keeps rapidly going in the direction of the insertion and then
         // teleports back onto the mag"): while the hand is ours (slide / pump / bolt / magazine) the grip script's undo moved
         // it toward the controller in a later solve and that was drawn. Ours: the first answer always wins
-        const bool ours = rack::active() || reload::hand_on_mag() || g_grip_frozen;
+        const bool ours = rack::active() || reload::hand_on_mag() || pairs::active() || g_grip_frozen;
         // (worn 15:27, Tefa: gripping the handgun "hand jumps around a bit like fighting something", and walking with the rifle
         // gripped "the hand jitters a lot around the gripping area"): with LG held the grip is wanted, and the later solves'
         // pulls toward the controller were drawn every frame. An undo is only an undo with LG let go
@@ -226,7 +227,7 @@ void on_ik(MO* ik) {
     // 23:49 (Tefa: "the automatic docking is still present"): the game's own 10 cm dock (made without LG) counted as the grip
     // here and was eased onto, which also held back the grip script's undo; the grip is only the grip with LG held
     const bool lg_held = bridge::held(bridge::S_LGRIP);
-    const int owner = rack::active() ? RACK : reload::hand_on_mag() ? MAG : (bridge::flag(bridge::S_GRIPPING_WEAPON) && lg_held) ? GRIP : CONTROLLER;
+    const int owner = rack::active() ? RACK : reload::hand_on_mag() ? MAG : pairs::active() ? PAIR : (bridge::flag(bridge::S_GRIPPING_WEAPON) && lg_held) ? GRIP : CONTROLLER;
     // the free hand (see "THE FREE HAND STAYS ON ITS CONTROLLER")
     if (owner == CONTROLLER && !lg_held && !bridge::flag(bridge::S_IS_RELOADING)) {
         Vec3 cp;
@@ -259,6 +260,8 @@ void on_ik(MO* ik) {
     spots_refresh();
     const Spot* kept = owner == GRIP ? spot_now() : nullptr;
     if (kept != nullptr) { rel = kept->p; qrel = kept->q; }
+    // a hand pair (pairs.h, 2026-10-25): the hand goes to the pair's landing spot, riding the gun, with the turn it had at the take
+    if (owner == PAIR) { Vec3 pp; Quat pq; if (pairs::landing(rp, rq, pp, pq)) { rel = pp; qrel = pq; } }
     if (!g_have) {
         g_have = true;
         g_owner = owner;
@@ -273,7 +276,7 @@ void on_ik(MO* ik) {
         g_t0 = now_s();
         {
             const float a = bridge::view(bridge::S_ARC_CM);
-            const bool rack_end = owner == RACK || g_owner == RACK;
+            const bool rack_end = owner == RACK || g_owner == RACK || owner == PAIR || g_owner == PAIR;   // (the pairs arc too)
             g_arc_m = (rack_end && bridge::has(a) && a > 0.0f) ? std::fmin(a * 0.01f, SMOOTH_ARC_MAX_M) : 0.0f;
             g_ease_sec = g_arc_m > 0.0f ? SMOOTH_ARC_SEC : SMOOTH_DOCK_SEC;
         }
@@ -298,6 +301,8 @@ void on_ik(MO* ik) {
     if (k <= 0.0f) {
         g_final_p = rel;
         g_final_q = qrel;
+        // a pair's spot has nobody else setting the hand's target: drawn here every frame, riding the gun
+        if (owner == PAIR) player::set_pose(target_of(ik), rp + rotate(rq, g_final_p), qnorm(qmul(rq, g_final_q)));
         return;
     }
     Vec3 lift{0, 0, 0};

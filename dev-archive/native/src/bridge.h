@@ -80,7 +80,10 @@ enum Slot : int {
     S_ZONES = 116,            // 116-140, WRITTEN BY THE PLUGIN: five zones x {x, y, z (world, m), radius (m), on}: the magazine grab,
                               // the well (where it goes in), the slide / pump / bolt (on = 1 slide, 2 pump, 3 bolt), the hand point tested
     S_ARC_CM = 141,           // WRITTEN BY THE LUA BRIDGE: how high (cm) the left hand arcs over the gun on its way onto / off the slide / pump / bolt (2026-10-25)
-    S_COUNT = 142,            // 2026-10-25: 136-140 the FRONT GRIP zone (zones.h GRIP)
+    S_PAIR_ACT = 142,         // 142-146, WRITTEN BY THE PLUGIN: the shown hand pair's ACTIVATION sphere {x, y, z (world, m), radius, on} (pairs.h)
+    S_PAIR_LAND = 147,        // 147-151, WRITTEN BY THE PLUGIN: the shown pair's LANDING spot {x, y, z, dot radius, on}
+    S_PAIR_ACTIVE = 152,      // WRITTEN BY THE PLUGIN: the number of the pair holding the left hand now, 0 = none
+    S_COUNT = 153,            // 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone (zones.h GRIP)
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,

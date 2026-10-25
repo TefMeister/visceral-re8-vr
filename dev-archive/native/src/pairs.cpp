@@ -1,0 +1,146 @@
+// pairs.cpp -- see pairs.h
+#include "pairs.h"
+#include "bridge.h"
+#include "joints.h"
+#include "json_mini.h"
+#include "player.h"
+#include "rack.h"
+#include "reload.h"
+#include "settings.h"
+#include "zones.h"
+
+#include <windows.h>
+
+#include <cstdlib>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+namespace vn::pairs {
+
+using namespace joints;
+using namespace vn::settings;
+
+namespace {
+struct Pair { int n = 0; std::string name, gun; Vec3 a{0, 0, 0}, l{0, 0, 0}; float r = PAIR_ACT_R_DEFAULT_M; };
+std::vector<Pair> g_pairs;
+int g_show = 0;                    // the pair drawn on the gun (0 = none)
+int g_active = -1;                 // index into g_pairs of the pair holding the left hand, -1 = none
+Quat g_turn{0, 0, 0, 1};           // the hand's turn in the gun hand's frame, kept from the moment of the take
+float g_check_t = -10.0f;
+std::filesystem::file_time_type g_mtime{};
+
+std::filesystem::path file_path() {
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    return std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "pairs.json";
+}
+
+void refresh() {   // at most once a second: re-read pairs.json when it changed
+    const float t = now_s();
+    if (t - g_check_t < PAIR_FILE_CHECK_S) return;
+    g_check_t = t;
+    std::error_code ec;
+    const auto p = file_path();
+    const auto mt = std::filesystem::last_write_time(p, ec);
+    if (ec) { if (!g_pairs.empty()) { g_pairs.clear(); g_active = -1; LOGI("%s pairs: pairs.json gone: no pairs", TAG); } return; }
+    if (mt == g_mtime) return;
+    g_mtime = mt;
+    json::Value v;
+    if (!json::load_file(p.wstring(), v) || v.kind != json::Value::OBJ) return;   // caught mid-write: the next check reads it
+    std::vector<Pair> next;
+    if (const auto* arr = v.get("pairs"); arr != nullptr && arr->kind == json::Value::ARR) {
+        for (const auto& e : arr->arr) {
+            if (e.kind != json::Value::OBJ) continue;
+            auto num = [&](const char* k, float d) { const auto* x = e.get(k); return x != nullptr && x->kind == json::Value::NUM ? (float)x->n : d; };
+            auto str = [&](const char* k) { const auto* x = e.get(k); return x != nullptr && x->kind == json::Value::STR ? x->s : std::string(); };
+            Pair q;
+            q.n = (int)num("n", 0.0f);
+            q.name = str("name");
+            q.gun = str("gun");
+            q.a = Vec3{num("ax", 0.0f), num("ay", 0.0f), num("az", 0.0f)};
+            q.r = num("ar", PAIR_ACT_R_DEFAULT_M);
+            q.l = Vec3{num("lx", 0.0f), num("ly", 0.0f), num("lz", 0.0f)};
+            if (q.n > 0 && q.r > 0.0f) next.push_back(q);
+        }
+    }
+    const auto* s = v.get("show");
+    g_show = s != nullptr && s->kind == json::Value::NUM ? (int)s->n : 0;
+    g_pairs = next;
+    g_active = -1;   // a pair being edited is let go; the left grip takes it again
+    LOGI("%s pairs: pairs.json read: %d pair(s), shown: %d", TAG, (int)g_pairs.size(), g_show);
+}
+
+int gun_now() { return (int)(bridge::view(bridge::S_WEAPON_NUM) + 0.5f); }
+bool for_gun(const Pair& p, int gun) { return p.gun.empty() || p.gun == "any" || std::atoi(p.gun.c_str()) == gun; }
+
+void put5(int slot, const Vec3& c, float r, float on) {
+    bridge::put((bridge::Slot)(slot + 0), c.x);
+    bridge::put((bridge::Slot)(slot + 1), c.y);
+    bridge::put((bridge::Slot)(slot + 2), c.z);
+    bridge::put((bridge::Slot)(slot + 3), r);
+    bridge::put((bridge::Slot)(slot + 4), on);
+}
+void hide() {
+    bridge::put((bridge::Slot)(bridge::S_PAIR_ACT + 4), 0.0f);
+    bridge::put((bridge::Slot)(bridge::S_PAIR_LAND + 4), 0.0f);
+}
+} // namespace
+
+void frame() {
+    refresh();
+    const auto& s = player::now();
+    Vec3 rp{0, 0, 0};
+    Quat rq{0, 0, 0, 1}, gq{0, 0, 0, 1};
+    const bool ok = bridge::live() && s.weapon != nullptr && player::get_pose(field_obj(s.ik_right, "Target"), rp, rq) && zones::gun_rot(gq);
+    gq = qnorm(gq);
+    rq = qnorm(rq);
+    auto world = [&](const Vec3& off) { return rp + rotate(gq, off); };
+    const int gun = gun_now();
+    const bool lg = bridge::held(bridge::S_LGRIP);
+    const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
+
+    if (g_active >= 0 && (!ok || !lg || !play || g_active >= (int)g_pairs.size() || !for_gun(g_pairs[g_active], gun))) {
+        LOGI("%s pairs: pair %d let go (%s)", TAG, g_active < (int)g_pairs.size() ? g_pairs[g_active].n : 0, !lg ? "LG let go" : "the gun or the scene changed");
+        g_active = -1;
+    }
+    // a fresh LG inside an activation sphere; the slide / pump / bolt and the magazine come first (their own zones)
+    if (g_active < 0 && ok && play && bridge::pressed(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !reload::session_active()) {
+        Vec3 lp;
+        if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) {
+            for (int i = 0; i < (int)g_pairs.size(); ++i) {
+                const Pair& p = g_pairs[i];
+                if (!for_gun(p, gun) || dist(world(p.a), lp) > p.r) continue;
+                g_active = i;
+                Vec3 hp;
+                Quat hq;   // the hand keeps the turn it had, relative to the gun hand
+                g_turn = player::get_pose(field_obj(s.ik_left, "Target"), hp, hq) ? qnorm(qmul(qinv(rq), qnorm(hq))) : Quat{0, 0, 0, 1};
+                bridge::rumble(bridge::LEFT, PAIR_BUZZ_AMP, PAIR_BUZZ_SEC, PAIR_BUZZ_HZ);
+                LOGI("%s pairs: pair %d \"%s\" taken: the left hand goes to its landing spot", TAG, p.n, p.name.c_str());
+                break;
+            }
+        }
+    }
+    bridge::put(bridge::S_PAIR_ACTIVE, g_active >= 0 ? (float)g_pairs[g_active].n : 0.0f);
+
+    // the pair picked in the Grab Zones window, drawn on the gun: the activation sphere and the landing dot
+    const Pair* shown = nullptr;
+    for (const auto& p : g_pairs) if (p.n == g_show && for_gun(p, gun)) { shown = &p; break; }
+    if (!ok || shown == nullptr) { hide(); return; }
+    put5(bridge::S_PAIR_ACT, world(shown->a), shown->r, 1.0f);
+    put5(bridge::S_PAIR_LAND, world(shown->l), PAIR_LAND_DOT_M, 1.0f);
+}
+
+bool active() { return g_active >= 0; }
+
+bool landing(const Vec3& rp, const Quat& rq, Vec3& rel, Quat& qrel) {
+    if (g_active < 0 || g_active >= (int)g_pairs.size()) return false;
+    Quat gq;
+    if (!zones::gun_rot(gq)) return false;
+    const Vec3 w = rp + rotate(qnorm(gq), g_pairs[g_active].l);
+    rel = rotate(qinv(qnorm(rq)), w - rp);
+    qrel = g_turn;
+    return true;
+}
+
+} // namespace vn::pairs

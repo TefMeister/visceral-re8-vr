@@ -33,6 +33,7 @@
 #include "handstate.h"
 #include "ik.h"
 #include "player.h"
+#include "pairs.h"
 #include "rack.h"
 #include "equipguard.h"
 #include "smooth.h"
@@ -56,6 +57,7 @@ void on_frame() {
     breech::frame();
     rack::frame();
     smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
+    pairs::frame();                                    // the numbered hand pairs, after rack (pairs.h): the slide / bolt takes an LG first
     ammo_hud::frame();
     recoil::frame();
     handstate::frame();

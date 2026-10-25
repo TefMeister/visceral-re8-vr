@@ -111,7 +111,7 @@ class ZoneFile {
     }
 
     // which material the spheres wear (lua/visceral_re8_zones.lua MATS, the same order): the first one that shows is not known yet
-    public static readonly string[] Looks = { "its own", "light pillar", "glass", "liquid", "mold", "axis", "no material" };
+    public static readonly string[] Looks = { "axis" };   // one look only since 2026-10-25 (the game's menu has just "axis" too)
     public static int Look(Dictionary<string, object> all) {
         var v = Child(all, "_visual", false);
         object m;
