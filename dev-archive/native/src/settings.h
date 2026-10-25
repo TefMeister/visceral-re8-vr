@@ -121,6 +121,7 @@ constexpr float RACK_JOINT_GRAB_M = 0.14f;       // the left controller this clo
 // sits ~15 cm behind the drawn hand) while the magazine's is measured from the drawn hand, so every reach for the magazine that
 // missed it by a few cm was taken by the bolt and the hand was held up at the bolt, beside the right hand. The bolt is now measured
 // from the drawn hand (the left IK target, the same point as the magazine) and takes only close to its joint
+constexpr float GRIP_ZONE_M = 0.10f;             // the FRONT GRIP zone: the left controller this close to the gun's kept grip spot = LG takes the grip (the grip script's 10 cm)
 constexpr float RACK_BOLT_GRAB_M = 0.09f;        // the drawn left hand this close to the bolt joint = can take hold (the magazine wins within MAG_GRAB_M)
 // zones.cpp (2026-10-25): the grab zones can be moved and resized from the menu (zones.json); this is the size of the drawn dot at the
 // point the tests measure from (the drawn left hand, or the controller for the slide / pump)

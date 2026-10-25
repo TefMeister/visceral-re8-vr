@@ -141,3 +141,29 @@ names match its own slots; the shared effect materials never did. Village ships 
 looking for round meshes with a same-named mdf2; two balloons the same way as fall-backs). Installed 12:48 (backup
 `_backup-2026-10-25-1248-before-visceral-re8-deploy`); the look list starts with "its own" (the mesh's own material), and the
 saved look moved to a new key so an old pick does not carry over. Unseen.
+
+
+## 13:55 Three more findings from the fifth wear (Fable)
+
+**The spheres, fifth try.** Worn 13:20-13:37 with the test ball switched fully on (the log read back: mesh enabled, draw by
+default, render output 15, the object draws), SHOWN at the gun at the right size, and still nothing in the headset. Sixth try:
+the first choice is now a small copy of the gun in hand, taken from the held weapon's own mesh and material holders, which is
+how Andyalpa's holster visuals draw (and they draw). Made only once a gun is in hand. If even that is unseen, the mesh was
+never the fault; the spawn folder or the transform parent is next.
+
+**The hand jumping to the forestock.** Tefa, reaching for the rifle's bolt: "whatever i did, it kept jumping onto the front
+handle". The log had `[re8-grip] stacked grip TAKEN (3 cm above, 10 cm to the side)` at every jump, with `our_grip=false`: not
+the grip take at all, but the scope mod's stacked-hands gesture (LG held with the left controller 3-35 cm above and within
+12 cm beside the right one draws the hand on the captured forestock spot). The bolt sits exactly there, and the rack measures
+the DRAWN hand, which the stacked grip had just moved to the forestock, so the bolt was "rarely" taken. Off in Visceral RE8's
+copy of the grip script; `grip stacked 1` turns it on again.
+
+**The front grip is a zone.** zones.h GRIP (bridge slots 136-140): smooth.cpp publishes the gun's kept grip spot as a world
+sphere each frame, moved by zones.json "grip" in the gun's axes, as big as the take distance (10 cm). The grip script takes
+the grip when the left controller is inside it, and the socket it then holds is the sphere's centre in the right hand's
+frame. Grab Zones has a FRONT GRIP box for it. Before this the take was measured against the kept socket in the un-steered
+controller frame, which nobody could see.
+
+**The crash at 13:37:55.** Inside the game's app.WeaponCore.requestMotion (from app.PlayerMotionController.update), RCX
+0x100000000, one second after a stacked take, after a bolt hold and a free -> slide -> free hand change. Dump and log kept in
+`D:\RE Village REFramework builds\logs\` (reframework_crash-2026-10-25-1337.dmp, re2_framework_log-2026-10-25-1400-crash.txt).

@@ -425,6 +425,9 @@ local function grip(a, b, c)
         L(string.format("keep in %.0f s: hold the controllers the way the hands should sit on this gun, left grip NOT pressed", s))
     elseif a == "unkeep" then
         spot_forget(gun_num())
+    elseif a == "stacked" then
+        STACKED_GRIP = b == "1" or b == "on"
+        L("stacked grip " .. (STACKED_GRIP and "ON: LG with the left controller above and beside the right draws the hand on the forestock (it fights the bolt)" or "OFF"))
     elseif a == "forget" then
         forget_frozen("the 'grip forget' word")
         L("forget: the next dock freezes a fresh socket once it can be trusted")
@@ -462,7 +465,17 @@ end
 local STACK_UP_MIN_M, STACK_UP_MAX_M = 0.03, 0.35
 local STACK_SIDE_ENTER_M, STACK_SIDE_LEAVE_M = 0.12, 0.18
 g.stacked = false
+-- 2026-10-25 13:37 (Fable; Tefa: trying to take the rifle's bolt "it kept jumping onto the front handle"; the log: "stacked grip
+-- TAKEN (3 cm above, 10 cm to the side)" at every jump, our_grip=false): the stacked grip fires whenever LG is held with the
+-- left controller a little above and beside the right one, which is exactly where the bolt is, and it draws the hand on the
+-- forestock before the plugin's rack can see it at the bolt. In Visceral RE8 it is OFF: the forestock hold is the FRONT GRIP
+-- zone now, and the hands' places come from the plugin's zones. `grip stacked 1` turns it back on (and the bolt fight with it)
+local STACKED_GRIP = false
 local function stacked_zone(v)
+    if not STACKED_GRIP then
+        if g.stacked then g.stacked = false L("stacked grip released (it is off in Visceral RE8: `grip stacked 1` turns it on)") end
+        return false
+    end
     if not v.is_holding_left_grip or v.is_reloading then return false end
     local ok, l, r = pcall(function()
         local c = vrmod:get_controllers()
@@ -604,8 +617,21 @@ local function grip_pass(final)
     -- angle sanity limit). The TAKE still uses the plain 10 cm distance to the un-steered socket, as praydog does.
     local d_take, d_keep, ang_keep = nil, nil, nil
     local r_now, a_now, keep_ok, dr, da = nil, nil, true, 0, 0
+    -- 2026-10-25 (Fable; Tefa: "the front part of the gun is missing from the list", and before it "LG would not grip the
+    -- front unless the gun was turned sideways"): the plugin now draws this gun's kept spot as the FRONT GRIP zone (zones.h
+    -- GRIP, bridge slots 136-140: world centre, radius, on), moved by the Grab Zones window's "grip" sliders. While it is
+    -- there the take is measured against IT, the point on the gun as drawn, and the socket taken is its centre in the right
+    -- hand's frame, so what the sliders show is where the hand lands
+    local zone, dock_m = nil, GRIP_DOCK_M
+    do
+        local b = rawget(_G, "visceral_re8_bridge")
+        if b ~= nil and b.ready() and (safe(function() return b.r(140) end) or 0) > 0.5 then
+            zone = { c = Vector3f.new(b.r(136), b.r(137), b.r(138)), r = b.r(139) }
+            if zone.r ~= nil and zone.r > 0.005 then dock_m = zone.r end
+        end
+    end
     if S.frozen ~= nil then
-        d_take = len(sub(lp, rp + rr * S.frozen.socket))
+        d_take = zone ~= nil and len(sub(lp, zone.c)) or len(sub(lp, rp + rr * S.frozen.socket))
         d_keep = math.abs(len(sub(lp, rp)) - len(S.frozen.socket))
         local sd, hd = unit(rr * S.frozen.socket), unit(sub(lp, rp))
         ang_keep = (sd ~= nil and hd ~= nil) and angle_between_deg(sd, hd) or 180
@@ -676,7 +702,7 @@ local function grip_pass(final)
     elseif S.take ~= nil then
         our_grip = allowed and (holding or keep_ok)
     else
-        local near = cpp_grip or (d_take ~= nil and d_take <= GRIP_DOCK_M)
+        local near = cpp_grip or (d_take ~= nil and d_take <= dock_m)
         -- after the hand pulled away, it must leave the dock zone once before the auto-dock may take it again
         -- (otherwise praydog's dock re-grabs a hand that is still close, and the let-go never seems to happen)
         if S.need_clear and not near then S.need_clear = false end
@@ -737,10 +763,12 @@ local function grip_pass(final)
         if S.frozen ~= nil and (S.frozen.saved or since < REDOCK_KEEP_S or socket_live == nil) then
             S.takes = S.takes + 1
             S.drift_max = 0
-            S.take = { socket = S.frozen.socket, lrot = S.frozen.lrot, drift_max = 0 }
-            L(string.format("grip taken #%d (%s, %.1f s after letting go): keeping the socket frozen earlier at (%.3f, %.3f, %.3f)",
+            local sock = S.frozen.socket
+            if zone ~= nil then sock = rr:inverse() * sub(zone.c, rp) end   -- the FRONT GRIP zone's centre, as the sliders set it
+            S.take = { socket = sock, lrot = S.frozen.lrot, drift_max = 0 }
+            L(string.format("grip taken #%d (%s, %.1f s after letting go): the socket %s at (%.3f, %.3f, %.3f)",
                 S.takes, cpp_grip and "praydog docked" or "our own dock on the frozen socket", since,
-                S.frozen.socket.x, S.frozen.socket.y, S.frozen.socket.z))
+                zone ~= nil and "is the FRONT GRIP zone's centre" or "frozen earlier", sock.x, sock.y, sock.z))
         elseif socket_live ~= nil then
             local steady_s = S.cand ~= nil and (now - S.cand.t0) or 0
             local trusted, why = socket_trusted(socket_live, g.pos, steady_s)

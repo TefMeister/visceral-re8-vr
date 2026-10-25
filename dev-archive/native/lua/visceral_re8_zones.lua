@@ -28,6 +28,7 @@ local ZONES = {
     { i = 1, key = "well", label = "The well: where a magazine goes in" },
     { i = 2, key = "part", label = "The slide / pump / bolt (left grip on it)" },
     { i = 3, key = "hand", label = "The point the hand is measured from" },
+    { i = 4, key = "grip", label = "The front grip: this gun's kept grip spot (left grip in it takes the gun two-handed)" },
 }
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
@@ -41,7 +42,11 @@ local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", lab
 -- whose names match its own slots, and the shared effect materials did not. Village ships a development "test ball" WITH its
 -- own material (environment/props/resource/sm0x/sm00_111_testball), so that is the sphere now, in its own material ("its
 -- own" look, the first); two balloons with their own materials are the fall-backs; the bare primitives come last.
-local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh",
+-- 13:50 (fifth wear, the test ball switched on fully, still nothing): Andyalpa's holster visuals, which DO draw, copy the held
+-- weapon's own mesh and material holders, already loaded by the game; every mesh loaded fresh from a path has drawn nothing in
+-- five tries. So first choice is now "GUN": each zone is a small copy of the gun in hand, in its own material. It is made only
+-- once a gun is in hand. If even that draws nothing, the fault is not the mesh.
+local MESHES = { "GUN", "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh",
                  "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
                  "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh",
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
@@ -133,6 +138,7 @@ local function find_folder()
 end
 local function mat_index() local m = tonumber(cfg["_visual"].look) or 0; if m < 0 or m >= #MATS then m = 0 end; return m end
 local function apply_mat(i, ball)
+    if ball.gun_copy then return end
     local m = mat_index()
     if mat_applied[i] == m then return end
     mat_applied[i] = m
@@ -156,6 +162,19 @@ local function measure(comp)
     if half and half > 0.0005 and half < 100 then return half end
     return nil
 end
+-- the held weapon's own via.render.Mesh component (the holster visuals' H.get_weapon_mesh_component, in short)
+local function weapon_mesh()
+    local w = rawget(_G, "re8vr"); w = w and w.weapon or nil
+    if not w then return nil end
+    local mesh = nil
+    pcall(function() mesh = w:get_field("Mesh") end)
+    if mesh then return mesh end
+    local go = nil
+    pcall(function() go = w:call("get_GameObject") end)
+    if not go then return nil end
+    pcall(function() mesh = go:call("getComponent(System.Type)", sdk.find_type_definition("via.render.Mesh"):get_runtime_type()) end)
+    return mesh
+end
 local function spawn(i)
     local td = sdk.find_type_definition("via.GameObject")
     local mk2 = td and td:get_method("create(System.String, via.Folder)") or nil
@@ -168,6 +187,7 @@ local function spawn(i)
     end)
     if not go then status = "GameObject.create failed"; return nil end
     pcall(function() go = go:add_ref() end)
+    pcall(function() go:call(".ctor") end)   -- as the holster visuals do
     local mesh_td = sdk.find_type_definition("via.render.Mesh")
     local comp = nil
     pcall(function()
@@ -176,9 +196,21 @@ local function spawn(i)
     end)
     if not comp then status = "no mesh component"; pcall(function() go:call("destroy", go) end); return nil end
     local tries = mesh_used and { mesh_used } or MESHES
-    local got = nil
+    local got, gun_copy = nil, false
     for _, path in ipairs(tries) do
-        if not mesh_failed[path] then
+        if path == "GUN" then
+            local wm = weapon_mesh()
+            local h, m = nil, nil
+            if wm then pcall(function() h = wm:call("getMesh") end); pcall(function() m = wm:call("get_Material") end) end
+            if h then
+                pcall(function() comp:call("setMesh", h) end)
+                if m then pcall(function() comp:call("set_Material", m) end) end
+                local back = nil
+                pcall(function() back = comp:call("getMesh") end)
+                if back ~= nil then got = path; gun_copy = true; break end
+            end
+            if i == 0 then log.info(TAG .. " sphere from the gun in hand: " .. (wm and (h and "setMesh gave nothing back" or "no mesh holder on the weapon") or "no weapon mesh") .. ", trying the sphere files") end
+        elseif not mesh_failed[path] then
             local h = mesh_holders[path] or holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder")
             if h then
                 mesh_holders[path] = h
@@ -222,8 +254,8 @@ local function spawn(i)
     local xform = nil
     pcall(function() xform = go:call("get_Transform") end)
     status = "drawn: " .. got:match("[^/]+$") .. ", look: " .. MAT_NAMES[mat_index() + 1]
-    local ball = { go = go, comp = comp, xform = xform, on = false }
-    apply_mat(i, ball)
+    local ball = { go = go, comp = comp, xform = xform, on = false, gun_copy = gun_copy }
+    if not gun_copy then apply_mat(i, ball) end   -- a gun copy wears the gun's own material
     return ball
 end
 local function set_on(ball, on)
@@ -283,9 +315,12 @@ re.on_frame(function()
             end
         end
     end
-    if not spawn_tried then
-        spawn_tried = true
-        for _, z in ipairs(ZONES) do balls[z.i] = spawn(z.i) end
+    -- made once a gun is in hand (the gun copy needs one), at most once a second until one is made
+    if not spawn_tried and gun_num(b) > 0 and now - last_respawn_t > 1.0 then
+        last_respawn_t = now
+        local any = false
+        for _, z in ipairs(ZONES) do balls[z.i] = spawn(z.i); any = any or balls[z.i] ~= nil end
+        spawn_tried = any
     end
     -- a new look picked: "no material" needs fresh spheres (a set material cannot be taken off), any other is put on
     local m = mat_index()

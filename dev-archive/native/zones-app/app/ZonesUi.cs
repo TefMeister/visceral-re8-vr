@@ -1,5 +1,5 @@
 // ZonesUi.cs -- the Grab Zones window. Top: the game and the gun in hand, SHOW THE SPHERES, and whether the sliders set THIS GUN
-// or ALL GUNS. Then one box per zone (the magazine grab, the well, the slide / pump / bolt): its live line ("hand 14 cm away,
+// or ALL GUNS. Then one box per zone (the magazine grab, the well, the slide / pump / bolt, the front grip): its live line ("hand 14 cm away,
 // needs 12", green when the hand is inside), four sliders (forward / back, up / down, right / left, size) each with - and +
 // buttons for half-centimetre steps (easier than dragging with a VR pointer), and RESET. Every change goes into zones.json at
 // once; the plugin moves the zone and its sphere within a third of a second. Large type, so Window View can hang it in the headset.
@@ -47,6 +47,7 @@ class ZonesUi : Form {
         boxes.Add(new ZoneBox(this, "mag", "GRAB THE MAGAZINE", "left grip on the seated magazine"));
         boxes.Add(new ZoneBox(this, "well", "THE WELL", "where a magazine goes back in (long guns)"));
         boxes.Add(new ZoneBox(this, "part", "SLIDE / PUMP / BOLT", "left grip on it"));
+        boxes.Add(new ZoneBox(this, "grip", "FRONT GRIP", "left grip in it holds the gun two-handed: this gun's kept grip spot, moved by these sliders"));
         for (int i = boxes.Count - 1; i >= 0; i--) scroll.Controls.Add(boxes[i]);   // docked top: added last = shown first
         BuildTop();
         BuildBottom();
@@ -240,7 +241,7 @@ class ZonesUi : Form {
             foreach (Control c in new Control[] { reset, size, right, up, fwd, note, head }) inner.Controls.Add(c);
         }
 
-        static double BuiltInCm(string k) { return k == "mag" ? 12 : k == "well" ? 16 : k == "bolt" ? 9 : 14; }
+        static double BuiltInCm(string k) { return k == "mag" ? 12 : k == "well" ? 16 : k == "bolt" ? 9 : k == "grip" ? 10 : 14; }
 
         public void Load(Dictionary<string, object> all, string group, LiveState live) {
             if (slot == "part") { var lz = PartLive(live); key = lz != null ? lz.Key : key; }

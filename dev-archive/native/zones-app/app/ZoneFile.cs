@@ -4,7 +4,7 @@
 //                     in the gun's axes (x right, y up, z forward, metres) and its radius r (metres); "_visual": { show, half_m }.
 //                     The plugin (src/zones.cpp) re-reads it within a third of a second of any change.
 //   zones_state.json  READ HERE: written by lua/visceral_re8_zones.lua four times a second: the gun in hand and, per zone, its
-//                     key (mag / well / slide / pump / bolt), whether it is on this gun, its size and how far the hand is from it.
+//                     key (mag / well / slide / pump / bolt / grip), whether it is on this gun, its size and how far the hand is from it.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

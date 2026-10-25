@@ -1,5 +1,6 @@
 // smooth.cpp -- see smooth.h
 #include "smooth.h"
+#include "zones.h"
 #include "bridge.h"
 #include "joints.h"
 #include "player.h"
@@ -127,6 +128,19 @@ const Spot* spot_now() {
     return it == g_spots.end() ? nullptr : &it->second;
 }
 } // namespace
+
+// the FRONT GRIP zone (2026-10-25, Fable; Tefa: "the front part of the gun is missing from the list"): this gun's kept spot
+// in the gun hand's frame, as a world point, moved by zones.json "grip" (in the gun's axes) and as big as the take distance.
+// The grip script reads it back from the bridge and takes the grip inside it; no kept spot = no zone
+void publish_zone() {
+    spots_refresh();
+    const auto& s = player::now();
+    const Spot* kept = (bridge::live() && s.weapon != nullptr) ? spot_now() : nullptr;
+    Vec3 rp;
+    Quat rq;
+    if (kept == nullptr || !player::get_pose(target_of(s.ik_right), rp, rq)) { zones::clear(zones::GRIP); return; }
+    zones::publish(zones::GRIP, zones::center(zones::GRIP, rp + rotate(qnorm(rq), kept->p)), zones::radius(zones::GRIP));
+}
 
 void on_ik(MO* ik) {
     const auto& s = player::now();

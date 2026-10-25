@@ -34,6 +34,7 @@
 #include "ik.h"
 #include "player.h"
 #include "rack.h"
+#include "smooth.h"
 #include "recoil.h"
 #include "reload.h"
 #include "zones.h"
@@ -53,6 +54,7 @@ void on_frame() {
     reload::frame();
     breech::frame();
     rack::frame();
+    smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
     ammo_hud::frame();
     recoil::frame();
     handstate::frame();

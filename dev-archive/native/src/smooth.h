@@ -10,4 +10,5 @@
 
 namespace vn::smooth {
 void on_ik(MO* ik);   // ik.cpp: the left arm is about to be solved, after recoil, reload and rack have written
+void publish_zone();  // once a frame: this gun's kept grip spot as the FRONT GRIP zone (zones.h GRIP) for the menu and the grip script
 } // namespace vn::smooth

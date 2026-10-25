@@ -55,6 +55,7 @@ const char* key_name(Key k, const char* part) {
     case MAG: return "mag";
     case WELL: return "well";
     case PART: return part != nullptr ? part : "slide";
+    case GRIP: return "grip";
     default: return "hand";
     }
 }
@@ -64,6 +65,7 @@ Zone builtin(Key k, const char* part) {
     case MAG: z.r = MAG_GRAB_M; break;
     case WELL: z.r = DOCK_ITEM_M; break;
     case PART: z.r = (part != nullptr && std::strcmp(part, "bolt") == 0) ? RACK_BOLT_GRAB_M : RACK_JOINT_GRAB_M; break;
+    case GRIP: z.r = GRIP_ZONE_M; break;
     default: z.r = ZONE_HAND_MARK_M; break;
     }
     return z;
