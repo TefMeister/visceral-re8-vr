@@ -123,6 +123,21 @@ void frame() {
     }
     bridge::put(bridge::S_PAIR_ACTIVE, g_active >= 0 ? (float)g_pairs[g_active].n : 0.0f);
 
+    // 2026-10-26 (Tefa: "automatic saving for hand poses on different land spots and different start grab spots"): where the
+    // left hand is, so Hand Poser keeps one pose per gun AND spot. A landing spot while a pair holds the hand, the slide /
+    // pump / bolt, the magazine, or an activation sphere the hand is inside without having taken it.
+    float spot = 0.0f;
+    if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
+    else if (rack::active()) spot = 3.0f;
+    else if (reload::hand_on_mag()) spot = 4.0f;
+    else if (ok && play) {
+        Vec3 lp;
+        if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp))
+            for (const auto& p : g_pairs)
+                if (for_gun(p, gun) && dist(world(p.a), lp) <= p.r) { spot = 2000.0f + (float)p.n; break; }
+    }
+    bridge::put(bridge::S_LEFT_SPOT, spot);
+
     // the pair picked in the Grab Zones window, drawn on the gun: the activation sphere and the landing dot
     const Pair* shown = nullptr;
     for (const auto& p : g_pairs) if (p.n == g_show && for_gun(p, gun)) { shown = &p; break; }
