@@ -134,11 +134,26 @@ void frame() {
     }
     if (g_dock >= 0 && (!ok || !lg || !play || !g_dock_on[g_dock])) {
         LOGI("%s pairs: the left hand leaves the %s (%s)", TAG, DOCKS[g_dock].name, !lg ? "LG let go" : "the gun or the scene changed");
+        if (DOCKS[g_dock].key == zones::DRUM) breech::drum_undock();
         g_dock = -1;
     }
-    if (g_dock >= 0 && bridge::pressed(bridge::S_LTRIG)) {   // LT does the part's job
-        if (DOCKS[g_dock].key == zones::DRUM) breech::drum_lt();
-        else if (DOCKS[g_dock].key == zones::INSERT) breech::insert_lt();
+    // 2026-10-27: rounds in the hand for a revolver, LG held, brought to the drum: the hand docks there (no fresh LG needed)
+    if (g_dock < 0 && g_active < 0 && ok && play && lg && reload::rounds_in_hand() > 0) {
+        Vec3 lp;
+        for (int i = 0; i < NDOCKS; ++i) {
+            if (DOCKS[i].key != zones::DRUM || !g_dock_on[i] || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp) || dist(g_dock_c[i], lp) > g_dock_r[i]) continue;
+            g_dock = i;
+            Vec3 hp;
+            Quat hq;
+            g_turn = player::get_pose(field_obj(s.ik_left, "Target"), hp, hq) ? qnorm(qmul(qinv(rq), qnorm(hq))) : Quat{0, 0, 0, 1};
+            bridge::rumble(bridge::LEFT, PAIR_BUZZ_AMP, PAIR_BUZZ_SEC, PAIR_BUZZ_HZ);
+            LOGI("%s pairs: rounds in hand at the drum: the left hand docks there (LT puts each in)", TAG);
+            breech::drum_taken();
+        }
+    }
+    if (g_dock >= 0) {   // the part's job: the drum each frame (LT taps, LT held drags), the GM 79's insert point on LT
+        if (DOCKS[g_dock].key == zones::DRUM) breech::drum_dock_frame(bridge::pressed(bridge::S_LTRIG), bridge::held(bridge::S_LTRIG));
+        else if (DOCKS[g_dock].key == zones::INSERT && bridge::pressed(bridge::S_LTRIG)) breech::insert_lt();
     }
     if (g_active >= 0 && (!ok || !lg || !play || g_active >= (int)g_pairs.size() || !for_gun(g_pairs[g_active], gun))) {
         LOGI("%s pairs: pair %d let go (%s)", TAG, g_active < (int)g_pairs.size() ? g_pairs[g_active].n : 0, !lg ? "LG let go" : "the gun or the scene changed");

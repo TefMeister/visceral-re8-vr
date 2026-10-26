@@ -23,8 +23,15 @@ bool blocks_fire();         // a breech gun that is open
 // flick; while the hand holds the drum each LT puts a round in, and the LT after it is full closes it (a flick closes it too).
 // The GM 79: LG + LT at the insert point takes out what is in the barrel, a live grenade (back to the carried ammo) or the
 // spent case; a fresh grenade goes in only once the spent case is out; LT with the left hand on the front grip opens / closes it.
-void drum_taken();         // LG at the drum: it opens
-void drum_lt();            // LT with the hand on the drum: one round in, or closed when full
+// 2026-10-27, second round (Tefa): the drum is DRAGGED open with LG + LT on it until it clicks; tipped 30 degrees muzzle-up
+// while open, only the spent casings fall out; a grab from the pouch takes exactly the rounds the free chambers need; with LG
+// held the hand docks on the drum and each LT puts one in; full, one more LT takes the drum and it is pushed shut until it
+// clicks, or LG let go after the last round (or past half a closing push) swings it shut. A flick still closes it.
+void drum_taken();                       // the left hand docked on the drum (pairs.cpp)
+void drum_dock_frame(bool lt_pressed, bool lt_held);   // each frame the hand is docked on the drum
+void drum_undock();                      // LG let go while docked on the drum
+int free_chambers();                     // a revolver's chambers neither loaded nor holding a spent casing (-1 = not a revolver)
+int spent_casings();
 void insert_lt();          // LT with the hand at the GM 79's insert point: the round or the spent case comes out
 bool spent();              // the GM 79 holds a spent case (fired, not taken out yet)
 

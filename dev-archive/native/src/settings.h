@@ -133,6 +133,12 @@ constexpr int   ZONE_FILE_CHECK_FRAMES = 20;
 constexpr float HANDLE_ZONE_M = 0.08f; constexpr Vec3 HANDLE_OFF{-0.04f, -0.04f, 0.0f};   // below-left of the gun hand: the cupping hand
 constexpr float DRUM_ZONE_M = 0.06f;   constexpr Vec3 DRUM_OFF{0.0f, 0.04f, 0.08f};      // a revolver's cylinder, above and ahead of the hand
 constexpr float INSERT_ZONE_M = 0.07f; constexpr Vec3 INSERT_OFF{0.0f, 0.05f, 0.12f};    // the GM 79's breech
+// 2026-10-27 the revolver's drum by hand (breech.cpp): dragged this far sideways (the left controller against the right, the
+// gun's own left / right) it clicks open / shut; let go past this share of a closing drag it swings shut; the gun tipped
+// this far muzzle-up with the drum open drops the spent casings (live rounds stay)
+constexpr float DRUM_DRAG_M = 0.05f;
+constexpr float DRUM_SWING_SHARE = 0.5f;
+constexpr float DRUM_TILT_DEG = 30.0f;
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_LAND_DOT_M = 0.015f;          // the landing spot is drawn as a dot this big (the hand lands on its centre)
 constexpr float PAIR_FILE_CHECK_S = 1.0f;          // how often pairs.json's write time is checked

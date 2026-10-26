@@ -11,6 +11,7 @@
 #include <windows.h>
 #include <mmsystem.h>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <string>
@@ -33,6 +34,11 @@ float g_last_flip = -10.0f;
 float g_peak = 0.0f;          // the biggest rate this second, for the log (how hard Tefa flicks)
 bool g_spent = false;         // the GM 79 fired and its case is still in the barrel (2026-10-27)
 int g_last_loaded = -1;       // rounds in the gun last frame: a drop while closed = a shot
+int g_spent_n = 0;            // a revolver's spent casings still in the drum (2026-10-27)
+int g_drag = 0;               // the drum dragged by hand: +1 opening, -1 closing, 0 not
+float g_drag_from = 0.0f;     // where the left controller was across the gun when the drag began (m)
+float g_drag_prog = 0.0f;     // how far along the drag is (0..1)
+bool g_docked = false;        // the left hand is docked on the drum
 
 const char* part() { return g_w != nullptr && g_w->breech == Breech::BREAK ? "barrel" : "cylinder"; }
 
@@ -104,24 +110,76 @@ bool loading_allowed() { return !here() || g_open; }
 bool blocks_fire() { return is_open(); }
 bool spent() { return here() && g_w->breech == Breech::BREAK && g_spent; }
 
+// the left controller across the gun: its sideways offset from the right controller, in the right controller's own axes
+// (+ = to the gun's right). The drum swings out to the left
+float across() {
+    const Quat r = bridge::view_quat(bridge::S_RROT);
+    if (!bridge::has(r.x)) return 0.0f;
+    const Vec3 d = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
+    return rotate(qinv(qnorm(r)), d).x;
+}
+bool muzzle_up() {
+    const Quat r = bridge::view_quat(bridge::S_RROT);
+    if (!bridge::has(r.x)) return false;
+    const Vec3 f = rotate(qnorm(r), Vec3{0, 0, -1});
+    return f.y >= std::sin(DRUM_TILT_DEG / 57.29578f);
+}
+bool cylinder() { return here() && g_w->breech == Breech::CYLINDER; }
+
 void drum_taken() {
-    if (!here() || g_w->breech != Breech::CYLINDER) return;
-    set_open(true, "LG at the drum");
+    if (!cylinder()) return;
+    g_docked = true;
+    g_drag = 0;
+    LOGI("%s breech: the left hand is on the drum (%s): %s", TAG, g_open ? "open" : "closed",
+         g_open ? "LT puts a round in, LT when full takes the drum to push it shut" : "hold LT and drag it out to the left to open it");
 }
 
-void drum_lt() {
-    if (!here() || g_w->breech != Breech::CYLINDER) return;
-    if (!g_open) { set_open(true, "LT at the drum"); return; }
-    const int cap = player::capacity(), have = player::loaded();
-    if (cap > 0 && have >= cap) { set_open(false, "LT with the drum full"); return; }
-    if (!reload::load_round()) {   // nothing carried: a short buzz, the drum stays open
-        bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
-        LOGI("%s breech: LT at the drum: no round went in (none carried?)", TAG);
+void drum_dock_frame(bool lt_pressed, bool lt_held) {
+    if (!cylinder() || !g_docked) return;
+    const float x = across();
+    if (g_drag != 0) {   // a drag in progress: out to the left opens, back to the right shuts
+        g_drag_prog = std::fmax(0.0f, (g_drag > 0 ? g_drag_from - x : x - g_drag_from) / DRUM_DRAG_M);
+        if (g_drag_prog >= 1.0f) { set_open(g_drag > 0, g_drag > 0 ? "dragged open" : "pushed shut"); g_drag = 0; return; }
+        if (g_drag > 0 && !lt_held) { LOGI("%s breech: LT let go before the drum clicked open (%.0f%%)", TAG, g_drag_prog * 100.0f); g_drag = 0; }
         return;
     }
-    bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
-    LOGI("%s breech: LT at the drum: a round in (%d of %d)", TAG, player::loaded(), cap);
+    if (!g_open) {   // closed: LG + LT on the drum takes it; dragging it out opens it
+        if (lt_held) { g_drag = 1; g_drag_from = x; g_drag_prog = 0.0f; LOGI("%s breech: drum taken: drag it out to the left until it clicks", TAG); }
+        return;
+    }
+    if (!lt_pressed) return;
+    if (reload::rounds_in_hand() > 0) {   // a round from the hand into the drum
+        if (reload::insert_from_hand()) {
+            bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s breech: a round into the drum (%d loaded, %d left in the hand)", TAG, player::loaded(), reload::rounds_in_hand());
+        }
+        return;
+    }
+    if (free_chambers() == 0) {   // full: one more LT takes the drum, pushed back to the right it clicks shut
+        g_drag = -1; g_drag_from = x; g_drag_prog = 0.0f;
+        LOGI("%s breech: drum full and taken: push it to the right until it clicks (or let go past half to swing it shut)", TAG);
+        return;
+    }
+    bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+    LOGI("%s breech: LT on the open drum with no round in the hand (%d free): take rounds from the ammo pouch", TAG, free_chambers());
 }
+
+void drum_undock() {
+    if (!cylinder() || !g_docked) return;
+    g_docked = false;
+    // let go: past half a closing push, or right after the drum was filled, it swings shut
+    if (g_open && ((g_drag < 0 && g_drag_prog >= DRUM_SWING_SHARE) || (g_drag == 0 && free_chambers() == 0)))
+        set_open(false, g_drag < 0 ? "let go past half: swung shut" : "let go full: swung shut");
+    g_drag = 0;
+}
+
+int free_chambers() {
+    if (!cylinder()) return -1;
+    const int cap = player::capacity(), ld = player::loaded();
+    if (cap <= 0 || ld < 0) return 0;
+    return std::max(0, cap - ld - g_spent_n);
+}
+int spent_casings() { return cylinder() ? g_spent_n : 0; }
 
 void insert_lt() {
     if (!here() || g_w->breech != Breech::BREAK) return;
@@ -159,6 +217,9 @@ void frame() {
         g_open = false;   // a gun comes out of the inventory closed
         g_spent = false;
         g_last_loaded = -1;
+        g_spent_n = 0;
+        g_drag = 0;
+        g_docked = false;
         g_have_prev = false;
         g_rate = 0.0f;
         if (here()) LOGI("%s breech: %s (%s) opens to load: right B or a flick (%s)", TAG, id.c_str(), weapons::name(id),
@@ -171,6 +232,14 @@ void frame() {
     if (g_w->breech == Breech::BREAK && !g_open && g_last_loaded > 0 && ld >= 0 && ld < g_last_loaded) {
         g_spent = true;
         LOGI("%s breech: GM 79 fired: the spent case stays in until taken out (LG + LT at the insert point)", TAG);
+    }
+    // a revolver fired: the casing stays in its chamber until the open drum is tipped muzzle-up
+    if (g_w->breech == Breech::CYLINDER && !g_open && g_last_loaded > 0 && ld >= 0 && ld < g_last_loaded) g_spent_n += g_last_loaded - ld;
+    if (g_w->breech == Breech::CYLINDER && g_open && g_spent_n > 0 && muzzle_up()) {
+        LOGI("%s breech: tipped muzzle-up: %d spent casing(s) fall out, %d live round(s) stay", TAG, g_spent_n, ld);
+        g_spent_n = 0;
+        bridge::sfx(bridge::SFX_MAG_OUT);
+        bridge::rumble(bridge::RIGHT, BREECH_BUZZ_AMP, BREECH_BUZZ_SEC, RELOAD_BUZZ_HZ);
     }
     g_last_loaded = ld;
     // right B: the GM 79 only (2026-10-27, Tefa: "B does not open the drum")

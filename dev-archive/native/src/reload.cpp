@@ -48,6 +48,7 @@ Vec3 g_shell_rest{};
 Quat g_shell_rest_rot{0, 0, 0, 1};
 bool g_shell_have_rest = false;
 int g_pocket = 0;                 // 2026-10-27: rounds taken out of the gun by hand (the GM 79), loaded again before the carried ammo
+int g_rounds_n = 0;               // 2026-10-27: a revolver's rounds in the left hand (one grab = the free chambers); 1 for other guns
 } // namespace detail
 
 namespace {
@@ -221,13 +222,14 @@ void hand_checks() {
         ghosthand::value(g_round_in_hand ? "shell_closest_m" : "mag_closest_m", g_closest);
         ghosthand::event(g_round_in_hand ? "shell" : "mag", "fail");
         g_closest = 99.0f;
-        if (g_round_in_hand) { g_round_in_hand = false; shell_home(); LOGI("%s reload: round let go", TAG); return; }
+        if (g_round_in_hand) { g_round_in_hand = false; g_rounds_n = 0; shell_home(); LOGI("%s reload: round(s) let go: back in the pouch", TAG); return; }
         Quat wr;
         if (!held_pose(g_fall_from, wr)) g_fall_from = Vec3{0, 0, 0};
         g_fall_rot = wr;
         set_state(g_joint != nullptr ? St::HAND_FALL : St::OUT, "left grip let go");
         return;
     }
+    if (g_round_in_hand && g_w->breech == weapons::Breech::CYLINDER) return;   // 2026-10-27: docked on the drum, LT puts each in
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
     if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
@@ -386,11 +388,27 @@ void pouch_grab() {
     if (g_w->reload == Reload::ROUND) {
         if (g_round_in_hand) return;
         if (!breech::loading_allowed()) {   // 2026-10-19: a revolver / the GM 79 takes rounds only while it is open
-            LOGI("%s reload: %s is closed: open it first (right B or a flick)", TAG, g_id.c_str());
+            LOGI("%s reload: %s is closed: open it first (revolver: LG + LT on the drum and drag it out; GM 79: a flick down, right B, or LT on the front grip)", TAG, g_id.c_str());
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
             return;
         }
         const int cap = player::capacity();
+        if (g_w->breech == weapons::Breech::CYLINDER) {   // 2026-10-27: one grab = what the free chambers need
+            const int free = breech::free_chambers(), carried = player::unlimited() ? free : std::max(0, player::reserve()) + g_pocket;
+            const int n = std::min(free, carried);
+            if (n <= 0) {
+                LOGI("%s reload: nothing to take for the drum (%d free, %d spent casing(s) in it: tip it muzzle-up; carried %d)", TAG, free, breech::spent_casings(), carried);
+                bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+                return;
+            }
+            capture_port(g_shell);
+            g_round_in_hand = true;
+            g_rounds_n = n;
+            ghosthand::event("shell", "start");
+            bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s reload: %d round(s) in the left hand for the drum (carried %d)", TAG, n, player::reserve());
+            return;
+        }
         if (!supply() || (cap > 0 && player::loaded() + g_stash >= cap)) {
             LOGI("%s reload: nothing to take (carried %d, loaded %d of %d)", TAG, player::reserve(), player::loaded() + g_stash, cap);
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -700,6 +718,13 @@ void render_point() {
 }
 
 bool load_round() { return managed_now() && insert_round(); }
+int rounds_in_hand() { return g_round_in_hand ? std::max(1, g_rounds_n) : 0; }
+bool insert_from_hand() {
+    if (!g_round_in_hand || !managed_now()) return false;
+    if (!insert_round()) return false;
+    if (--g_rounds_n <= 0) { g_rounds_n = 0; g_round_in_hand = false; shell_home(); ghosthand::event("shell", "done"); }
+    return true;
+}
 void pocket_round() { ++g_pocket; LOGI("%s reload: a round back with the carried ammo (%d taken out by hand)", TAG, g_pocket); }
 
 } // namespace vn::reload

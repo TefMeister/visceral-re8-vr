@@ -34,6 +34,9 @@ void on_ik(MO* ik);
 // 2026-10-27 (breech.cpp): LT at a revolver's drum puts one round in (false = none went in); a round taken out of the GM 79
 // by hand goes back with the carried ammo and is loaded again first
 bool load_round();
-void pocket_round();      // ik.cpp: keep the left hand on its controller while it carries a magazine / round
+void pocket_round();
+// 2026-10-27: a revolver's rounds in the left hand (0 = none), and one of them into the drum (breech.cpp, LT on the drum)
+int rounds_in_hand();
+bool insert_from_hand();      // ik.cpp: keep the left hand on its controller while it carries a magazine / round
 
 } // namespace vn::reload
