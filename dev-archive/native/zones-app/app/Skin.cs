@@ -176,6 +176,22 @@ class SkinButton : Button {
 class SkinCheckBox : CheckBox {
     bool down, clicked;
     public SkinCheckBox() { BackColor = Color.Transparent; }
+    // 2026-10-27 (Tefa: "please make the tick boxes bigger"): a box with no text is drawn by us, filling the control (size it
+    // 28 x 28): a dark square with a bright edge, and a thick tick when on. Boxes with text keep Windows' own look.
+    protected override void OnPaint(PaintEventArgs e) {
+        if (!string.IsNullOrEmpty(Text)) { base.OnPaint(e); return; }
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        int side = Math.Min(ClientSize.Width, ClientSize.Height) - 2;
+        var r = new Rectangle(1, (ClientSize.Height - side) / 2, side, side);
+        using (var back = new SolidBrush(Checked ? Color.FromArgb(56, 150, 200) : Color.FromArgb(24, 26, 34))) g.FillRectangle(back, r);
+        using (var edge = new Pen(Enabled ? Color.FromArgb(150, 160, 190) : Color.FromArgb(80, 84, 100), 2f)) g.DrawRectangle(edge, r);
+        if (Checked) using (var tick = new Pen(Color.White, Math.Max(2f, side / 7f))) {
+            tick.StartCap = tick.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+            g.DrawLines(tick, new[] { new PointF(r.X + side * 0.22f, r.Y + side * 0.52f), new PointF(r.X + side * 0.42f, r.Y + side * 0.72f), new PointF(r.X + side * 0.78f, r.Y + side * 0.30f) });
+        }
+    }
+    protected override void OnCheckedChanged(EventArgs e) { base.OnCheckedChanged(e); Invalidate(); }
     protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); if (e.Button == MouseButtons.Left) down = true; }
     protected override void OnClick(EventArgs e) { clicked = true; base.OnClick(e); }
     protected override void OnMouseUp(MouseEventArgs e) {
@@ -201,6 +217,22 @@ class FancySlider : Control {
     bool hot, dragging;
     public int SmallChange = 1, LargeChange = 10;
     public bool Signed;   // the fill runs from zero (the middle) to the thumb, and a notch marks zero
+    // 2026-10-27 (Tefa: "DOWN on the left side of the slider and UP on the right side, so it's clear which way the ball will go"):
+    // the words under each end of the track; null = none
+    public string LeftText, RightText;
+    // The ends' words from a row's label: "forward / back" -> BACK on the left, FORWARD on the right (the first word is the
+    // positive, right-hand end); "size" -> SMALLER / BIGGER. Turns and other labels get none (their direction is not settled).
+    public void EndsFrom(string label) {
+        string l = (label ?? "").ToLowerInvariant();
+        if (l.Contains("size")) { LeftText = "SMALLER"; RightText = "BIGGER"; Invalidate(); return; }
+        if (l.Contains("tilt") || l.Contains("turn") || l.Contains("roll") || l.Contains("aim")) return;
+        int slash = l.IndexOf('/');
+        if (slash < 0) return;
+        string a = l.Substring(0, slash).Trim(), b = l.Substring(slash + 1).Trim();
+        a = a.Substring(a.LastIndexOf(' ') + 1); int sp = b.IndexOf(' '); if (sp > 0) b = b.Substring(0, sp);
+        if (a == "" || b == "") return;
+        LeftText = b.ToUpperInvariant(); RightText = a.ToUpperInvariant(); Invalidate();
+    }
 
     public static readonly Color TrackBack = Color.FromArgb(18, 20, 27), TrackEdge = Color.FromArgb(78, 84, 106);
     public static readonly Color FillA = Color.FromArgb(56, 196, 232), FillB = Color.FromArgb(150, 108, 245);
@@ -291,6 +323,14 @@ class FancySlider : Control {
         Color ring = on ? (tx - Left0 < Width0 / 2f ? FillA : FillB) : TrackEdge;
         using (var pen = new Pen(ring, 3f)) g.DrawEllipse(pen, thumb.X + 1.5f, thumb.Y + 1.5f, thumb.Width - 3, thumb.Height - 3);
         using (var pip = new SolidBrush(on ? Color.FromArgb(60, 64, 82) : TrackEdge)) g.FillEllipse(pip, tx - 2, cy - 2, 4, 4);
+        if (LeftText != null || RightText != null) {   // which end is which, under the track
+            using (var f = new Font("Segoe UI Semibold", 7.5f))
+            using (var br = new SolidBrush(Color.FromArgb(on ? 190 : 90, 200, 206, 222))) {
+                float ty = cy + TRACK_H / 2f + 5;
+                if (LeftText != null) g.DrawString(LeftText, f, br, Left0 - 4, ty);
+                if (RightText != null) { var sz = g.MeasureString(RightText, f); g.DrawString(RightText, f, br, Left0 + Width0 + 4 - sz.Width, ty); }
+            }
+        }
     }
 
     protected override void OnMouseEnter(EventArgs e) { hot = true; Invalidate(); base.OnMouseEnter(e); }

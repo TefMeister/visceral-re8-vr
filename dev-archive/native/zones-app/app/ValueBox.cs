@@ -55,12 +55,15 @@ class ValueBox : Panel {
         return d;
     }
 
-    class Row : Panel {
+    class Row : Panel, ITickable {
         readonly ValueBox box;
         readonly ValueRow def;
         readonly FancySlider bar;
         readonly Label value;
+        readonly CheckBox tick;   // 2026-10-27: ticked = the controller buttons step it (Ticks.cs)
         bool setting;
+        public bool Ticked { get { return tick.Checked; } set { tick.Checked = value; } }
+        public void Step(int presses) { Nudge(presses); }
         public double Value { get { return bar.Value / (double)TENTHS; } }
 
         public Row(ValueBox box, ValueRow def, Func<string, EventHandler, Button> btn) {
@@ -73,8 +76,10 @@ class ValueBox : Panel {
             minus.Font = plus.Font = new Font("Segoe UI Semibold", 13f);
             var gap = new Panel { Dock = DockStyle.Right, Width = 4, BackColor = Color.Transparent };
             bar = new FancySlider { Dock = DockStyle.Fill, Minimum = (int)(def.Min * TENTHS), Maximum = (int)(def.Max * TENTHS), SmallChange = 1, LargeChange = 10, Signed = def.Min < 0 };
+            if (def.Unit != "°") bar.EndsFrom(def.Label);
             bar.ValueChanged += (s, e) => { ShowValue(); if (!setting) { box.Touched = true; box.changed(); } };
             Controls.Add(bar); Controls.Add(minus); Controls.Add(gap); Controls.Add(plus); Controls.Add(value); Controls.Add(name);
+            tick = Ticks.Box(this); Controls.Add(tick); Ticks.All.Add(this);
             ShowValue();
         }
         void Nudge(int dir) { bar.Value = Math.Max(bar.Minimum, Math.Min(bar.Maximum, bar.Value + dir * (int)Math.Round(def.Step * TENTHS))); }

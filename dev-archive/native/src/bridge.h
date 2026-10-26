@@ -85,7 +85,9 @@ enum Slot : int {
     S_PAIR_ACTIVE = 152,      // WRITTEN BY THE PLUGIN: the number of the pair holding the left hand now, 0 = none
     S_LEFT_SPOT = 153,        // WRITTEN BY THE PLUGIN: where the left hand is, for Hand Poser's pose per spot (pairs.cpp):
                               // 1000+N on pair N's landing spot, 2000+N inside pair N's activation sphere, 3 slide/pump/bolt, 4 magazine, 0 none
-    S_COUNT = 154,            // 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
+    S_ZONES2 = 154,           // 154-168, WRITTEN BY THE PLUGIN: three more zones x {x, y, z, r, on}: the HANDLE, the DRUM, the INSERT
+                              // point (zones.h, 2026-10-27); the left hand's spot (153) gains 5 handle, 6 drum, 7 insert
+    S_COUNT = 169,            // 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,

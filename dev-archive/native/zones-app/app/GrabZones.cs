@@ -25,6 +25,26 @@ static class Program {
         {3084, "M1897 - Mercenaries"}, {3147, "M1897 - Shadows of Rose"}, {3023, "GM 79"}, {3008, "M1851 Wolfsbane"},
         {3116, "Handcannon PZ"}, {3022, "Knife"}, {3044, "Knife"},
     };
+    // 2026-10-27 (Tefa: "on any weapon there have to be parts in the selection to tweak - front grip - mag if applicable - grip
+    // handle if applicable, not on long guns - slide/bolt - the revolver/magnum drum"): which parts each gun has, from
+    // src/weapons.cpp (reload / shape / rack / pump / breech). The front grip is on every gun.
+    static readonly HashSet<int> MagPistols = new HashSet<int> { 3040, 3046, 3047, 3050, 3122, 3124, 3135, 3081, 3082, 3083, 3130 };
+    static readonly HashSet<int> MagLongs = new HashSet<int> { 3042, 3087, 3049, 3125, 3129, 3048, 3086 };
+    static readonly HashSet<int> Pumps = new HashSet<int> { 3021, 3085, 3036, 3084, 3147 };
+    static readonly HashSet<int> Drums = new HashSet<int> { 3008, 3116 };
+    static readonly HashSet<int> Breaks = new HashSet<int> { 3023 };
+    public static bool HasPart(int gun, string key) {
+        switch (key) {
+        case "grip": return true;
+        case "mag": return MagPistols.Contains(gun) || MagLongs.Contains(gun);
+        case "well": return MagLongs.Contains(gun);
+        case "part": return MagPistols.Contains(gun) || MagLongs.Contains(gun) || Pumps.Contains(gun);
+        case "handle": return MagPistols.Contains(gun) || Drums.Contains(gun);
+        case "drum": return Drums.Contains(gun);
+        case "insert": return Breaks.Contains(gun);
+        default: return true;
+        }
+    }
     public static string GunName(int n) { string s; return Guns.TryGetValue(n, out s) ? s : ("gun " + n); }
 
     [STAThread]

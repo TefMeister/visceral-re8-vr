@@ -2,6 +2,7 @@
 // Ported numbers keep Andyalpa's names and values from the Hands Off pack (dev-archive/original-lua/).
 #pragma once
 #include <cstddef>
+#include "common.h"
 
 namespace vn::settings {
 
@@ -128,6 +129,10 @@ constexpr float RACK_BOLT_GRAB_M = 0.09f;        // the drawn left hand this clo
 constexpr float ZONE_HAND_MARK_M = 0.02f;
 constexpr int   ZONE_FILE_CHECK_FRAMES = 20;
 // numbered hand pairs (pairs.h, 2026-10-25): an activation sphere and a landing spot, set in the Grab Zones window
+// 2026-10-27 the new gun parts (zones.h HANDLE / DRUM / INSERT): where they start and how big (guesses; Grab Zones moves them)
+constexpr float HANDLE_ZONE_M = 0.08f; constexpr Vec3 HANDLE_OFF{-0.04f, -0.04f, 0.0f};   // below-left of the gun hand: the cupping hand
+constexpr float DRUM_ZONE_M = 0.06f;   constexpr Vec3 DRUM_OFF{0.0f, 0.04f, 0.08f};      // a revolver's cylinder, above and ahead of the hand
+constexpr float INSERT_ZONE_M = 0.07f; constexpr Vec3 INSERT_OFF{0.0f, 0.05f, 0.12f};    // the GM 79's breech
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_LAND_DOT_M = 0.015f;          // the landing spot is drawn as a dot this big (the hand lands on its centre)
 constexpr float PAIR_FILE_CHECK_S = 1.0f;          // how often pairs.json's write time is checked

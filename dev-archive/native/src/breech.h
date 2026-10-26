@@ -19,5 +19,13 @@ bool here();                // the gun in hand opens to load
 bool is_open();
 bool loading_allowed();     // not a breech gun, or it is open
 bool blocks_fire();         // a breech gun that is open
+// 2026-10-27 (Tefa): the revolver's drum opens only with LG at the drum (pairs.cpp's DRUM dock), never with right B or a
+// flick; while the hand holds the drum each LT puts a round in, and the LT after it is full closes it (a flick closes it too).
+// The GM 79: LG + LT at the insert point takes out what is in the barrel, a live grenade (back to the carried ammo) or the
+// spent case; a fresh grenade goes in only once the spent case is out; LT with the left hand on the front grip opens / closes it.
+void drum_taken();         // LG at the drum: it opens
+void drum_lt();            // LT with the hand on the drum: one round in, or closed when full
+void insert_lt();          // LT with the hand at the GM 79's insert point: the round or the spent case comes out
+bool spent();              // the GM 79 holds a spent case (fired, not taken out yet)
 
 } // namespace vn::breech

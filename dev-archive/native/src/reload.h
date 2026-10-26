@@ -30,6 +30,10 @@ bool hand_on_mag();
 bool hand_near_mag();     // the left hand within MAG_GRAB_M of the seated magazine (the rack and the grip keep off)      // the left hand holds the magazine going in, or seated, until LG is let go
 bool in_pouch();         // the left hand is in the ammo spot
 void on_racked();        // rack.cpp: the slide / pump cycled: rounds waiting for it go in
-void on_ik(MO* ik);      // ik.cpp: keep the left hand on its controller while it carries a magazine / round
+void on_ik(MO* ik);
+// 2026-10-27 (breech.cpp): LT at a revolver's drum puts one round in (false = none went in); a round taken out of the GM 79
+// by hand goes back with the carried ammo and is loaded again first
+bool load_round();
+void pocket_round();      // ik.cpp: keep the left hand on its controller while it carries a magazine / round
 
 } // namespace vn::reload

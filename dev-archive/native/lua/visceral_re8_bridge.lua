@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 154   -- 2026-10-26: 153 the left hand's spot for Hand Poser (src/pairs.cpp); 2026-10-25 (late): 142-152 the hand pairs (src/pairs.h); 2026-10-25: 141 the arc over the gun (cm); 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
+local N = 169   -- 2026-10-27: 154-168 the handle / drum / insert zones (src/zones.h); 2026-10-26: 153 the left hand's spot for Hand Poser (src/pairs.cpp); 2026-10-25 (late): 142-152 the hand pairs (src/pairs.h); 2026-10-25: 141 the arc over the gun (cm); 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9

@@ -4,9 +4,11 @@
 #include "joints.h"
 #include "json_mini.h"
 #include "player.h"
+#include "breech.h"
 #include "rack.h"
 #include "reload.h"
 #include "settings.h"
+#include "weapons.h"
 #include "zones.h"
 
 #include <windows.h>
@@ -26,6 +28,15 @@ struct Pair { int n = 0; std::string name, gun; Vec3 a{0, 0, 0}, l{0, 0, 0}; flo
 std::vector<Pair> g_pairs;
 int g_show = 0;                    // the pair drawn on the gun (0 = none)
 int g_active = -1;                 // index into g_pairs of the pair holding the left hand, -1 = none
+// 2026-10-27 (Tefa: the parts every gun needs): built-in docks beside the numbered pairs, each a zone on the gun (zones.h)
+// where LG puts the left hand and keeps it while LG is held, and where LT does that part's job (breech.cpp)
+struct Dock { zones::Key key; const char* name; float spot; };
+const Dock DOCKS[] = {{zones::HANDLE, "handle", 5.0f}, {zones::DRUM, "drum", 6.0f}, {zones::INSERT, "insert point", 7.0f}};
+constexpr int NDOCKS = (int)(sizeof(DOCKS) / sizeof(DOCKS[0]));
+int g_dock = -1;                   // index into DOCKS of the dock holding the left hand, -1 = none
+Vec3 g_dock_c[NDOCKS]{};           // this frame's dock centres (world) and whether each is on this gun
+float g_dock_r[NDOCKS]{};
+bool g_dock_on[NDOCKS]{};
 Quat g_turn{0, 0, 0, 1};           // the hand's turn in the gun hand's frame, kept from the moment of the take
 float g_check_t = -10.0f;
 std::filesystem::file_time_type g_mtime{};
@@ -72,6 +83,18 @@ void refresh() {   // at most once a second: re-read pairs.json when it changed
 }
 
 int gun_now() { return (int)(bridge::view(bridge::S_WEAPON_NUM) + 0.5f); }
+// which docks the gun in hand has: a handle on every handgun, a drum on the revolvers, an insert point on the GM 79
+bool dock_applies(zones::Key k) {
+    const weapons::Weapon* w = weapons::find(weapons::canonical(player::now().weapon_id));
+    if (w == nullptr) return false;
+    switch (k) {
+    case zones::HANDLE: return w->shape == weapons::Shape::PISTOL && w->reload != weapons::Reload::NONE;
+    case zones::DRUM: return w->breech == weapons::Breech::CYLINDER;
+    case zones::INSERT: return w->breech == weapons::Breech::BREAK;
+    default: return false;
+    }
+}
+
 bool for_gun(const Pair& p, int gun) { return p.gun.empty() || p.gun == "any" || std::atoi(p.gun.c_str()) == gun; }
 
 void put5(int slot, const Vec3& c, float r, float on) {
@@ -100,15 +123,43 @@ void frame() {
     const bool lg = bridge::held(bridge::S_LGRIP);
     const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
 
+    // the built-in docks: where each sits this frame, drawn on the gun when it is one of this gun's parts
+    for (int i = 0; i < NDOCKS; ++i) {
+        const zones::Zone z = zones::get(DOCKS[i].key);
+        g_dock_on[i] = ok && dock_applies(DOCKS[i].key);
+        g_dock_c[i] = world(z.off);
+        g_dock_r[i] = z.r;
+        if (g_dock_on[i]) zones::publish(DOCKS[i].key, g_dock_c[i], g_dock_r[i]);
+        else zones::clear(DOCKS[i].key);
+    }
+    if (g_dock >= 0 && (!ok || !lg || !play || !g_dock_on[g_dock])) {
+        LOGI("%s pairs: the left hand leaves the %s (%s)", TAG, DOCKS[g_dock].name, !lg ? "LG let go" : "the gun or the scene changed");
+        g_dock = -1;
+    }
+    if (g_dock >= 0 && bridge::pressed(bridge::S_LTRIG)) {   // LT does the part's job
+        if (DOCKS[g_dock].key == zones::DRUM) breech::drum_lt();
+        else if (DOCKS[g_dock].key == zones::INSERT) breech::insert_lt();
+    }
     if (g_active >= 0 && (!ok || !lg || !play || g_active >= (int)g_pairs.size() || !for_gun(g_pairs[g_active], gun))) {
         LOGI("%s pairs: pair %d let go (%s)", TAG, g_active < (int)g_pairs.size() ? g_pairs[g_active].n : 0, !lg ? "LG let go" : "the gun or the scene changed");
         g_active = -1;
     }
     // a fresh LG inside an activation sphere; the slide / pump / bolt and the magazine come first (their own zones)
-    if (g_active < 0 && ok && play && bridge::pressed(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !reload::session_active()) {
+    if (g_active < 0 && g_dock < 0 && ok && play && bridge::pressed(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !reload::session_active()) {
         Vec3 lp;
         if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) {
-            for (int i = 0; i < (int)g_pairs.size(); ++i) {
+            for (int i = 0; i < NDOCKS && !reload::round_in_hand(); ++i) {   // a round in hand goes into the gun, not onto a dock
+                if (!g_dock_on[i] || dist(g_dock_c[i], lp) > g_dock_r[i]) continue;
+                g_dock = i;
+                Vec3 hp;
+                Quat hq;
+                g_turn = player::get_pose(field_obj(s.ik_left, "Target"), hp, hq) ? qnorm(qmul(qinv(rq), qnorm(hq))) : Quat{0, 0, 0, 1};
+                bridge::rumble(bridge::LEFT, PAIR_BUZZ_AMP, PAIR_BUZZ_SEC, PAIR_BUZZ_HZ);
+                LOGI("%s pairs: LG at the %s: the left hand docks there", TAG, DOCKS[i].name);
+                if (DOCKS[i].key == zones::DRUM) breech::drum_taken();
+                break;
+            }
+            for (int i = 0; i < (int)g_pairs.size() && g_dock < 0; ++i) {
                 const Pair& p = g_pairs[i];
                 if (!for_gun(p, gun) || dist(world(p.a), lp) > p.r) continue;
                 g_active = i;
@@ -127,7 +178,8 @@ void frame() {
     // left hand is, so Hand Poser keeps one pose per gun AND spot. A landing spot while a pair holds the hand, the slide /
     // pump / bolt, the magazine, or an activation sphere the hand is inside without having taken it.
     float spot = 0.0f;
-    if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
+    if (g_dock >= 0) spot = DOCKS[g_dock].spot;
+    else if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
     else if (rack::active()) spot = 3.0f;
     else if (reload::hand_on_mag()) spot = 4.0f;
     else if (ok && play) {
@@ -146,9 +198,19 @@ void frame() {
     put5(bridge::S_PAIR_LAND, world(shown->l), PAIR_LAND_DOT_M, 1.0f);
 }
 
-bool active() { return g_active >= 0; }
+bool active() { return g_active >= 0 || g_dock >= 0; }
+
+bool part_center(zones::Key k, Vec3& c, float& r) {
+    for (int i = 0; i < NDOCKS; ++i) if (DOCKS[i].key == k && g_dock_on[i]) { c = g_dock_c[i]; r = g_dock_r[i]; return true; }
+    return false;
+}
 
 bool landing(const Vec3& rp, const Quat& rq, Vec3& rel, Quat& qrel) {
+    if (g_dock >= 0) {   // a built-in dock: the hand sits on the part's centre, with the turn it had at the take
+        rel = rotate(qinv(qnorm(rq)), g_dock_c[g_dock] - rp);
+        qrel = g_turn;
+        return true;
+    }
     if (g_active < 0 || g_active >= (int)g_pairs.size()) return false;
     Quat gq;
     if (!zones::gun_rot(gq)) return false;

@@ -18,7 +18,9 @@ class ZonesUi : Form {
 
     readonly Settings settings = new Settings();
     readonly ZoneFile file = new ZoneFile();
-    readonly Timer poll = new Timer(), saveTimer = new Timer();
+    readonly Timer poll = new Timer(), saveTimer = new Timer(), nudgeTimer = new Timer();
+    readonly Nudge nudge = new Nudge();   // 2026-10-27: the controller buttons step the ticked sliders (Ticks.cs)
+    Label nudgeNote;
     DateTime lastFind = DateTime.MinValue, lastZonesWrite = DateTime.MinValue;
     LiveState live;
     int shownGun = -1;
@@ -52,6 +54,10 @@ class ZonesUi : Form {
         boxes.Add(new ZoneBox(this, "well", "THE WELL", "where a magazine goes back in (long guns)"));
         boxes.Add(new ZoneBox(this, "part", "SLIDE / PUMP / BOLT", "left grip on it"));
         boxes.Add(new ZoneBox(this, "grip", "FRONT GRIP", "left grip in it holds the gun two-handed: this gun's kept grip spot, moved by these sliders"));
+        // 2026-10-27: the parts some guns have (Program.HasPart): only the gun in hand's are shown
+        boxes.Add(new ZoneBox(this, "handle", "GRIP HANDLE", "handguns: left grip in it cups the handle"));
+        boxes.Add(new ZoneBox(this, "drum", "THE DRUM", "revolvers: left grip opens it and holds the hand there; LT loads a round, LT when full closes it"));
+        boxes.Add(new ZoneBox(this, "insert", "INSERT POINT", "GM 79: a grenade held with the left grip goes in here; left grip + LT takes one out (live or spent)"));
         handBox = new ValueBox("HAND ON THE BOLT", "the left hand while it holds the slide / pump / bolt: move it, turn it, and arc it over the gun on the way", new[] {
             new ValueRow("z", "forward / back", "cm", -15, 15, 0.5), new ValueRow("y", "up / down", "cm", -15, 15, 0.5),
             new ValueRow("x", "right / left", "cm", -15, 15, 0.5), new ValueRow("rx", "tilt fingers up / down", "°", -180, 180, 1),
@@ -77,6 +83,9 @@ class ZonesUi : Form {
         Shown += (s, e) => { ActiveControl = show; scroll.AutoScrollPosition = new Point(0, 0); };
         poll.Interval = POLL_MS; poll.Tick += (s, e) => Poll(); poll.Start();
         saveTimer.Interval = SAVE_DEBOUNCE_MS; saveTimer.Tick += (s, e) => { saveTimer.Stop(); SaveAll(); };
+        nudgeTimer.Interval = 15; nudgeTimer.Tick += (s, e) => NudgeTick(); nudgeTimer.Start();
+        Ticks.Changed += ShowNudge;
+        ShowNudge();
         Poll();
     }
 
@@ -97,7 +106,7 @@ class ZonesUi : Form {
     }
 
     void BuildTop() {
-        var top = new SkinPanel { Dock = DockStyle.Top, Height = 124, Tint = Color.FromArgb(120, Back) };
+        var top = new SkinPanel { Dock = DockStyle.Top, Height = 166, Tint = Color.FromArgb(120, Back) };
         Controls.Add(top);
         status = new SkinLabel { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 0, 0), ForeColor = Dim };
         var one = Row(42);
@@ -112,6 +121,11 @@ class ZonesUi : Form {
         EventHandler scope = (s, e) => { if (((RadioButton)s).Checked) { settings.Set("scope", allGuns.Checked ? "all" : "gun"); RefreshFromFile(); } };
         thisGun.CheckedChanged += scope; allGuns.CheckedChanged += scope;
         two.Controls.Add(thisGun); two.Controls.Add(allGuns);
+        var three = Row(42);   // 2026-10-27: the ticked sliders and the controller buttons
+        three.Controls.Add(Btn("CLEAR ALL TICKS", (s, e) => Ticks.ClearAll()));
+        nudgeNote = new SkinLabel { AutoSize = true, ForeColor = Dim, Padding = new Padding(4, 8, 0, 0) };
+        three.Controls.Add(nudgeNote);
+        top.Controls.Add(three);
         top.Controls.Add(two);
         top.Controls.Add(one);
         top.Controls.Add(status);
@@ -123,6 +137,21 @@ class ZonesUi : Form {
     // 2026-10-25 (Tefa: "please remove that, i'm afraid to accidentally press it, i'll just ask you if i ever need to clear all of
     // it"): the FORGET THIS GUN'S / ALL-GUNS ZONES button is gone (a session clears zones.json by hand when asked)
     void BuildBottom() { }
+
+    // ---- the controller nudge (Nudge.cs, the same buttons as Hand Poser) -------------------------------------------------
+    void ShowNudge() {
+        if (nudgeNote == null) return;
+        int n = Ticks.Count;
+        nudgeNote.Text = n == 0 ? "tick sliders: X -1, Y -5, A +1, B +5" : !nudge.Linked ? n + " ticked: start Window View, click the left stick in"
+            : n + " ticked: X -1, Y -5, A +1, B +5 (a held grip repeats)";
+        nudgeNote.ForeColor = n > 0 && nudge.Linked ? Good : Dim;
+    }
+    void NudgeTick() {
+        bool started;
+        double step = nudge.Poll(Ticks.Count > 0, out started);
+        if (step == 0) return;
+        Ticks.StepAll((int)step);
+    }
 
     // ---- the game ---------------------------------------------------------------------------------------------------------
     void UseFolder(string folder, bool remember) {
@@ -182,7 +211,11 @@ class ZonesUi : Form {
             if (live != null) foreach (var k in new[] { "bolt", "pump", "slide" }) { var z = live.Find(k); if (z != null && z.On) { part = k.ToUpperInvariant(); break; } }
             handBox.Title = "HAND ON THE " + part;
         }
-        foreach (var b in boxes) b.ShowLive(live);
+        foreach (var b in boxes) {
+            b.ShowLive(live);
+            bool has = allGuns.Checked || gun <= 0 || Program.HasPart(gun, b.Slot);
+            if (b.Visible != has) b.Visible = has;
+        }
         pairsBox.Poll();
     }
 
@@ -238,6 +271,7 @@ class ZonesUi : Form {
     class ZoneBox : Panel {
         readonly ZonesUi ui;
         readonly string slot, title;   // slot "part" = whichever the gun has (slide / pump / bolt)
+        public string Slot { get { return slot; } }
         string key;
         readonly Label head, note;
         readonly Slider fwd, up, right, size;
@@ -259,7 +293,7 @@ class ZonesUi : Form {
             foreach (Control c in new Control[] { reset, size, right, up, fwd, note, head }) inner.Controls.Add(c);
         }
 
-        static double BuiltInCm(string k) { return k == "mag" ? 12 : k == "well" ? 16 : k == "bolt" ? 9 : k == "grip" ? 10 : 14; }
+        static double BuiltInCm(string k) { return k == "mag" ? 12 : k == "well" ? 16 : k == "bolt" ? 9 : k == "grip" ? 10 : k == "handle" ? 8 : k == "drum" ? 6 : k == "insert" ? 7 : 14; }
 
         public void Load(Dictionary<string, object> all, string group, LiveState live) {
             if (slot == "part") { var lz = PartLive(live); key = lz != null ? lz.Key : key; }
@@ -306,8 +340,11 @@ class ZonesUi : Form {
     }
 
     // a labelled slider in millimetres, shown in centimetres, with - / + buttons
-    class Slider : Panel {
+    class Slider : Panel, ITickable {
         readonly ZoneBox box;
+        readonly CheckBox tick;   // 2026-10-27: ticked = the controller buttons step it (Ticks.cs)
+        public bool Ticked { get { return tick.Checked; } set { tick.Checked = value; } }
+        public void Step(int presses) { Nudge(presses * NUDGE_MM); }
         readonly FancySlider bar;
         readonly Label value;
         readonly bool signed;
@@ -325,8 +362,10 @@ class ZonesUi : Form {
             minus.Font = plus.Font = new Font("Segoe UI Semibold", 13f);
             var gap = new Panel { Dock = DockStyle.Right, Width = 4, BackColor = Color.Transparent };
             bar = new FancySlider { Dock = DockStyle.Fill, Minimum = min, Maximum = max, SmallChange = 1, LargeChange = 10, Signed = signed };
+            bar.EndsFrom(label);
             bar.ValueChanged += (s, e) => { ShowValue(); if (!setting) { Touched = true; box.Changed(); } };
             Controls.Add(bar); Controls.Add(minus); Controls.Add(gap); Controls.Add(plus); Controls.Add(value); Controls.Add(name);
+            tick = Ticks.Box(this); Controls.Add(tick); Ticks.All.Add(this);
             ShowValue();
         }
 

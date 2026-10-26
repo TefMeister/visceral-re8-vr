@@ -9,6 +9,7 @@
 // (a big sphere = activation, a small dot = landing, a dotted line between them: lua/visceral_re8_zones.lua).
 #pragma once
 #include "common.h"
+#include "zones.h"
 
 namespace vn::pairs {
 
@@ -16,5 +17,7 @@ void frame();      // UpdateBehavior, after rack: the file, the take and the rel
 bool active();     // the left hand belongs to a pair now
 // where the hand lands, in the gun hand's frame (rp, rq = the gun hand's IK target), and its turn there; false = no pair
 bool landing(const Vec3& rp, const Quat& rq, Vec3& rel, Quat& qrel);
+// 2026-10-27: a built-in part's centre (world) and size this frame (zones::HANDLE / DRUM / INSERT); false = not on this gun
+bool part_center(zones::Key k, Vec3& c, float& r);
 
 } // namespace vn::pairs

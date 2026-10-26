@@ -7,6 +7,7 @@
 #include "joints.h"
 #include "player.h"
 #include "breech.h"
+#include "pairs.h"
 #include "rack.h"
 #include "settings.h"
 #include "weapons.h"
@@ -46,6 +47,7 @@ MO* g_shell = nullptr;            // the gun's own shell joint ("Bullet"), carri
 Vec3 g_shell_rest{};
 Quat g_shell_rest_rot{0, 0, 0, 1};
 bool g_shell_have_rest = false;
+int g_pocket = 0;                 // 2026-10-27: rounds taken out of the gun by hand (the GM 79), loaded again before the carried ammo
 } // namespace detail
 
 namespace {
@@ -133,11 +135,20 @@ bool port_world(Vec3& out) {
 float dock_dist() {
     Vec3 port, item;
     Quat q;
+    Vec3 ic;
+    float ir;   // 2026-10-27: the GM 79's grenade goes in at its INSERT point (Grab Zones moves it)
+    if (g_w->breech == weapons::Breech::BREAK && pairs::part_center(zones::INSERT, ic, ir)) {
+        Vec3 lp;
+        if (held_pose(item, q)) return dist(item, ic);
+        if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) return dist(lp, ic);
+    }
     if (g_w->shape == weapons::Shape::LONG && port_world(port) && held_pose(item, q)) return dist(item, zones::center(zones::WELL, port));
     return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT));
 }
 float dock_need() {
-    Vec3 port;
+    Vec3 port, ic;
+    float ir;
+    if (g_w->breech == weapons::Breech::BREAK && pairs::part_center(zones::INSERT, ic, ir)) return ir;
     if (g_w->shape == weapons::Shape::LONG) return port_world(port) ? zones::radius(zones::WELL) : DOCK_LONG_M;
     return DOCK_PISTOL_M;
 }
@@ -184,19 +195,22 @@ void fill_magazine() {
     g_dry = false;
 }
 
-void insert_round() {
+bool insert_round() {
     const int cap = player::capacity(), have = player::loaded() + g_stash;
-    if (cap > 0 && have >= cap) { LOGI("%s reload: %s is full (%d)", TAG, g_id.c_str(), have); return; }
+    if (cap > 0 && have >= cap) { LOGI("%s reload: %s is full (%d)", TAG, g_id.c_str(), have); return false; }
     const bool empty = player::loaded() == 0 || g_stash > 0;
-    if (player::game_reload(1) < 1) { LOGI("%s reload: no round went in (none carried?)", TAG); return; }
+    if (g_pocket > 0 && player::loaded() >= 0 && player::set_loaded(player::loaded() + 1)) {
+        --g_pocket;   // one taken out by hand goes back first (it never left the carried ammo's count)
+    } else if (player::game_reload(1) < 1) { LOGI("%s reload: no round went in (none carried?)", TAG); return false; }
     bridge::sfx(bridge::SFX_SHELL_IN);
     if (g_w->pump && empty) rack::need("shells into an empty pump gun");   // the trigger waits for the pump
     tell_hud();
     LOGI("%s reload: %s round in: loaded %d, waiting for the pump %d, carried %d", TAG, g_id.c_str(), player::loaded(), g_stash, player::reserve());
+    return true;
 }
 
 // unknown carried ammo (-1) = try anyway: the game's own reload then decides (and logs before / after)
-bool supply() { const int r = player::reserve(); return player::unlimited() || r != 0 || g_mag_rounds > 0; }
+bool supply() { const int r = player::reserve(); return player::unlimited() || r != 0 || g_mag_rounds > 0 || g_pocket > 0; }
 
 void hand_checks() {
     if (pose_lock() || g_w == nullptr) return;
@@ -245,6 +259,15 @@ void hand_checks() {
         magazine_shown(true);
         LOGI("%s reload: insert at %.3f m (need %.2f)", TAG, d, dock_need());
     } else {
+        if (breech::spent()) {   // 2026-10-27: the GM 79's spent case comes out first (LG + LT at the insert point)
+            static float told_spent = -10.0f;
+            if (now - told_spent > 2.0f) {
+                told_spent = now;
+                bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+                LOGI("%s reload: the spent case is still in: take it out first (LG + LT at the insert point)", TAG);
+            }
+            return;
+        }
         g_round_in_hand = false;
         shell_home();
         ghosthand::value("shell_closest_m", d);
@@ -675,5 +698,8 @@ void render_point() {
     if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }
+
+bool load_round() { return managed_now() && insert_round(); }
+void pocket_round() { ++g_pocket; LOGI("%s reload: a round back with the carried ammo (%d taken out by hand)", TAG, g_pocket); }
 
 } // namespace vn::reload

@@ -35,7 +35,13 @@ local ZONES = {
     { i = 6, key = "pair-land", pair = true },
     { i = 7, key = "pair-dot", pair = true }, { i = 8, key = "pair-dot", pair = true },
     { i = 9, key = "pair-dot", pair = true }, { i = 10, key = "pair-dot", pair = true },
+    -- 2026-10-27 (Tefa: the parts every gun needs to tweak): a handgun's grip handle, a revolver's drum, the GM 79's insert point
+    -- (src/zones.h HANDLE / DRUM / INSERT, drawn from slots S_ZONES2; only the parts the gun in hand has are switched on)
+    { i = 20, key = "handle", label = "The grip handle (handguns: left grip cups it)" },
+    { i = 21, key = "drum",   label = "The drum (revolvers: left grip opens it, LT loads a round, LT when full closes it)" },
+    { i = 22, key = "insert", label = "The insert point (GM 79: a grenade goes in here; left grip + LT takes one out)" },
 }
+local S_ZONES2 = 154   -- written by the plugin: handle, drum, insert {x, y, z, r, on} each (2026-10-27)
 local S_PAIR_ACT, S_PAIR_LAND = 142, 147   -- written by the plugin: {x, y, z, r, on} each
 local PAIR_DOTS, PAIR_DOT_R = 4, 0.008     -- the dotted line: this many beads, this big (m)
 -- 23:20 (Tefa: "the start sphere did not grow or shrink with size change ... when i did move one the other sphere moved with it
@@ -124,6 +130,7 @@ end
 local function raw5(b, s) return b.r(s), b.r(s + 1), b.r(s + 2), b.r(s + 3), b.r(s + 4) end
 local function live(b, i)   -- x, y, z, r, on of zone i from the plugin (5 and up: the shown hand pair)
     if i < 5 then return raw5(b, S_ZONES + i * 5) end
+    if i >= 20 then return raw5(b, S_ZONES2 + (i - 20) * 5) end
     if i == 5 then return raw5(b, S_PAIR_ACT) end
     if i == 6 then return raw5(b, S_PAIR_LAND) end
     if not PAIR_DOTS_SHOWN then return nil, nil, nil, 0, 0 end

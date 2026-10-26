@@ -56,6 +56,9 @@ const char* key_name(Key k, const char* part) {
     case WELL: return "well";
     case PART: return part != nullptr ? part : "slide";
     case GRIP: return "grip";
+    case HANDLE: return "handle";
+    case DRUM: return "drum";
+    case INSERT: return "insert";
     default: return "hand";
     }
 }
@@ -66,6 +69,10 @@ Zone builtin(Key k, const char* part) {
     case WELL: z.r = DOCK_ITEM_M; break;
     case PART: z.r = (part != nullptr && std::strcmp(part, "bolt") == 0) ? RACK_BOLT_GRAB_M : RACK_JOINT_GRAB_M; break;
     case GRIP: z.r = GRIP_ZONE_M; break;
+    // where the new parts start (guesses, in the gun's axes from the gun hand: x right, y up, z forward; Tefa moves them)
+    case HANDLE: z.r = HANDLE_ZONE_M; z.off = HANDLE_OFF; break;
+    case DRUM: z.r = DRUM_ZONE_M; z.off = DRUM_OFF; break;
+    case INSERT: z.r = INSERT_ZONE_M; z.off = INSERT_OFF; break;
     default: z.r = ZONE_HAND_MARK_M; break;
     }
     return z;
@@ -106,10 +113,12 @@ void frame() {
 
 Zone get(Key k, const char* part) {
     Zone z = builtin(k, part);
+    const Vec3 base = z.off;   // 2026-10-27: a part with a built-in place (HANDLE / DRUM / INSERT): the file's offset moves it from there
     const char* key = key_name(k, part);
     apply(z, group("default"), key);
     const float num = bridge::view(bridge::S_WEAPON_NUM);
     if (num != bridge::NO_VALUE && num > 0.5f) apply(z, group(std::to_string((int)(num + 0.5f))), key);
+    if (z.off.x != base.x || z.off.y != base.y || z.off.z != base.z) z.off = base + z.off;   // set in the file: relative to the built-in place
     return z;
 }
 float radius(Key k, const char* part) { return get(k, part).r; }
@@ -128,14 +137,16 @@ Vec3 center(Key k, const Vec3& anchor, const char* part) {
     return anchor + rotate(qnorm(q), z.off);
 }
 
+int first_slot(Key k) { return k < HANDLE ? bridge::S_ZONES + (int)k * 5 : bridge::S_ZONES2 + ((int)k - HANDLE) * 5; }
+
 void publish(Key k, const Vec3& c, float r, float on) {
-    const int s = bridge::S_ZONES + (int)k * 5;
+    const int s = first_slot(k);
     bridge::put((bridge::Slot)(s + 0), c.x);
     bridge::put((bridge::Slot)(s + 1), c.y);
     bridge::put((bridge::Slot)(s + 2), c.z);
     bridge::put((bridge::Slot)(s + 3), r);
     bridge::put((bridge::Slot)(s + 4), on);
 }
-void clear(Key k) { bridge::put((bridge::Slot)(bridge::S_ZONES + (int)k * 5 + 4), 0.0f); }
+void clear(Key k) { bridge::put((bridge::Slot)(first_slot(k) + 4), 0.0f); }
 
 } // namespace vn::zones

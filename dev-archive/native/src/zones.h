@@ -12,7 +12,10 @@ namespace vn::zones {
 // 2026-10-25 (Fable; Tefa: "the front part of the gun is missing from the list for rifle"): GRIP, the front grip: this gun's
 // kept grip spot (grip_spots.json, in the gun hand's frame, smooth.cpp) drawn as a zone and moved by zones.json "grip";
 // the grip script (lua/re8_vrz_begone_grip.lua) takes the grip inside it, so the sliders move where the left hand lands
-enum Key : int { MAG = 0, WELL = 1, PART = 2, HAND = 3, GRIP = 4, COUNT = 5 };   // the order of the bridge slots
+// 2026-10-27 (Tefa: the parts every gun needs to tweak): HANDLE (a handgun's grip handle, the left hand cups it), DRUM (a
+// revolver's cylinder: LG opens it and holds the hand there), INSERT (the GM 79's breech: where a grenade goes in / comes out).
+// They ride the gun hand like the hand pairs (pairs.cpp does them) and are drawn from bridge slots S_ZONES2.
+enum Key : int { MAG = 0, WELL = 1, PART = 2, HAND = 3, GRIP = 4, HANDLE = 5, DRUM = 6, INSERT = 7, COUNT = 8 };   // the order of the bridge slots
 enum PartKind : int { PK_SLIDE = 1, PK_PUMP = 2, PK_BOLT = 3 };
 
 struct Zone { Vec3 off{0, 0, 0}; float r = 0.0f; };
