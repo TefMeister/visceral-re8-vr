@@ -137,7 +137,12 @@ constexpr float INSERT_ZONE_M = 0.07f; constexpr Vec3 INSERT_OFF{0.0f, 0.05f, 0.
 // gun's own left / right) it clicks open / shut; let go past this share of a closing drag it swings shut; the gun tipped
 // this far muzzle-up with the drum open drops the spent casings (live rounds stay)
 constexpr float DRUM_DRAG_M = 0.05f;
-constexpr float DRUM_SWING_SHARE = 0.5f;
+// the swing that closes the open drum (2026-10-27, Tefa: "the actual player hand swing ... andyalpa already had that implemented
+// in re7 and re2"): Andyalpa's RE7 numbers (re7_vr_reload_ext.lua close_gesture_*): the gun hand over 35-170 ms, a swipe right
+// (4 cm, 0.85 m/s, mostly sideways) or a kick up (5 cm, 1.15 m/s, mostly up), then 0.8 s before another counts
+constexpr float SWING_WINDOW_MIN_S = 0.035f, SWING_WINDOW_MAX_S = 0.17f, SWING_COOLDOWN_S = 0.8f;
+constexpr float SWING_RIGHT_M = 0.04f, SWING_RIGHT_MS = 0.85f, SWING_RIGHT_RATIO = 0.55f, SWING_RIGHT_MAX_UP = 0.4f;
+constexpr float SWING_UP_M = 0.05f, SWING_UP_MS = 1.15f, SWING_UP_RATIO = 0.68f;
 constexpr float DRUM_TILT_DEG = 30.0f;
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_LAND_DOT_M = 0.015f;          // the landing spot is drawn as a dot this big (the hand lands on its centre)

@@ -39,6 +39,8 @@ int g_drag = 0;               // the drum dragged by hand: +1 opening, -1 closin
 float g_drag_from = 0.0f;     // where the left controller was across the gun when the drag began (m)
 float g_drag_prog = 0.0f;     // how far along the drag is (0..1)
 bool g_docked = false;        // the left hand is docked on the drum
+Vec3 g_sw_from{};             // the swing to close: where the gun hand was when the window began (seen from the headset's facing)
+float g_sw_t = -10.0f, g_sw_cool = -10.0f;
 
 const char* part() { return g_w != nullptr && g_w->breech == Breech::BREAK ? "barrel" : "cylinder"; }
 
@@ -126,6 +128,35 @@ bool muzzle_up() {
 }
 bool cylinder() { return here() && g_w->breech == Breech::CYLINDER; }
 
+// Andyalpa's close gesture (re7_vr_reload_ext.lua try_close_motion): the right controller's move over a short window, seen
+// from where the headset faces (x right, y up), a quick swipe right or a kick up
+void swing_close() {
+    const float now = now_s();
+    if (now < g_sw_cool) return;
+    const Quat h = bridge::hmd_rot();
+    Vec3 f = rotate(h, Vec3{0, 0, -1});
+    f.y = 0;
+    const float fl = std::sqrt(f.x * f.x + f.z * f.z);
+    if (fl < 1e-4f) return;
+    f = f * (1.0f / fl);
+    const Vec3 rt{-f.z, 0, f.x};                       // the headset's right, level
+    const Vec3 p = bridge::hand_pos(bridge::RIGHT);
+    const Vec3 pv{p.x * rt.x + p.z * rt.z, p.y, p.x * f.x + p.z * f.z};
+    if (now - g_sw_t > SWING_WINDOW_MAX_S) { g_sw_from = pv; g_sw_t = now; return; }
+    const float dt = now - g_sw_t;
+    if (dt < SWING_WINDOW_MIN_S) return;
+    const float dx = pv.x - g_sw_from.x, dy = pv.y - g_sw_from.y, dz = pv.z - g_sw_from.z;
+    const float total = std::sqrt(dx * dx + dy * dy + dz * dz), horiz = std::sqrt(dx * dx + dz * dz);
+    if (total < 1e-6f) return;
+    const bool right = dx >= SWING_RIGHT_M && dx / dt >= SWING_RIGHT_MS && horiz > 1e-6f && std::fabs(dx) / horiz >= SWING_RIGHT_RATIO
+                       && dx >= std::fabs(dy) && std::fabs(dy) / total <= SWING_RIGHT_MAX_UP;
+    const bool up = dy >= SWING_UP_M && dy / dt >= SWING_UP_MS && dy / total >= SWING_UP_RATIO && dy >= horiz;
+    if (!right && !up) return;
+    g_sw_cool = now + SWING_COOLDOWN_S;
+    g_sw_t = -10.0f;
+    set_open(false, right ? "swung right" : "kicked up");
+}
+
 void drum_taken() {
     if (!cylinder()) return;
     g_docked = true;
@@ -167,9 +198,8 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
 void drum_undock() {
     if (!cylinder() || !g_docked) return;
     g_docked = false;
-    // let go: past half a closing push, or right after the drum was filled, it swings shut
-    if (g_open && ((g_drag < 0 && g_drag_prog >= DRUM_SWING_SHARE) || (g_drag == 0 && free_chambers() == 0)))
-        set_open(false, g_drag < 0 ? "let go past half: swung shut" : "let go full: swung shut");
+    // let go: the drum stays where it is; the gun hand's swing (right, or up) closes it (2026-10-27, Tefa)
+    if (g_open) LOGI("%s breech: hand off the drum: swing the gun hand right or up to close it", TAG);
     g_drag = 0;
 }
 
@@ -249,6 +279,7 @@ void frame() {
         set_open(!g_open, "LT with the left hand on the front");
         return;
     }
+    if (g_w->breech == Breech::CYLINDER) { if (g_open && g_drag == 0) swing_close(); return; }
     if (BREECH_FLICK_ON) flick();
 }
 

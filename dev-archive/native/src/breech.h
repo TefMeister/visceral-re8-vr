@@ -26,7 +26,7 @@ bool blocks_fire();         // a breech gun that is open
 // 2026-10-27, second round (Tefa): the drum is DRAGGED open with LG + LT on it until it clicks; tipped 30 degrees muzzle-up
 // while open, only the spent casings fall out; a grab from the pouch takes exactly the rounds the free chambers need; with LG
 // held the hand docks on the drum and each LT puts one in; full, one more LT takes the drum and it is pushed shut until it
-// clicks, or LG let go after the last round (or past half a closing push) swings it shut. A flick still closes it.
+// clicks, or (hand off it, or a push left half way) the gun hand's swing right or kick up closes it (Andyalpa's RE7 gesture).
 void drum_taken();                       // the left hand docked on the drum (pairs.cpp)
 void drum_dock_frame(bool lt_pressed, bool lt_held);   // each frame the hand is docked on the drum
 void drum_undock();                      // LG let go while docked on the drum
