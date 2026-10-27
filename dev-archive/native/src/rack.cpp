@@ -34,6 +34,7 @@ bool g_have_rest = false;
 
 bool g_needed = false, g_parked = false, g_hand_on = false, g_armed = false, g_pulled = false, g_spent = false;
 bool g_hold_closed = false;
+bool g_from_left = false;     // 2026-10-28: this pistol slide hold was taken from the gun hand's left side (see slide_side)
 bool g_from_grip = false;     // LG has been held since the hand was on the grip: the slide waits for it to be let go
 int g_auto = 0;               // 2 = the pump handle is returning by itself
 float g_auto_t0 = 0.0f;
@@ -132,6 +133,24 @@ bool anim_hold(Vec3& pos_rel, Quat& rot_rel) {
     return true;
 }
 bool pump() { return g_w != nullptr && g_w->pump; }
+// 2026-10-28 (Tefa: "add 2 spots for all pistols with a slide for racking ... if i move my hand onto the slide so the left
+// controller is on the right side of the right controller, there is one hand pose on the slide, when left controller is on
+// the left side of the right controller, holding LG makes it go on the slide in another pose"): which side of the gun hand the
+// left controller is on at the take, along the gun's own x (right). The right side keeps the slide's existing hold and Hand
+// Poser pose; the left side has its own of each. Only pistols' slides: the pump and the bolt keep one hold.
+bool slide_side(bool& from_left) {
+    if (g_w == nullptr || g_w->pump || g_w->bolt || g_w->shape != weapons::Shape::PISTOL) return false;
+    Vec3 lw, rw;
+    Quat gq;
+    if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lw) || !bridge::room_to_world(bridge::hand_pos(bridge::RIGHT), rw) || !zones::gun_rot(gq))
+        return false;
+    const Vec3 right = rotate(qnorm(gq), Vec3{1, 0, 0}), d = lw - rw;
+    const float side = d.x * right.x + d.y * right.y + d.z * right.z;
+    from_left = side <= SLIDE_SIDE_SPLIT_M;
+    LOGI("%s rack: slide taken with the left controller %.3f m to the %s of the gun hand: the %s-side hold and pose", TAG, std::fabs(side),
+         side >= 0.0f ? "right" : "left", from_left ? "left" : "right");
+    return true;
+}
 bool bolt() { return g_w != nullptr && g_w->bolt; }
 bool rackable() { return g_w != nullptr && (g_w->rack || g_w->pump); }
 const char* part() { return pump() ? "pump" : bolt() ? "bolt" : "slide"; }
@@ -339,6 +358,7 @@ bool needed() { return RELOAD_ON && rackable() && g_needed; }
 void* slide_joint() { return g_joint; }
 const char* part_name() { return part(); }
 bool active() { return g_hand_on; }
+bool slide_from_left() { return g_hand_on && g_from_left; }
 bool pump_gun() { return pump(); }
 float left_gun_closeness() {   // 2026-10-25 (the open hand snapped at the zone's edge): a ramp, not a step
     const auto& s = player::now();
@@ -464,6 +484,8 @@ void frame() {
             } else if (is_near) {
                 g_hand_on = g_capture = true;
                 g_pulled = g_armed = g_rel_ok = false;
+                bool left = false;
+                g_from_left = slide_side(left) && left;
                 bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             }
         }
@@ -647,7 +669,8 @@ void on_ik(MO* ik) {
     if (g_capture) {   // this gun + part's one kept hold (see "ONE HOLD PER GUN AND PART")
         if (!player::get_pose(target_of(ik), lp, lq)) return;
         const Quat inv = qinv(rq);
-        const std::string key = g_id + ":" + part() + ":v2";   // v2 (23:55): the pump keeps the animation's place too
+        // v2 (23:55): the pump keeps the animation's place too; 2026-10-28: a pistol slide taken from the left has its own hold
+        const std::string key = g_id + ":" + part() + (g_from_left ? "-from-left" : "") + ":v2";
         holds_load();
         const char* how = "kept";
         if (auto it = g_holds.find(key); it != g_holds.end()) {

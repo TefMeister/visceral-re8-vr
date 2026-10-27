@@ -195,7 +195,7 @@ void frame() {
     float spot = 0.0f;
     if (g_dock >= 0) spot = DOCKS[g_dock].spot;
     else if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
-    else if (rack::active()) spot = 3.0f;
+    else if (rack::active()) spot = rack::slide_from_left() ? 8.0f : 3.0f;   // 2026-10-28: a pistol's slide from the left
     else if (reload::hand_on_mag()) spot = 4.0f;
     else if (ok && play) {
         Vec3 lp;

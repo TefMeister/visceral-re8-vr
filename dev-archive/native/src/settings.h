@@ -113,6 +113,9 @@ constexpr int JOINT_LOG_MAX = 40;                // joints of a newly held gun w
 constexpr float MAG_HOLD[6] = {0.104f, -0.039f, 0.053f, 100.5f, -11.5f, 131.5f};   // offset (m), yaw / pitch / roll (deg)
 
 // rack.cpp: slide / bolt / charging handle and pump (RE2 b165/b166 gesture)
+// 2026-10-28 (Tefa: two spots on every pistol's slide): the left controller this far to the RIGHT of the right one, along the
+// gun's own x, takes the slide's right-side hold; anything less, the left-side hold (0 = the gun hand's own line)
+constexpr float SLIDE_SIDE_SPLIT_M = 0.0f;
 constexpr float RACK_GRAB_M = 0.16f;             // left controller this close to the right one's gun line = can take hold
 constexpr float RACK_GRAB_AHEAD_MAX_M = 0.70f;   // ... and no further ahead along the barrel than this
 constexpr float RACK_GRAB_BEHIND_M = 0.10f;      // ... or behind the gun hand than this (a pistol slide sits over the hand)
