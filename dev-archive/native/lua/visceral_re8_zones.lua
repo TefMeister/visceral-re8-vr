@@ -1,11 +1,11 @@
--- visceral_re8_zones.lua -- the grab zones, seen and set from the menu (2026-10-25, Tefa: "is there any way I can visibly set
+-- visceral_re8_zones.lua -- the grip zones, seen and set from the menu (2026-10-25, Tefa: "is there any way I can visibly set
 -- them, how big they are, where they are on the gun ... a helper program that translates numbers into actual sliders and
 -- movable areas that ride the gun all the time").
 --
 -- The plugin (src/zones.cpp) tells this file, every frame, where each zone is RIGHT NOW in the world and how big it is
 -- (bridge slots 116-135): the magazine grab, the well (where the magazine goes in), the slide / pump / bolt, and the point the
 -- hand is measured from. This file draws a ball at each one (a game mesh scaled to the zone's size, riding the gun), and shows
--- sliders in the REFramework menu ("Visceral RE8 grab zones") that move and resize them. The sliders write
+-- sliders in the REFramework menu ("Visceral RE8 grip zones") that move and resize them. The sliders write
 -- reframework/data/visceral_re8/zones.json; the plugin re-reads it at once, so the ball and the real test move together.
 --
 -- zones.json: { "default": { "mag": {x,y,z,r}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...} },
@@ -13,7 +13,7 @@
 -- x, y, z: metres from the zone's own joint, in the gun's axes; r: the radius in metres. A missing number keeps the plugin's own.
 -- "_visual": { "half_m": the ball model's half size, "show": true = draw the balls }.
 --
--- The same numbers can be set from outside the game with the Grab Zones window (zones-app/, a desktop window Window View can
+-- The same numbers can be set from outside the game with the Grip Zones window (zones-app/, a desktop window Window View can
 -- hang in the headset, Tefa 2026-10-25: "a separate thing just like you did with the hand poser"). For it this file writes
 -- visceral_re8/zones_state.json four times a second (the gun in hand, each zone's size and how far the hand is from it), and
 -- re-reads zones.json twice a second, so a save from the window shows here at once.
@@ -29,7 +29,7 @@ local ZONES = {
     { i = 2, key = "part", label = "The slide / pump / bolt (left grip on it)" },
     { i = 3, key = "hand", label = "The point the hand is measured from" },
     { i = 4, key = "grip", label = "The front grip: this gun's kept grip spot (left grip in it takes the gun two-handed)" },
-    -- the hand pair picked in the Grab Zones window (src/pairs.h, 2026-10-25): the big sphere = where the left grip activates it,
+    -- the hand pair picked in the Grip Zones window (src/pairs.h, 2026-10-25): the big sphere = where the left grip activates it,
     -- the small dot = where the hand lands, and a dotted line from one to the other. Not in this menu (the window edits them)
     { i = 5, key = "pair-act", pair = true },
     { i = 6, key = "pair-land", pair = true },
@@ -72,7 +72,7 @@ local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_tes
                  "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh",
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
 -- 2026-10-25 (Tefa: "can you just have the one look and not be able to choose anything else?"): the spheres always wear the
--- "axis" material, the one seen drawing; the look buttons (here and in the Grab Zones window) are gone
+-- "axis" material, the one seen drawing; the look buttons (here and in the Grip Zones window) are gone
 local MATS = { "systems/effect/vfx_default_axis.mdf2" }
 local MAT_NAMES = { "axis" }
 -- 2026-10-25 22:06 (Tefa: "when i clicked on the next one, no solid shape it was i think, the game crashed"): "no material"
@@ -356,7 +356,7 @@ re.on_script_reset(function() destroy_all() end)
 -- ---- THE GUN IN THE RIGHT HAND (2026-10-25, Tefa: "can i still tweak where the gun is pointing", then "all please") -------
 -- praydog's VR mode places the right hand (and so the gun) at the controller turned by re8vr.right_hand_rotation_offset and
 -- moved by re8vr.right_hand_position_offset (the controller's own axes: x right, y up, z back). zones.json "aim" (per gun over
--- "default", from the Grab Zones window's GUN IN THE RIGHT HAND box) turns and moves it further: pitch / yaw / roll in degrees
+-- "default", from the Grip Zones window's GUN IN THE RIGHT HAND box) turns and moves it further: pitch / yaw / roll in degrees
 -- about the controller's axes, x / y / z in cm (z forward). The offsets as the VR mode set them are kept at load and are what
 -- every adjustment is laid over, so nothing piles up; an all-zero aim puts them back exactly.
 local aim_base_rot, aim_base_pos, aim_applied = nil, nil, nil
@@ -512,11 +512,11 @@ end)
 
 -- ---- the menu ---------------------------------------------------------------------------------------------------------------
 re.on_draw_ui(function()
-    if not imgui.tree_node("Visceral RE8 grab zones") then return end
+    if not imgui.tree_node("Visceral RE8 grip zones") then return end
     local b = bridge()
     local c, v = imgui.checkbox("Show the zones on the gun (spheres that ride it)", show_on())
     if c then cfg["_visual"].show = v; save() end
-    imgui.text("Also in the Grab Zones window on the desktop (for Window View in the headset).")
+    imgui.text("Also in the Grip Zones window on the desktop (for Window View in the headset).")
     imgui.text("Spheres: " .. status)
     if not b then imgui.text("(the bridge is not up: no gun readings)"); imgui.tree_pop(); return end
     local n = gun_num(b)
@@ -565,7 +565,7 @@ re.on_draw_ui(function()
     if ch then cfg["_visual"].half_m = vh / 100; cfg["_visual"].half_set = true; save() end
     if cfg["_visual"].half_set and imgui.button("Measure the size again (forget the fix)") then cfg["_visual"].half_set = nil; save() end
     -- (2026-10-25, Tefa: "i'm afraid to accidentally press it, i'll just ask you if i ever need to clear all of it": the
-    -- "Forget everything" button is gone, as in the Grab Zones window)
+    -- "Forget everything" button is gone, as in the Grip Zones window)
     imgui.tree_pop()
 end)
 
