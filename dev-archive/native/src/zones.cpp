@@ -59,6 +59,7 @@ const char* key_name(Key k, const char* part) {
     case HANDLE: return "handle";
     case DRUM: return "drum";
     case INSERT: return "insert";
+    case SLIDE_LEFT: return "slide-left";
     default: return "hand";
     }
 }
@@ -73,6 +74,7 @@ Zone builtin(Key k, const char* part) {
     case HANDLE: z.r = HANDLE_ZONE_M; z.off = HANDLE_OFF; break;
     case DRUM: z.r = DRUM_ZONE_M; z.off = DRUM_OFF; break;
     case INSERT: z.r = INSERT_ZONE_M; z.off = INSERT_OFF; break;
+    case SLIDE_LEFT: z.r = RACK_JOINT_GRAB_M; z.off = SLIDE_LEFT_OFF; break;
     default: z.r = ZONE_HAND_MARK_M; break;
     }
     return z;

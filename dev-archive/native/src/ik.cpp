@@ -1,6 +1,7 @@
 // ik.cpp -- see ik.h
 #include "ik.h"
 #include "common.h"
+#include "dockpose.h"
 #include "player.h"
 #include "rack.h"
 #include "recoil.h"
@@ -18,7 +19,8 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     recoil::on_ik(ik);
     reload::on_ik(ik);
     rack::on_ik(ik);
-    smooth::on_ik(ik);   // last: eases the left hand when whoever places it changes
+    smooth::on_ik(ik);   // eases the left hand when whoever places it changes
+    dockpose::on_ik(ik); // last (2026-10-28): the docked spot's wrist from Dock Poser, eased on its own
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }
 } // namespace

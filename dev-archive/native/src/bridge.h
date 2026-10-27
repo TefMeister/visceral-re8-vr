@@ -88,7 +88,10 @@ enum Slot : int {
     S_ZONES2 = 154,           // 154-168, WRITTEN BY THE PLUGIN: three more zones x {x, y, z, r, on}: the HANDLE, the DRUM, the INSERT
                               // point (zones.h, 2026-10-27); the left hand's spot (153) gains 5 handle, 6 drum, 7 insert;
                               // 2026-10-28: 8 a pistol's slide taken from the gun hand's left (3 stays the right side)
-    S_COUNT = 169,            // 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
+    S_ZONE_SLIDE_LEFT = 169,  // 169-173, WRITTEN BY THE PLUGIN: the slide's LEFT-side sphere {x, y, z, r, on} (2026-10-28, pistols;
+                              // zones.h SLIDE_LEFT, drawn as zone 23 by visceral_re8_zones.lua); the left hand's spot (153) gains
+                              // 9 rounds from the pouch
+    S_COUNT = 174,            // 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,

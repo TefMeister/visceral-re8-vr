@@ -197,6 +197,7 @@ void frame() {
     else if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
     else if (rack::active()) spot = rack::slide_from_left() ? 8.0f : 3.0f;   // 2026-10-28: a pistol's slide from the left
     else if (reload::hand_on_mag()) spot = 4.0f;
+    else if (reload::round_in_hand() || reload::rounds_in_hand() > 0) spot = 9.0f;   // 2026-10-28: rounds from the pouch (Dock Poser)
     else if (ok && play) {
         Vec3 lp;
         if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp))

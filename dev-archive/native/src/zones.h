@@ -15,7 +15,10 @@ namespace vn::zones {
 // 2026-10-27 (Tefa: the parts every gun needs to tweak): HANDLE (a handgun's grip handle, the left hand cups it), DRUM (a
 // revolver's cylinder: LG opens it and holds the hand there), INSERT (the GM 79's breech: where a grenade goes in / comes out).
 // They ride the gun hand like the hand pairs (pairs.cpp does them) and are drawn from bridge slots S_ZONES2.
-enum Key : int { MAG = 0, WELL = 1, PART = 2, HAND = 3, GRIP = 4, HANDLE = 5, DRUM = 6, INSERT = 7, COUNT = 8 };   // the order of the bridge slots
+// 2026-10-28 (Tefa: "another pair is called slide left - for when the left controller is on the left side of the right controller -
+// and i can set the area where my left hand, LG held will dock the slide"): SLIDE_LEFT, a pistol slide's second START sphere,
+// riding the slide joint like PART; inside it LG takes the slide with its left-side hold and pose (rack.cpp)
+enum Key : int { MAG = 0, WELL = 1, PART = 2, HAND = 3, GRIP = 4, HANDLE = 5, DRUM = 6, INSERT = 7, SLIDE_LEFT = 8, COUNT = 9 };   // the order of the bridge slots
 enum PartKind : int { PK_SLIDE = 1, PK_PUMP = 2, PK_BOLT = 3 };
 
 struct Zone { Vec3 off{0, 0, 0}; float r = 0.0f; };

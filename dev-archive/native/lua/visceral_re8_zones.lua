@@ -40,6 +40,8 @@ local ZONES = {
     { i = 20, key = "handle", label = "The grip handle (handguns: left grip cups it)" },
     { i = 21, key = "drum",   label = "The drum (revolvers: left grip opens it, LT loads a round, LT when full closes it)" },
     { i = 22, key = "insert", label = "The insert point (GM 79: a grenade goes in here; left grip + LT takes one out)" },
+    -- 2026-10-28: a pistol slide's LEFT-side sphere (src/zones.h SLIDE_LEFT, slots 169-173 = S_ZONES2 + 15)
+    { i = 23, key = "slide-left", label = "The slide from the left side (pistols: left grip in it takes the slide with the left-side hold)" },
 }
 local S_ZONES2 = 154   -- written by the plugin: handle, drum, insert {x, y, z, r, on} each (2026-10-27)
 local S_PAIR_ACT, S_PAIR_LAND = 142, 147   -- written by the plugin: {x, y, z, r, on} each
@@ -403,7 +405,7 @@ re.on_script_reset(function()   -- the VR mode's own offsets back, so a reset ne
 end)
 
 local function write_state(b)
-    local st = { t = os.time(), gun = gun_num(b), zones = {} }
+    local st = { t = os.time(), gun = gun_num(b), zones = {}, spot = math.floor((b.r(153) or 0) + 0.5) }   -- 153: the left hand's spot (Dock Poser)
     local hx, hy, hz, _, hon = live(b, 3)
     for _, z in ipairs(ZONES) do
         if z.key ~= "hand" and not z.pair then

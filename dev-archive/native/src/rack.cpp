@@ -34,7 +34,8 @@ bool g_have_rest = false;
 
 bool g_needed = false, g_parked = false, g_hand_on = false, g_armed = false, g_pulled = false, g_spent = false;
 bool g_hold_closed = false;
-bool g_from_left = false;     // 2026-10-28: this pistol slide hold was taken from the gun hand's left side (see slide_side)
+bool g_from_left = false;
+bool g_near_left = false;     // 2026-10-28: the last near_joint() found the hand in the slide's LEFT-side sphere, nearer than the right     // 2026-10-28: this pistol slide hold was taken from the gun hand's left side (see slide_side)
 bool g_from_grip = false;     // LG has been held since the hand was on the grip: the slide waits for it to be let go
 int g_auto = 0;               // 2 = the pump handle is returning by itself
 float g_auto_t0 = 0.0f;
@@ -209,11 +210,18 @@ bool grab_point(Vec3& lp) {
     return bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp);
 }
 float joint_grab_m() { return zones::radius(zones::PART, part()); }   // zones.json over RACK_BOLT_GRAB_M / RACK_JOINT_GRAB_M
+bool pistol_slide() { return g_w != nullptr && !g_w->pump && !g_w->bolt && g_w->shape == weapons::Shape::PISTOL; }
 bool near_joint(float& d) {   // the left hand near the slide / pump / bolt zone (the joint, moved by the zone's offset)
     Vec3 jp, lp;
+    g_near_left = false;
     if (g_joint == nullptr || !get_v3(JOINT, g_joint, "get_Position", jp) || !grab_point(lp)) return false;
     d = dist(zones::center(zones::PART, jp, part()), lp);
-    return d <= joint_grab_m();
+    const bool right = d <= joint_grab_m();
+    if (pistol_slide()) {   // 2026-10-28: the left-side sphere too; inside both, the one whose centre is nearer (for its size) wins
+        const float dl = dist(zones::center(zones::SLIDE_LEFT, jp), lp), rl = zones::radius(zones::SLIDE_LEFT);
+        if (dl <= rl && (!right || dl / rl < d / joint_grab_m())) { g_near_left = true; d = dl; return true; }
+    }
+    return right;
 }
 // the zones the menu draws (zones.h): the slide / pump / bolt zone and the point the hand is measured from, every frame
 void publish_zones() {
@@ -221,6 +229,9 @@ void publish_zones() {
     if (g_w != nullptr && g_joint != nullptr && get_v3(JOINT, g_joint, "get_Position", jp))
         zones::publish(zones::PART, zones::center(zones::PART, jp, part()), joint_grab_m(), (float)(pump() ? zones::PK_PUMP : bolt() ? zones::PK_BOLT : zones::PK_SLIDE));
     else zones::clear(zones::PART);
+    if (g_joint != nullptr && pistol_slide() && get_v3(JOINT, g_joint, "get_Position", jp))
+        zones::publish(zones::SLIDE_LEFT, zones::center(zones::SLIDE_LEFT, jp), zones::radius(zones::SLIDE_LEFT));
+    else zones::clear(zones::SLIDE_LEFT);
     if (g_w != nullptr && grab_point(lp)) zones::publish(zones::HAND, lp, zones::radius(zones::HAND));
     else zones::clear(zones::HAND);
 }
@@ -463,6 +474,7 @@ void frame() {
         if (want) {
             float off = 99.0f;
             bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
+            const bool by_sphere = g_joint != nullptr && is_near;   // 2026-10-28: a slide sphere, not the front grip zone or the gun line
             if (!is_near && from_zone) {
                 is_near = true;
                 LOGI("%s rack: LG at the front grip with a rack due: the hand goes onto the %s", TAG, part());
@@ -484,8 +496,12 @@ void frame() {
             } else if (is_near) {
                 g_hand_on = g_capture = true;
                 g_pulled = g_armed = g_rel_ok = false;
+                // 2026-10-28: taken in a slide sphere, that sphere says the side; otherwise where the left controller is
                 bool left = false;
-                g_from_left = slide_side(left) && left;
+                if (by_sphere && pistol_slide()) {
+                    g_from_left = g_near_left;
+                    LOGI("%s rack: slide taken in its %s-side sphere", TAG, g_from_left ? "left" : "right");
+                } else g_from_left = slide_side(left) && left;
                 bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             }
         }

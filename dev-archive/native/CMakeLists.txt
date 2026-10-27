@@ -15,6 +15,7 @@ add_library(visceral_re8_native SHARED
     src/player.cpp
     src/recoil.cpp
     src/ik.cpp
+    src/dockpose.cpp
     src/reload.cpp
     src/zones.cpp
     src/pairs.cpp
