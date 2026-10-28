@@ -529,7 +529,19 @@ re.on_application_entry("UpdateMotion", function()
                 ball.scale = s
                 pcall(function()
                     ball.xform:call("set_Position", Vector3f.new(x, y, zz))
+                    -- 2026-10-29 (Tefa: the activation area's size must show): set_LocalScale as well as set_Scale (praydog's
+                    -- holster visuals use both), and the scale is READ BACK once per sphere and logged, so a run proves
+                    -- whether the drawn sphere really follows its number (the 23:20 note only ever logged our own number)
+                    ball.xform:call("set_LocalScale", Vector3f.new(s, s, s))
                     ball.xform:call("set_Scale", Vector3f.new(s, s, s))
+                    if not ball.scale_checked and math.abs(s - 1.0) > 0.01 then
+                        ball.scale_checked = true
+                        local l, w = nil, nil
+                        pcall(function() l = ball.xform:call("get_LocalScale") end)
+                        pcall(function() w = ball.xform:call("get_Scale") end)
+                        log.info(TAG .. string.format(" sphere %d scale asked %.3f, reads back local %s world %s", z.i, s,
+                            l and string.format("%.3f", l.x) or "?", w and string.format("%.3f", w.x) or "?"))
+                    end
                 end)
             end
         end
