@@ -94,6 +94,41 @@ local MESH_WAIT_S = 10.0
 local mesh_first_try = {}                -- path -> when it was first asked for
 local mesh_used, mesh_half = nil, nil     -- the sphere mesh that loaded, and its measured half size (m)
 local mat_res, mat_applied = {}, {}      -- material index -> resource; ball index -> the material it wears
+-- 2026-10-29 (Tefa: "solid white for the grip point and solid orange for the land point"): every sphere is tinted once its
+-- material is in: the land point (pair-land, i 6) orange, every other sphere (the grip points) white, both fully solid.
+-- The axis material's colour variables are not known by name, so every Float4 variable whose name says colour is set,
+-- and the names are logged once, so the next session knows them. [hypothesis] until seen in the headset.
+local TINT_LAND, TINT_GRIP = { 1.0, 0.5, 0.0, 1.0 }, { 1.0, 1.0, 1.0, 1.0 }
+local tinted, tint_logged = {}, false     -- ball index -> true once its colour is set
+local function tint(i, ball)
+    if ball.gun_copy or tinted[i] then return end
+    local comp = ball.comp
+    local n = 0
+    pcall(function() n = comp:call("getMaterialNum") end)
+    if not n or n == 0 then return end                       -- the material is still loading
+    local c = (i == 6) and TINT_LAND or TINT_GRIP
+    local names, set = {}, 0
+    for m = 0, n - 1 do
+        local vn = 0
+        pcall(function() vn = comp:call("getMaterialVariableNum", m) end)
+        for v = 0, (vn or 1) - 1 do
+            local name = nil
+            pcall(function() name = comp:call("getMaterialVariableName", m, v) end)
+            if name then
+                names[#names + 1] = name
+                if name:lower():find("col") then          -- BaseColor, EmissiveColor, Color, Colour ...
+                    local ok = pcall(function() comp:call("setMaterialFloat4", m, v, Vector4f.new(c[1], c[2], c[3], c[4])) end)
+                    if ok then set = set + 1 end
+                end
+            end
+        end
+    end
+    tinted[i] = true
+    if not tint_logged then
+        tint_logged = true
+        log.info(TAG .. " sphere material variables (" .. n .. " material(s)): " .. table.concat(names, ", ") .. "; colour variables set: " .. set)
+    end
+end
 local spawn_tried = false
 local last_respawn_t, last_where_t = -10, -10
 local UNMEASURED_HALF_M = 0.5   -- until the model is measured: a 1 m primitive (the usual size) is drawn at its zone's size
@@ -318,6 +353,7 @@ local function set_on(ball, on)
     if on and ball.comp then pcall(function() ball.comp:call("set_Enabled", true) end); pcall(function() ball.comp:call("set_DrawDefault", true) end) end
 end
 local function destroy_all()
+    tinted = {}
     for i, ball in pairs(balls) do
         if alive(ball.go) then
             pcall(function() ball.go:call("setActive", false) end)
@@ -459,7 +495,7 @@ re.on_application_entry("UpdateMotion", function()
     if MATS[m + 1] == "" then
         for i, _ in pairs(balls) do if mat_applied[i] ~= nil and mat_applied[i] ~= m then destroy_all(); return end end
     end
-    for i, ball in pairs(balls) do if ball then apply_mat(i, ball); status = "drawn: " .. (mesh_used or "?"):match("[^/]+$") .. ", look: " .. MAT_NAMES[m + 1] end end
+    for i, ball in pairs(balls) do if ball then apply_mat(i, ball); tint(i, ball); status = "drawn: " .. (mesh_used or "?"):match("[^/]+$") .. ", look: " .. MAT_NAMES[m + 1] end end
     -- the measured size, unless the size fix in the menu was set by hand. The model's own box could not be read at spawn
     -- (11:48: "half size nil"), so it is measured from the drawn sphere's world box once it stands in the world
     if not mesh_half then
