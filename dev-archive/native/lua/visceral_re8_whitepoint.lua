@@ -32,7 +32,10 @@ local PIN_MODES = { "off", "mean", "min", "max", "value" }
 --   "hold"  = AutoExposure Disable (2) + set_EV(cfg.ev) every frame: no adaptation anywhere, one exposure for both
 --             eyes; cfg.ev defaults to 6.4, the adapted value read outdoors tonight (indoors may want another number).
 local ADAPT_MODES = { "game", "freeze", "instant", "fixed", "hold" }
-local cfg = { mode = "off", value = 8.0, adapt = "game", grading = "game", ev = 6.4 }
+-- ✅ 23:12 Tefa, Single Frame Multipass, headset: "it works! whatever you did it works!" -- adapt = "hold" (AutoExposure
+-- Disable + EV 6.4 for both eyes) with grading = "off". Both eyes match, nothing drifts. Those are the defaults now, so
+-- the script gives the working picture even without the json file. `[verified-live 2026-10-29, headset, n=1]`
+local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "off", ev = 6.4 }
 -- 23:00 Tefa's description of the door: "more like the colours and haze and a quick gradual change over a second or so".
 -- That is the per-area post-effect blend (app.ColorCorrectController -> via.render.LDRColorCorrect, and the fog), not
 -- the eye adaptation. grading = "off" switches the per-area colour grading off every frame, as RE2's b192 does (Tefa
