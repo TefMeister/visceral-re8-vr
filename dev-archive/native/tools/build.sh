@@ -54,6 +54,7 @@ put() {
 }
 put "$DLL" reframework/plugins/visceral_re8_native.dll code
 put "$HERE/sfx/bolt_click.wav" reframework/data/visceral_re8/sfx/bolt_click.wav code   # Andyalpa's click (RE7 VR Reloaded)
+put "$HERE/data/visceral_re8/whitepoint.json" reframework/data/visceral_re8/whitepoint.json settings   # the steady light + tone (2026-10-30); the player's copy wins
 # controller bindings: every REFramework default plus the left thumb rest (bindings/README.md); delete it from the game folder to undo
 # (2026-10-24: the dead buttons were re8_vr.lua writing to praydog's re8vr object, not this file; back on)
 put "$HERE/bindings/_interaction_profiles_oculus_touch_controller.json" _interaction_profiles_oculus_touch_controller.json code
