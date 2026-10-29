@@ -36,9 +36,11 @@ local ADAPT_MODES = { "game", "freeze", "instant", "fixed", "hold" }
 -- Disable + EV 6.4 for both eyes) with grading = "off". Both eyes match, nothing drifts. Those are the defaults now, so
 -- the script gives the working picture even without the json file. `[verified-live 2026-10-29, headset, n=1]`
 -- 23:15 Tefa: "contrast needs to go up by 0.2": contrast 1.2 (the game has 1.0), written every frame like RE2's b193.
--- ✅ 01:50 Tefa: "that's pretty damn close now ... like 95 % match by eye": the world's tone matches the scope's with
--- grading "trim" r 1.10 g 0.95 b 0.90 (the scope's own settings untouched). Those are the defaults now.
-local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "trim", ev = 6.4, contrast = 1.2, trim = { 1.10, 0.95, 0.90 } }
+-- 01:50 Tefa: "that's pretty damn close now ... like 95 % match by eye" with grading "trim" r 1.10 g 0.95 b 0.90; then
+-- 02:05: "change the world to as it was before we started messing around with it ... the scope ... we deal with this
+-- separately": the defaults are the 01:10 build again (grading off, trim 1/1/1). The 95 % numbers stay here for the day
+-- the scope's own dial is matched to them.
+local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "off", ev = 6.4, contrast = 1.2, trim = { 1.0, 1.0, 1.0 } }
 -- 23:00 Tefa's description of the door: "more like the colours and haze and a quick gradual change over a second or so".
 -- That is the per-area post-effect blend (app.ColorCorrectController -> via.render.LDRColorCorrect, and the fog), not
 -- the eye adaptation. grading = "off" switches the per-area colour grading off every frame, as RE2's b192 does (Tefa
