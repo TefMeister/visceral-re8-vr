@@ -86,8 +86,15 @@ local function probe()
     -- 00:15: the hand is either ON its target or a fixed ~0.40 m short, flipping during one run: that is praydog's hand IK
     -- being SKIPPED, not failing. What can skip it: the Lua global __re8_arm_ik_update_override (re8_vr.lua line 616;
     -- set by the holster script's heal gesture), re8vr.can_use_hands false, has_vehicle, in_cutscene, or no controllers.
+    -- 00:40: REFramework exposes its hand offsets to Lua, WRITABLE (re8vr.right_hand_position_offset / _rotation_offset,
+    -- RE8VR.cpp 66-69); praydog's re8_vr.lua sets them at load, and any pack script may change them at run time. A script
+    -- reload re-runs the load-time values: that is the kind of thing a reload would cure. So they are logged.
+    local po = safe(function() return re8vr.right_hand_position_offset end)
+    local ro = safe(function() return re8vr.right_hand_rotation_offset end)
+    local offs = string.format("R offset pos %s %s %s rot %s %s %s %s", po and num(po.x) or "?", po and num(po.y) or "?", po and num(po.z) or "?",
+        ro and num(ro.x) or "?", ro and num(ro.y) or "?", ro and num(ro.z) or "?", ro and num(ro.w) or "?")
     local ov = rawget(_G, "__re8_arm_ik_update_override")
-    local flags = string.format("override %s | can_use_hands %s | has_vehicle %s | in_cutscene %s | reloading %s | gripping %s",
+    local flags = offs .. " | " .. string.format("override %s | can_use_hands %s | has_vehicle %s | in_cutscene %s | reloading %s | gripping %s",
         ov ~= nil and type(ov) or "none", tostring(safe(function() return re8vr.can_use_hands end)), tostring(safe(function() return re8vr.has_vehicle end)),
         tostring(safe(function() return re8vr.is_in_cutscene end)), tostring(safe(function() return re8vr.is_reloading end)), tostring(safe(function() return re8vr.was_gripping_weapon end)))
     return string.format("camera y %s | head joint y %s | GAP camera-head %s m | body root y %s | IkLeg %s enabled %s centre-offset y %s | right IK target y %s, hand joint y %s, target-hand %s m | REAL %s | GAME %s | %s",
