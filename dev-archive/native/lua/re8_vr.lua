@@ -53,6 +53,34 @@ re8vr.right_hand_rotation_offset = right_hand_rotation_offset
 re8vr.left_hand_position_offset = left_hand_position_offset
 re8vr.right_hand_position_offset = right_hand_position_offset
 
+-- Visceral RE8 (2026-10-30, Fable): THE LOW HANDS AT START. is_openxr_loaded() above is asked once, at script load, and
+-- at a cold start this script runs BEFORE OpenXR is up (measured 2026-10-30: script 00:10:03.601, "Initializing OpenXR"
+-- 00:10:03.715), so the OpenVR offsets (z 15.5 cm forward along the controller) stay for the whole session: the hands
+-- sit low and tilted, the gun swings about the wrist, and only a script reload (which asks again) cures it. Tefa: "it
+-- doesn't seem to go wrong while playing, only on start". So: keep asking every frame until OpenXR is loaded, then put
+-- the OpenXR offsets in once, and tell the other scripts (visceral_re8_zones.lua lays its aim trim over these).
+if not is_openxr then
+    local fixed = false
+    re.on_pre_application_entry("UpdateHID", function()
+        if fixed then return end
+        if not vrmod:is_openxr_loaded() then return end
+        fixed = true
+        is_openxr = true
+        left_hand_rotation_vec = openxr.left_hand_rotation_vec:clone()
+        right_hand_rotation_vec = openxr.right_hand_rotation_vec:clone()
+        left_hand_rotation_offset = Quaternion.new(left_hand_rotation_vec):normalized()
+        right_hand_rotation_offset = Quaternion.new(right_hand_rotation_vec):normalized()
+        left_hand_position_offset = openxr.left_hand_position_offset:clone()
+        right_hand_position_offset = openxr.right_hand_position_offset:clone()
+        re8vr.left_hand_rotation_offset = left_hand_rotation_offset
+        re8vr.right_hand_rotation_offset = right_hand_rotation_offset
+        re8vr.left_hand_position_offset = left_hand_position_offset
+        re8vr.right_hand_position_offset = right_hand_position_offset
+        rawset(_G, "__re8_vr_hand_offsets_generation", (rawget(_G, "__re8_vr_hand_offsets_generation") or 0) + 1)
+        log.info("[re8_vr] OpenXR came up after this script loaded: the OpenXR hand offsets are in now (the OpenVR ones were in since load)")
+    end)
+end
+
 local ray_typedef = sdk.find_type_definition("via.Ray")
 local last_muzzle_rot = Quaternion.new(0.0, 0.0, 0.0, 0.0)
 

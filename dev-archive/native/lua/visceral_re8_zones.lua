@@ -434,7 +434,12 @@ local function aim_for(gun)
     if type(a) ~= "table" then local d = cfg and cfg["default"]; a = type(d) == "table" and d.aim or nil end
     return type(a) == "table" and a or nil
 end
+local aim_generation = nil
 local function aim_tick(b)
+    -- 2026-10-30: re8_vr.lua may put the OpenXR offsets in AFTER load (OpenXR came up late); then the base captured here
+    -- was the wrong (OpenVR) one and would be laid back over the fix. A new generation number means: capture again.
+    local gen = rawget(_G, "__re8_vr_hand_offsets_generation")
+    if gen ~= aim_generation then aim_generation = gen; aim_base_rot, aim_base_pos, aim_applied = nil, nil, nil end
     if not aim_capture() then return end
     local a = aim_for(gun_num(b)) or {}
     local p, y, r = tonumber(a.pitch) or 0, tonumber(a.yaw) or 0, tonumber(a.roll) or 0
