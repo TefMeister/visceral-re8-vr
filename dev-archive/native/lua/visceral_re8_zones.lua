@@ -50,7 +50,9 @@ local PAIR_DOTS, PAIR_DOT_R = 4, 0.008     -- the dotted line: this many beads, 
 -- as well, just a different amount and i could not see the dotted line"): the log had every size right (start r 0.14,
 -- scale 1.34; dots scale 0.075), so the drawn spheres do not follow their scale; the beads then drew as big as the ends and
 -- looked like a second sphere sliding. Off until the drawn size follows the number
-local PAIR_DOTS_SHOWN = false
+-- (2026-10-29: it does now; the measured model size was 3.5x too big, so every sphere drew 3.5x too small, the 8 mm beads at 2 mm)
+local PAIR_DOTS_SHOWN = true    -- back on 2026-10-29: the size fault was the model measure (above), not the drawing
+local calib_frames = 0   -- frames spent asking the sphere model for its box (2026-10-29)
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
 -- the sphere: a primitive sphere that ships with Village (its file list, RE8_STM_Release.list), the first that really loads.
@@ -131,7 +133,7 @@ local function tint(i, ball)
 end
 local spawn_tried = false
 local last_respawn_t, last_where_t = -10, -10
-local UNMEASURED_HALF_M = 0.5   -- until the model is measured: a 1 m primitive (the usual size) is drawn at its zone's size
+local UNMEASURED_HALF_M = 0.03  -- if the model will not say: the test ball's half size, 0.030 m by its box, 0.033 by a ruler [measured 2026-10-29]
 local status = "not drawn yet"
 
 local function bridge() local b = rawget(_G, "visceral_re8_bridge"); if b ~= nil and b.ready() then return b end; return nil end
@@ -511,23 +513,31 @@ re.on_application_entry("UpdateMotion", function()
     for i, ball in pairs(balls) do if ball then apply_mat(i, ball); tint(i, ball); status = "drawn: " .. (mesh_used or "?"):match("[^/]+$") .. ", look: " .. MAT_NAMES[m + 1] end end
     -- the measured size, unless the size fix in the menu was set by hand. The model's own box could not be read at spawn
     -- (11:48: "half size nil"), so it is measured from the drawn sphere's world box once it stands in the world
-    if not mesh_half then
+    -- 2026-10-29 (Fable, flat desk runs): the model's own box (get_ModelLocalAABB) reads nil at spawn, the mesh still
+    -- loading, and the old code then measured the WORLD box after the zone's scale went on and divided by that scale; the
+    -- world box lags the transform, so it gave a different "model size" every run (0.10 m on 10-25, 0.03 m today) and the
+    -- spheres drew up to 3.5x too small, the beads invisible. Now the model's own box is asked again every frame until it
+    -- answers (frame 1 after the spawn, in practice: 0.0300 m for the test ball). CHECKED against a ruler: a screenshot of
+    -- the ball 0.47 m from the camera (camera position from the RE Engine MCP, the ball's from the log, FOV 51.3 deg
+    -- vertical over 1421 px) gave a drawn radius of 0.157 m at scale 4.70, so the model's half is 0.033 m by the picture
+    -- against 0.030 m by the box [measured 2026-10-29, n=1]: the box is right, the spheres draw at their numbers.
+    local calibrating = not cfg["_visual"].half_set and not mesh_half
+    if calibrating then
         for _, ball in pairs(balls) do
-            if ball and ball.on and ball.scale then
-                local w = nil
-                pcall(function()
-                    ball.comp:call("updateBoundingBox")
-                    local wa = ball.comp:call("get_WorldAABB")
-                    if wa then local mn, mx = wa:get_field("minpos"), wa:get_field("maxpos"); if mn and mx then w = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2 end end
-                end)
-                if not w then w = measure(ball.comp) and measure(ball.comp) * ball.scale end
-                if w and w > 0.0005 and w < 1000 then
-                    mesh_half = w / ball.scale
-                    log.info(TAG .. string.format(" sphere model measured in the world: half size %.4f m", mesh_half))
-                    break
+            if ball and alive(ball.go) then
+                calib_frames = calib_frames + 1
+                local lm = measure(ball.comp)
+                if lm then
+                    mesh_half = lm
+                    log.info(TAG .. string.format(" sphere model's own box read on frame %d: half size %.4f m", calib_frames, mesh_half))
+                elseif calib_frames > 180 then
+                    mesh_half = UNMEASURED_HALF_M
+                    log.info(TAG .. string.format(" the sphere model's box would not read in 180 frames: taking %.3f m", mesh_half))
                 end
+                break
             end
         end
+        calibrating = not mesh_half
     end
     local half = (cfg["_visual"].half_set and tonumber(cfg["_visual"].half_m)) or mesh_half or UNMEASURED_HALF_M
     if half < 0.005 then half = 0.005 end
@@ -538,8 +548,9 @@ re.on_application_entry("UpdateMotion", function()
             local ok = on and on > 0.5 and x ~= nil and math.abs(x) < 1.0e5
             set_on(ball, ok)
             if ok then
-                local s = (r or 0.05) / half
+                local s = calibrating and 1.0 or (r or 0.05) / half   -- scale 1 while the model is being measured
                 ball.scale = s
+                if not calibrating and not ball.scaled_t then ball.scaled_t = now end
                 pcall(function()
                     ball.xform:call("set_Position", Vector3f.new(x, y, zz))
                     -- 2026-10-29 (Tefa: the activation area's size must show): set_LocalScale as well as set_Scale (praydog's
@@ -547,6 +558,14 @@ re.on_application_entry("UpdateMotion", function()
                     -- whether the drawn sphere really follows its number (the 23:20 note only ever logged our own number)
                     ball.xform:call("set_LocalScale", Vector3f.new(s, s, s))
                     ball.xform:call("set_Scale", Vector3f.new(s, s, s))
+                    if ball.scaled_t and not ball.proved and now - ball.scaled_t > 1.0 then
+                        ball.proved = true
+                        ball.comp:call("updateBoundingBox")
+                        local wa = ball.comp:call("get_WorldAABB")
+                        local mn, mx = wa and wa:get_field("minpos"), wa and wa:get_field("maxpos")
+                        local w = (mn and mx) and math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2 or nil
+                        log.info(TAG .. string.format(" sphere %d PROOF: asked r %.3f m (scale %.3f), drawn world half %s m", z.i, r or 0, s, w and string.format("%.3f", w) or "?"))
+                    end
                     if not ball.scale_checked and math.abs(s - 1.0) > 0.01 then
                         ball.scale_checked = true
                         local l, w = nil, nil
