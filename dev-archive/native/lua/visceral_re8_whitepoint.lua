@@ -35,7 +35,8 @@ local ADAPT_MODES = { "game", "freeze", "instant", "fixed", "hold" }
 -- ✅ 23:12 Tefa, Single Frame Multipass, headset: "it works! whatever you did it works!" -- adapt = "hold" (AutoExposure
 -- Disable + EV 6.4 for both eyes) with grading = "off". Both eyes match, nothing drifts. Those are the defaults now, so
 -- the script gives the working picture even without the json file. `[verified-live 2026-10-29, headset, n=1]`
-local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "off", ev = 6.4 }
+-- 23:15 Tefa: "contrast needs to go up by 0.2": contrast 1.2 (the game has 1.0), written every frame like RE2's b193.
+local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "off", ev = 6.4, contrast = 1.2 }
 -- 23:00 Tefa's description of the door: "more like the colours and haze and a quick gradual change over a second or so".
 -- That is the per-area post-effect blend (app.ColorCorrectController -> via.render.LDRColorCorrect, and the fog), not
 -- the eye adaptation. grading = "off" switches the per-area colour grading off every frame, as RE2's b192 does (Tefa
@@ -72,6 +73,7 @@ local function load_cfg()
         if type(d.grading) == "string" and d.grading ~= cfg.grading then log.info(TAG .. " grading " .. cfg.grading .. " -> " .. d.grading); cfg.grading = d.grading end
         cfg.value = tonumber(d.value) or cfg.value
         cfg.ev = tonumber(d.ev) or cfg.ev
+        cfg.contrast = tonumber(d.contrast) or cfg.contrast
     end
 end
 local function save_cfg() pcall(json.dump_file, MODE_FILE, cfg) end
@@ -102,6 +104,7 @@ local function apply(t)
     elseif cfg.adapt == "hold" then
         t:call("setAutoExposure", 2); t:call("set_EV", cfg.ev); wrote[#wrote + 1] = string.format("AutoExposure 2 + EV %.2f", cfg.ev)
     end
+    if cfg.contrast and cfg.contrast > 0 then t:call("set_Contrast", cfg.contrast) end
     if cfg.mode ~= "off" and type(lo) == "number" and type(hi) == "number" then
         local v
         if cfg.mode == "mean" then v = math.sqrt(math.max(lo, 0.0001) * math.max(hi, 0.0001))
@@ -168,6 +171,8 @@ re.on_draw_ui(function()
     if c2 then cfg.value = nv; save_cfg() end
     local c3, ne = imgui.slider_float("Held EV (adapt 'hold')", cfg.ev, 0.0, 12.0, "%.2f")
     if c3 then cfg.ev = ne; save_cfg() end
+    local c4, nc = imgui.slider_float("Contrast (the game has 1.0)", cfg.contrast, 0.5, 2.0, "%.2f")
+    if c4 then cfg.contrast = nc; save_cfg() end
     imgui.text(string.format("RealEV %.2f, area pair %.2f..%.2f, rates %.3f/%.3f, %d frames written", seen.real, seen.lo, seen.hi, seen.brate, seen.drate, writes))
     imgui.tree_pop()
 end)
