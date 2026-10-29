@@ -23,6 +23,7 @@
 #include "ammo_hud.h"
 #include "body.h"
 #include "turn.h"
+#include "gunreport.h"
 #include "fingers.h"
 #include "nodock.h"
 #include "breech.h"
@@ -63,6 +64,7 @@ void on_frame() {
     recoil::frame();
     handstate::frame();
     turn::frame();           // 2026-10-29: the game's own body-follow rule, with Tefa's numbers
+    gunreport::frame();      // 2026-10-29: the gun's place in the hand, written down (the "gun too low, swings like a pendulum" launches)
     body::frame();
     fingers::frame();
     nodock::frame();
