@@ -473,5 +473,11 @@ re.on_draw_ui(function()
     end
 end)
 
+-- 2026-10-29: the settings that matter, handed to the Visceral options window (visceral_re8_emporium.lua)
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+table.insert(_G.VISCERAL_OPTIONS, { tab = "settings", order = 30, kind = "check",
+    label = "Left hand on the gun only while LG is held", help = "Off: the left hand takes the gun when it comes near.",
+    get = function() return dock_needs_button end, set = function(v) dock_needs_button = v == true end })
+
 -- 2026-10-24: asked by the scope's grip script (re8_vrz_begone_grip.lua) on every pass: true = do not take the grip
 _G.re8_grip_veto = function() return arr ~= nil and r(S_GRIP_VETO) > 0.5 end

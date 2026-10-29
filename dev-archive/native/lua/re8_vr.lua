@@ -2007,6 +2007,19 @@ end)]]
 re.on_config_save(function()
     json.dump_file(cfg_path, cfg)
 end)
+-- 2026-10-29: the settings that matter, handed to the Visceral options window (visceral_re8_emporium.lua)
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+local function cfg_set(key) return function(v) cfg[key] = v == true; json.dump_file(cfg_path, cfg) end end
+table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 10, kind = "check", label = "Camera shake while walking",
+    get = function() return cfg.movement_shake end, set = cfg_set("movement_shake") })
+table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 20, kind = "check", label = "Other camera shakes",
+    help = "Hits, explosions, the ground shaking.",
+    get = function() return cfg.all_camera_shake end, set = cfg_set("all_camera_shake") })
+table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 30, kind = "check", label = "Roomscale movement",
+    help = "Walking in the room moves Ethan.",
+    get = function() return cfg.roomscale_movement end, set = cfg_set("roomscale_movement") })
+table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 10, kind = "check", label = "Crosshair off",
+    get = function() return cfg.disable_crosshair end, set = cfg_set("disable_crosshair") })
 
 local type_to_table = function(obj)
 end

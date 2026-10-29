@@ -10999,6 +10999,29 @@ local function draw_holster_ui_block(id, label, enabled_key, cap_target, trigger
     return dirty
 end
 
+-- 2026-10-29: the settings that matter, handed to the Visceral options window (visceral_re8_emporium.lua)
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+do
+    local function holster_saved()
+        rawset(_G, "__vr_lua_heal_override", CFG.medicine_enabled == true)
+        if publish_holster_slot_enabled then publish_holster_slot_enabled() end
+        if publish_holster_follow_cfg then publish_holster_follow_cfg() end
+        save_cfg()
+    end
+    local function opt(order, key, label, help, default_on)
+        table.insert(_G.VISCERAL_OPTIONS, { tab = "settings", order = order, kind = "check", label = label, help = help,
+            get = function() if default_on then return CFG[key] ~= false end return CFG[key] == true end,
+            set = function(v) CFG[key] = v == true; holster_saved() end })
+    end
+    opt(10, "enabled", "Holsters", "Guns and items kept on the body, taken with the grip.", false)
+    opt(11, "hip_pistol_enabled", "    Hip holster", nil, true)
+    opt(12, "shoulder_enabled", "    Shoulder holster", nil, true)
+    opt(13, "knife_enabled", "    Left chest (knife)", nil, true)
+    opt(14, "medicine_enabled", "    Right chest (healing)", nil, true)
+    opt(15, "head_flashlight_enabled", "    Flashlight", nil, true)
+    opt(16, "inventory_gesture_enabled", "    Inventory pocket", nil, true)
+end
+
 local function draw_holster_ui()
     if not imgui then return end
     if not imgui.tree_node("Holsters") then return end

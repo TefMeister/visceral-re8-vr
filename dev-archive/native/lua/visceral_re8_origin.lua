@@ -67,6 +67,12 @@ re.on_frame(function()
     set_now("gameplay started, headset worn")
 end)
 
+-- 2026-10-29: the settings that matter, handed to the Visceral options window (visceral_re8_emporium.lua)
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+table.insert(_G.VISCERAL_OPTIONS, { tab = "settings", order = 40, kind = "button",
+    label = "Set my standing height now", help = "Stand the way you play first: the view, body and hands go to eye level.",
+    press = function() set_now("the Visceral options") end })
+
 re.on_draw_ui(function()
     if imgui.tree_node("Visceral RE8 standing origin") then
         imgui.text("Set by itself " .. ORIGIN_DELAY_S .. " s after gameplay starts, once per load. Stand as you play, then:")

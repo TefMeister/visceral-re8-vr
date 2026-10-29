@@ -149,6 +149,19 @@ local function save()
     local b = bridge()
     if b then b.w(S_ZONE_SEQ, seq) end
 end
+
+-- 2026-10-29: the settings that matter, handed to the Visceral options window (visceral_re8_emporium.lua)
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 30, kind = "check", label = "Show the grip zones on the gun",
+    help = "The spheres that show where the left hand takes hold.",
+    get = function() return show_on() end,
+    set = function(v)
+        if not cfg then return end
+        if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = {} end
+        cfg["_visual"].show = v == true
+        save()
+    end })
+
 load()
 
 -- ---- the numbers of one zone, as the plugin resolves them: gun over default (nil = the plugin's built-in) -------------------

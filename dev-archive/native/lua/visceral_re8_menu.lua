@@ -249,6 +249,16 @@ end
 
 rec_load()
 
+-- 2026-10-29: the settings that matter, handed to the Visceral options window (visceral_re8_emporium.lua)
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 40, kind = "check", label = "Gun shaking the controller",
+    help = "A buzz in the hand with every shot.",
+    get = function() return HAP.enabled == true end, set = function(v) HAP.enabled = v == true; hap_save() end })
+table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 50, kind = "check", label = "Recoil",
+    get = function() return REC.enabled == true end, set = function(v) REC.enabled = v == true; rec_save() end })
+table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 51, kind = "slider", label = "Recoil strength",
+    min = 0.0, max = 3.0, fmt = "%.2f",
+    get = function() return tonumber(REC.intensity) or 2.0 end, set = function(v) REC.intensity = v; rec_save() end })
 local function draw_recoil_ui()   -- re8_vr_recoil.lua draw_recoil_ui, same labels and ids
     if not imgui.tree_node("Weapon Recoil") then return end
     local dirty = false
@@ -410,3 +420,13 @@ rawget(_G, "__re8_vr_overlay_bind").ammo_hud = {   -- as re8_vr_ammo_hud.lua lef
 }
 
 log.info(TAG .. " loaded: haptics + recoil + ammo HUD settings")
+
+-- 2026-10-29: the ammo counter's place, in the Visceral options window (visceral_re8_emporium.lua)
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+do
+    local map = { "default", "weapon", "off" }
+    table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 20, kind = "choice", label = "Ammo counter",
+        choices = { "Where the game puts it", "On the gun", "Off" },
+        get = function() return HUD.display == "weapon" and 2 or HUD.display == "off" and 3 or 1 end,
+        set = function(i) if map[i] then HUD.display = map[i]; hud_save() end end })
+end
