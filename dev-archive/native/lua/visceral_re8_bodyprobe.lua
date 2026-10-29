@@ -43,9 +43,56 @@ local function probe()
     local rt = re8vr.right_hand_ik and safe(function() return re8vr.right_hand_ik:call("get_GameObject"):call("get_Transform"):get_position() end) or nil
     local gap = (cam_y and head_y) and (cam_y - head_y) or nil
     local reach = (rt and rhand_y) and (rt.y - rhand_y) or nil
-    return string.format("camera y %s | head joint y %s | GAP camera-head %s m | body root y %s | IkLeg %s enabled %s centre-offset y %s | right IK target y %s, hand joint y %s, target-hand %s m",
+    -- 00:10 Tefa: "the gun and hand in game are both low compared to my real hand". REAL (headset tracking) vs GAME:
+    -- the right controller's height below the eyes and its distance from the head, against the game hand joint's height
+    -- below the camera and its distance from the camera. Equal = the height is kept; different = where it is lost.
+    local real, game = "?", "?"
+    local vr = rawget(_G, "vrmod")
+    if vr then
+        local ok, txt = pcall(function()
+            local cs = vr:get_controllers()
+            local hp = vr:get_position(0)
+            local rp = vr:get_position(cs[2])
+            local so = vr:get_standing_origin()
+            local d = rp - hp
+            -- 00:30: the 13 cm "low" state began at the headset's reference-space change (00:11:25) amid a burst of
+            -- INTERACTION_PROFILE_CHANGED events: if the controller's pose frame swaps (grip vs aim pose, a fallback
+            -- profile), praydog's hand offset projects differently and the hand tilts. So: the right controller's pitch
+            -- and the headset's, to catch a frame swap as a sudden constant change while the hand is held still.
+            local rq = vr:get_rotation(cs[2]):to_quat()
+            local fwd = rq * Vector3f.new(0, 0, -1)
+            local pitch = math.deg(math.asin(math.max(-1, math.min(1, fwd.y))))
+            local hq = vr:get_rotation(0):to_quat()
+            local hf = hq * Vector3f.new(0, 0, -1)
+            local hpitch = math.deg(math.asin(math.max(-1, math.min(1, hf.y))))
+            return string.format("ctrl below eyes %.2f m, from head %.2f m (origin y %.2f, hmd y %.2f; ctrl pitch %+.0f deg, head pitch %+.0f deg)", -d.y, d:length(), so.y, hp.y, pitch, hpitch)
+        end)
+        if ok then real = txt end
+    end
+    local rj = safe(function() local j = tf:call("getJointByName", "R_Hand") or tf:call("getJointByName", "r_hand"); return j and j:call("get_Position") end)
+    local cp = cam and safe(function() return cam:call("get_GameObject"):call("get_Transform"):get_position() end) or nil
+    if rj and cp then local d = rj - cp; game = string.format("hand below camera %.2f m, from camera %.2f m", -d.y, d:length()) end
+    -- 00:12 Tefa says "low" while REAL and GAME agree: so is the VIEW drawn from the camera transform? The eye's render
+    -- position (vrmod:get_last_render_matrix) against the camera transform: a view above the camera makes everything look low.
+    if vr and cp then
+        local ok, txt = pcall(function()
+            local rm = vr:get_last_render_matrix()
+            local v = rm[3]
+            local lh = re8vr.last_right_hand_position
+            return string.format("view y - camera y %+.2f m (view-camera distance %.2f m); praydog rh_pos y - camera y %+.2f", v.y - cp.y, (Vector3f.new(v.x, v.y, v.z) - cp):length(), lh and (lh.y - cp.y) or -99)
+        end)
+        game = game .. " | " .. (ok and txt or ("view ? " .. tostring(txt)))
+    end
+    -- 00:15: the hand is either ON its target or a fixed ~0.40 m short, flipping during one run: that is praydog's hand IK
+    -- being SKIPPED, not failing. What can skip it: the Lua global __re8_arm_ik_update_override (re8_vr.lua line 616;
+    -- set by the holster script's heal gesture), re8vr.can_use_hands false, has_vehicle, in_cutscene, or no controllers.
+    local ov = rawget(_G, "__re8_arm_ik_update_override")
+    local flags = string.format("override %s | can_use_hands %s | has_vehicle %s | in_cutscene %s | reloading %s | gripping %s",
+        ov ~= nil and type(ov) or "none", tostring(safe(function() return re8vr.can_use_hands end)), tostring(safe(function() return re8vr.has_vehicle end)),
+        tostring(safe(function() return re8vr.is_in_cutscene end)), tostring(safe(function() return re8vr.is_reloading end)), tostring(safe(function() return re8vr.was_gripping_weapon end)))
+    return string.format("camera y %s | head joint y %s | GAP camera-head %s m | body root y %s | IkLeg %s enabled %s centre-offset y %s | right IK target y %s, hand joint y %s, target-hand %s m | REAL %s | GAME %s | %s",
         num(cam_y), num(head_y), num(gap), num(root_y), ik and "present" or "MISSING", tostring(ik_on), num(ik_off and ik_off.y),
-        num(rt and rt.y), num(rhand_y), num(reach))
+        num(rt and rt.y), num(rhand_y), num(reach), real, game, flags)
 end
 
 re.on_pre_application_entry("BeginRendering", function()
