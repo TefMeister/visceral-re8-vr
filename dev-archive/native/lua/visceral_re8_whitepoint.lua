@@ -46,11 +46,10 @@ local function tonemapping()
     return go:call("getComponent(System.Type)", sdk.typeof("via.render.ToneMapping"))
 end
 
-re.on_pre_application_entry("BeginRendering", function()
-    frame = frame + 1
-    if frame % 120 == 0 then load_cfg() end
-    local t = tonemapping()
-    if not t then return end
+-- 22:55: the writes now land right AFTER app.ToneMapController.lateUpdate (a post-hook), the moment the game has written
+-- its own values and before anything downstream reads them; BeginRendering keeps the 5 s log. (Whether a BeginRendering
+-- write reached the renderer for these values was in doubt: the AutoExposure write there did, the pin seemed not to.)
+local function apply(t)
     local lo, hi = t:call("get_MinWhitePoint"), t:call("get_MaxWhitePoint")
     if type(lo) == "number" and type(hi) == "number" then seen.lo, seen.hi = lo, hi end
     seen.brate, seen.drate = t:call("get_BrightAdaptationRate") or -1, t:call("get_DarkAdaptationRate") or -1
@@ -70,6 +69,31 @@ re.on_pre_application_entry("BeginRendering", function()
         wrote[#wrote + 1] = string.format("pin %.2f", v)
     end
     if #wrote > 0 then writes = writes + 1 end
+    return wrote
+end
+
+local ctl_td = sdk.find_type_definition("app.ToneMapController")
+if ctl_td then
+    sdk.hook(ctl_td:get_method("lateUpdate"), function(args) end, function(retval)
+        local t = tonemapping()
+        if t then apply(t) end
+        return retval
+    end)
+    log.info(TAG .. " hooked app.ToneMapController.lateUpdate (writes land after it)")
+else
+    log.warn(TAG .. " app.ToneMapController not found: no hook, nothing written")
+end
+
+re.on_pre_application_entry("BeginRendering", function()
+    frame = frame + 1
+    if frame % 120 == 0 then load_cfg() end
+    local t = tonemapping()
+    if not t then return end
+    local wrote = {}
+    if cfg.adapt == "freeze" then wrote[#wrote + 1] = "rates 0" elseif cfg.adapt == "instant" then wrote[#wrote + 1] = "rates 1" end
+    if cfg.mode ~= "off" then wrote[#wrote + 1] = "pin " .. cfg.mode end
+    seen.lo, seen.hi = t:call("get_MinWhitePoint") or -1, t:call("get_MaxWhitePoint") or -1
+    seen.brate, seen.drate = t:call("get_BrightAdaptationRate") or -1, t:call("get_DarkAdaptationRate") or -1
     local now = os.clock()
     if now - last_log >= 5.0 then
         last_log = now
