@@ -398,7 +398,7 @@ re.on_draw_ui(function()
         if arr then imgui.text("Left hand: " .. (LEFT_NAMES[math.floor(r(S_HAND_STATE) + 0.5)] or "?")) end
         local changed, v = imgui.checkbox("Hold this pose (a magazine stays in the hand, the hand stays on the slide)", pose_lock)
         if changed then pose_lock = v end
-        local cb, vb = imgui.checkbox("Body turns like RE2 (EXPERIMENTAL: messes up the body and the hands, 2026-10-25)", body_turn)
+        local cb, vb = imgui.checkbox("Body turns like RE2 (the game's own turn with Tefa's 60 / 45 / 30 deadzone, 2026-10-29; untested in the headset)", body_turn)
         if cb then body_turn = vb end
         local c0, v0 = imgui.checkbox("The left hand goes onto the gun only while LG is held", dock_needs_button)
         if c0 then dock_needs_button = v0 end

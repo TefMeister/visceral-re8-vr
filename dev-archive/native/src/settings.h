@@ -197,6 +197,14 @@ constexpr float SHELL_HOLD_DOWN_M = 0.07f;       // a shotgun shell from the pou
 constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close to its target = the arm reached it: measure the palm then
 
 // body.cpp (2026-10-24, Tefa idea 6): the drawn body lags the look / walk direction like Visceral RE2's
+// ---- the body turn through the GAME'S OWN rule (turn.cpp, 2026-10-29) ----
+constexpr bool  TURN_GAME_ON = true;
+constexpr bool  TURN_FORCE_ON = false;            // true = on without the menu tick box (the 2026-10-29 flat desk test); Tefa's runs: the tick box decides              // on: turn.cpp drives app.PlayerMovement's statics; body.cpp's joint rewriting stays out
+constexpr float TURN_STAND_DEG = 60.0f;           // Tefa 2026-10-25: the head this far off the body before the body comes round, standing
+constexpr float TURN_WALK_DEG = 45.0f;            // walking
+constexpr float TURN_RUN_DEG = 30.0f;             // running (the game's sprint flag)
+constexpr float TURN_SEC = 1.2f;                  // AutoTurnSec: how long the body's catch-up turn takes (a guess until seen; the game's own is logged)
+constexpr float TURN_ACCEL_SEC = 0.4f;            // TurnAccelSec: how softly the turn starts
 constexpr bool  BODY_TURN_ON = true;
 constexpr float BODY_TURN_GAIN = 3.0f;            // turn rate = gain x the remaining angle (per second): big lags close fast
 constexpr float BODY_TURN_MIN_DEG_S = 40.0f;      // and never slower than this, so a turn finishes (aiming)

@@ -22,6 +22,7 @@
 
 #include "ammo_hud.h"
 #include "body.h"
+#include "turn.h"
 #include "fingers.h"
 #include "nodock.h"
 #include "breech.h"
@@ -61,6 +62,7 @@ void on_frame() {
     ammo_hud::frame();
     recoil::frame();
     handstate::frame();
+    turn::frame();           // 2026-10-29: the game's own body-follow rule, with Tefa's numbers
     body::frame();
     fingers::frame();
     nodock::frame();

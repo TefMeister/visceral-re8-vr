@@ -1,6 +1,7 @@
 // body.cpp -- see body.h
 #include "body.h"
 #include "bridge.h"
+#include "turn.h"
 #include "joints.h"
 #include "player.h"
 #include "settings.h"
@@ -114,7 +115,8 @@ float applied_yaw() { return g_theta; }
 void frame() {
     g_write = false;
     const auto& s = player::now();
-    if (!BODY_TURN_ON || !bridge::flag(bridge::S_BODY_TURN) || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) {
+    // 2026-10-29: while turn.cpp drives the game's own rule, the joint rewriting of this file stays off
+    if (turn::active() || !BODY_TURN_ON || !bridge::flag(bridge::S_BODY_TURN) || s.tf == nullptr || !bridge::live() || !bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) {
         g_mode = "off";
         g_theta = 0.0f;
         g_have_last_pos = false;
