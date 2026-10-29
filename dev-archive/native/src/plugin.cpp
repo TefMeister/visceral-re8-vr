@@ -43,6 +43,7 @@
 #include "reload.h"
 #include "zones.h"
 #include "weapons.h"
+#include "exposure.h"
 
 using namespace vn;
 
@@ -96,6 +97,6 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
     // the gun's joints (magazine, slide) after its own animation, and again before drawing (the engine rewrites them)
     param->functions->on_post_application_entry("LateUpdateBehavior", []() { body::late_point(); reload::late_point(); rack::late_point(); });
     param->functions->on_post_application_entry("PrepareRendering", []() { body::render_point(); fingers::render_point(); reload::render_point(); rack::render_point(); ghosthand::render_point(); });
-    param->functions->on_pre_application_entry("BeginRendering", []() { reload::render_point(); rack::begin_render_point(); fingers::begin_render(); body::begin_render(); });
+    param->functions->on_pre_application_entry("BeginRendering", []() { exposure::render_point(); reload::render_point(); rack::begin_render_point(); fingers::begin_render(); body::begin_render(); });
     return true;
 }

@@ -12,6 +12,8 @@ local TAG = "[visceral-re8-menu]"
 -- haptics ------------------------------------------------------------------------------------------------------------
 local S_HAP_SENT, S_HAP_ON, S_HAP_GATE_LEFT, S_HAP_SCALE, S_HAP_AUTO_PULSE = 48, 49, 50, 51, 52
 local S_HAP_ON_S, S_HAP_OFF_S, S_HAP_MAX_DUR = 53, 54, 55
+local S_AUTO_EXPOSURE_ON = 174   -- 2026-10-29: 1 = the game keeps its own automatic brightness (src/bridge.h, exposure.cpp)
+local exposure = {game_auto = false}   -- never saved: every game starts with the game's automatic brightness OFF (steady light)
 
 local HAP_PATH = "re8_vr/re8_vr_haptics.json"
 local INTENSITY = { low = 0.45, medium = 0.80, high = 1.20 }
@@ -84,6 +86,7 @@ re.on_pre_application_entry("UpdateBehavior", function()   -- after the bridge's
     local b = rawget(_G, "visceral_re8_bridge")
     if not b or not b.ready() then return end
     hap_send(b)
+    b.w(S_AUTO_EXPOSURE_ON, exposure.game_auto and 1 or 0)
 end)
 
 re.on_draw_ui(function()
@@ -254,6 +257,10 @@ _G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
 table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 40, kind = "check", label = "Gun shaking the controller",
     help = "A buzz in the hand with every shot.",
     get = function() return HAP.enabled == true end, set = function(v) HAP.enabled = v == true; hap_save() end })
+table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 30, kind = "check", label = "Let the game adjust the brightness by itself",
+    help = "Off = steady light: the plugin keeps the game's automatic brightness (eye adaptation) off. Tick to compare with the game's own.",
+    get = function() return exposure.game_auto end,
+    set = function(v) exposure.game_auto = v == true; log.info(TAG .. (exposure.game_auto and " automatic brightness: the game's own" or " automatic brightness: OFF (steady)")) end })
 table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 50, kind = "check", label = "Recoil",
     get = function() return REC.enabled == true end, set = function(v) REC.enabled = v == true; rec_save() end })
 table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 51, kind = "slider", label = "Recoil strength",

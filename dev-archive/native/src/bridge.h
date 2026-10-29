@@ -91,7 +91,8 @@ enum Slot : int {
     S_ZONE_SLIDE_LEFT = 169,  // 169-173, WRITTEN BY THE PLUGIN: the slide's LEFT-side sphere {x, y, z, r, on} (2026-10-28, pistols;
                               // zones.h SLIDE_LEFT, drawn as zone 23 by visceral_re8_zones.lua); the left hand's spot (153) gains
                               // 9 rounds from the pouch
-    S_COUNT = 174,            // 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
+    S_AUTO_EXPOSURE_ON = 174, // 2026-10-29: 1 = the game keeps its own automatic brightness (visceral_re8_menu.lua tick box); 0 or unset = ours keeps it off (exposure.cpp)
+    S_COUNT = 175,            // 2026-10-29: 174 the brightness tick box; 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,
