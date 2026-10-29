@@ -36,12 +36,31 @@ local ADAPT_MODES = { "game", "freeze", "instant", "fixed", "hold" }
 -- Disable + EV 6.4 for both eyes) with grading = "off". Both eyes match, nothing drifts. Those are the defaults now, so
 -- the script gives the working picture even without the json file. `[verified-live 2026-10-29, headset, n=1]`
 -- 23:15 Tefa: "contrast needs to go up by 0.2": contrast 1.2 (the game has 1.0), written every frame like RE2's b193.
-local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "off", ev = 6.4, contrast = 1.2 }
+local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "off", ev = 6.4, contrast = 1.2, trim = { 1.0, 1.0, 1.0 } }
 -- 23:00 Tefa's description of the door: "more like the colours and haze and a quick gradual change over a second or so".
 -- That is the per-area post-effect blend (app.ColorCorrectController -> via.render.LDRColorCorrect, and the fog), not
 -- the eye adaptation. grading = "off" switches the per-area colour grading off every frame, as RE2's b192 does (Tefa
 -- there: "the blue is gone, looks much better"); the fog stays, it is in the world.
-local GRADING_MODES = { "game", "off" }
+-- 01:15 Tefa (screenshot): "there is a difference in tone how things look in the scope ... make the overall snow and outside
+-- tone look like the scope". The scope draws WITH the game's colour table (it copies the main camera's ColorCube, 10-03);
+-- the main picture has had the grading OFF since 23:12. grading = "fixed": the colour-correct COMPONENT on, the per-area
+-- CONTROLLER off, so the game's table applies but is never re-blended at a door. The 8 linear slots are unused by the game
+-- (type 0, factor 1,1,1,1): a warm trim of our own can go there later (their enum values are logged once at load).
+-- 01:35: "fixed" looked greenish (the game's table for that area). grading = "trim": the component on, the table off
+-- (cube blend 0), and ONE linear slot of our own: Scale (enum 5, read live) = a gain per colour channel, cfg.trim =
+-- {r, g, b}; 1,1,1 is no change, r up and b down is warmer. The enum values, read live 01:30: None=0 Hue=1 Chroma=2
+-- Brightness=3 Sepia=4 Scale=5 NegaPosi=6 GrayScale=7 RedReplace=8 GreenReplace=9 BlueReplace=10 Add=11 Sub=12 Max=13.
+local GRADING_MODES = { "game", "off", "fixed", "trim" }
+local SCALE = 5
+pcall(function()
+    local td = sdk.find_type_definition("via.render.ColorCorrectLinearParams.LinearCorrector")
+    local out = {}
+    for _, n in ipairs({ "None", "Scale", "Add", "Sub", "Brightness", "Chroma", "Hue", "GrayScale", "Sepia", "Max", "RedReplace", "GreenReplace", "BlueReplace", "NegaPosi" }) do
+        local f = td and td:get_field(n)
+        out[#out + 1] = n .. "=" .. tostring(f and f:get_data(nil) or "?")
+    end
+    log.info("[visceral-re8-whitepoint] LinearCorrector enum: " .. table.concat(out, " "))
+end)
 local grading_state = { ctl = nil, cc = nil, off = false }
 local function grading(off)
     local cam = sdk.get_primary_camera()
@@ -51,11 +70,31 @@ local function grading(off)
     local ctl = go:call("getComponent(System.Type)", sdk.typeof("app.ColorCorrectController"))
     local ldr = go:call("getComponent(System.Type)", sdk.typeof("via.render.LDRPostProcess"))
     local cc = ldr and ldr:call("get_ColorCorrect") or nil
-    if off then
+    if off == "trim" then
+        if ctl and ctl:call("get_Enabled") then ctl:call("set_Enabled", false) end
+        if cc then
+            if not cc:call("get_Enabled") then cc:call("set_Enabled", true) end
+            pcall(function()
+                cc:call("set_ColorCubeBlendRate", 0.0); cc:call("set_ColorCube2BlendRate", 0.0)
+                local p = cc:call("getLinearParamsAt", 0)
+                if p then
+                    p:call("set_LinearCorrectorType", SCALE)
+                    p:call("set_LinearFactor", Vector4f.new(cfg.trim[1], cfg.trim[2], cfg.trim[3], 1.0))
+                    p:call("updateMatrix")
+                end
+            end)
+        end
+        if grading_state.mode ~= "trim" then grading_state.mode = "trim"; grading_state.off = true; log.info(TAG .. string.format(" colour TRIM of our own: gains r %.2f g %.2f b %.2f (the game's table off)", cfg.trim[1], cfg.trim[2], cfg.trim[3])) end
+    elseif off == "fixed" then
+        if ctl and ctl:call("get_Enabled") then ctl:call("set_Enabled", false) end
+        if cc and not cc:call("get_Enabled") then cc:call("set_Enabled", true) end
+        if grading_state.mode ~= "fixed" then grading_state.mode = "fixed"; grading_state.off = true; log.info(TAG .. " colour grading FIXED (the game's table on, its per-area controller off)") end
+    elseif off then
         if ctl and ctl:call("get_Enabled") then ctl:call("set_Enabled", false) end
         if cc and cc:call("get_Enabled") then cc:call("set_Enabled", false) end
-        if not grading_state.off then grading_state.off = true; log.info(TAG .. " colour grading OFF (ColorCorrectController + LDRColorCorrect)") end
+        if not grading_state.off or grading_state.mode ~= "off" then grading_state.off = true; grading_state.mode = "off"; log.info(TAG .. " colour grading OFF (ColorCorrectController + LDRColorCorrect)") end
     elseif grading_state.off then
+        grading_state.mode = "game"
         if ctl then ctl:call("set_Enabled", true) end
         if cc then cc:call("set_Enabled", true) end
         grading_state.off = false
@@ -74,6 +113,7 @@ local function load_cfg()
         cfg.value = tonumber(d.value) or cfg.value
         cfg.ev = tonumber(d.ev) or cfg.ev
         cfg.contrast = tonumber(d.contrast) or cfg.contrast
+        if type(d.trim) == "table" and #d.trim == 3 then cfg.trim = { tonumber(d.trim[1]) or 1, tonumber(d.trim[2]) or 1, tonumber(d.trim[3]) or 1 } end
     end
 end
 local function save_cfg() pcall(json.dump_file, MODE_FILE, cfg) end
@@ -132,8 +172,8 @@ end
 
 re.on_pre_application_entry("BeginRendering", function()
     frame = frame + 1
-    if frame % 120 == 0 then load_cfg() end
-    grading(cfg.grading == "off")
+    if frame % 120 == 0 then local before = table.concat(cfg.trim, ","); load_cfg(); if table.concat(cfg.trim, ",") ~= before then grading_state.mode = nil end end
+    grading((cfg.grading == "fixed" or cfg.grading == "trim") and cfg.grading or (cfg.grading == "off"))
     local t = tonemapping()
     if not t then return end
     local wrote = {}
@@ -173,6 +213,10 @@ re.on_draw_ui(function()
     if c3 then cfg.ev = ne; save_cfg() end
     local c4, nc = imgui.slider_float("Contrast (the game has 1.0)", cfg.contrast, 0.5, 2.0, "%.2f")
     if c4 then cfg.contrast = nc; save_cfg() end
+    local c5, nr = imgui.slider_float("Trim red", cfg.trim[1], 0.7, 1.3, "%.2f")
+    local c6, ng = imgui.slider_float("Trim green", cfg.trim[2], 0.7, 1.3, "%.2f")
+    local c7, nb = imgui.slider_float("Trim blue", cfg.trim[3], 0.7, 1.3, "%.2f")
+    if c5 or c6 or c7 then cfg.trim = { nr, ng, nb }; save_cfg(); grading_state.mode = nil end
     imgui.text(string.format("RealEV %.2f, area pair %.2f..%.2f, rates %.3f/%.3f, %d frames written", seen.real, seen.lo, seen.hi, seen.brate, seen.drate, writes))
     imgui.tree_pop()
 end)
