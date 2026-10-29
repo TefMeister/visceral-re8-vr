@@ -9,7 +9,8 @@
 -- are the tabs; the picked card lights up and its settings open on a parchment sheet under the cards.
 --
 -- The window shows while REFramework's menu is open (it sits beside the old long menu, which stays for the fine
--- settings). Only the settings that matter are here, handed over by the scripts that own them through one shared list:
+-- settings), and X + A held together for half a second opens or closes it at any time (Tefa, 2026-10-29: "the Village
+-- needs a special binding for it as well - X and A held together for 0.5 sec"). Only the settings that matter are here, handed over by the scripts that own them through one shared list:
 --
 --   _G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
 --   table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort" | "graphics" | "settings", order = <number>,
@@ -33,6 +34,7 @@ local CARDS = {
     { tab = "settings", name = "Settings", motto = "Everything in its place!" },
 }
 local EMPTY_TEXT = "Nothing on these shelves yet, stranger."
+local HOLD_S = 0.5             -- X + A held this long opens or closes the window
 
 -- sizes, in pixels at the default font size
 local WIN_W, WIN_H = 760, 640
@@ -87,6 +89,28 @@ do
     end
 end
 local function save() pcall(json.dump_file, SAVE_PATH, state) end
+local by_buttons = false       -- opened with X + A (shows with REFramework's menu closed too); not kept between launches
+
+-- X is the a-button action on the left controller, A the same action on the right (REFramework's VR bindings).
+local hold_since, hold_done = nil, false
+local function buttons_held()
+    if not vrmod or not vrmod.is_hmd_active or not vrmod:is_hmd_active() then return false end
+    local ok, held = pcall(function()
+        local a = vrmod:get_action_a_button()
+        return vrmod:is_action_active(a, vrmod:get_left_joystick()) and vrmod:is_action_active(a, vrmod:get_right_joystick())
+    end)
+    return ok and held == true
+end
+local function watch_buttons()
+    if not buttons_held() then hold_since, hold_done = nil, false return end
+    local now = os.clock()
+    if hold_since == nil then hold_since = now end
+    if not hold_done and now - hold_since >= HOLD_S then
+        hold_done = true
+        by_buttons = not by_buttons
+        log.info("[visceral options] X + A: the window " .. (by_buttons and "opened" or "closed"))
+    end
+end
 
 local function load_font(f)
     local ok, h = pcall(imgui.load_font, f.file, f.size)
@@ -226,7 +250,8 @@ end
 
 local first = true
 re.on_frame(function()
-    if not state.shown or not reframework:is_drawing_ui() then return end
+    watch_buttons()
+    if not by_buttons and (not state.shown or not reframework:is_drawing_ui()) then return end
     if first then
         imgui.set_next_window_size(Vector2f.new(WIN_W, WIN_H), 4)   -- 4 = ImGuiCond_FirstUseEver
         first = false
@@ -239,9 +264,8 @@ re.on_frame(function()
         if pcall(imgui.push_style_var, v[1], v[2]) then nv = nv + 1 end
     end
     local still = imgui.begin_window("Visceral options", true, 0)
-    if still == false then
-        state.shown = false
-        save()
+    if still == false then   -- its close button: closed until X + A, or until switched on again in the long menu
+        if by_buttons then by_buttons = false else state.shown = false; save() end
     end
     with_font(fonts.title, function() centred(TITLE, C.title) end)
     with_font(fonts.motto, function() centred(MOTTO, C.title) end)
