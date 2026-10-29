@@ -258,7 +258,7 @@ table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 40, kind = "check",
     help = "A buzz in the hand with every shot.",
     get = function() return HAP.enabled == true end, set = function(v) HAP.enabled = v == true; hap_save() end })
 table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 30, kind = "check", label = "Let the game adjust the brightness by itself",
-    help = "Off = steady light: the plugin keeps the game's automatic brightness (eye adaptation) off. Tick to compare with the game's own.",
+    help = "Village: the plugin's steady-light switch is OFF until the right lever is found (2026-10-29: the RE2 way gave a golden veil). NUM7 tries it; this tick forces the game's own.",
     get = function() return exposure.game_auto end,
     set = function(v) exposure.game_auto = v == true; log.info(TAG .. (exposure.game_auto and " automatic brightness: the game's own" or " automatic brightness: OFF (steady)")) end })
 table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 50, kind = "check", label = "Recoil",

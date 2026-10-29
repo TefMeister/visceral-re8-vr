@@ -15,6 +15,13 @@
 // UseAutoExposure 0 and a steady EV. [compile-verified] at most until it has run.
 //
 // On by default. Off when: the Lua menu's tick box says so (bridge slot S_AUTO_EXPOSURE_ON = 1), or NUM7 toggles it (logged).
+//
+// ⚠️ VILLAGE, FIRST RUN 2026-10-29 22:27 (Tefa in the headset): THIS DOES NOT WORK HERE, AND IT HURTS. The log: writing
+// AutoExposure 2 (and 1) reads back but UseAutoExposure stays 1, and this ToneMapping has no AutoExposureMinEV / MaxEV
+// (both read -99); EV sits at 3.00 throughout `[verified-live 2026-10-29, Village, n=1]`. Tefa: "now i have that golden
+// veil on again" -- the over-bright golden sunlight the scope work knew. So in Village the switch now STARTS OFF (nothing
+// is written) and, when it is switched off after writing, puts AutoExposure back to Enable once. NUM7 turns it on for an
+// experiment only. The right lever for Village is still to be found (the zone white points / app.ToneMapController blend).
 #include "exposure.h"
 #include "bridge.h"
 #include "common.h"
@@ -32,7 +39,8 @@ constexpr float GAME_MIN_EV = -8.0f, GAME_MAX_EV = 16.0f;   // the limits the ga
 struct State {
     int disable_value = -1;            // learned: the value that makes get_UseAutoExposure false
     bool tried[3] = {false, false, false};
-    bool off = true;                   // our switch: true = auto exposure kept off
+    bool off = false;                  // our switch: true = auto exposure kept off. VILLAGE: starts OFF (see the top note)
+    bool wrote = false;                // we have written AutoExposure (so Enable is put back once when switched off)
     bool key7 = false;
     bool limits_pinned = false;        // we have the adaptation limits pinned (so they are put back once)
     MO* last_tm = nullptr;
@@ -86,8 +94,9 @@ void render_point() {
     MO* tm = component(cam_go, "via.render.ToneMapping");
     if (tm == nullptr) return;
     if (tm != g.last_tm) { g.last_tm = tm; g.limits_pinned = false; LOGI("%s exposure: main camera ToneMapping %p: AutoExposure %d, UseAutoExposure %d", TAG, (void*)tm, get_ae(tm), (int)use_ae(tm)); }
-    if (!keep_off) {   // the game's own value stands (its controller writes Enable every frame); its limits come back once
+    if (!keep_off) {   // the game's own value stands; what we wrote is put back once
         if (g.limits_pinned) { set_float(tm, "set_AutoExposureMinEV", GAME_MIN_EV); set_float(tm, "set_AutoExposureMaxEV", GAME_MAX_EV); g.limits_pinned = false; }
+        if (g.wrote) { set_ae(tm, AE_ENABLE); g.wrote = false; LOGI("%s exposure: AutoExposure put back to Enable (%d)", TAG, get_ae(tm)); }
         return;
     }
     // the adaptation's limits pinned to the area's own EV, so it cannot move even while the game has it on
@@ -100,7 +109,7 @@ void render_point() {
         for (int v : AE_CANDIDATES) {
             if (g.tried[v]) continue;
             g.tried[v] = true;
-            set_ae(tm, v);
+            set_ae(tm, v); g.wrote = true;
             const bool still = use_ae(tm);
             LOGI("%s exposure: tried AutoExposure %d: reads back %d, UseAutoExposure %d", TAG, v, get_ae(tm), (int)still);
             if (!still) { g.disable_value = v; LOGI("%s exposure: Disable = %d, kept: the game's automatic brightness is OFF", TAG, v); }
@@ -112,7 +121,7 @@ void render_point() {
         }
         return;
     }
-    set_ae(tm, g.disable_value);
+    set_ae(tm, g.disable_value); g.wrote = true;
     ++g.writes;
     const float t = now_s();
     if (t - g.last_report >= REPORT_S) {
