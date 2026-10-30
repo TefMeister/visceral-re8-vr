@@ -51,7 +51,8 @@ local PAIR_DOTS, PAIR_DOT_R = 4, 0.008     -- the dotted line: this many beads, 
 -- scale 1.34; dots scale 0.075), so the drawn spheres do not follow their scale; the beads then drew as big as the ends and
 -- looked like a second sphere sliding. Off until the drawn size follows the number
 -- (2026-10-29: it does now; the measured model size was 3.5x too big, so every sphere drew 3.5x too small, the 8 mm beads at 2 mm)
-local PAIR_DOTS_SHOWN = true    -- back on 2026-10-29: the size fault was the model measure (above), not the drawing
+local PAIR_DOTS_SHOWN = false   -- back on 2026-10-29: the size fault was the model measure (above), not the drawing
+-- 2026-10-30 (Tefa: "please remove the dotted line"): off again, and the beads are no longer made at all
 local calib_frames = 0   -- frames spent asking the sphere model for its box (2026-10-29)
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
@@ -75,6 +76,14 @@ local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_tes
                  "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
                  "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh",
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
+-- 2026-10-30 (Tefa: "can you make the well different ... not a gun though, something round again"): the well is the one zone
+-- where LG does nothing (the magazine is brought to it), so it gets its own shape: one of Village's balloons, in the
+-- balloon's own material (its .mdf2), so it differs from the LG spheres in shape AND colour. If neither balloon loads in
+-- MESH_WAIT_S, the well falls back to the usual ball and the log says so. [hypothesis] until seen in the headset
+local WELL_I = 1
+local WELL_MESHES = { "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
+                      "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh" }
+local last_well_t, well_logged = -10, false
 -- 2026-10-25 (Tefa: "can you just have the one look and not be able to choose anything else?"): the spheres always wear the
 -- "axis" material, the one seen drawing; the look buttons (here and in the Grip Zones window) are gone
 local MATS = { "systems/effect/vfx_default_axis.mdf2" }
@@ -103,7 +112,7 @@ local mat_res, mat_applied = {}, {}      -- material index -> resource; ball ind
 local TINT_LAND, TINT_GRIP = { 1.0, 0.5, 0.0, 1.0 }, { 1.0, 1.0, 1.0, 1.0 }
 local tinted, tint_logged = {}, false     -- ball index -> true once its colour is set
 local function tint(i, ball)
-    if ball.gun_copy or tinted[i] then return end
+    if ball.gun_copy or ball.own_shape or tinted[i] then return end   -- the well keeps its balloon colours
     local comp = ball.comp
     local n = 0
     pcall(function() n = comp:call("getMaterialNum") end)
@@ -230,6 +239,14 @@ end
 local function mat_index() return 0 end   -- one look only (2026-10-25)
 local function apply_mat(i, ball)
     if ball.gun_copy then return end
+    if ball.own_shape and not ball.own_mat_tried then   -- the well: the balloon's own material, tried once per ball
+        ball.own_mat_tried = true
+        local p = ball.mesh:gsub("%.mesh$", ".mdf2")
+        if mat_res[p] == nil then mat_res[p] = holder(p, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
+        ball.own_mat = mat_res[p] and pcall(function() ball.comp:call("set_Material", mat_res[p]) end) or false
+        log.info(TAG .. " the well's balloon: " .. (ball.own_mat and "its own material on" or "its own material would not load, it wears the axis look"))
+    end
+    if ball.own_mat then return end
     local m = mat_index()
     if mat_applied[i] == m then return end
     mat_applied[i] = m
@@ -286,8 +303,10 @@ local function spawn(i)
         if comp then comp = comp:add_ref(); comp:call(".ctor()") end
     end)
     if not comp then status = "no mesh component"; pcall(function() go:call("destroy", go) end); return nil end
-    local tries = mesh_used and { mesh_used } or MESHES
-    if not mesh_used and cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].shape == "gun" then tries = { "GUN" } end
+    local own = false
+    if i == WELL_I then for _, wp in ipairs(WELL_MESHES) do if not mesh_failed[wp] then own = true end end end
+    local tries = own and WELL_MESHES or (mesh_used and { mesh_used } or MESHES)
+    if not own and not mesh_used and cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].shape == "gun" then tries = { "GUN" } end
     local got, gun_copy, waiting = nil, false, nil
     for _, path in ipairs(tries) do
         if path == "GUN" then
@@ -325,8 +344,10 @@ local function spawn(i)
         end
     end
     if not got and waiting then status = "the sphere model is still loading"; pcall(function() go:call("destroy", go) end); return nil end
+    if not got and own then pcall(function() go:call("destroy", go) end); log.info(TAG .. " no balloon would load: the well is drawn as the usual ball"); return nil end
     if not got then status = "no sphere mesh would load (see the log)"; pcall(function() go:call("destroy", go) end); mesh_used = nil; return nil end
-    if not mesh_used then
+    if own and not well_logged then well_logged = true; log.info(TAG .. " the well is drawn as " .. got) end
+    if not mesh_used and not own then
         mesh_used = got
         mesh_half = measure(comp)
         log.info(TAG .. " sphere mesh: " .. got .. ", half size " .. tostring(mesh_half))
@@ -356,7 +377,7 @@ local function spawn(i)
     local xform = nil
     pcall(function() xform = go:call("get_Transform") end)
     status = "drawn: " .. got:match("[^/]+$") .. ", look: " .. MAT_NAMES[mat_index() + 1]
-    local ball = { go = go, comp = comp, xform = xform, on = false, gun_copy = gun_copy }
+    local ball = { go = go, comp = comp, xform = xform, on = false, gun_copy = gun_copy, own_shape = own or nil, mesh = got }
     if not gun_copy then apply_mat(i, ball) end   -- a gun copy wears the gun's own material
     return ball
 end
@@ -507,9 +528,13 @@ re.on_application_entry("UpdateMotion", function()
         last_respawn_t = now
         if not swept then swept = true; sweep_leftovers() end
         local any = false
-        for _, z in ipairs(ZONES) do balls[z.i] = spawn(z.i); any = any or balls[z.i] ~= nil end
+        for _, z in ipairs(ZONES) do
+            if z.key ~= "pair-dot" or PAIR_DOTS_SHOWN then balls[z.i] = spawn(z.i); any = any or balls[z.i] ~= nil end
+        end
         spawn_tried = any
     end
+    -- the well's balloon may still be loading when the rest are made: asked again once a second (falls back after MESH_WAIT_S)
+    if spawn_tried and balls[WELL_I] == nil and now - last_well_t > 1.0 then last_well_t = now; balls[WELL_I] = spawn(WELL_I) end
     -- a new look picked: "no material" needs fresh spheres (a set material cannot be taken off), any other is put on
     local m = mat_index()
     if MATS[m + 1] == "" then
@@ -550,10 +575,20 @@ re.on_application_entry("UpdateMotion", function()
         local ball = balls[z.i]
         if ball and alive(ball.go) and ball.xform then
             local x, y, zz, r, on = live(b, z.i)
-            local ok = on and on > 0.5 and x ~= nil and math.abs(x) < 1.0e5
+            local bh = half
+            if ball.own_shape then   -- the well's balloon: its own size, from its own box (hidden until it answers)
+                if not ball.half then
+                    ball.half_frames = (ball.half_frames or 0) + 1
+                    ball.half = measure(ball.comp)
+                    if not ball.half and ball.half_frames > 180 then ball.half = half end
+                    if ball.half then log.info(TAG .. string.format(" the well's balloon: half size %.4f m", ball.half)) end
+                end
+                bh = ball.half or half
+            end
+            local ok = on and on > 0.5 and x ~= nil and math.abs(x) < 1.0e5 and (not ball.own_shape or ball.half ~= nil)
             set_on(ball, ok)
             if ok then
-                local s = calibrating and 1.0 or (r or 0.05) / half   -- scale 1 while the model is being measured
+                local s = calibrating and 1.0 or (r or 0.05) / bh   -- scale 1 while the model is being measured
                 ball.scale = s
                 if not calibrating and not ball.scaled_t then ball.scaled_t = now end
                 pcall(function()
