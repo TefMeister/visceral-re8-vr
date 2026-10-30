@@ -81,6 +81,7 @@ void set_state(St s, const char* why) {
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
 bool in_play() { return bridge::live() && bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE); }
+bool pistol_mag() { return g_w != nullptr && g_w->reload == Reload::MAG && g_w->shape == weapons::Shape::PISTOL; }
 
 // ---- the frame's objects -------------------------------------------------------------------------------------------
 void resolve_frame() {
@@ -242,17 +243,27 @@ void hand_checks() {
         return;
     }
     if (d > dock_need() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
+    // 2026-10-30: a handgun's magazine goes in with LG and LT held and a push PISTOL_INSERT_PUSH of the way in (Tefa)
+    if (mag && pistol_mag()) {
+        static float told = -10.0f;
+        const bool lt = bridge::held(bridge::S_LTRIG), deep = d <= dock_need() * (1.0f - PISTOL_INSERT_PUSH);
+        if (!lt || !deep) {
+            if (now - told > 2.0f) { told = now; LOGI("%s reload: the magazine is at the well (%.3f m of %.2f): %s", TAG, d, dock_need(), !lt ? "hold LT and push it in" : "push it further in"); }
+            return;
+        }
+        g_lt_to_seat = false;   // the held LT is the seat press here
+    }
     // 03:21 and 03:53 (the log: "insert at 0.001 m", later "insert at 0.126 m", the frame after every pull-out: the magazine seated
     // itself again at once). Tefa 2026-10-25: "LT must be pressed again for it to go back in". So a magazine pulled out by hand
     // sits at the well until a fresh LT press (not the pull-out's own, hence the short wait); one from the pouch seats by itself
-    if (mag && g_lt_to_seat && INSERT_NEEDS_LT) {
+    if (mag && g_lt_to_seat && INSERT_NEEDS_LT && !pistol_mag()) {
         static float told = -10.0f;
         if (now - g_t0 < INSERT_LT_MIN_SEC) return;
         if (!bridge::pressed(bridge::S_LTRIG)) {
-            if (now - told > 2.0f) { told = now; LOGI("%s reload: the pulled-out magazine is at the well (%.3f m): press LT to seat it", TAG, d); }
+            if (now - told > 2.0f) { told = now; LOGI("%s reload: the magazine is at the well (%.3f m): press LT to seat it", TAG, d); }
             return;
         }
-        LOGI("%s reload: LT pressed at the well: the pulled-out magazine goes back in", TAG);
+        LOGI("%s reload: LT pressed at the well: the magazine goes in", TAG);
         g_lt_to_seat = false;
     }
     g_last_dock = now;
@@ -357,7 +368,7 @@ void pull_out() {
     }
     g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
     g_lt_to_seat = true;     // it goes back in only on a fresh LT press at the well (hand_checks)
-    set_state(St::IN_HAND, "pulled out by hand (LT)");
+    set_state(St::IN_HAND, pistol_mag() ? "released (LT + B) into the left hand" : "pulled out by hand (LT)");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
     log_parts();
@@ -378,10 +389,14 @@ void grab_frame() {
         if (d > need) return;
         g_hand_on_mag = true;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
-        LOGI("%s reload: the left hand on the seated magazine (%.3f m from it): LT pulls it out", TAG, d);
+        LOGI("%s reload: the left hand on the seated magazine (%.3f m from it): %s", TAG, d, pistol_mag() ? "LT held + right B releases it" : "LT pulls it out");
         return;
     }
-    if (bridge::pressed(bridge::S_LTRIG)) pull_out();
+    // 2026-10-30 (Tefa: "with handguns, LG to grip the mag, LT held to activate the eject possibility and B to flick the
+    // release ... then pull the mag out with hand motion. rifles and long guns with mag in the middle of the gun only need LG +
+    // LT"): on a handgun the release is right B with LT held; the magazine is then in the hand and comes out with it
+    // [the left thumb pressing the release is not animated yet]
+    if (pistol_mag() ? (bridge::held(bridge::S_LTRIG) && bridge::pressed(bridge::S_RB)) : bridge::pressed(bridge::S_LTRIG)) pull_out();
 }
 
 void pouch_grab() {
@@ -431,7 +446,9 @@ void pouch_grab() {
         bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
         return;
     }
-    g_lt_to_seat = false;   // from the pouch: it seats by itself when brought to the gun
+    // from the pouch: a long gun's magazine goes in only on an LT press at the well, as a pulled-out one (Tefa 2026-10-30: "a mag
+    // is only inserted with LG held, Mag in the activation area and LT pressed once"); a handgun's needs LT held and a push
+    g_lt_to_seat = true;
     set_state(St::IN_HAND, "taken from the ammo spot");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -559,17 +576,12 @@ void measure_target_turn() {
     g_tq_off = off;
     g_tq_ok = true;
 }
-void mag_hand_frame() {   // UpdateBehavior: let go before the click drops it; let go after it frees the hand
+// 2026-10-30 (Tefa: "when game animation takes over, it is safe to let go of LG and LT and already move left hand to the
+// slide, but the mag insert animation still shows the hand on the mag until the animation ends"): once the insert has begun,
+// letting go no longer drops the magazine; the hand is drawn on it until it is seated (hand_on_mag), then is free
+void mag_hand_frame() {   // UpdateBehavior: let go after the seat frees the hand
     if (pose_lock() || g_w == nullptr || g_w->reload != Reload::MAG) { g_hand_on_mag = false; return; }
     const bool lg = bridge::held(bridge::S_LGRIP);
-    if (g_st == St::INSERT && !lg) {
-        Quat q;
-        Vec3 p;
-        if (mag_world(p, q)) { g_fall_from = p; g_fall_rot = q; } else g_fall_from = Vec3{0, 0, 0};
-        ghosthand::event("mag", "fail");
-        set_state(g_joint != nullptr ? St::HAND_FALL : St::OUT, "LG let go before it clicked in");
-        return;
-    }
     if (g_hand_on_mag && (!lg || g_st != St::SEATED)) {
         g_hand_on_mag = false;
         LOGI("%s reload: LG let go: the left hand leaves the magazine", TAG);
@@ -699,8 +711,12 @@ void frame() {
         }
         mag_hand_frame();
         grab_frame();
-        // B ejects only on pistols (Tefa 2026-10-25); a gun whose magazine joint is unknown keeps B, having no hand path
-        if (in_play() && bridge::pressed(bridge::S_RB) && g_st == St::SEATED && !rack::active() && (g_w->shape == weapons::Shape::PISTOL || g_joint == nullptr)) begin_drop();
+        // B ejects only on pistols (Tefa 2026-10-25); a gun whose magazine joint is unknown keeps B, having no hand path. With the
+        // left hand on the magazine B only releases it with LT held (grab_frame, 2026-10-30), so without LT it does nothing
+        if (in_play() && bridge::pressed(bridge::S_RB) && g_st == St::SEATED && !rack::active() && (g_w->shape == weapons::Shape::PISTOL || g_joint == nullptr)) {
+            if (g_hand_on_mag) LOGI("%s reload: right B with the left hand on the magazine: hold LT to release it into the hand", TAG);
+            else begin_drop();
+        }
     }
     if (in_pouch() && bridge::pressed(bridge::S_LGRIP)) pouch_grab();
 }

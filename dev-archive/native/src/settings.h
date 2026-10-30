@@ -82,6 +82,10 @@ constexpr float MAG_GRAB_M = 0.12f;               // (0.18 took the forestock gr
 // only on a fresh LT press while it is at the well; a fresh one from the pouch still seats by itself when brought to the gun
 constexpr bool  INSERT_NEEDS_LT = true;
 constexpr float INSERT_LT_MIN_SEC = 0.25f;        // the pull-out's own LT press (the same frame) never counts as the seat press
+// 2026-10-30 (Tefa: "handguns, inserting the mag also actually needs a hand motion to push it in while both LG and LT are held,
+// but have to push it in a little , 30% and then the game's animation takes over"): a handgun's magazine goes in once it is
+// pushed this share of the way from the well zone's edge toward its middle with LG and LT held
+constexpr float PISTOL_INSERT_PUSH = 0.30f;
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in
