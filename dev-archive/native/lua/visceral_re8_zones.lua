@@ -12,9 +12,11 @@
 -- sphere, is not confusing and i can see the size of the activation area when i move my hand to it. that white/orange sphere
 -- would do nicely for that"): only the activation zones (where the left grip starts something) are drawn, each only while the
 -- left hand is inside its edge: see-through NEAR_ALPHA_EDGE at the edge, NEAR_ALPHA_CLOSE at the centre. One look for all of
--- them: Village's balloon in its own material (the one sphere seen at its true size on 2026-10-30). Nothing shows while the
--- left hand holds something. The old kinds are gone: the test ball and the gun copies, the landing dot, the dotted line, the
--- well's own shape, the show switch and the size fix. [hypothesis] until seen in the headset.
+-- them: Village's test ball in the "axis" look, the orange and white squares (Tefa, 2026-10-30, after the balloon: "they are
+-- nice to look at but don't show the actual area of activation very well. the spheres with orange and white squares are the
+-- best to use"). Nothing shows while the left hand holds something. The old kinds are gone: the gun copies, the balloon,
+-- the landing dot, the dotted line, the well's own shape, the show switch and the size fix. [hypothesis] until seen in the
+-- headset.
 --
 -- zones.json: { "default": { "mag": {x,y,z,r}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...}, ... },
 --               "3042": { ... the same, for one gun (its number) ... }, "_visual": { "near": false = never draw the spheres } }
@@ -55,14 +57,16 @@ local ALPHA_STEP = 0.02         -- a change smaller than this is not written to 
 local MATERIAL_RETRY_S = 1.0    -- a sphere whose material is not in yet is asked again this often
 local HOLD_SPOT_MAX = 2000      -- slot 153 below this (and above 0): the left hand holds something (pairs.cpp), so no sphere shows
 
--- the sphere: Village's balloon (its file list), in its own material (.mdf2); the second balloon if the first will not load.
--- ⚠️ set_Material is called ONCE per sphere: a second call on the same balloon crashed the game (2026-10-30 20:20, a probe
+-- the sphere: Village's development test ball (its file list) in the shared "axis" effect material, the orange and white
+-- squares seen since 2026-10-25; the plain primitive sphere if the test ball will not load.
+-- ⚠️ set_Material is called ONCE per sphere: a second call on a balloon crashed the game (2026-10-30 20:20, a probe
 -- at the title screen; kept dump D:/RE Village REFramework builds/logs/reframework_crash-2026-10-30-2020.dmp)
-local MESHES = { "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
-                 "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh" }
+local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh",
+                 "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh" }
+local MATERIAL = "systems/effect/vfx_default_axis.mdf2"   -- the orange and white squares
 local MESH_WAIT_S = 10.0        -- a model is waited for this long (it loads in the background) before the next is tried
 local MEASURE_FRAMES = 180      -- frames to wait for the model's own box before taking UNMEASURED_HALF_M
-local UNMEASURED_HALF_M = 1.158 -- the first balloon's half size by its own box [measured 2026-10-30, n=1]
+local UNMEASURED_HALF_M = 0.030 -- the test ball's half size by its own box, 0.033 by a ruler [measured 2026-10-29]
 local RESPAWN_EVERY_S = 1.0
 
 -- which material variable carries the see-through: the first float whose name says so; failing that, the alpha of the
@@ -170,7 +174,7 @@ local function find_folder()
     end
     return nil
 end
--- the model's half size and the centre of its box (a balloon's origin need not be its middle), from its own bounding box
+-- the model's half size and the centre of its box (a model's origin need not be its middle), from its own bounding box
 local function measure(comp)
     local half, centre = nil, nil
     pcall(function()
@@ -304,7 +308,7 @@ local function spawn(i)
         return nil
     end
     if not mesh_used then mesh_used = got; log.info(TAG .. " the sphere: " .. got) end
-    local mp = got:gsub("%.mesh$", ".mdf2")
+    local mp = MATERIAL
     if mat_res[mp] == nil then mat_res[mp] = holder(mp, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
     if mat_res[mp] then pcall(function() comp:call("set_Material", mat_res[mp]) end) end
     -- a mesh made from script draws only once enabled, set to draw by default and sent to every render output
