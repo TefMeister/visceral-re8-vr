@@ -469,7 +469,10 @@ void frame() {
         // hand jump from grip to the slide"): a hand that came from the grip waits for LG to be let go
         // 2026-10-25 (Tefa, see in_grip_zone): a rack due + a fresh LG inside the front grip zone takes the part even from the grip
         const bool due = g_needed || g_parked || (bolt() && (g_bstate != 0 || g_turn > 0.0f));
-        const bool from_zone = due && bridge::pressed(bridge::S_LGRIP) && in_grip_zone();
+        // 2026-10-30 (Tefa: "please remove the feature where hand on the grip goes to the bolt when it needs racking, that was
+        // good in theory but is actually distracting"): off. A hand that came from the grip waits for LG to be let go again
+        constexpr bool RACK_FROM_GRIP_ZONE = false;
+        const bool from_zone = RACK_FROM_GRIP_ZONE && due && bridge::pressed(bridge::S_LGRIP) && in_grip_zone();
         const bool want = lg && !reload::hand_on_mag() && !reload::hand_near_mag() && (!g_from_grip || from_zone);   // (2026-10-25: the magazine first)
         if (want) {
             float off = 99.0f;

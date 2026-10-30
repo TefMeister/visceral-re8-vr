@@ -28,6 +28,7 @@ add_library(visceral_re8_native SHARED
     src/fingers.cpp
     src/nodock.cpp
     src/breech.cpp
+    src/dryfire.cpp
     src/ammo_hud.cpp
     src/weapons.cpp
     src/handstate.cpp

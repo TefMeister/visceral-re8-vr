@@ -27,6 +27,7 @@
 #include "fingers.h"
 #include "nodock.h"
 #include "breech.h"
+#include "dryfire.h"
 #include "eject.h"
 #include "bridge.h"
 #include "common.h"
@@ -59,6 +60,7 @@ void on_frame() {
     reload::frame();
     breech::frame();
     rack::frame();
+    dryfire::frame();                                  // 2026-10-30: the empty click on RT (after reload + rack: they say if it fires)
     smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
     pairs::frame();                                    // the numbered hand pairs, after rack (pairs.h): the slide / bolt takes an LG first
     ammo_hud::frame();
