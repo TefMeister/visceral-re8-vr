@@ -26,7 +26,6 @@ using namespace vn::settings;
 namespace {
 struct Pair { int n = 0; std::string name, gun; Vec3 a{0, 0, 0}, l{0, 0, 0}; float r = PAIR_ACT_R_DEFAULT_M; };
 std::vector<Pair> g_pairs;
-int g_show = 0;                    // the pair drawn on the gun (0 = none)
 int g_active = -1;                 // index into g_pairs of the pair holding the left hand, -1 = none
 // 2026-10-27 (Tefa: the parts every gun needs): built-in docks beside the numbered pairs, each a zone on the gun (zones.h)
 // where LG puts the left hand and keeps it while LG is held, and where LT does that part's job (breech.cpp)
@@ -75,11 +74,9 @@ void refresh() {   // at most once a second: re-read pairs.json when it changed
             if (q.n > 0 && q.r > 0.0f) next.push_back(q);
         }
     }
-    const auto* s = v.get("show");
-    g_show = s != nullptr && s->kind == json::Value::NUM ? (int)s->n : 0;
     g_pairs = next;
     g_active = -1;   // a pair being edited is let go; the left grip takes it again
-    LOGI("%s pairs: pairs.json read: %d pair(s), shown: %d", TAG, (int)g_pairs.size(), g_show);
+    LOGI("%s pairs: pairs.json read: %d pair(s)", TAG, (int)g_pairs.size());
 }
 
 int gun_now() { return (int)(bridge::view(bridge::S_WEAPON_NUM) + 0.5f); }
@@ -206,12 +203,21 @@ void frame() {
     }
     bridge::put(bridge::S_LEFT_SPOT, spot);
 
-    // the pair picked in the Grab Zones window, drawn on the gun: the activation sphere and the landing dot
-    const Pair* shown = nullptr;
-    for (const auto& p : g_pairs) if (p.n == g_show && for_gun(p, gun)) { shown = &p; break; }
-    if (!ok || shown == nullptr) { hide(); return; }
-    put5(bridge::S_PAIR_ACT, world(shown->a), shown->r, 1.0f);
-    put5(bridge::S_PAIR_LAND, world(shown->l), PAIR_LAND_DOT_M, 1.0f);
+    // 2026-10-30 (Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it"): the gun's
+    // pair whose activation sphere the left hand is nearest (measured in its own radii) is handed to the zones script, which
+    // shows it only while the hand is inside its edge. The landing spot is no longer drawn.
+    const Pair* nearest = nullptr;
+    Vec3 lp;
+    if (ok && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) {
+        float best = 0.0f;
+        for (const auto& p : g_pairs) {
+            if (!for_gun(p, gun)) continue;
+            const float k = dist(world(p.a), lp) / p.r;
+            if (nearest == nullptr || k < best) { nearest = &p; best = k; }
+        }
+    }
+    if (nearest == nullptr) { hide(); return; }
+    put5(bridge::S_PAIR_ACT, world(nearest->a), nearest->r, 1.0f);
 }
 
 bool active() { return g_active >= 0 || g_dock >= 0; }

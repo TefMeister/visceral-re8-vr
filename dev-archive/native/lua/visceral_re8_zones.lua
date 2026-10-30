@@ -1,148 +1,86 @@
--- visceral_re8_zones.lua -- the grip zones, seen and set from the menu (2026-10-25, Tefa: "is there any way I can visibly set
--- them, how big they are, where they are on the gun ... a helper program that translates numbers into actual sliders and
--- movable areas that ride the gun all the time").
+-- visceral_re8_zones.lua -- the grip zones: the sphere that shows one as the left hand nears it, and the zone sliders in the
+-- REFramework menu (2026-10-25, Tefa: "is there any way I can visibly set them, how big they are, where they are on the gun").
 --
--- The plugin (src/zones.cpp) tells this file, every frame, where each zone is RIGHT NOW in the world and how big it is
--- (bridge slots 116-135): the magazine grab, the well (where the magazine goes in), the slide / pump / bolt, and the point the
--- hand is measured from. This file draws a ball at each one (a game mesh scaled to the zone's size, riding the gun), and shows
--- sliders in the REFramework menu ("Visceral RE8 grip zones") that move and resize them. The sliders write
--- reframework/data/visceral_re8/zones.json; the plugin re-reads it at once, so the ball and the real test move together.
+-- The plugin (src/zones.cpp, src/pairs.cpp) tells this file, every frame, where each zone is RIGHT NOW in the world and how
+-- big it is (bridge slots 116-135, 142-146, 154-173): the magazine grab, the well, the slide / pump / bolt, the point the hand is
+-- measured from, the front grip, the hand pair nearest the left hand, the grip handle, the drum, the insert point, the slide's
+-- left side. The sliders in the menu ("Visceral RE8 grip zones") write reframework/data/visceral_re8/zones.json; the plugin
+-- re-reads it at once.
 --
--- zones.json: { "default": { "mag": {x,y,z,r}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...} },
---               "3042": { ... the same, for one gun (its number) ... }, "_visual": { "half_m": 0.05 } }
+-- THE SPHERE (2026-10-30, Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it, 10 %
+-- opaciti at first and then 80 % opacity when the left hand is as close as it can be? then it only needs to be one type of a
+-- sphere, is not confusing and i can see the size of the activation area when i move my hand to it. that white/orange sphere
+-- would do nicely for that"): only the activation zones (where the left grip starts something) are drawn, each only while the
+-- left hand is inside its edge: see-through NEAR_ALPHA_EDGE at the edge, NEAR_ALPHA_CLOSE at the centre. One look for all of
+-- them: Village's balloon in its own material (the one sphere seen at its true size on 2026-10-30). Nothing shows while the
+-- left hand holds something. The old kinds are gone: the test ball and the gun copies, the landing dot, the dotted line, the
+-- well's own shape, the show switch and the size fix. [hypothesis] until seen in the headset.
+--
+-- zones.json: { "default": { "mag": {x,y,z,r}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...}, ... },
+--               "3042": { ... the same, for one gun (its number) ... }, "_visual": { "near": false = never draw the spheres } }
 -- x, y, z: metres from the zone's own joint, in the gun's axes; r: the radius in metres. A missing number keeps the plugin's own.
--- "_visual": { "half_m": the ball model's half size, "show": true = draw the balls }.
 --
--- The same numbers can be set from outside the game with the Grip Zones window (zones-app/, a desktop window Window View can
--- hang in the headset, Tefa 2026-10-25: "a separate thing just like you did with the hand poser"). For it this file writes
--- visceral_re8/zones_state.json four times a second (the gun in hand, each zone's size and how far the hand is from it), and
--- re-reads zones.json twice a second, so a save from the window shows here at once.
+-- The same numbers can be set from outside the game with the Grip Zones window (github.com/TefMeister/grip-zones-vr, a desktop
+-- window Window View can hang in the headset). For it this file writes visceral_re8/zones_state.json four times a second (the
+-- gun in hand, each zone's size and how far the hand is from it), and re-reads zones.json twice a second.
 
 local TAG = "[visceral-re8-zones]"
 local FILE = "visceral_re8/zones.json"
 local STATE_FILE = "visceral_re8/zones_state.json"
 local STATE_EVERY_S, RELOAD_EVERY_S, EDIT_QUIET_S = 0.25, 0.5, 0.6
-local S_WEAPON_NUM, S_ZONE_SHOW, S_ZONE_SEQ, S_ZONES = 97, 114, 115, 116
+local S_WEAPON_NUM, S_ZONE_SEQ, S_ZONES, S_LEFT_SPOT = 97, 115, 116, 153
+local S_ZONES2 = 154   -- written by the plugin: handle, drum, insert, slide-left {x, y, z, r, on} each
+local S_PAIR_ACT = 142 -- written by the plugin: the gun's hand pair nearest the left hand, its activation sphere {x, y, z, r, on}
+local HAND_I = 3
+-- act = an activation zone (the left grip pressed inside it starts something): the only kind drawn
 local ZONES = {
-    { i = 0, key = "mag",  label = "Grab the magazine (left grip on it)" },
+    { i = 0, key = "mag",  act = true, label = "Grab the magazine (left grip on it)" },
     { i = 1, key = "well", label = "The well: where a magazine goes in" },
-    { i = 2, key = "part", label = "The slide / pump / bolt (left grip on it)" },
+    { i = 2, key = "part", act = true, label = "The slide / pump / bolt (left grip on it)" },
     { i = 3, key = "hand", label = "The point the hand is measured from" },
-    { i = 4, key = "grip", label = "The front grip: this gun's kept grip spot (left grip in it takes the gun two-handed)" },
-    -- the hand pair picked in the Grip Zones window (src/pairs.h, 2026-10-25): the big sphere = where the left grip activates it,
-    -- the small dot = where the hand lands, and a dotted line from one to the other. Not in this menu (the window edits them)
-    { i = 5, key = "pair-act", pair = true },
-    { i = 6, key = "pair-land", pair = true },
-    { i = 7, key = "pair-dot", pair = true }, { i = 8, key = "pair-dot", pair = true },
-    { i = 9, key = "pair-dot", pair = true }, { i = 10, key = "pair-dot", pair = true },
-    -- 2026-10-27 (Tefa: the parts every gun needs to tweak): a handgun's grip handle, a revolver's drum, the GM 79's insert point
-    -- (src/zones.h HANDLE / DRUM / INSERT, drawn from slots S_ZONES2; only the parts the gun in hand has are switched on)
-    { i = 20, key = "handle", label = "The grip handle (handguns: left grip cups it)" },
-    { i = 21, key = "drum",   label = "The drum (revolvers: left grip opens it, LT loads a round, LT when full closes it)" },
-    { i = 22, key = "insert", label = "The insert point (GM 79: a grenade goes in here; left grip + LT takes one out)" },
-    -- 2026-10-28: a pistol slide's LEFT-side sphere (src/zones.h SLIDE_LEFT, slots 169-173 = S_ZONES2 + 15)
-    { i = 23, key = "slide-left", label = "The slide from the left side (pistols: left grip in it takes the slide with the left-side hold)" },
+    { i = 4, key = "grip", act = true, label = "The front grip: this gun's kept grip spot (left grip in it takes the gun two-handed)" },
+    { i = 5, key = "pair", act = true, pair = true },   -- the hand pair nearest the left hand (the Grip Zones window edits pairs)
+    { i = 20, key = "handle", act = true, label = "The grip handle (handguns: left grip cups it)" },
+    { i = 21, key = "drum",   act = true, label = "The drum (revolvers: left grip opens it, LT loads a round, LT when full closes it)" },
+    { i = 22, key = "insert", act = true, label = "The insert point (GM 79: a grenade goes in here; left grip + LT takes one out)" },
+    { i = 23, key = "slide-left", act = true, label = "The slide from the left side (pistols: left grip in it takes the slide with the left-side hold)" },
 }
-local S_ZONES2 = 154   -- written by the plugin: handle, drum, insert {x, y, z, r, on} each (2026-10-27)
-local S_PAIR_ACT, S_PAIR_LAND = 142, 147   -- written by the plugin: {x, y, z, r, on} each
-local PAIR_DOTS, PAIR_DOT_R = 4, 0.008     -- the dotted line: this many beads, this big (m)
--- 23:20 (Tefa: "the start sphere did not grow or shrink with size change ... when i did move one the other sphere moved with it
--- as well, just a different amount and i could not see the dotted line"): the log had every size right (start r 0.14,
--- scale 1.34; dots scale 0.075), so the drawn spheres do not follow their scale; the beads then drew as big as the ends and
--- looked like a second sphere sliding. Off until the drawn size follows the number
--- (2026-10-29: it does now; the measured model size was 3.5x too big, so every sphere drew 3.5x too small, the 8 mm beads at 2 mm)
-local PAIR_DOTS_SHOWN = false   -- back on 2026-10-29: the size fault was the model measure (above), not the drawing
--- 2026-10-30 (Tefa: "please remove the dotted line"): off again, and the beads are no longer made at all
-local calib_frames = 0   -- frames spent asking the sphere model for its box (2026-10-29)
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
--- the sphere: a primitive sphere that ships with Village (its file list, RE8_STM_Release.list), the first that really loads.
--- 2026-10-25 first wear: "i can't actually see any points on the gun": the first version asked for our own sphere mesh, which
--- was never made; create_resource still handed back an object, setMesh threw inside the game, and every sphere was empty.
--- Now a mesh only counts once getMesh gives it back. Its material comes from Village's shared effect materials
--- (vfx/mesh/mesh_common_mtr, made for these primitive shapes); which one shows is not known yet, so "SPHERE LOOK" cycles them.
--- 12:15 (third wear, Tefa: "i went through all the sphere designs and nothing showed"): the log had every sphere SHOWN at the
--- gun, at the right size (half 0.566 m measured), so they existed but drew nothing: an RE Engine mesh only draws with a material
--- whose names match its own slots, and the shared effect materials did not. Village ships a development "test ball" WITH its
--- own material (environment/props/resource/sm0x/sm00_111_testball), so that is the sphere now, in its own material ("its
--- own" look, the first); two balloons with their own materials are the fall-backs; the bare primitives come last.
--- 13:50 (fifth wear, the test ball switched on fully, still nothing): Andyalpa's holster visuals, which DO draw, copy the held
--- weapon's own mesh and material holders, already loaded by the game; every mesh loaded fresh from a path has drawn nothing in
--- five tries. So first choice is now "GUN": each zone is a small copy of the gun in hand, in its own material. It is made only
--- once a gun is in hand. If even that draws nothing, the fault is not the mesh.
--- 14:23 (Tefa: "yessss!!! guns everywhere"): the gun copies SHOWED once the spheres were made in the update step, so the
--- mesh was never the fault. The round test ball is first again; zones.json "_visual": { "shape": "gun" } brings the guns back.
-local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh", "GUN",
-                 "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
-                 "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh",
-                 "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh", "vfx/mesh/mesh_primitive/sphere.mesh" }
--- 2026-10-30 (Tefa: "can you make the well different ... not a gun though, something round again"): the well is the one zone
--- where LG does nothing (the magazine is brought to it), so it gets its own shape: one of Village's balloons, in the
--- balloon's own material (its .mdf2), so it differs from the LG spheres in shape AND colour. If neither balloon loads in
--- MESH_WAIT_S, the well falls back to the usual ball and the log says so. [hypothesis] until seen in the headset
-local WELL_I = 1
-local WELL_MESHES = { "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
-                      "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh" }
-local last_well_t, well_logged = -10, false
--- 2026-10-25 (Tefa: "can you just have the one look and not be able to choose anything else?"): the spheres always wear the
--- "axis" material, the one seen drawing; the look buttons (here and in the Grip Zones window) are gone
-local MATS = { "systems/effect/vfx_default_axis.mdf2" }
-local MAT_NAMES = { "axis" }
--- 2026-10-25 22:06 (Tefa: "when i clicked on the next one, no solid shape it was i think, the game crashed"): "no material"
--- is gone from the cycle. Picking it threw every sphere away and made them again, and the remake's setMesh threw inside the
--- game five times (the log, 22:06:26) and then the game crashed (re8.exe+0x415879c). Kept log and dump: D:/RE Village
--- REFramework builds/logs/*2026-10-25-2206*. A saved look past the end falls back to the first (mat_index).
+
+-- the fade, as Tefa asked: from the edge (the hand just inside, NEAR_EDGE radii from the centre) to the centre
+local NEAR_EDGE = 1.0
+local NEAR_ALPHA_EDGE, NEAR_ALPHA_CLOSE = 0.10, 0.80
+local ALPHA_STEP = 0.02         -- a change smaller than this is not written to the material again
+local MATERIAL_RETRY_S = 1.0    -- a sphere whose material is not in yet is asked again this often
+local HOLD_SPOT_MAX = 2000      -- slot 153 below this (and above 0): the left hand holds something (pairs.cpp), so no sphere shows
+
+-- the sphere: Village's balloon (its file list), in its own material (.mdf2); the second balloon if the first will not load.
+-- ⚠️ set_Material is called ONCE per sphere: a second call on the same balloon crashed the game (2026-10-30 20:20, a probe
+-- at the title screen; kept dump D:/RE Village REFramework builds/logs/reframework_crash-2026-10-30-2020.dmp)
+local MESHES = { "_ge/environment/props/resource/sm5x/sm59_162_balloon/sm59_162_balloon_00.mesh",
+                 "_ge/environment/props/resource/sm5x/sm59_169_balloon/sm59_169_balloon_00.mesh" }
+local MESH_WAIT_S = 10.0        -- a model is waited for this long (it loads in the background) before the next is tried
+local MEASURE_FRAMES = 180      -- frames to wait for the model's own box before taking UNMEASURED_HALF_M
+local UNMEASURED_HALF_M = 1.158 -- the first balloon's half size by its own box [measured 2026-10-30, n=1]
+local RESPAWN_EVERY_S = 1.0
+
+-- which material variable carries the see-through: the first float whose name says so; failing that, the alpha of the
+-- colour variables. Every variable's name and type is logged once, so the next session knows them.
+local ALPHA_NAME = { "alpha", "opac", "transp", "fade", "dissolve" }
+local COLOUR_NAME = "col"
+
 local cfg = nil
 local seq = 0
 local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
-local balls = {}          -- i -> { go, xform, on }
-local mesh_holders, mesh_failed = {}, {}  -- path -> its holder; paths that failed once (never retried)
--- 14:40 (Tefa: "handguns were showing instead of spheres"): on a fresh game start the ball's model was not loaded yet the first
--- time it was asked for (create_resource starts the loading; the mesh only comes back once it is in), so it counted as "did
--- not load" and the gun copy (the pistol in hand) stood in. A mesh is now waited for, MESH_WAIT_S, before the next one is tried
-local MESH_WAIT_S = 10.0
-local mesh_first_try = {}                -- path -> when it was first asked for
-local mesh_used, mesh_half = nil, nil     -- the sphere mesh that loaded, and its measured half size (m)
-local mat_res, mat_applied = {}, {}      -- material index -> resource; ball index -> the material it wears
--- 2026-10-29 (Tefa: "solid white for the grip point and solid orange for the land point"): every sphere is tinted once its
--- material is in: the land point (pair-land, i 6) orange, every other sphere (the grip points) white, both fully solid.
--- The axis material's colour variables are not known by name, so every Float4 variable whose name says colour is set,
--- and the names are logged once, so the next session knows them. [hypothesis] until seen in the headset.
-local TINT_LAND, TINT_GRIP = { 1.0, 0.5, 0.0, 1.0 }, { 1.0, 1.0, 1.0, 1.0 }
-local tinted, tint_logged = {}, false     -- ball index -> true once its colour is set
-local function tint(i, ball)
-    if ball.gun_copy or ball.own_shape or tinted[i] then return end   -- the well keeps its balloon colours
-    local comp = ball.comp
-    local n = 0
-    pcall(function() n = comp:call("getMaterialNum") end)
-    if not n or n == 0 then return end                       -- the material is still loading
-    local c = (i == 6) and TINT_LAND or TINT_GRIP
-    local names, set = {}, 0
-    for m = 0, n - 1 do
-        local vn = 0
-        pcall(function() vn = comp:call("getMaterialVariableNum", m) end)
-        for v = 0, (vn or 1) - 1 do
-            local name = nil
-            pcall(function() name = comp:call("getMaterialVariableName", m, v) end)
-            if name then
-                names[#names + 1] = name
-                if name:lower():find("col") then          -- BaseColor, EmissiveColor, Color, Colour ...
-                    local ok = pcall(function() comp:call("setMaterialFloat4", m, v, Vector4f.new(c[1], c[2], c[3], c[4])) end)
-                    if ok then set = set + 1 end
-                end
-            end
-        end
-    end
-    tinted[i] = true
-    if not tint_logged then
-        tint_logged = true
-        log.info(TAG .. " sphere material variables (" .. n .. " material(s)): " .. table.concat(names, ", ") .. "; colour variables set: " .. set)
-    end
-end
-local spawn_tried = false
+local balls = {}          -- i -> { go, comp, xform, on, half, centre, alpha }
+local mesh_holders, mesh_failed, mesh_first_try = {}, {}, {}
+local mat_res = {}        -- material path -> its holder (false = would not load)
+local mesh_used = nil
+local vars_logged = false
+local spawn_tried, swept = false, false
 local last_respawn_t, last_where_t = -10, -10
-local UNMEASURED_HALF_M = 0.03  -- if the model will not say: the test ball's half size, 0.030 m by its box, 0.033 by a ruler [measured 2026-10-29]
 local status = "not drawn yet"
 
 local function bridge() local b = rawget(_G, "visceral_re8_bridge"); if b ~= nil and b.ready() then return b end; return nil end
@@ -152,7 +90,7 @@ local function load()
     if type(cfg) ~= "table" then cfg = {} end
     if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = {} end
 end
-local function show_on() return cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].show == true end
+local function near_on() return not (cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].near == false) end
 local function save()
     last_edit_t = os.clock()
     pcall(function() json.dump_file(FILE, cfg) end)
@@ -160,18 +98,18 @@ local function save()
     local b = bridge()
     if b then b.w(S_ZONE_SEQ, seq) end
 end
+local function set_near(v)
+    if not cfg then return end
+    if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = {} end
+    cfg["_visual"].near = v == true
+    save()
+end
 
--- 2026-10-29: the settings that matter, handed to the Visceral options window (visceral_re8_emporium.lua)
+-- the one setting that matters, handed to the Visceral options window (visceral_re8_emporium.lua)
 _G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
-table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 30, kind = "check", label = "Show the grip zones on the gun",
-    help = "The spheres that show where the left hand takes hold.",
-    get = function() return show_on() end,
-    set = function(v)
-        if not cfg then return end
-        if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = {} end
-        cfg["_visual"].show = v == true
-        save()
-    end })
+table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 30, kind = "check", label = "Show the grip spheres as the hand nears them",
+    help = "A sphere shows where the left hand takes hold, fading in as the hand goes inside it.",
+    get = function() return near_on() end, set = set_near })
 
 load()
 
@@ -189,20 +127,13 @@ local function zone_key(z, b)
     return PART_NAMES[math.floor((on or 0) + 0.5)] or "slide"
 end
 local function raw5(b, s) return b.r(s), b.r(s + 1), b.r(s + 2), b.r(s + 3), b.r(s + 4) end
-local function live(b, i)   -- x, y, z, r, on of zone i from the plugin (5 and up: the shown hand pair)
+local function live(b, i)   -- x, y, z, r, on of zone i from the plugin
     if i < 5 then return raw5(b, S_ZONES + i * 5) end
     if i >= 20 then return raw5(b, S_ZONES2 + (i - 20) * 5) end
-    if i == 5 then return raw5(b, S_PAIR_ACT) end
-    if i == 6 then return raw5(b, S_PAIR_LAND) end
-    if not PAIR_DOTS_SHOWN then return nil, nil, nil, 0, 0 end
-    local ax, ay, az, _, aon = raw5(b, S_PAIR_ACT)
-    local lx, ly, lz, _, lon = raw5(b, S_PAIR_LAND)
-    if not (ax and lx and aon and lon) then return nil, nil, nil, 0, 0 end
-    local t = (i - 6) / (PAIR_DOTS + 1)
-    return ax + (lx - ax) * t, ay + (ly - ay) * t, az + (lz - az) * t, PAIR_DOT_R, math.min(aon, lon)
+    return raw5(b, S_PAIR_ACT)
 end
 
--- ---- the balls --------------------------------------------------------------------------------------------------------------
+-- ---- the spheres ------------------------------------------------------------------------------------------------------------
 local function alive(o)
     if not o then return false end
     local ok, v = pcall(function() return sdk.is_valid_obj and sdk.is_valid_obj(o) end)
@@ -210,9 +141,8 @@ local function alive(o)
     local ok2, addr = pcall(function() return o:get_address() end)
     return ok2 and addr ~= nil and addr ~= 0
 end
--- a resource wrapped in the holder the game's setters take. 11:39 (second try): setMesh was handed the bare resource and the
--- game read garbage inside setMesh (access violation, caught by REFramework, 30 times); Mesh.setMesh / set_Material take a
--- via.render.MeshResourceHolder / MeshMaterialResourceHolder (REFramework: resource:create_holder)
+-- a resource wrapped in the holder the game's setters take (Mesh.setMesh / set_Material take holders, not bare resources:
+-- a bare one made the game read garbage inside setMesh, 2026-10-25)
 local function holder(path, kind, holder_type)
     local h = nil
     pcall(function()
@@ -222,12 +152,16 @@ local function holder(path, kind, holder_type)
     end)
     return h
 end
-local function find_folder()
+local function current_scene()
     local scene = nil
     pcall(function()
         local sm = sdk.get_native_singleton("via.SceneManager")
         if sm then scene = sdk.call_native_func(sm, sdk.find_type_definition("via.SceneManager"), "get_CurrentScene") end
     end)
+    return scene
+end
+local function find_folder()
+    local scene = current_scene()
     if not scene then return nil end
     for _, name in ipairs({ "ModdedTemporaryObjects", "Debug", "Master" }) do
         local f = nil
@@ -236,52 +170,93 @@ local function find_folder()
     end
     return nil
 end
-local function mat_index() return 0 end   -- one look only (2026-10-25)
-local function apply_mat(i, ball)
-    if ball.gun_copy then return end
-    if ball.own_shape and not ball.own_mat_tried then   -- the well: the balloon's own material, tried once per ball
-        ball.own_mat_tried = true
-        local p = ball.mesh:gsub("%.mesh$", ".mdf2")
-        if mat_res[p] == nil then mat_res[p] = holder(p, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
-        ball.own_mat = mat_res[p] and pcall(function() ball.comp:call("set_Material", mat_res[p]) end) or false
-        log.info(TAG .. " the well's balloon: " .. (ball.own_mat and "its own material on" or "its own material would not load, it wears the axis look"))
-    end
-    if ball.own_mat then return end
-    local m = mat_index()
-    if mat_applied[i] == m then return end
-    mat_applied[i] = m
-    local path = MATS[m + 1]
-    if path == "" then return end      -- "no material": the mesh's own (none) stays; respawning clears a set one
-    if path == "OWN" then path = (mesh_used or ""):gsub("%.mesh$", ".mdf2") end   -- the material made for this very mesh
-    if mat_res[m] == nil then mat_res[m] = holder(path, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
-    if mat_res[m] then pcall(function() ball.comp:call("set_Material", mat_res[m]) end) end
-end
--- the mesh's half size, from its own bounding box, so a sphere is drawn exactly as big as its zone
+-- the model's half size and the centre of its box (a balloon's origin need not be its middle), from its own bounding box
 local function measure(comp)
-    local half = nil
+    local half, centre = nil, nil
     pcall(function()
         comp:call("updateBoundingBox")
         local la = comp:call("get_ModelLocalAABB")
         if la then
             local mn, mx = la:get_field("minpos"), la:get_field("maxpos")
-            if mn and mx then half = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2 end
+            if mn and mx then
+                half = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2
+                centre = { (mn.x + mx.x) / 2, (mn.y + mx.y) / 2, (mn.z + mx.z) / 2 }
+            end
         end
     end)
-    if half and half > 0.0005 and half < 100 then return half end
-    return nil
+    if half and half > 0.0005 and half < 100 then return half, centre end
+    return nil, nil
 end
--- the held weapon's own via.render.Mesh component (the holster visuals' H.get_weapon_mesh_component, in short)
-local function weapon_mesh()
-    local w = rawget(_G, "re8vr"); w = w and w.weapon or nil
-    if not w then return nil end
-    local mesh = nil
-    pcall(function() mesh = w:get_field("Mesh") end)
-    if mesh then return mesh end
-    local go = nil
-    pcall(function() go = w:call("get_GameObject") end)
-    if not go then return nil end
-    pcall(function() mesh = go:call("getComponent(System.Type)", sdk.find_type_definition("via.render.Mesh"):get_runtime_type()) end)
-    return mesh
+-- every material variable's name and type, once, so the next session knows which one carries the see-through
+local function log_vars(comp)
+    if vars_logged then return end
+    local n = 0
+    pcall(function() n = comp:call("get_MaterialNum") end)
+    if not n or n == 0 then return end
+    vars_logged = true
+    for m = 0, n - 1 do
+        local vn, mname, parts = 0, "?", {}
+        pcall(function() mname = comp:call("getMaterialName", m) end)
+        pcall(function() vn = comp:call("getMaterialVariableNum", m) end)
+        for v = 0, (vn or 1) - 1 do
+            local name, ty = "?", "?"
+            pcall(function() name = comp:call("getMaterialVariableName", m, v) end)
+            pcall(function() ty = tostring(comp:call("getMaterialVariableType", m, v)) end)
+            parts[#parts + 1] = tostring(name) .. ":" .. ty
+        end
+        log.info(TAG .. " sphere material " .. m .. " (" .. tostring(mname) .. "): " .. table.concat(parts, ", "))
+    end
+end
+-- where the see-through goes on this sphere: { m, v, kind = "float" | "colour" } entries, found once per sphere; nil while
+-- the material is not in yet (on 2026-10-30 a balloon made at the title screen still had none after 60 frames)
+local function find_alpha(comp)
+    local float_hits, colour_hits = {}, {}
+    local n = 0
+    pcall(function() n = comp:call("get_MaterialNum") end)
+    if not n or n == 0 then return nil end
+    log_vars(comp)
+    for m = 0, (n or 0) - 1 do
+        local vn = 0
+        pcall(function() vn = comp:call("getMaterialVariableNum", m) end)
+        for v = 0, (vn or 1) - 1 do
+            local name = nil
+            pcall(function() name = comp:call("getMaterialVariableName", m, v) end)
+            local low = name and name:lower() or ""
+            local is_alpha = false
+            for _, w in ipairs(ALPHA_NAME) do if low:find(w, 1, true) then is_alpha = true end end
+            if is_alpha then
+                local ok = pcall(function() comp:call("getMaterialFloat", m, v) end)
+                if ok then float_hits[#float_hits + 1] = { m = m, v = v, kind = "float", name = name } end
+            elseif low:find(COLOUR_NAME, 1, true) then
+                local c = nil
+                pcall(function() c = comp:call("getMaterialFloat4", m, v) end)
+                if c then colour_hits[#colour_hits + 1] = { m = m, v = v, kind = "colour", name = name, base = c } end
+            end
+        end
+    end
+    return #float_hits > 0 and float_hits or colour_hits
+end
+local function set_alpha(ball, a, now)
+    if ball.alpha ~= nil and math.abs(ball.alpha - a) < ALPHA_STEP then return end
+    if ball.alpha_at == nil then
+        if now - (ball.alpha_try_t or -10) < MATERIAL_RETRY_S then return end
+        ball.alpha_try_t = now
+        ball.alpha_at = find_alpha(ball.comp)
+        if ball.alpha_at == nil then return end   -- the material is not in yet: asked again in a moment
+        local names = {}
+        for _, h in ipairs(ball.alpha_at) do names[#names + 1] = h.name .. " (" .. h.kind .. ")" end
+        log.info(TAG .. " the see-through goes on: " .. (#names > 0 and table.concat(names, ", ") or "nothing found (the sphere shows solid)"))
+    end
+    ball.alpha = a
+    for _, h in ipairs(ball.alpha_at) do
+        pcall(function()
+            if h.kind == "float" then ball.comp:call("setMaterialFloat", h.m, h.v, a)
+            else
+                local c = h.base
+                ball.comp:call("setMaterialFloat4", h.m, h.v, Vector4f.new(c.x, c.y, c.z, a))
+            end
+        end)
+    end
 end
 local function spawn(i)
     local td = sdk.find_type_definition("via.GameObject")
@@ -296,38 +271,18 @@ local function spawn(i)
     if not go then status = "GameObject.create failed"; return nil end
     pcall(function() go = go:add_ref() end)
     pcall(function() go:call(".ctor") end)   -- as the holster visuals do
-    local mesh_td = sdk.find_type_definition("via.render.Mesh")
     local comp = nil
     pcall(function()
-        comp = go:call("createComponent(System.Type)", mesh_td:get_runtime_type())
+        comp = go:call("createComponent(System.Type)", sdk.find_type_definition("via.render.Mesh"):get_runtime_type())
         if comp then comp = comp:add_ref(); comp:call(".ctor()") end
     end)
     if not comp then status = "no mesh component"; pcall(function() go:call("destroy", go) end); return nil end
-    local own = false
-    if i == WELL_I then for _, wp in ipairs(WELL_MESHES) do if not mesh_failed[wp] then own = true end end end
-    local tries = own and WELL_MESHES or (mesh_used and { mesh_used } or MESHES)
-    if not own and not mesh_used and cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].shape == "gun" then tries = { "GUN" } end
-    local got, gun_copy, waiting = nil, false, nil
-    for _, path in ipairs(tries) do
-        if path == "GUN" then
-            local wm = weapon_mesh()
-            local h, m = nil, nil
-            if wm then pcall(function() h = wm:call("getMesh") end); pcall(function() m = wm:call("get_Material") end) end
-            if h then
-                pcall(function() comp:call("setMesh", h) end)
-                if m then pcall(function() comp:call("set_Material", m) end) end
-                local back = nil
-                pcall(function() back = comp:call("getMesh") end)
-                if back ~= nil then got = path; gun_copy = true; break end
-            end
-            if i == 0 then log.info(TAG .. " sphere from the gun in hand: " .. (wm and (h and "setMesh gave nothing back" or "no mesh holder on the weapon") or "no weapon mesh") .. ", trying the sphere files") end
-        elseif not mesh_failed[path] then
-            -- 14:32 (Tefa changed the look, the spheres were made again and none came back: "sphere mesh ...testball...: did
-            -- not load", then nothing): the holder kept from the first making had gone stale. The kept one is tried, then a
-            -- fresh one, and a mesh that ever loaded is never written off
+    local got, waiting = nil, false
+    for _, path in ipairs(mesh_used and { mesh_used } or MESHES) do
+        if not mesh_failed[path] then
+            -- the kept holder is tried, then a fresh one (a kept one went stale once, 2026-10-25)
             local fresh = holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder")
-            local tries_h = { mesh_holders[path], fresh }
-            for _, h in ipairs(tries_h) do
+            for _, h in ipairs({ mesh_holders[path], fresh }) do
                 if h and not got then
                     pcall(function() comp:call("setMesh", h) end)
                     local back = nil
@@ -338,23 +293,22 @@ local function spawn(i)
             if got then break end
             if not mesh_holders[path] then mesh_holders[path] = fresh end   -- kept, so the loading goes on
             mesh_first_try[path] = mesh_first_try[path] or os.clock()
-            if os.clock() - mesh_first_try[path] < MESH_WAIT_S then waiting = path; break end   -- still loading: ask again in a second
-            if path ~= mesh_used then mesh_failed[path] = true end   -- never asked again: a failed setMesh is an error inside the game
-            log.info(TAG .. " sphere mesh " .. path .. ": did not load in " .. MESH_WAIT_S .. " s")
+            if os.clock() - mesh_first_try[path] < MESH_WAIT_S then waiting = true; break end   -- still loading
+            mesh_failed[path] = true   -- never asked again: a failed setMesh is an error inside the game
+            log.info(TAG .. " sphere model " .. path .. ": did not load in " .. MESH_WAIT_S .. " s")
         end
     end
-    if not got and waiting then status = "the sphere model is still loading"; pcall(function() go:call("destroy", go) end); return nil end
-    if not got and own then pcall(function() go:call("destroy", go) end); log.info(TAG .. " no balloon would load: the well is drawn as the usual ball"); return nil end
-    if not got then status = "no sphere mesh would load (see the log)"; pcall(function() go:call("destroy", go) end); mesh_used = nil; return nil end
-    if own and not well_logged then well_logged = true; log.info(TAG .. " the well is drawn as " .. got) end
-    if not mesh_used and not own then
-        mesh_used = got
-        mesh_half = measure(comp)
-        log.info(TAG .. " sphere mesh: " .. got .. ", half size " .. tostring(mesh_half))
+    if not got then
+        status = waiting and "the sphere model is still loading" or "no sphere model would load (see the log)"
+        pcall(function() go:call("destroy", go) end)
+        return nil
     end
-    -- 13:12 (fourth wear: SHOWN at the gun, the right size, every look, still nothing seen): a Mesh component made from
-    -- script draws only once it is enabled, set to draw by default, and sent to every render output; Andyalpa's holster
-    -- visuals (re8_vr_holster_visuals.lua clear_mesh_depth_ignore, set_output_all) switch all three on, this never did
+    if not mesh_used then mesh_used = got; log.info(TAG .. " the sphere: " .. got) end
+    local mp = got:gsub("%.mesh$", ".mdf2")
+    if mat_res[mp] == nil then mat_res[mp] = holder(mp, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
+    if mat_res[mp] then pcall(function() comp:call("set_Material", mat_res[mp]) end) end
+    -- a mesh made from script draws only once enabled, set to draw by default and sent to every render output
+    -- (Andyalpa's holster visuals, re8_vr_holster_visuals.lua)
     pcall(function() comp:call("set_Enabled", true) end)
     pcall(function() comp:call("set_DrawDefault", true) end)
     pcall(function()
@@ -363,23 +317,13 @@ local function spawn(i)
         comp:call("set_RenderOutputID", f and f:get_data(nil) or 31)
     end)
     pcall(function() comp:call("set_IgnoreDepth", false) end)
+    pcall(function() comp:call("set_DrawShadowCast", false) end)
     pcall(function() go:call("set_DrawSelf", true) end)
     pcall(function() go:call("set_UpdateSelf", true) end)
-    if i == 0 then
-        local e, dd, out, ds, act = "?", "?", "?", "?", "?"
-        pcall(function() e = tostring(comp:call("get_Enabled")) end)
-        pcall(function() dd = tostring(comp:call("get_DrawDefault")) end)
-        pcall(function() out = tostring(comp:call("get_RenderOutputID")) end)
-        pcall(function() ds = tostring(go:call("get_DrawSelf")) end)
-        pcall(function() act = tostring(go:call("get_Active")) end)
-        log.info(TAG .. " sphere 0 made: mesh enabled " .. e .. ", draw default " .. dd .. ", render output " .. out .. ", object draws " .. ds .. ", active " .. act)
-    end
     local xform = nil
     pcall(function() xform = go:call("get_Transform") end)
-    status = "drawn: " .. got:match("[^/]+$") .. ", look: " .. MAT_NAMES[mat_index() + 1]
-    local ball = { go = go, comp = comp, xform = xform, on = false, gun_copy = gun_copy, own_shape = own or nil, mesh = got }
-    if not gun_copy then apply_mat(i, ball) end   -- a gun copy wears the gun's own material
-    return ball
+    status = "drawn: " .. got:match("[^/]+$")
+    return { go = go, comp = comp, xform = xform, on = false }
 end
 local function set_on(ball, on)
     if ball.on == on or not alive(ball.go) then return end
@@ -389,33 +333,26 @@ local function set_on(ball, on)
     if on and ball.comp then pcall(function() ball.comp:call("set_Enabled", true) end); pcall(function() ball.comp:call("set_DrawDefault", true) end) end
 end
 local function destroy_all()
-    tinted = {}
     for i, ball in pairs(balls) do
         if alive(ball.go) then
             pcall(function() ball.go:call("setActive", false) end)
             pcall(function() ball.go:call("destroy", ball.go) end)
         end
         balls[i] = nil
-        mat_applied[i] = nil
     end
     spawn_tried = false
 end
 
--- 14:26 (Tefa, a screenshot: copies of the rifle and spheres hanging in the air where the gun had been): "Reset scripts" throws
--- this script's memory away but not the objects it made, so every reset left its spheres behind, frozen. They are destroyed
--- at a reset now, and any left by an older run (same names) are found and destroyed before the first making
+-- "Reset scripts" throws this script's memory away but not the objects it made (2026-10-25, Tefa: spheres left hanging in the
+-- air): they are destroyed at a reset, and any left by an older run (same names, any zone number used before) before the first
 local function sweep_leftovers()
-    local scene = nil
-    pcall(function()
-        local sm = sdk.get_native_singleton("via.SceneManager")
-        if sm then scene = sdk.call_native_func(sm, sdk.find_type_definition("via.SceneManager"), "get_CurrentScene") end
-    end)
+    local scene = current_scene()
     if not scene then return end
     local n = 0
-    for _, z in ipairs(ZONES) do
+    for i = 0, 23 do
         for _ = 1, 20 do   -- several resets: several with one name
             local go = nil
-            pcall(function() go = scene:call("findGameObject(System.String)", "visceral_re8_zone_" .. z.i) end)
+            pcall(function() go = scene:call("findGameObject(System.String)", "visceral_re8_zone_" .. i) end)
             if not go then break end
             pcall(function() go:call("setActive", false) end)
             pcall(function() go:call("destroy", go) end)
@@ -424,7 +361,6 @@ local function sweep_leftovers()
     end
     if n > 0 then log.info(TAG .. " " .. n .. " sphere(s) left by an earlier run destroyed") end
 end
-local swept = false
 re.on_script_reset(function() destroy_all() end)
 
 -- ---- THE GUN IN THE RIGHT HAND (2026-10-25, Tefa: "can i still tweak where the gun is pointing", then "all please") -------
@@ -495,9 +431,19 @@ local function write_state(b)
     pcall(function() json.dump_file(STATE_FILE, st) end)
 end
 
--- 14:30 (sixth wear: even a copy of the held gun, switched fully on, SHOWN at the gun, was never seen): every sphere was made,
--- moved and switched in re.on_frame, the PRESENT step, after the game has gathered what to draw. Andyalpa's holster visuals,
--- which do draw, make and move theirs in the game's own update (on_application_entry "UpdateMotion"). So this runs there now
+-- how see-through zone z's sphere should be now: nil = hidden (the hand outside its edge, or holding something)
+local function near_alpha(b, z, holding)
+    if holding or not z.act then return nil end
+    local x, y, zz, r, on = live(b, z.i)
+    local hx, hy, hz, _, hon = live(b, HAND_I)
+    if not (on and on > 0.5 and hon and hon > 0.5 and x and hx and r and r > 0) or math.abs(x) > 1.0e5 then return nil end
+    local k = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) / r   -- 0 at the centre, 1 on the surface
+    if k > NEAR_EDGE then return nil end
+    return NEAR_ALPHA_EDGE + (NEAR_ALPHA_CLOSE - NEAR_ALPHA_EDGE) * (1.0 - k / NEAR_EDGE)
+end
+
+-- made, moved and switched in the game's own update (on_application_entry "UpdateMotion"), as the holster visuals do: made in
+-- the present step (re.on_frame) they were never drawn (2026-10-25)
 re.on_application_entry("UpdateMotion", function()
     local b = bridge()
     if not b then return end
@@ -505,17 +451,14 @@ re.on_application_entry("UpdateMotion", function()
     if now - last_reload_t > RELOAD_EVERY_S and now - last_edit_t > EDIT_QUIET_S then last_reload_t = now; load() end
     if now - last_state_t > STATE_EVERY_S then last_state_t = now; write_state(b) end
     aim_tick(b)
-    local show = show_on()
-    b.w(S_ZONE_SHOW, show and 1 or 0)
-    if not show then
+    if not near_on() then
         if next(balls) ~= nil then destroy_all() end
         return
     end
-    -- 11:50 (Tefa: "i still don't see any spheres"): the spheres were made at the title screen and the save's scene change
-    -- destroyed them (findGameObject found none); now a dead sphere has them all made again, at most once a second
+    -- a scene change destroys them: all made again, at most once a second
     if spawn_tried then
         for _, ball in pairs(balls) do
-            if ball and not alive(ball.go) and now - last_respawn_t > 1.0 then
+            if not alive(ball.go) and now - last_respawn_t > RESPAWN_EVERY_S then
                 last_respawn_t = now
                 log.info(TAG .. " a sphere was destroyed (scene change): making them again")
                 destroy_all()
@@ -523,112 +466,63 @@ re.on_application_entry("UpdateMotion", function()
             end
         end
     end
-    -- made once a gun is in hand (the gun copy needs one), at most once a second until one is made
-    if not spawn_tried and gun_num(b) > 0 and now - last_respawn_t > 1.0 then
+    -- made once a gun is in hand, at most once a second until they are
+    if not spawn_tried and gun_num(b) > 0 and now - last_respawn_t > RESPAWN_EVERY_S then
         last_respawn_t = now
         if not swept then swept = true; sweep_leftovers() end
         local any = false
         for _, z in ipairs(ZONES) do
-            if z.key ~= "pair-dot" or PAIR_DOTS_SHOWN then balls[z.i] = spawn(z.i); any = any or balls[z.i] ~= nil end
+            if z.act then balls[z.i] = spawn(z.i); any = any or balls[z.i] ~= nil end
         end
         spawn_tried = any
     end
-    -- the well's balloon may still be loading when the rest are made: asked again once a second (falls back after MESH_WAIT_S)
-    if spawn_tried and balls[WELL_I] == nil and now - last_well_t > 1.0 then last_well_t = now; balls[WELL_I] = spawn(WELL_I) end
-    -- a new look picked: "no material" needs fresh spheres (a set material cannot be taken off), any other is put on
-    local m = mat_index()
-    if MATS[m + 1] == "" then
-        for i, _ in pairs(balls) do if mat_applied[i] ~= nil and mat_applied[i] ~= m then destroy_all(); return end end
-    end
-    for i, ball in pairs(balls) do if ball then apply_mat(i, ball); tint(i, ball); status = "drawn: " .. (mesh_used or "?"):match("[^/]+$") .. ", look: " .. MAT_NAMES[m + 1] end end
-    -- the measured size, unless the size fix in the menu was set by hand. The model's own box could not be read at spawn
-    -- (11:48: "half size nil"), so it is measured from the drawn sphere's world box once it stands in the world
-    -- 2026-10-29 (Fable, flat desk runs): the model's own box (get_ModelLocalAABB) reads nil at spawn, the mesh still
-    -- loading, and the old code then measured the WORLD box after the zone's scale went on and divided by that scale; the
-    -- world box lags the transform, so it gave a different "model size" every run (0.10 m on 10-25, 0.03 m today) and the
-    -- spheres drew up to 3.5x too small, the beads invisible. Now the model's own box is asked again every frame until it
-    -- answers (frame 1 after the spawn, in practice: 0.0300 m for the test ball). CHECKED against a ruler: a screenshot of
-    -- the ball 0.47 m from the camera (camera position from the RE Engine MCP, the ball's from the log, FOV 51.3 deg
-    -- vertical over 1421 px) gave a drawn radius of 0.157 m at scale 4.70, so the model's half is 0.033 m by the picture
-    -- against 0.030 m by the box [measured 2026-10-29, n=1]: the box is right, the spheres draw at their numbers.
-    local calibrating = not cfg["_visual"].half_set and not mesh_half
-    if calibrating then
-        for _, ball in pairs(balls) do
-            if ball and alive(ball.go) then
-                calib_frames = calib_frames + 1
-                local lm = measure(ball.comp)
-                if lm then
-                    mesh_half = lm
-                    log.info(TAG .. string.format(" sphere model's own box read on frame %d: half size %.4f m", calib_frames, mesh_half))
-                elseif calib_frames > 180 then
-                    mesh_half = UNMEASURED_HALF_M
-                    log.info(TAG .. string.format(" the sphere model's box would not read in 180 frames: taking %.3f m", mesh_half))
-                end
-                break
-            end
-        end
-        calibrating = not mesh_half
-    end
-    local half = (cfg["_visual"].half_set and tonumber(cfg["_visual"].half_m)) or mesh_half or UNMEASURED_HALF_M
-    if half < 0.005 then half = 0.005 end
+    local spot = math.floor((b.r(S_LEFT_SPOT) or 0) + 0.5)
+    local holding = spot > 0 and spot < HOLD_SPOT_MAX
     for _, z in ipairs(ZONES) do
         local ball = balls[z.i]
         if ball and alive(ball.go) and ball.xform then
-            local x, y, zz, r, on = live(b, z.i)
-            local bh = half
-            if ball.own_shape then   -- the well's balloon: its own size, from its own box (hidden until it answers)
-                if not ball.half then
-                    ball.half_frames = (ball.half_frames or 0) + 1
-                    ball.half = measure(ball.comp)
-                    if not ball.half and ball.half_frames > 180 then ball.half = half end
-                    if ball.half then log.info(TAG .. string.format(" the well's balloon: half size %.4f m", ball.half)) end
+            if not ball.half then   -- the model's own box, asked every frame until it answers (it is still loading at first)
+                ball.frames = (ball.frames or 0) + 1
+                ball.half, ball.centre = measure(ball.comp)
+                if not ball.half and ball.frames > MEASURE_FRAMES then ball.half = UNMEASURED_HALF_M end
+                if ball.half then
+                    if z.i == 0 then log.info(TAG .. string.format(" the sphere's own half size %.4f m", ball.half)) end
                 end
-                bh = ball.half or half
             end
-            local ok = on and on > 0.5 and x ~= nil and math.abs(x) < 1.0e5 and (not ball.own_shape or ball.half ~= nil)
-            set_on(ball, ok)
-            if ok then
-                local s = calibrating and 1.0 or (r or 0.05) / bh   -- scale 1 while the model is being measured
+            local a = ball.half and near_alpha(b, z, holding) or nil
+            set_on(ball, a ~= nil)
+            if a then
+                local x, y, zz, r = live(b, z.i)
+                local s = r / ball.half
+                local c = ball.centre or { 0, 0, 0 }
                 ball.scale = s
-                if not calibrating and not ball.scaled_t then ball.scaled_t = now end
                 pcall(function()
-                    ball.xform:call("set_Position", Vector3f.new(x, y, zz))
-                    -- 2026-10-29 (Tefa: the activation area's size must show): set_LocalScale as well as set_Scale (praydog's
-                    -- holster visuals use both), and the scale is READ BACK once per sphere and logged, so a run proves
-                    -- whether the drawn sphere really follows its number (the 23:20 note only ever logged our own number)
+                    ball.xform:call("set_Position", Vector3f.new(x - c[1] * s, y - c[2] * s, zz - c[3] * s))
+                    -- set_LocalScale as well as set_Scale, as praydog's holster visuals do
                     ball.xform:call("set_LocalScale", Vector3f.new(s, s, s))
                     ball.xform:call("set_Scale", Vector3f.new(s, s, s))
-                    if ball.scaled_t and not ball.proved and now - ball.scaled_t > 1.0 then
-                        ball.proved = true
-                        ball.comp:call("updateBoundingBox")
-                        local wa = ball.comp:call("get_WorldAABB")
-                        local mn, mx = wa and wa:get_field("minpos"), wa and wa:get_field("maxpos")
-                        local w = (mn and mx) and math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2 or nil
-                        log.info(TAG .. string.format(" sphere %d PROOF: asked r %.3f m (scale %.3f), drawn world half %s m", z.i, r or 0, s, w and string.format("%.3f", w) or "?"))
-                    end
-                    if not ball.scale_checked and math.abs(s - 1.0) > 0.01 then
-                        ball.scale_checked = true
-                        local l, w = nil, nil
-                        pcall(function() l = ball.xform:call("get_LocalScale") end)
-                        pcall(function() w = ball.xform:call("get_Scale") end)
-                        log.info(TAG .. string.format(" sphere %d scale asked %.3f, reads back local %s world %s", z.i, s,
-                            l and string.format("%.3f", l.x) or "?", w and string.format("%.3f", w.x) or "?"))
-                    end
                 end)
+                set_alpha(ball, a, now)
+                if not ball.shown_logged then
+                    ball.shown_logged = true
+                    log.info(TAG .. string.format(" sphere %s first shown: r %.3f m, scale %.3f, see-through %.2f", z.key, r, s, a))
+                end
             end
         end
     end
-    -- every 5 s while shown: where each sphere is, how big, and whether it is on, so a headset run can be read from the log
+    -- every 5 s: which spheres show, how big and how solid, so a headset run can be read from the log
     if now - last_where_t > 5.0 then
         last_where_t = now
         local parts = {}
         for _, z in ipairs(ZONES) do
             local ball = balls[z.i]
-            local x, y, zz, r, on = live(b, z.i)
-            parts[#parts + 1] = string.format("%s %s r %.2f at %.2f %.2f %.2f scale %.3f", z.key, ball and (alive(ball.go) and (ball.on and "SHOWN" or "hidden") or "DEAD") or "none",
-                r or 0, x or 0, y or 0, zz or 0, ball and ball.scale or 0)
+            if ball then
+                local _, _, _, r, on = live(b, z.i)
+                parts[#parts + 1] = string.format("%s %s r %.2f alpha %.2f", z.key, alive(ball.go) and (ball.on and "SHOWN" or (on and on > 0.5 and "near-off" or "not on gun")) or "DEAD",
+                    r or 0, ball.on and ball.alpha or 0)
+            end
         end
-        log.info(TAG .. " spheres (half " .. string.format("%.3f", half) .. (mesh_half and " measured" or " guessed") .. ", look " .. MAT_NAMES[mat_index() + 1] .. "): " .. table.concat(parts, " | "))
+        if #parts > 0 then log.info(TAG .. " spheres" .. (holding and " (left hand holding: none shown)" or "") .. ": " .. table.concat(parts, " | ")) end
     end
 end)
 
@@ -636,8 +530,8 @@ end)
 re.on_draw_ui(function()
     if not imgui.tree_node("Visceral RE8 grip zones") then return end
     local b = bridge()
-    local c, v = imgui.checkbox("Show the zones on the gun (spheres that ride it)", show_on())
-    if c then cfg["_visual"].show = v; save() end
+    local c, v = imgui.checkbox("Show the grip spheres as the hand nears them", near_on())
+    if c then set_near(v) end
     imgui.text("Also in the Grip Zones window on the desktop (for Window View in the headset).")
     imgui.text("Spheres: " .. status)
     if not b then imgui.text("(the bridge is not up: no gun readings)"); imgui.tree_pop(); return end
@@ -645,9 +539,9 @@ re.on_draw_ui(function()
     imgui.text(n > 0 and ("Gun in hand: " .. tostring(n) .. (edit_defaults and "  (editing the DEFAULTS for every gun)" or "  (editing this gun's own zones)")) or "No gun in hand: the sliders edit the defaults")
     local cd, vd = imgui.checkbox("Edit the defaults for every gun instead of this gun", edit_defaults)
     if cd then edit_defaults = vd end
-    local hx, hy, hz, _, hon = live(b, 3)
+    local hx, hy, hz, _, hon = live(b, HAND_I)
     for _, z in ipairs(ZONES) do
-        if z.key ~= "hand" then
+        if z.key ~= "hand" and not z.pair then
             local x, y, zz, r, on = live(b, z.i)
             local key = zone_key(z, b)
             local head = z.label .. (z.key == "part" and (" [" .. key .. "]") or "")
@@ -682,12 +576,7 @@ re.on_draw_ui(function()
             end
         end
     end
-    imgui.spacing()
-    local ch, vh = imgui.slider_float("Sphere model size fix (if the spheres look too big or small for their numbers)", (tonumber(cfg["_visual"].half_m) or mesh_half or 0.05) * 100, 0.5, 100.0, "%.1f cm")
-    if ch then cfg["_visual"].half_m = vh / 100; cfg["_visual"].half_set = true; save() end
-    if cfg["_visual"].half_set and imgui.button("Measure the size again (forget the fix)") then cfg["_visual"].half_set = nil; save() end
-    -- (2026-10-25, Tefa: "i'm afraid to accidentally press it, i'll just ask you if i ever need to clear all of it": the
-    -- "Forget everything" button is gone, as in the Grip Zones window)
+    -- (2026-10-25, Tefa: "i'm afraid to accidentally press it": no "Forget everything" button, as in the Grip Zones window)
     imgui.tree_pop()
 end)
 

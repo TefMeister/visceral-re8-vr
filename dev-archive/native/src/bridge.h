@@ -75,13 +75,13 @@ enum Slot : int {
     S_BODY_TURN = 103,        // WRITTEN BY THE LUA MENU: 1 = the body turn (body.cpp, experimental) is on
     S_LHAND_OFF = 106,        // 106-108, WRITTEN BY THE LUA: praydog's re8vr.left_hand_position_offset (the hand 15 cm ahead of the controller)
     S_LHAND_ROT_OFF = 109,    // 109-112, WRITTEN BY THE LUA: re8vr.left_hand_rotation_offset (x,y,z,w)
-    S_ZONE_SHOW = 114,        // WRITTEN BY THE LUA MENU: 1 = draw the grab zones on the gun (lua/visceral_re8_zones.lua)
+    S_ZONE_SHOW = 114,        // unused since 2026-10-30 (the spheres show as the left hand nears one; nothing read it)
     S_ZONE_SEQ = 115,         // WRITTEN BY THE LUA MENU: +1 whenever zones.json was saved (zones.cpp re-reads it)
     S_ZONES = 116,            // 116-140, WRITTEN BY THE PLUGIN: five zones x {x, y, z (world, m), radius (m), on}: the magazine grab,
                               // the well (where it goes in), the slide / pump / bolt (on = 1 slide, 2 pump, 3 bolt), the hand point tested
     S_ARC_CM = 141,           // WRITTEN BY THE LUA BRIDGE: how high (cm) the left hand arcs over the gun on its way onto / off the slide / pump / bolt (2026-10-25)
-    S_PAIR_ACT = 142,         // 142-146, WRITTEN BY THE PLUGIN: the shown hand pair's ACTIVATION sphere {x, y, z (world, m), radius, on} (pairs.h)
-    S_PAIR_LAND = 147,        // 147-151, WRITTEN BY THE PLUGIN: the shown pair's LANDING spot {x, y, z, dot radius, on}
+    S_PAIR_ACT = 142,         // 142-146, WRITTEN BY THE PLUGIN: the gun's hand pair nearest the left hand, its ACTIVATION sphere {x, y, z (world, m), radius, on} (pairs.h)
+    S_PAIR_LAND = 147,        // 147-151, WRITTEN BY THE PLUGIN: always off since 2026-10-30 (the landing spot is no longer drawn)
     S_PAIR_ACTIVE = 152,      // WRITTEN BY THE PLUGIN: the number of the pair holding the left hand now, 0 = none
     S_LEFT_SPOT = 153,        // WRITTEN BY THE PLUGIN: where the left hand is, for Hand Poser's pose per spot (pairs.cpp):
                               // 1000+N on pair N's landing spot, 2000+N inside pair N's activation sphere, 3 slide/pump/bolt, 4 magazine, 0 none

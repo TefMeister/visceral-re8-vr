@@ -148,7 +148,6 @@ constexpr float SWING_RIGHT_M = 0.04f, SWING_RIGHT_MS = 0.85f, SWING_RIGHT_RATIO
 constexpr float SWING_UP_M = 0.05f, SWING_UP_MS = 1.15f, SWING_UP_RATIO = 0.68f;
 constexpr float DRUM_TILT_DEG = 30.0f;
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
-constexpr float PAIR_LAND_DOT_M = 0.015f;          // the landing spot is drawn as a dot this big (the hand lands on its centre)
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint
 constexpr Vec3 SLIDE_LEFT_OFF{-0.05f, 0.0f, 0.0f};
