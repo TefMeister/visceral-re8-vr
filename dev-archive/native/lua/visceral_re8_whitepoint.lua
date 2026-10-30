@@ -40,7 +40,14 @@ local ADAPT_MODES = { "game", "freeze", "instant", "fixed", "hold" }
 -- 02:05: "change the world to as it was before we started messing around with it ... the scope ... we deal with this
 -- separately": the defaults are the 01:10 build again (grading off, trim 1/1/1). The 95 % numbers stay here for the day
 -- the scope's own dial is matched to them.
-local cfg = { mode = "off", value = 8.0, adapt = "hold", grading = "off", ev = 6.4, contrast = 1.4, trim = { 1.0, 1.0, 1.0 } }   -- 02:40 Tefa: contrast up by 0.2
+-- 02:55: ToneMapping's Contrast is DEAD here: it read back 0.4 on the component and Tefa saw no difference at all
+-- (`[verified-live 2026-10-30, headset]`), so cfg.contrast is kept at 1.0 and the world's contrast is done in the
+-- colour-correct stage instead: slot 0 Scale by c (times the trim gains), slot 1 Add (1 - c) / 2, which is a stretch
+-- about mid grey, the same shape the scope got (cfg.wcontrast; grading "trim" carries it).
+-- 03:30, where the night ended: pin "mean" (the world's white point at each area's own midpoint), hold EV 6.4, grading "trim"
+-- with gains 1/1/1 and world contrast 1.0 (so the trim stage is on but neutral), the scope's camera held too.
+local cfg = { mode = "mean", value = 9.0, adapt = "hold", grading = "trim", ev = 6.4, contrast = 1.0, trim = { 1.0, 1.0, 1.0 }, wcontrast = 1.0 }
+local ADD = 11
 -- 23:00 Tefa's description of the door: "more like the colours and haze and a quick gradual change over a second or so".
 -- That is the per-area post-effect blend (app.ColorCorrectController -> via.render.LDRColorCorrect, and the fog), not
 -- the eye adaptation. grading = "off" switches the per-area colour grading off every frame, as RE2's b192 does (Tefa
@@ -80,15 +87,23 @@ local function grading(off)
             if not cc:call("get_Enabled") then cc:call("set_Enabled", true) end
             pcall(function()
                 cc:call("set_ColorCubeBlendRate", 0.0); cc:call("set_ColorCube2BlendRate", 0.0)
+                local c = cfg.wcontrast or 1.0
                 local p = cc:call("getLinearParamsAt", 0)
                 if p then
                     p:call("set_LinearCorrectorType", SCALE)
-                    p:call("set_LinearFactor", Vector4f.new(cfg.trim[1], cfg.trim[2], cfg.trim[3], 1.0))
+                    p:call("set_LinearFactor", Vector4f.new(cfg.trim[1] * c, cfg.trim[2] * c, cfg.trim[3] * c, 1.0))
                     p:call("updateMatrix")
+                end
+                local q = cc:call("getLinearParamsAt", 1)
+                if q then
+                    local a = (1.0 - c) * 0.5
+                    q:call("set_LinearCorrectorType", a ~= 0 and ADD or 0)
+                    q:call("set_LinearFactor", Vector4f.new(a, a, a, 0.0))
+                    q:call("updateMatrix")
                 end
             end)
         end
-        if grading_state.mode ~= "trim" then grading_state.mode = "trim"; grading_state.off = true; log.info(TAG .. string.format(" colour TRIM of our own: gains r %.2f g %.2f b %.2f (the game's table off)", cfg.trim[1], cfg.trim[2], cfg.trim[3])) end
+        if grading_state.mode ~= "trim" then grading_state.mode = "trim"; grading_state.off = true; log.info(TAG .. string.format(" colour TRIM of our own: gains r %.2f g %.2f b %.2f, contrast %.2f (the game's table off)", cfg.trim[1], cfg.trim[2], cfg.trim[3], cfg.wcontrast or 1)) end
     elseif off == "fixed" then
         if ctl and ctl:call("get_Enabled") then ctl:call("set_Enabled", false) end
         if cc and not cc:call("get_Enabled") then cc:call("set_Enabled", true) end
@@ -118,10 +133,32 @@ local function load_cfg()
         cfg.ev = tonumber(d.ev) or cfg.ev
         cfg.contrast = tonumber(d.contrast) or cfg.contrast
         if type(d.trim) == "table" and #d.trim == 3 then cfg.trim = { tonumber(d.trim[1]) or 1, tonumber(d.trim[2]) or 1, tonumber(d.trim[3]) or 1 } end
+        cfg.wcontrast = tonumber(d.wcontrast) or cfg.wcontrast
     end
 end
 local function save_cfg() pcall(json.dump_file, MODE_FILE, cfg) end
 load_cfg()
+
+-- 03:05 Tefa: "can it be that the scope still has adaptive lighting baked in?" Yes: the scope's second camera ("ScopeCam2",
+-- re8_scope_cam_clone.lua) is a copy of the main camera's components, via.render.ToneMapping included, with the game's
+-- controllers left off, so its AutoExposure stays whatever it was copied as and adapts on the GPU untouched. The same
+-- hold is written to it every frame, when it exists (found by name; looked up again when it goes away).
+local scope_tm, scope_tm_logged = nil, false
+local function scope_tonemapping()
+    if scope_tm then
+        local ok, alive = pcall(function() return scope_tm:call("get_GameObject") ~= nil end)
+        if ok and alive then return scope_tm end
+        scope_tm, scope_tm_logged = nil, false
+    end
+    local ok, tm = pcall(function()
+        local sm = sdk.get_native_singleton("via.SceneManager")
+        local scene = sdk.call_native_func(sm, sdk.find_type_definition("via.SceneManager"), "get_CurrentScene")
+        local go = scene and scene:call("findGameObject(System.String)", "ScopeCam2")
+        return go and go:call("getComponent(System.Type)", sdk.typeof("via.render.ToneMapping")) or nil
+    end)
+    if ok and tm then scope_tm = tm end
+    return scope_tm
+end
 
 local function tonemapping()
     local cam = sdk.get_primary_camera()
@@ -149,6 +186,14 @@ local function apply(t)
         t:call("setAutoExposure", 2); t:call("set_EV", cfg.ev); wrote[#wrote + 1] = string.format("AutoExposure 2 + EV %.2f", cfg.ev)
     end
     if cfg.contrast and cfg.contrast > 0 then t:call("set_Contrast", cfg.contrast) end
+    -- the scope's camera gets the same exposure hold (its picture is taken before the game's grading, so only this part applies)
+    if cfg.adapt == "hold" then
+        local st = scope_tonemapping()
+        if st then
+            st:call("setAutoExposure", 2); st:call("set_EV", cfg.ev)
+            if not scope_tm_logged then scope_tm_logged = true; log.info(TAG .. string.format(" the scope's camera (ScopeCam2) held too: AutoExposure off, EV %.2f", cfg.ev)) end
+        end
+    end
     if cfg.mode ~= "off" and type(lo) == "number" and type(hi) == "number" then
         local v
         if cfg.mode == "mean" then v = math.sqrt(math.max(lo, 0.0001) * math.max(hi, 0.0001))
@@ -176,7 +221,7 @@ end
 
 re.on_pre_application_entry("BeginRendering", function()
     frame = frame + 1
-    if frame % 120 == 0 then local before = table.concat(cfg.trim, ","); load_cfg(); if table.concat(cfg.trim, ",") ~= before then grading_state.mode = nil end end
+    if frame % 120 == 0 then local before = table.concat(cfg.trim, ",") .. "|" .. tostring(cfg.wcontrast); load_cfg(); if table.concat(cfg.trim, ",") .. "|" .. tostring(cfg.wcontrast) ~= before then grading_state.mode = nil end end
     grading((cfg.grading == "fixed" or cfg.grading == "trim") and cfg.grading or (cfg.grading == "off"))
     local t = tonemapping()
     if not t then return end
@@ -221,6 +266,8 @@ re.on_draw_ui(function()
     local c6, ng = imgui.slider_float("Trim green", cfg.trim[2], 0.7, 1.3, "%.2f")
     local c7, nb = imgui.slider_float("Trim blue", cfg.trim[3], 0.7, 1.3, "%.2f")
     if c5 or c6 or c7 then cfg.trim = { nr, ng, nb }; save_cfg(); grading_state.mode = nil end
+    local c8, nw = imgui.slider_float("World contrast (about mid grey)", cfg.wcontrast or 1.0, 0.3, 2.0, "%.2f")
+    if c8 then cfg.wcontrast = nw; save_cfg(); grading_state.mode = nil end
     imgui.text(string.format("RealEV %.2f, area pair %.2f..%.2f, rates %.3f/%.3f, %d frames written", seen.real, seen.lo, seen.hi, seen.brate, seen.drate, writes))
     imgui.tree_pop()
 end)
