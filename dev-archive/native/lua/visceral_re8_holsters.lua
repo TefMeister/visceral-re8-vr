@@ -15,7 +15,10 @@
 local TAG = "[visceral-re8-holsters]"
 local ON = true
 _G.__visceral_holsters_on = ON
-local HOLD_TO_KEEP = true     -- the right grip must stay closed to keep a gun in the hand; letting go puts it away
+-- 2026-10-30 (Tefa: "the feature that i wanted, so that weapon is in hand only with the right grip held and when right grip is
+-- released, the weapon also goes back to inventory. this is not working out and i wanted that idea scrapped"): off. The right
+-- grip at a spot takes that slot's gun out, or puts it away if it is in hand; letting go of the grip does nothing.
+local HOLD_TO_KEEP = false    -- true = the right grip must stay closed to keep a gun in the hand; letting go puts it away
 -- Tefa 2026-10-25, before the first try: "we don't want the Aim state of shooting, we want the hip shooting throughout the
 -- game with no aim button needed ... delete the binding for aim but not the code or the function from the game". So the
 -- game's aim stays as it is and no button presses it: the grip no longer turns into LT (the only press of it in play; the
