@@ -1,31 +1,28 @@
--- visceral_re8_zones.lua -- the grip zones: the sphere that shows one as the left hand nears it, and the zone sliders in the
--- REFramework menu (2026-10-25, Tefa: "is there any way I can visibly set them, how big they are, where they are on the gun").
+-- visceral_re8_zones.lua -- the grip zones: the sphere of the zone being tuned in the Grip Zones window, and the zone sliders
+-- in the REFramework menu (2026-10-25, Tefa: "is there any way I can visibly set them, how big they are, where they are on the gun").
 --
--- The plugin (src/zones.cpp, src/pairs.cpp) tells this file, every frame, where each zone is RIGHT NOW in the world and how
--- big it is (bridge slots 116-135, 142-146, 154-173): the magazine grab, the well, the slide / pump / bolt, the point the hand is
--- measured from, the front grip, the hand pair nearest the left hand, the grip handle, the drum, the insert point, the slide's
--- left side. The sliders in the menu ("Visceral RE8 grip zones") write reframework/data/visceral_re8/zones.json; the plugin
--- re-reads it at once.
+-- The plugin (src/zones.cpp, reload.cpp, rack.cpp, pairs.cpp) tells this file, every frame, where each zone is RIGHT NOW in the
+-- world and how big it is (bridge slots 116-135, 154-173): the magazine grab, the well, the slide / pump / bolt, the point the
+-- hand is measured from, the front grip, the grip handle, the drum, the insert point, the slide's left side. A zone the gun
+-- does not have is off. The sliders in the menu ("Visceral RE8 grip zones") write reframework/data/visceral_re8/zones.json;
+-- the plugin re-reads it at once.
 --
--- THE SPHERE (2026-10-30, Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it, 10 %
--- opaciti at first and then 80 % opacity when the left hand is as close as it can be? then it only needs to be one type of a
--- sphere, is not confusing and i can see the size of the activation area when i move my hand to it. that white/orange sphere
--- would do nicely for that"): only the activation zones (where the left grip starts something) are drawn, and only the one the
--- left hand is nearest to, once the hand is inside its edge. It cannot fade (see STEPS below), so it shrinks in steps instead.
--- One look for all of them: Village's test ball in the "axis" look, the orange and white squares (Tefa, 2026-10-30, after the
--- balloon: "they are nice to look at but don't show the actual area of activation very well. the spheres with orange and white
--- squares are the best to use"). Nothing shows while the left hand holds something. The old kinds are gone: the gun copies,
--- the balloon, the landing dot, the dotted line, the well's own shape, the show switch and the size fix. [hypothesis] until
--- seen in the headset.
+-- THE SPHERE (2026-10-30, Tefa, in the headset: "Grip zones needs a system where only the dropped down menu shows the spheres,
+-- collapsed ones don't, this simplifies things"): only the zone whose row is open in the Grip Zones window is drawn, at its
+-- full size, so it can be placed and sized; with no row open (or the window closed) nothing is drawn. When the left hand goes
+-- inside it, it shrinks in STEPS toward the middle (Tefa: "it has to go in reverse, from starting out big to smaller in the
+-- middle"). The window writes visceral_re8/zones_open.json { key, t } about once a second. The look: Village's test ball in
+-- the "axis" look, the orange and white squares (Tefa: "the spheres with orange and white squares are the best to use"); it
+-- cannot be see-through (the engine's no-material pattern: get_MaterialNum 0 on a drawn sphere, checked live 2026-10-30).
 --
 -- zones.json: { "default": { "mag": {x,y,z,r,on}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...}, ... },
---               "3042": { ... the same, for one gun (its number) ... }, "_visual": { "near": false = never draw the spheres } }
+--               "3042": { ... the same, for one gun (its number) ... } }
 -- "on": true / false switches a zone on or off for every gun ("default") or one gun, over the plugin's own choice (zones.cpp
 -- builtin_on: the front grip only on long guns that are not pump shotguns; 2026-10-30, Tefa: "make it customizable so we
 -- can add things if needed").
 -- x, y, z: metres from the zone's own joint, in the gun's axes; r: the radius in metres. A missing number keeps the plugin's own.
 --
--- The same numbers can be set from outside the game with the Grip Zones window (github.com/TefMeister/grip-zones-vr, a desktop
+-- The same numbers are set from outside the game with the Grip Zones window (github.com/TefMeister/grip-zones-vr, a desktop
 -- window Window View can hang in the headset). For it this file writes visceral_re8/zones_state.json four times a second (the
 -- gun in hand, each zone's size and how far the hand is from it), and re-reads zones.json twice a second.
 
@@ -33,43 +30,40 @@ local TAG = "[visceral-re8-zones]"
 local FILE = "visceral_re8/zones.json"
 local STATE_FILE = "visceral_re8/zones_state.json"
 local STATE_EVERY_S, RELOAD_EVERY_S, EDIT_QUIET_S = 0.25, 0.5, 0.6
-local S_WEAPON_NUM, S_ZONE_SEQ, S_ZONES, S_LEFT_SPOT = 97, 115, 116, 153
+local S_WEAPON_NUM, S_ZONE_SEQ, S_ZONES = 97, 115, 116
 local S_ZONES2 = 154   -- written by the plugin: handle, drum, insert, slide-left {x, y, z, r, on} each
-local S_PAIR_ACT = 142 -- written by the plugin: the gun's hand pair nearest the left hand, its activation sphere {x, y, z, r, on}
 local HAND_I = 3
--- act = an activation zone (the left grip pressed inside it starts something): the only kind drawn. first = the plugin gives
--- it first claim on the left grip (pairs.cpp: the slide / pump / bolt and the magazine come before the handle, drum, insert
--- and pairs), so where zones overlap, its ball is the one shown (2026-10-30, Tefa: "handgun only has grip handle ball showing")
+local OPEN_FILE = "visceral_re8/zones_open.json"   -- the Grip Zones window's open row { key, t }
+local OPEN_EVERY_S, OPEN_STALE_S = 0.25, 3
+-- act = a grip zone with a sphere (every zone but the hand point); key = its row in the Grip Zones window
 local ZONES = {
-    { i = 0, key = "mag",  act = true, first = true, label = "Grab the magazine (left grip on it)" },
-    { i = 1, key = "well", act = "mag", first = true, label = "The well: where a magazine goes in" },   -- shown only with a magazine in the left hand
-    { i = 2, key = "part", act = true, first = true, label = "The slide / pump / bolt (left grip on it)" },
+    { i = 0, key = "mag",  act = true, label = "Grab the magazine (left grip on it)" },
+    { i = 1, key = "well", act = true, label = "The well: where a magazine goes in" },
+    { i = 2, key = "part", act = true, label = "The slide / pump / bolt (left grip on it)" },
     { i = 3, key = "hand", label = "The point the hand is measured from" },
     { i = 4, key = "grip", act = true, label = "The front grip: this gun's kept grip spot (left grip in it takes the gun two-handed)" },
-    { i = 5, key = "pair", act = true, pair = true },   -- the hand pair nearest the left hand (the Grip Zones window edits pairs)
     { i = 20, key = "handle", act = true, label = "The grip handle (handguns: left grip cups it)" },
     { i = 21, key = "drum",   act = true, label = "The drum (revolvers: left grip opens it, LT loads a round, LT when full closes it)" },
     { i = 22, key = "insert", act = true, label = "The insert point (GM 79: a grenade goes in here; left grip + LT takes one out)" },
-    { i = 23, key = "slide-left", act = true, first = true, label = "The slide from the left side (pistols: left grip in it takes the slide with the left-side hold)" },
+    { i = 23, key = "slide-left", act = true, label = "The slide from the left side (pistols: left grip in it takes the slide with the left-side hold)" },
 }
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
 
--- the size cue (2026-10-30, Tefa picked it after the fade proved impossible: the orange and white look is the engine's
--- "no material" pattern and has no see-through setting; checked live, get_MaterialNum 0 on a drawn sphere): only the zone the
--- left hand is nearest to shows, once the hand is inside its edge, as a ball at the zone's centre: the zone's full size at
--- the edge, shrinking in STEPS as the hand goes deeper (Tefa, first wear: "the ball works! but it has to go in reverse,
--- from starting out big to smaller in the middle")
+-- the size cue: the hand inside the open zone shrinks its sphere in STEPS (the ball cannot fade, see the top)
 local STEPS = 3
-local HOLD_SPOT_MAX = 2000      -- slot 153 below this (and above 0): the left hand holds something (pairs.cpp), so no sphere shows
 
--- the sphere: Village's development test ball (its file list) in the shared "axis" effect material, the orange and white
--- squares seen since 2026-10-25; the plain primitive sphere if the test ball will not load.
--- ⚠️ set_Material is called ONCE per sphere: a second call on a balloon crashed the game (2026-10-30 20:20, a probe
--- at the title screen; kept dump D:/RE Village REFramework builds/logs/reframework_crash-2026-10-30-2020.dmp)
+-- the sphere: Village's development test ball (its file list), the orange and white squares seen since 2026-10-25; the plain
+-- primitive sphere if the test ball will not load.
+-- ⚠️ never set_Material on them: a second call on a balloon crashed the game (2026-10-30 20:20, a probe at the title
+-- screen; kept dump D:/RE Village REFramework builds/logs/reframework_crash-2026-10-30-2020.dmp), and see below
 local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh",
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh" }
-local MATERIAL = "systems/effect/vfx_default_axis.mdf2"   -- the orange and white squares
+-- 2026-10-30 21:55 (a crash while the magazine's sphere showed, minutes after "Reset scripts" remade the spheres, at
+-- re8.exe+0x415879c, the very place of the 2026-10-25 22:06 crash after the spheres were thrown away and remade): no material
+-- is set on the spheres any more. The "axis" material never linked anyway (get_MaterialNum 0 on a drawn sphere, checked live
+-- the same day), so the orange and white squares are the engine's own no-material pattern and look the same without it.
+-- Kept logs: D:/RE Village REFramework builds/logs/*2026-10-30-2155*
 local MESH_WAIT_S = 10.0        -- a model is waited for this long (it loads in the background) before the next is tried
 local MEASURE_FRAMES = 180      -- frames to wait for the model's own box before taking UNMEASURED_HALF_M
 local UNMEASURED_HALF_M = 0.030 -- the test ball's half size by its own box, 0.033 by a ruler [measured 2026-10-29]
@@ -81,9 +75,8 @@ local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
 local balls = {}          -- i -> { go, comp, xform, on, half, centre, step }
 local mesh_holders, mesh_failed, mesh_first_try = {}, {}, {}
-local mat_res = {}        -- material path -> its holder (false = would not load)
 local mesh_used = nil
-local vars_logged = false
+local open_key, last_open_t = nil, -10
 local spawn_tried, swept = false, false
 local last_respawn_t, last_where_t = -10, -10
 local status = "not drawn yet"
@@ -93,9 +86,7 @@ local function load()
     cfg = nil
     pcall(function() cfg = json.load_file(FILE) end)
     if type(cfg) ~= "table" then cfg = {} end
-    if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = {} end
 end
-local function near_on() return not (cfg and type(cfg["_visual"]) == "table" and cfg["_visual"].near == false) end
 local function save()
     last_edit_t = os.clock()
     pcall(function() json.dump_file(FILE, cfg) end)
@@ -103,18 +94,16 @@ local function save()
     local b = bridge()
     if b then b.w(S_ZONE_SEQ, seq) end
 end
-local function set_near(v)
-    if not cfg then return end
-    if type(cfg["_visual"]) ~= "table" then cfg["_visual"] = {} end
-    cfg["_visual"].near = v == true
-    save()
+-- the row open in the Grip Zones window, if the window is running (it rewrites the file about once a second)
+local function read_open()
+    local o = nil
+    pcall(function() o = json.load_file(OPEN_FILE) end)
+    if type(o) == "table" and type(o.key) == "string" and o.key ~= "" and tonumber(o.t) and os.time() - tonumber(o.t) <= OPEN_STALE_S then
+        open_key = o.key
+    else
+        open_key = nil
+    end
 end
-
--- the one setting that matters, handed to the Visceral options window (visceral_re8_emporium.lua)
-_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
-table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 30, kind = "check", label = "Show the grip spheres as the hand nears them",
-    help = "The grip spot your left hand is in shows as a ball, its full size at the edge, smaller as the hand goes deeper.",
-    get = function() return near_on() end, set = set_near })
 
 load()
 
@@ -135,7 +124,7 @@ local function raw5(b, s) return b.r(s), b.r(s + 1), b.r(s + 2), b.r(s + 3), b.r
 local function live(b, i)   -- x, y, z, r, on of zone i from the plugin
     if i < 5 then return raw5(b, S_ZONES + i * 5) end
     if i >= 20 then return raw5(b, S_ZONES2 + (i - 20) * 5) end
-    return raw5(b, S_PAIR_ACT)
+    return nil, nil, nil, 0, 0
 end
 
 -- ---- the spheres ------------------------------------------------------------------------------------------------------------
@@ -238,9 +227,6 @@ local function spawn(i)
         return nil
     end
     if not mesh_used then mesh_used = got; log.info(TAG .. " the sphere: " .. got) end
-    local mp = MATERIAL
-    if mat_res[mp] == nil then mat_res[mp] = holder(mp, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
-    if mat_res[mp] then pcall(function() comp:call("set_Material", mat_res[mp]) end) end
     -- a mesh made from script draws only once enabled, set to draw by default and sent to every render output
     -- (Andyalpa's holster visuals, re8_vr_holster_visuals.lua)
     pcall(function() comp:call("set_Enabled", true) end)
@@ -355,7 +341,7 @@ local function write_state(b)
     local st = { t = os.time(), gun = gun_num(b), zones = {}, spot = math.floor((b.r(153) or 0) + 0.5) }   -- 153: the left hand's spot (Dock Poser)
     local hx, hy, hz, _, hon = live(b, 3)
     for _, z in ipairs(ZONES) do
-        if z.key ~= "hand" and not z.pair then
+        if z.key ~= "hand" then
             local x, y, zz, r, on = live(b, z.i)
             local e = { key = zone_key(z, b), on = (on or 0) > 0.5, r_cm = (r or 0) * 100 }
             if e.on and (hon or 0) > 0.5 then e.hand_cm = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) * 100 end
@@ -365,16 +351,13 @@ local function write_state(b)
     pcall(function() json.dump_file(STATE_FILE, st) end)
 end
 
--- how deep the left hand is in zone z: 0 at the centre, 1 on the edge; nil = outside, not an activation zone, or holding
-local function near_k(b, z, holding)
-    if holding or not z.act then return nil end
-    local x, y, zz, r, on = live(b, z.i)
+-- how deep the left hand is in zone z: 0 at the centre, 1 on the edge, nil = outside
+local function hand_k(b, z)
+    local x, y, zz, r = live(b, z.i)
     local hx, hy, hz, _, hon = live(b, HAND_I)
-    if not (on and on > 0.5 and hon and hon > 0.5 and x and hx and r and r > 0) or math.abs(x) > 1.0e5 then return nil end
-    if z.act == "mag" and on < 1.5 then return nil end   -- the well: only while a magazine is in the left hand (reload.cpp: on 2)
+    if not (hon and hon > 0.5 and x and hx and r and r > 0) then return nil end
     local k = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) / r
-    if k > 1.0 then return nil end
-    return k
+    return k <= 1.0 and k or nil
 end
 
 -- made, moved and switched in the game's own update (on_application_entry "UpdateMotion"), as the holster visuals do: made in
@@ -386,10 +369,7 @@ re.on_application_entry("UpdateMotion", function()
     if now - last_reload_t > RELOAD_EVERY_S and now - last_edit_t > EDIT_QUIET_S then last_reload_t = now; load() end
     if now - last_state_t > STATE_EVERY_S then last_state_t = now; write_state(b) end
     aim_tick(b)
-    if not near_on() then
-        if next(balls) ~= nil then destroy_all() end
-        return
-    end
+    if now - last_open_t > OPEN_EVERY_S then last_open_t = now; read_open() end
     -- a scene change destroys them: all made again, at most once a second
     if spawn_tried then
         for _, ball in pairs(balls) do
@@ -414,20 +394,11 @@ re.on_application_entry("UpdateMotion", function()
             end
         end
     end
-    local spot = math.floor((b.r(S_LEFT_SPOT) or 0) + 0.5)
-    local holding = spot > 0 and spot < HOLD_SPOT_MAX
-    -- the one zone to show: the one the left grip would take, as the plugin decides it: a "first" zone the hand is inside
-    -- before any other, then the hand deepest inside, in the zone's own radii
-    local show_i, show_k, show_first = nil, nil, false
+    -- the one zone to show: the row open in the Grip Zones window, when the gun in hand has that zone
+    local show_i, show_k = nil, nil
     for _, z in ipairs(ZONES) do
-        local ball = balls[z.i]
-        if ball and ball.half then
-            local k = near_k(b, z, holding)
-            local first = z.first == true
-            if k and (show_i == nil or (first and not show_first) or (first == show_first and k < show_k)) then
-                show_i, show_k, show_first = z.i, k, first
-            end
-        end
+        local _, _, _, r, on = live(b, z.i)
+        if z.act and z.key == open_key and on and on > 0.5 and r and r > 0 then show_i, show_k = z.i, hand_k(b, z) end
     end
     for _, z in ipairs(ZONES) do
         local ball = balls[z.i]
@@ -442,7 +413,7 @@ re.on_application_entry("UpdateMotion", function()
             set_on(ball, show)
             if show then
                 local x, y, zz, r = live(b, z.i)
-                local step = math.max(1, math.min(STEPS, math.ceil((1.0 - show_k) * STEPS)))   -- 1 at the edge .. STEPS at the middle
+                local step = show_k and math.max(1, math.min(STEPS, math.ceil((1.0 - show_k) * STEPS))) or 1   -- 1 outside or at the edge .. STEPS at the middle
                 local s = r * (STEPS - step + 1) / STEPS / ball.half   -- full size at the edge, a third at the middle
                 local c = ball.centre or { 0, 0, 0 }
                 ball.scale, ball.step = s, step
@@ -471,7 +442,7 @@ re.on_application_entry("UpdateMotion", function()
                     r or 0, ball.on and (" step " .. tostring(ball.step)) or "")
             end
         end
-        if #parts > 0 then log.info(TAG .. " spheres" .. (holding and " (left hand holding: none shown)" or "") .. ": " .. table.concat(parts, " | ")) end
+        if #parts > 0 then log.info(TAG .. " spheres (open in Grip Zones: " .. tostring(open_key) .. "): " .. table.concat(parts, " | ")) end
     end
 end)
 
@@ -479,8 +450,7 @@ end)
 re.on_draw_ui(function()
     if not imgui.tree_node("Visceral RE8 grip zones") then return end
     local b = bridge()
-    local c, v = imgui.checkbox("Show the grip spheres as the hand nears them", near_on())
-    if c then set_near(v) end
+    imgui.text("A zone's sphere shows while its row is open in the Grip Zones window (open now: " .. tostring(open_key) .. ").")
     imgui.text("Also in the Grip Zones window on the desktop (for Window View in the headset).")
     imgui.text("Spheres: " .. status)
     if not b then imgui.text("(the bridge is not up: no gun readings)"); imgui.tree_pop(); return end
@@ -490,7 +460,7 @@ re.on_draw_ui(function()
     if cd then edit_defaults = vd end
     local hx, hy, hz, _, hon = live(b, HAND_I)
     for _, z in ipairs(ZONES) do
-        if z.key ~= "hand" and not z.pair then
+        if z.key ~= "hand" then
             local x, y, zz, r, on = live(b, z.i)
             local key = zone_key(z, b)
             local head = z.label .. (z.key == "part" and (" [" .. key .. "]") or "")
