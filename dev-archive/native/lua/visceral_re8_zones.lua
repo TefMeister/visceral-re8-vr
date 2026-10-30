@@ -10,16 +10,19 @@
 -- THE SPHERE (2026-10-30, Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it, 10 %
 -- opaciti at first and then 80 % opacity when the left hand is as close as it can be? then it only needs to be one type of a
 -- sphere, is not confusing and i can see the size of the activation area when i move my hand to it. that white/orange sphere
--- would do nicely for that"): only the activation zones (where the left grip starts something) are drawn, each only while the
--- left hand is inside its edge: see-through NEAR_ALPHA_EDGE at the edge, NEAR_ALPHA_CLOSE at the centre. One look for all of
--- them: Village's test ball in the "axis" look, the orange and white squares (Tefa, 2026-10-30, after the balloon: "they are
--- nice to look at but don't show the actual area of activation very well. the spheres with orange and white squares are the
--- best to use"). Nothing shows while the left hand holds something. The old kinds are gone: the gun copies, the balloon,
--- the landing dot, the dotted line, the well's own shape, the show switch and the size fix. [hypothesis] until seen in the
--- headset.
+-- would do nicely for that"): only the activation zones (where the left grip starts something) are drawn, and only the one the
+-- left hand is nearest to, once the hand is inside its edge. It cannot fade (see STEPS below), so it shrinks in steps instead.
+-- One look for all of them: Village's test ball in the "axis" look, the orange and white squares (Tefa, 2026-10-30, after the
+-- balloon: "they are nice to look at but don't show the actual area of activation very well. the spheres with orange and white
+-- squares are the best to use"). Nothing shows while the left hand holds something. The old kinds are gone: the gun copies,
+-- the balloon, the landing dot, the dotted line, the well's own shape, the show switch and the size fix. [hypothesis] until
+-- seen in the headset.
 --
--- zones.json: { "default": { "mag": {x,y,z,r}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...}, ... },
+-- zones.json: { "default": { "mag": {x,y,z,r,on}, "well": {...}, "slide": {...}, "pump": {...}, "bolt": {...}, ... },
 --               "3042": { ... the same, for one gun (its number) ... }, "_visual": { "near": false = never draw the spheres } }
+-- "on": true / false switches a zone on or off for every gun ("default") or one gun, over the plugin's own choice (zones.cpp
+-- builtin_on: the front grip only on long guns that are not pump shotguns; 2026-10-30, Tefa: "make it customizable so we
+-- can add things if needed").
 -- x, y, z: metres from the zone's own joint, in the gun's axes; r: the radius in metres. A missing number keeps the plugin's own.
 --
 -- The same numbers can be set from outside the game with the Grip Zones window (github.com/TefMeister/grip-zones-vr, a desktop
@@ -34,27 +37,30 @@ local S_WEAPON_NUM, S_ZONE_SEQ, S_ZONES, S_LEFT_SPOT = 97, 115, 116, 153
 local S_ZONES2 = 154   -- written by the plugin: handle, drum, insert, slide-left {x, y, z, r, on} each
 local S_PAIR_ACT = 142 -- written by the plugin: the gun's hand pair nearest the left hand, its activation sphere {x, y, z, r, on}
 local HAND_I = 3
--- act = an activation zone (the left grip pressed inside it starts something): the only kind drawn
+-- act = an activation zone (the left grip pressed inside it starts something): the only kind drawn. first = the plugin gives
+-- it first claim on the left grip (pairs.cpp: the slide / pump / bolt and the magazine come before the handle, drum, insert
+-- and pairs), so where zones overlap, its ball is the one shown (2026-10-30, Tefa: "handgun only has grip handle ball showing")
 local ZONES = {
-    { i = 0, key = "mag",  act = true, label = "Grab the magazine (left grip on it)" },
-    { i = 1, key = "well", label = "The well: where a magazine goes in" },
-    { i = 2, key = "part", act = true, label = "The slide / pump / bolt (left grip on it)" },
+    { i = 0, key = "mag",  act = true, first = true, label = "Grab the magazine (left grip on it)" },
+    { i = 1, key = "well", act = "mag", first = true, label = "The well: where a magazine goes in" },   -- shown only with a magazine in the left hand
+    { i = 2, key = "part", act = true, first = true, label = "The slide / pump / bolt (left grip on it)" },
     { i = 3, key = "hand", label = "The point the hand is measured from" },
     { i = 4, key = "grip", act = true, label = "The front grip: this gun's kept grip spot (left grip in it takes the gun two-handed)" },
     { i = 5, key = "pair", act = true, pair = true },   -- the hand pair nearest the left hand (the Grip Zones window edits pairs)
     { i = 20, key = "handle", act = true, label = "The grip handle (handguns: left grip cups it)" },
     { i = 21, key = "drum",   act = true, label = "The drum (revolvers: left grip opens it, LT loads a round, LT when full closes it)" },
     { i = 22, key = "insert", act = true, label = "The insert point (GM 79: a grenade goes in here; left grip + LT takes one out)" },
-    { i = 23, key = "slide-left", act = true, label = "The slide from the left side (pistols: left grip in it takes the slide with the left-side hold)" },
+    { i = 23, key = "slide-left", act = true, first = true, label = "The slide from the left side (pistols: left grip in it takes the slide with the left-side hold)" },
 }
 local PART_NAMES = { [1] = "slide", [2] = "pump", [3] = "bolt" }
 local AXES = { { k = "z", label = "forward (+) / back (-), cm" }, { k = "y", label = "up (+) / down (-), cm" }, { k = "x", label = "right (+) / left (-), cm" } }
 
--- the fade, as Tefa asked: from the edge (the hand just inside, NEAR_EDGE radii from the centre) to the centre
-local NEAR_EDGE = 1.0
-local NEAR_ALPHA_EDGE, NEAR_ALPHA_CLOSE = 0.10, 0.80
-local ALPHA_STEP = 0.02         -- a change smaller than this is not written to the material again
-local MATERIAL_RETRY_S = 1.0    -- a sphere whose material is not in yet is asked again this often
+-- the size cue (2026-10-30, Tefa picked it after the fade proved impossible: the orange and white look is the engine's
+-- "no material" pattern and has no see-through setting; checked live, get_MaterialNum 0 on a drawn sphere): only the zone the
+-- left hand is nearest to shows, once the hand is inside its edge, as a ball at the zone's centre: the zone's full size at
+-- the edge, shrinking in STEPS as the hand goes deeper (Tefa, first wear: "the ball works! but it has to go in reverse,
+-- from starting out big to smaller in the middle")
+local STEPS = 3
 local HOLD_SPOT_MAX = 2000      -- slot 153 below this (and above 0): the left hand holds something (pairs.cpp), so no sphere shows
 
 -- the sphere: Village's development test ball (its file list) in the shared "axis" effect material, the orange and white
@@ -69,16 +75,11 @@ local MEASURE_FRAMES = 180      -- frames to wait for the model's own box before
 local UNMEASURED_HALF_M = 0.030 -- the test ball's half size by its own box, 0.033 by a ruler [measured 2026-10-29]
 local RESPAWN_EVERY_S = 1.0
 
--- which material variable carries the see-through: the first float whose name says so; failing that, the alpha of the
--- colour variables. Every variable's name and type is logged once, so the next session knows them.
-local ALPHA_NAME = { "alpha", "opac", "transp", "fade", "dissolve" }
-local COLOUR_NAME = "col"
-
 local cfg = nil
 local seq = 0
 local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
-local balls = {}          -- i -> { go, comp, xform, on, half, centre, alpha }
+local balls = {}          -- i -> { go, comp, xform, on, half, centre, step }
 local mesh_holders, mesh_failed, mesh_first_try = {}, {}, {}
 local mat_res = {}        -- material path -> its holder (false = would not load)
 local mesh_used = nil
@@ -112,7 +113,7 @@ end
 -- the one setting that matters, handed to the Visceral options window (visceral_re8_emporium.lua)
 _G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
 table.insert(_G.VISCERAL_OPTIONS, { tab = "graphics", order = 30, kind = "check", label = "Show the grip spheres as the hand nears them",
-    help = "A sphere shows where the left hand takes hold, fading in as the hand goes inside it.",
+    help = "The grip spot your left hand is in shows as a ball, its full size at the edge, smaller as the hand goes deeper.",
     get = function() return near_on() end, set = set_near })
 
 load()
@@ -190,77 +191,6 @@ local function measure(comp)
     end)
     if half and half > 0.0005 and half < 100 then return half, centre end
     return nil, nil
-end
--- every material variable's name and type, once, so the next session knows which one carries the see-through
-local function log_vars(comp)
-    if vars_logged then return end
-    local n = 0
-    pcall(function() n = comp:call("get_MaterialNum") end)
-    if not n or n == 0 then return end
-    vars_logged = true
-    for m = 0, n - 1 do
-        local vn, mname, parts = 0, "?", {}
-        pcall(function() mname = comp:call("getMaterialName", m) end)
-        pcall(function() vn = comp:call("getMaterialVariableNum", m) end)
-        for v = 0, (vn or 1) - 1 do
-            local name, ty = "?", "?"
-            pcall(function() name = comp:call("getMaterialVariableName", m, v) end)
-            pcall(function() ty = tostring(comp:call("getMaterialVariableType", m, v)) end)
-            parts[#parts + 1] = tostring(name) .. ":" .. ty
-        end
-        log.info(TAG .. " sphere material " .. m .. " (" .. tostring(mname) .. "): " .. table.concat(parts, ", "))
-    end
-end
--- where the see-through goes on this sphere: { m, v, kind = "float" | "colour" } entries, found once per sphere; nil while
--- the material is not in yet (on 2026-10-30 a balloon made at the title screen still had none after 60 frames)
-local function find_alpha(comp)
-    local float_hits, colour_hits = {}, {}
-    local n = 0
-    pcall(function() n = comp:call("get_MaterialNum") end)
-    if not n or n == 0 then return nil end
-    log_vars(comp)
-    for m = 0, (n or 0) - 1 do
-        local vn = 0
-        pcall(function() vn = comp:call("getMaterialVariableNum", m) end)
-        for v = 0, (vn or 1) - 1 do
-            local name = nil
-            pcall(function() name = comp:call("getMaterialVariableName", m, v) end)
-            local low = name and name:lower() or ""
-            local is_alpha = false
-            for _, w in ipairs(ALPHA_NAME) do if low:find(w, 1, true) then is_alpha = true end end
-            if is_alpha then
-                local ok = pcall(function() comp:call("getMaterialFloat", m, v) end)
-                if ok then float_hits[#float_hits + 1] = { m = m, v = v, kind = "float", name = name } end
-            elseif low:find(COLOUR_NAME, 1, true) then
-                local c = nil
-                pcall(function() c = comp:call("getMaterialFloat4", m, v) end)
-                if c then colour_hits[#colour_hits + 1] = { m = m, v = v, kind = "colour", name = name, base = c } end
-            end
-        end
-    end
-    return #float_hits > 0 and float_hits or colour_hits
-end
-local function set_alpha(ball, a, now)
-    if ball.alpha ~= nil and math.abs(ball.alpha - a) < ALPHA_STEP then return end
-    if ball.alpha_at == nil then
-        if now - (ball.alpha_try_t or -10) < MATERIAL_RETRY_S then return end
-        ball.alpha_try_t = now
-        ball.alpha_at = find_alpha(ball.comp)
-        if ball.alpha_at == nil then return end   -- the material is not in yet: asked again in a moment
-        local names = {}
-        for _, h in ipairs(ball.alpha_at) do names[#names + 1] = h.name .. " (" .. h.kind .. ")" end
-        log.info(TAG .. " the see-through goes on: " .. (#names > 0 and table.concat(names, ", ") or "nothing found (the sphere shows solid)"))
-    end
-    ball.alpha = a
-    for _, h in ipairs(ball.alpha_at) do
-        pcall(function()
-            if h.kind == "float" then ball.comp:call("setMaterialFloat", h.m, h.v, a)
-            else
-                local c = h.base
-                ball.comp:call("setMaterialFloat4", h.m, h.v, Vector4f.new(c.x, c.y, c.z, a))
-            end
-        end)
-    end
 end
 local function spawn(i)
     local td = sdk.find_type_definition("via.GameObject")
@@ -435,15 +365,16 @@ local function write_state(b)
     pcall(function() json.dump_file(STATE_FILE, st) end)
 end
 
--- how see-through zone z's sphere should be now: nil = hidden (the hand outside its edge, or holding something)
-local function near_alpha(b, z, holding)
+-- how deep the left hand is in zone z: 0 at the centre, 1 on the edge; nil = outside, not an activation zone, or holding
+local function near_k(b, z, holding)
     if holding or not z.act then return nil end
     local x, y, zz, r, on = live(b, z.i)
     local hx, hy, hz, _, hon = live(b, HAND_I)
     if not (on and on > 0.5 and hon and hon > 0.5 and x and hx and r and r > 0) or math.abs(x) > 1.0e5 then return nil end
-    local k = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) / r   -- 0 at the centre, 1 on the surface
-    if k > NEAR_EDGE then return nil end
-    return NEAR_ALPHA_EDGE + (NEAR_ALPHA_CLOSE - NEAR_ALPHA_EDGE) * (1.0 - k / NEAR_EDGE)
+    if z.act == "mag" and on < 1.5 then return nil end   -- the well: only while a magazine is in the left hand (reload.cpp: on 2)
+    local k = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) / r
+    if k > 1.0 then return nil end
+    return k
 end
 
 -- made, moved and switched in the game's own update (on_application_entry "UpdateMotion"), as the holster visuals do: made in
@@ -470,18 +401,34 @@ re.on_application_entry("UpdateMotion", function()
             end
         end
     end
-    -- made once a gun is in hand, at most once a second until they are
-    if not spawn_tried and gun_num(b) > 0 and now - last_respawn_t > RESPAWN_EVERY_S then
-        last_respawn_t = now
-        if not swept then swept = true; sweep_leftovers() end
-        local any = false
-        for _, z in ipairs(ZONES) do
-            if z.act then balls[z.i] = spawn(z.i); any = any or balls[z.i] ~= nil end
+    -- made once a gun is in hand; any still missing (its model was loading) asked again once a second (2026-10-30: the
+    -- magazine's sphere, asked first while the model loaded, was never made)
+    if gun_num(b) > 0 and now - last_respawn_t > RESPAWN_EVERY_S then
+        local missing = false
+        for _, z in ipairs(ZONES) do if z.act and balls[z.i] == nil then missing = true end end
+        if missing then
+            last_respawn_t = now
+            if not swept then swept = true; sweep_leftovers() end
+            for _, z in ipairs(ZONES) do
+                if z.act and balls[z.i] == nil then balls[z.i] = spawn(z.i); spawn_tried = spawn_tried or balls[z.i] ~= nil end
+            end
         end
-        spawn_tried = any
     end
     local spot = math.floor((b.r(S_LEFT_SPOT) or 0) + 0.5)
     local holding = spot > 0 and spot < HOLD_SPOT_MAX
+    -- the one zone to show: the one the left grip would take, as the plugin decides it: a "first" zone the hand is inside
+    -- before any other, then the hand deepest inside, in the zone's own radii
+    local show_i, show_k, show_first = nil, nil, false
+    for _, z in ipairs(ZONES) do
+        local ball = balls[z.i]
+        if ball and ball.half then
+            local k = near_k(b, z, holding)
+            local first = z.first == true
+            if k and (show_i == nil or (first and not show_first) or (first == show_first and k < show_k)) then
+                show_i, show_k, show_first = z.i, k, first
+            end
+        end
+    end
     for _, z in ipairs(ZONES) do
         local ball = balls[z.i]
         if ball and alive(ball.go) and ball.xform then
@@ -489,27 +436,25 @@ re.on_application_entry("UpdateMotion", function()
                 ball.frames = (ball.frames or 0) + 1
                 ball.half, ball.centre = measure(ball.comp)
                 if not ball.half and ball.frames > MEASURE_FRAMES then ball.half = UNMEASURED_HALF_M end
-                if ball.half then
-                    if z.i == 0 then log.info(TAG .. string.format(" the sphere's own half size %.4f m", ball.half)) end
-                end
+                if ball.half and z.i == 0 then log.info(TAG .. string.format(" the sphere's own half size %.4f m", ball.half)) end
             end
-            local a = ball.half and near_alpha(b, z, holding) or nil
-            set_on(ball, a ~= nil)
-            if a then
+            local show = z.i == show_i
+            set_on(ball, show)
+            if show then
                 local x, y, zz, r = live(b, z.i)
-                local s = r / ball.half
+                local step = math.max(1, math.min(STEPS, math.ceil((1.0 - show_k) * STEPS)))   -- 1 at the edge .. STEPS at the middle
+                local s = r * (STEPS - step + 1) / STEPS / ball.half   -- full size at the edge, a third at the middle
                 local c = ball.centre or { 0, 0, 0 }
-                ball.scale = s
+                ball.scale, ball.step = s, step
                 pcall(function()
                     ball.xform:call("set_Position", Vector3f.new(x - c[1] * s, y - c[2] * s, zz - c[3] * s))
                     -- set_LocalScale as well as set_Scale, as praydog's holster visuals do
                     ball.xform:call("set_LocalScale", Vector3f.new(s, s, s))
                     ball.xform:call("set_Scale", Vector3f.new(s, s, s))
                 end)
-                set_alpha(ball, a, now)
                 if not ball.shown_logged then
                     ball.shown_logged = true
-                    log.info(TAG .. string.format(" sphere %s first shown: r %.3f m, scale %.3f, see-through %.2f", z.key, r, s, a))
+                    log.info(TAG .. string.format(" sphere %s first shown: r %.3f m, step %d of %d", z.key, r, step, STEPS))
                 end
             end
         end
@@ -522,8 +467,8 @@ re.on_application_entry("UpdateMotion", function()
             local ball = balls[z.i]
             if ball then
                 local _, _, _, r, on = live(b, z.i)
-                parts[#parts + 1] = string.format("%s %s r %.2f alpha %.2f", z.key, alive(ball.go) and (ball.on and "SHOWN" or (on and on > 0.5 and "near-off" or "not on gun")) or "DEAD",
-                    r or 0, ball.on and ball.alpha or 0)
+                parts[#parts + 1] = string.format("%s %s r %.2f%s", z.key, alive(ball.go) and (ball.on and "SHOWN" or (on and on > 0.5 and "near-off" or "not on gun")) or "DEAD",
+                    r or 0, ball.on and (" step " .. tostring(ball.step)) or "")
             end
         end
         if #parts > 0 then log.info(TAG .. " spheres" .. (holding and " (left hand holding: none shown)" or "") .. ": " .. table.concat(parts, " | ")) end

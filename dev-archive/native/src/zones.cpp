@@ -4,6 +4,7 @@
 #include "json_mini.h"
 #include "player.h"
 #include "settings.h"
+#include "weapons.h"
 
 #include <windows.h>
 #include <cstring>
@@ -15,7 +16,7 @@ namespace vn::zones {
 using namespace vn::settings;
 
 namespace {
-struct Entry { bool has_off = false, has_r = false; Vec3 off{0, 0, 0}; float r = 0.0f; };
+struct Entry { bool has_off = false, has_r = false, has_on = false, on = true; Vec3 off{0, 0, 0}; float r = 0.0f; };
 std::map<std::string, std::map<std::string, Entry>> g_file;   // "default" / "<gun number>" -> zone key -> numbers
 float g_seq_seen = -1.0f;
 bool g_loaded = false;
@@ -43,6 +44,7 @@ void load() {
             const bool ox = num("x", e.off.x), oy = num("y", e.off.y), oz = num("z", e.off.z);
             e.has_off = ox || oy || oz;
             e.has_r = num("r", e.r);
+            if (auto* o = z.get("on"); o && o->kind == json::Value::BOOL) { e.has_on = true; e.on = o->b; }
             g_file[gun][key] = e;
             ++n;
         }
@@ -79,12 +81,24 @@ Zone builtin(Key k, const char* part) {
     }
     return z;
 }
-void apply(Zone& z, const std::map<std::string, Entry>* group, const char* key) {
+// 2026-10-30 (Tefa: "fewer zones per gun ... handguns and revolvers all need grip handle ... please make it customizable so we
+// can add things if needed"): which zones a gun has. The rest of the built-in rules sit where each zone is published
+// (rack.cpp, reload.cpp, pairs.cpp); this one adds only the front grip: rifles and other long guns, not handguns, revolvers or
+// pump shotguns (their left hand holds the handle or the pump). zones.json { "on": true / false } per zone, for every gun
+// ("default") or one gun, overrides it either way. A zone that is off has size 0: it neither shows nor takes the hand.
+bool builtin_on(Key k) {
+    if (k != GRIP) return true;
+    const weapons::Weapon* w = weapons::find(weapons::canonical(player::now().weapon_id));
+    if (w == nullptr) return true;
+    return w->shape == weapons::Shape::LONG && !w->pump;
+}
+void apply(Zone& z, bool& on, const std::map<std::string, Entry>* group, const char* key) {
     if (group == nullptr) return;
     auto it = group->find(key);
     if (it == group->end()) return;
     if (it->second.has_off) z.off = it->second.off;
     if (it->second.has_r && it->second.r > 0.0f) z.r = it->second.r;
+    if (it->second.has_on) on = it->second.on;
 }
 const std::map<std::string, Entry>* group(const std::string& name) {
     auto it = g_file.find(name);
@@ -117,10 +131,12 @@ Zone get(Key k, const char* part) {
     Zone z = builtin(k, part);
     const Vec3 base = z.off;   // 2026-10-27: a part with a built-in place (HANDLE / DRUM / INSERT): the file's offset moves it from there
     const char* key = key_name(k, part);
-    apply(z, group("default"), key);
+    bool on = builtin_on(k);
+    apply(z, on, group("default"), key);
     const float num = bridge::view(bridge::S_WEAPON_NUM);
-    if (num != bridge::NO_VALUE && num > 0.5f) apply(z, group(std::to_string((int)(num + 0.5f))), key);
+    if (num != bridge::NO_VALUE && num > 0.5f) apply(z, on, group(std::to_string((int)(num + 0.5f))), key);
     if (z.off.x != base.x || z.off.y != base.y || z.off.z != base.z) z.off = base + z.off;   // set in the file: relative to the built-in place
+    if (!on) z.r = 0.0f;
     return z;
 }
 float radius(Key k, const char* part) { return get(k, part).r; }
@@ -143,6 +159,7 @@ int first_slot(Key k) { return k < HANDLE ? bridge::S_ZONES + (int)k * 5 : bridg
 
 void publish(Key k, const Vec3& c, float r, float on) {
     const int s = first_slot(k);
+    if (r <= 0.0f) { bridge::put((bridge::Slot)(s + 4), 0.0f); return; }   // switched off for this gun
     bridge::put((bridge::Slot)(s + 0), c.x);
     bridge::put((bridge::Slot)(s + 1), c.y);
     bridge::put((bridge::Slot)(s + 2), c.z);

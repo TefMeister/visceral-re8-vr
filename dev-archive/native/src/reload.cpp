@@ -143,7 +143,10 @@ float dock_dist() {
         if (held_pose(item, q)) return dist(item, ic);
         if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) return dist(lp, ic);
     }
-    if (g_w->shape == weapons::Shape::LONG && port_world(port) && held_pose(item, q)) return dist(item, zones::center(zones::WELL, port));
+    // 2026-10-30 (Tefa: "sphere still did not show at the bottom of the mag chamber to tune how far the mag goes in from"):
+    // a handgun's magazine goes in at its WELL too, as a long gun's does, once the well is known (measured while a magazine
+    // sat in it); until then the old rule, the two controllers within DOCK_PISTOL_M
+    if ((g_w->shape == weapons::Shape::LONG || g_w->reload == Reload::MAG) && port_world(port) && held_pose(item, q)) return dist(item, zones::center(zones::WELL, port));
     return dist(bridge::hand_pos(bridge::LEFT), bridge::hand_pos(bridge::RIGHT));
 }
 float dock_need() {
@@ -151,6 +154,7 @@ float dock_need() {
     float ir;
     if (g_w->breech == weapons::Breech::BREAK && pairs::part_center(zones::INSERT, ic, ir)) return ir;
     if (g_w->shape == weapons::Shape::LONG) return port_world(port) ? zones::radius(zones::WELL) : DOCK_LONG_M;
+    if (g_w->reload == Reload::MAG && port_world(port)) return zones::radius(zones::WELL);   // 2026-10-30: the handgun's well
     return DOCK_PISTOL_M;
 }
 // 2026-10-18 headset run: a shell went in 0.6 s after the grab, still at the hip (a long gun held low is within reach of
@@ -589,7 +593,9 @@ void publish_zones() {
     if (g_st == St::SEATED && g_joint != nullptr) capture_port(g_joint);
     if (g_st == St::SEATED && mag_world(mp, mq)) zones::publish(zones::MAG, zones::center(zones::MAG, mp), zones::radius(zones::MAG));
     else zones::clear(zones::MAG);
-    if (g_w->shape == weapons::Shape::LONG && port_world(port)) zones::publish(zones::WELL, zones::center(zones::WELL, port), zones::radius(zones::WELL));
+    // every magazine gun's well (handguns too since 2026-10-30); "on" 2 = a magazine is in the left hand on its way in, so the
+    // zones script shows the well's ball then
+    if (port_world(port)) zones::publish(zones::WELL, zones::center(zones::WELL, port), zones::radius(zones::WELL), mag_in_hand() ? 2.0f : 1.0f);
     else zones::clear(zones::WELL);
 }
 bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_hand_on_mag); }
