@@ -1,4 +1,5 @@
 local game_name = reframework:get_game_name()
+local VISCERAL_TWO_HANDED_HOLD = false   -- 2026-10-30, Tefa: the left grip no longer holds the weapon (see is_holding_left_grip)
 local is_re7 = game_name == "re7"
 local is_re8 = game_name == "re8"
 
@@ -439,7 +440,10 @@ local function update_pad_device(device)
     
     -- Visceral RE8 (2026-10-18): not "holding the gun" while a magazine / shell / the slide is in the left hand, so the
     -- two-handed grip does not lock on as the hand passes the gun (Tefa: "the gun most of the time jumps to the left hand")
-    re8vr.is_holding_left_grip = vrmod:is_action_active(action_grip, left_joystick) and rawget(_G, "__visceral_reload_busy") ~= true
+    -- 2026-10-30 (Tefa: "the left grip to hold weapon, this needs to be scrapped out"): VISCERAL_TWO_HANDED_HOLD = false keeps
+    -- praydog's two-handed hold (the left hand docking on the gun on LG) off for good; our own LG uses (magazine, slide, drum,
+    -- pouch) read the button themselves and are not touched
+    re8vr.is_holding_left_grip = VISCERAL_TWO_HANDED_HOLD and vrmod:is_action_active(action_grip, left_joystick) and rawget(_G, "__visceral_reload_busy") ~= true
 
     if rawget(_G, "__visceral_reload_busy") == true then re8vr.wants_block = false -- Visceral RE8: a reload in the left hand (2026-10-18)
     elseif re8vr.wants_block or vrmod:is_action_active(action_block, left_joystick) or vrmod:is_action_active(action_block, right_joystick) then

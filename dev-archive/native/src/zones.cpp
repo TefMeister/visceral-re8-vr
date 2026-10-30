@@ -88,13 +88,14 @@ Zone builtin(Key k, const char* part) {
 // ("default") or one gun, overrides it either way. A zone that is off has size 0: it neither shows nor takes the hand.
 // 2026-10-30 (Tefa: "each pistol with a magazine - instead of gripping the grip handle, left hand actually grips the mag
 // itself ... so for pistols, rename the grip handle to magazine. on revolvers with a drum this won't apply"): no grip handle on
-// magazine handguns; their magazine zone (reload.cpp) is the left hand's hold
+// magazine handguns; their magazine zone (reload.cpp) is the left hand's hold. No front grip at all (below)
 bool builtin_on(Key k) {
     if (k != GRIP && k != HANDLE) return true;
     const weapons::Weapon* w = weapons::find(weapons::canonical(player::now().weapon_id));
     if (w == nullptr) return true;
     if (k == HANDLE) return w->reload != weapons::Reload::MAG;
-    return w->shape == weapons::Shape::LONG && !w->pump;
+    return false;   // the front grip: off on every gun since the left grip no longer holds the weapon (2026-10-30, Tefa:
+                    // "the left grip to hold weapon, this needs to be scrapped out"; lua/re8_vr.lua VISCERAL_TWO_HANDED_HOLD)
 }
 void apply(Zone& z, bool& on, const std::map<std::string, Entry>* group, const char* key) {
     if (group == nullptr) return;
