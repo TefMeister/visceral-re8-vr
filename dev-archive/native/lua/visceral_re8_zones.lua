@@ -55,25 +55,26 @@ local STEPS = 3
 
 -- the sphere: Village's development test ball (its file list), the orange and white squares seen since 2026-10-25; the plain
 -- primitive sphere if the test ball will not load.
--- ⚠️ never set_Material on them: a second call on a balloon crashed the game (2026-10-30 20:20, a probe at the title
--- screen; kept dump D:/RE Village REFramework builds/logs/reframework_crash-2026-10-30-2020.dmp), and see below
+-- ⚠️ set_Material ONCE per sphere: a second call on a balloon crashed the game (2026-10-30 20:20, a probe at the title
+-- screen; kept dump D:/RE Village REFramework builds/logs/reframework_crash-2026-10-30-2020.dmp)
 local MESHES = { "environment/props/resource/sm0x/sm00_111_testball/sm00_111_testball_00.mesh",
                  "vfx/mesh/mesh_primitive/sphere_mediumpolygon.mesh" }
--- 2026-10-30 21:55 (a crash while the magazine's sphere showed, minutes after "Reset scripts" remade the spheres, at
--- re8.exe+0x415879c, the very place of the 2026-10-25 22:06 crash after the spheres were thrown away and remade): no material
--- is set on the spheres any more. The "axis" material never linked anyway (get_MaterialNum 0 on a drawn sphere, checked live
--- the same day), so the orange and white squares are the engine's own no-material pattern and look the same without it.
--- Kept logs: D:/RE Village REFramework builds/logs/*2026-10-30-2155*
+local MATERIAL = "systems/effect/vfx_default_axis.mdf2"   -- the orange and white squares
+-- ⚠️ THE SPHERES ARE NEVER MEASURED (2026-10-30, Tefa: "crashes straight away"): with no material set (tried 22:2x) the game
+-- crashed a second after the spheres were made, INSIDE via.render.Mesh.get_ModelLocalAABB (re8.exe+0x4bdfcb4), the call that
+-- read each new sphere's own size every frame until it answered. So the material is back (the 20:41-21:55 build) and the size
+-- is the test ball's known one. ⚠️ The crash after the spheres were remade (2026-10-30 21:55, re8.exe+0x415879c, the same
+-- place as 2026-10-25 22:06) is NOT explained by this: the measure had finished two minutes before it. Cause unknown. Logs and dumps: D:/RE Village REFramework builds/logs/*2026-10-30-2155*, *2026-10-30-2231*
 local MESH_WAIT_S = 10.0        -- a model is waited for this long (it loads in the background) before the next is tried
-local MEASURE_FRAMES = 180      -- frames to wait for the model's own box before taking UNMEASURED_HALF_M
-local UNMEASURED_HALF_M = 0.030 -- the test ball's half size by its own box, 0.033 by a ruler [measured 2026-10-29]
+local SPHERE_HALF_M = 0.030     -- the test ball's half size by its own box, 0.033 by a ruler [measured 2026-10-29]
 local RESPAWN_EVERY_S = 1.0
 
 local cfg = nil
 local seq = 0
 local last_state_t, last_reload_t, last_edit_t = 0, 0, -10
 local edit_defaults = false
-local balls = {}          -- i -> { go, comp, xform, on, half, centre, step }
+local balls = {}          -- i -> { go, comp, xform, on, step }
+local mat_res = {}        -- material path -> its holder (false = would not load)
 local mesh_holders, mesh_failed, mesh_first_try = {}, {}, {}
 local mesh_used = nil
 local open_key, last_open_t = nil, -10
@@ -164,23 +165,6 @@ local function find_folder()
     end
     return nil
 end
--- the model's half size and the centre of its box (a model's origin need not be its middle), from its own bounding box
-local function measure(comp)
-    local half, centre = nil, nil
-    pcall(function()
-        comp:call("updateBoundingBox")
-        local la = comp:call("get_ModelLocalAABB")
-        if la then
-            local mn, mx = la:get_field("minpos"), la:get_field("maxpos")
-            if mn and mx then
-                half = math.max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) / 2
-                centre = { (mn.x + mx.x) / 2, (mn.y + mx.y) / 2, (mn.z + mx.z) / 2 }
-            end
-        end
-    end)
-    if half and half > 0.0005 and half < 100 then return half, centre end
-    return nil, nil
-end
 local function spawn(i)
     local td = sdk.find_type_definition("via.GameObject")
     local mk2 = td and td:get_method("create(System.String, via.Folder)") or nil
@@ -227,6 +211,8 @@ local function spawn(i)
         return nil
     end
     if not mesh_used then mesh_used = got; log.info(TAG .. " the sphere: " .. got) end
+    if mat_res[MATERIAL] == nil then mat_res[MATERIAL] = holder(MATERIAL, "via.render.MeshMaterialResource", "via.render.MeshMaterialResourceHolder") or false end
+    if mat_res[MATERIAL] then pcall(function() comp:call("set_Material", mat_res[MATERIAL]) end) end   -- once, at the making
     -- a mesh made from script draws only once enabled, set to draw by default and sent to every render output
     -- (Andyalpa's holster visuals, re8_vr_holster_visuals.lua)
     pcall(function() comp:call("set_Enabled", true) end)
@@ -403,22 +389,15 @@ re.on_application_entry("UpdateMotion", function()
     for _, z in ipairs(ZONES) do
         local ball = balls[z.i]
         if ball and alive(ball.go) and ball.xform then
-            if not ball.half then   -- the model's own box, asked every frame until it answers (it is still loading at first)
-                ball.frames = (ball.frames or 0) + 1
-                ball.half, ball.centre = measure(ball.comp)
-                if not ball.half and ball.frames > MEASURE_FRAMES then ball.half = UNMEASURED_HALF_M end
-                if ball.half and z.i == 0 then log.info(TAG .. string.format(" the sphere's own half size %.4f m", ball.half)) end
-            end
             local show = z.i == show_i
             set_on(ball, show)
             if show then
                 local x, y, zz, r = live(b, z.i)
                 local step = show_k and math.max(1, math.min(STEPS, math.ceil((1.0 - show_k) * STEPS))) or 1   -- 1 outside or at the edge .. STEPS at the middle
-                local s = r * (STEPS - step + 1) / STEPS / ball.half   -- full size at the edge, a third at the middle
-                local c = ball.centre or { 0, 0, 0 }
+                local s = r * (STEPS - step + 1) / STEPS / SPHERE_HALF_M   -- full size at the edge, a third at the middle
                 ball.scale, ball.step = s, step
                 pcall(function()
-                    ball.xform:call("set_Position", Vector3f.new(x - c[1] * s, y - c[2] * s, zz - c[3] * s))
+                    ball.xform:call("set_Position", Vector3f.new(x, y, zz))
                     -- set_LocalScale as well as set_Scale, as praydog's holster visuals do
                     ball.xform:call("set_LocalScale", Vector3f.new(s, s, s))
                     ball.xform:call("set_Scale", Vector3f.new(s, s, s))
