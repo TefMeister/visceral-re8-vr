@@ -66,6 +66,7 @@ float g_last_grab = -10.0f, g_last_dock = -10.0f;
 bool g_pouch_ours = false;        // inside our own pouch spot (used when Andyalpa's ammo spot never reports)
 
 int g_mag_rounds = 0;             // rounds that left with the magazine
+int g_chamber = 0;                // 2026-10-31: the round kept in the chamber while the magazine is out (CHAMBER_ROUND)
 bool g_lt_to_seat = false;        // a magazine pulled out by hand: it goes back in only on a fresh LT press at the well (Tefa 2026-10-25)
 bool g_dry = false;               // the gun was empty when its magazine came out
 int g_stash = 0;                  // rounds waiting for a rack / pump
@@ -189,7 +190,10 @@ void set_loaded_on(MO* gun, int n) {   // a gun no longer in hand (put away mid-
 
 // a new magazine: the dropped one's rounds back, then the game's own reload tops it up from the carried ammo
 void fill_magazine() {
-    player::set_loaded(g_mag_rounds);
+    const int in_chamber = g_chamber > 0 ? std::max(0, player::loaded()) : 0;   // still there unless it was fired meanwhile
+    g_chamber = 0;
+    if (CHAMBER_ROUND && g_w != nullptr && g_w->rack && !g_w->pump && in_chamber == 0) g_dry = true;   // fired dry meanwhile (or never had one): rack
+    player::set_loaded(g_mag_rounds + in_chamber);
     const int took = player::game_reload(-1);
     const int total = player::loaded();
     g_mag_rounds = 0;
@@ -301,7 +305,8 @@ void put_back_on_swap(const char* why) {
     g_stash = 0;
     g_hand_on_mag = false;
     if (g_st == St::SEATED) return;
-    if (is_managed(g_drop_gun)) set_loaded_on(g_drop_gun, g_mag_rounds);
+    if (is_managed(g_drop_gun)) set_loaded_on(g_drop_gun, g_mag_rounds + g_chamber);
+    g_chamber = 0;
     if (g_joint != nullptr) write_scale(g_rest_scale);
     if (is_managed(g_drop_gun)) call_ptr(g_drop_gun, "resetMagazineDisp");
     mag_part_shown(true);   // g_gun is still the old gun here
@@ -315,10 +320,12 @@ void put_back_on_swap(const char* why) {
 void begin_drop() {
     const int n = player::loaded();
     if (n < 0) { LOGW("%s reload: %s: no loaded-ammo call found, no drop (see type_probe.txt)", TAG, g_id.c_str()); return; }
-    g_mag_rounds = n;
+    // 2026-10-31: a slide / bolt gun that is not empty keeps one round in the chamber (the slide stays forward)
+    g_chamber = (CHAMBER_ROUND && n > 0 && g_w != nullptr && g_w->rack && !g_w->pump) ? 1 : 0;
+    g_mag_rounds = n - g_chamber;
     g_dry = n == 0;
     g_drop_gun = g_gun;
-    if (!player::set_loaded(0)) { LOGW("%s reload: %s: no way to empty the gun found, no drop (see type_probe.txt)", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
+    if (!player::set_loaded(g_chamber)) { LOGW("%s reload: %s: no way to empty the gun found, no drop (see type_probe.txt)", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
     bridge::sfx(bridge::SFX_MAG_OUT);
     Vec3 p, s;
     Quat q;
@@ -351,10 +358,12 @@ bool mag_world(Vec3& p, Quat& q);   // below
 void pull_out() {
     const int n = player::loaded();
     if (n < 0) { LOGW("%s reload: %s: no loaded-ammo call found, the magazine stays", TAG, g_id.c_str()); return; }
-    g_mag_rounds = n;
+    // 2026-10-31: a slide / bolt gun that is not empty keeps one round in the chamber (the slide stays forward)
+    g_chamber = (CHAMBER_ROUND && n > 0 && g_w != nullptr && g_w->rack && !g_w->pump) ? 1 : 0;
+    g_mag_rounds = n - g_chamber;
     g_dry = n == 0;
     g_drop_gun = g_gun;
-    if (!player::set_loaded(0)) { LOGW("%s reload: %s: no way to empty the gun found, the magazine stays", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
+    if (!player::set_loaded(g_chamber)) { LOGW("%s reload: %s: no way to empty the gun found, the magazine stays", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
     bridge::sfx(bridge::SFX_MAG_OUT);
     Vec3 p, s;
     Quat q;

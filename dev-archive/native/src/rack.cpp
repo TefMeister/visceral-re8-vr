@@ -450,7 +450,7 @@ void frame() {
 
     const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     const bool lg = bridge::held(bridge::S_LGRIP), lt = bridge::held(bridge::S_LTRIG), lock = pose_lock();
-    const bool may_rack = pump() || g_parked || g_needed || lock || (bolt() && (g_bstate != 0 || g_turn > 0.0f));   // a bolt mid-cycle can always be taken
+    const bool may_rack = pump() || (RACK_SLIDE_ANY_TIME && !bolt()) || g_parked || g_needed || lock || (bolt() && (g_bstate != 0 || g_turn > 0.0f));   // a bolt mid-cycle can always be taken
     if (!lt) g_spent = false;
     if (!lg) g_from_grip = false;
     else if (bridge::flag(bridge::S_GRIPPING_WEAPON)) g_from_grip = true;
