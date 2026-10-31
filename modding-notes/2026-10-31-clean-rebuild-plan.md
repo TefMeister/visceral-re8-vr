@@ -145,3 +145,9 @@ r/g/b trim). Holding both still only stopped each from changing; it never made t
 update; the scope DLL's curve set neutral; (2) measure instead of judging by eye: a capture of the scope's centre and
 of the world behind it at the same moment (same scene, magnified), averaged per colour, and the trim set from the
 ratio, indoors and outdoors; (3) Tefa judges the end result only.
+- b003 worn (10:36): "the scope feels as native VR as it ever has", brightness almost matches in and out; but bright
+  colours blow out in the scope only (snow dust golden, yarn white, yellow paint and the well pulley neon). Numpad 2 x18
+  net (exposure_gt 10846 -> 195) fixed the yellow and made the rest far too dark `[reported 2026-10-31]`: the scope's
+  highlight roll-off differs from the world's, so no single brightness serves.
+- b004: tone_wp=1 + exposure_gt 10846 (the scope's curve uses the world's white point). The 10-30 flicker came with
+  tone_wp=1 AND the scope-camera write together; b004 has only the first, so it tells the two apart.
