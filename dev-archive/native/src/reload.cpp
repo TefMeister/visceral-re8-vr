@@ -332,6 +332,7 @@ void begin_drop() {
     g_same_mag = false;   // dropped to the floor: the next one comes from the pouch
     if (!player::set_loaded(g_chamber)) { LOGW("%s reload: %s: no way to empty the gun found, no drop (see type_probe.txt)", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
     bridge::sfx(bridge::SFX_MAG_OUT);
+    tell_hud();   // 2026-10-31 (Tefa: the rifle's counter was only right again after a shot): show what is left in the gun now
     Vec3 p, s;
     Quat q;
     if (g_joint != nullptr && get_v3(JOINT, g_joint, "get_LocalPosition", p) && get_q(JOINT, g_joint, "get_LocalRotation", q)) {
@@ -370,6 +371,7 @@ void pull_out() {
     g_drop_gun = g_gun;
     if (!player::set_loaded(g_chamber)) { LOGW("%s reload: %s: no way to empty the gun found, the magazine stays", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
     bridge::sfx(bridge::SFX_MAG_OUT);
+    tell_hud();   // 2026-10-31 (Tefa: the rifle's counter was only right again after a shot): show what is left in the gun now
     Vec3 p, s;
     Quat q;
     if (get_v3(JOINT, g_joint, "get_LocalPosition", p) && get_q(JOINT, g_joint, "get_LocalRotation", q)) {
