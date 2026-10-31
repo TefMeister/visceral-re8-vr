@@ -20,11 +20,23 @@ local FLUSH_S = 1.0              -- ... or this long since the last write
 
 local function now_us() return math.floor((os.clock() - jl.t0) * 1000000) end
 
+-- 2026-11-01 (Village, Tefa's screenshot): after REFramework's "Reset scripts" os.getenv and os.execute can be missing
+-- ("field 'getenv' is not callable"), and the error stopped the bridge's whole frame callback. The folder found at a
+-- normal start is kept in reframework/data and used when they are gone; with neither, there is no recording (nil).
+local KEEP_FILE = "begone_jitter_folder.json"
 local function folder()
-    local base = os.getenv("LOCALAPPDATA") or "."
-    local dir = base .. "\\BeG0nE\\jitter"
-    os.execute('mkdir "' .. dir .. '" >nul 2>nul')
-    return dir
+    local base = nil
+    pcall(function() if type(os.getenv) == "function" then base = os.getenv("LOCALAPPDATA") end end)
+    if base ~= nil then
+        local dir = base .. "\\BeG0nE\\jitter"
+        pcall(function() if type(os.execute) == "function" then os.execute('mkdir "' .. dir .. '" >nul 2>nul') end end)
+        pcall(function() json.dump_file(KEEP_FILE, { dir = dir }) end)
+        return dir
+    end
+    local kept = nil
+    pcall(function() kept = json.load_file(KEEP_FILE) end)
+    if type(kept) == "table" and type(kept.dir) == "string" then return kept.dir end
+    return nil
 end
 
 local function flush()
@@ -51,7 +63,10 @@ end
 
 function jl.vr_on()
     if jl.on then return end
-    local path = string.format("%s\\%s_%s.jl", folder(), jl.game, os.date("%Y%m%d-%H%M%S"))
+    local dir = folder()
+    if dir == nil then return end
+    local stamp = type(os.date) == "function" and os.date("%Y%m%d-%H%M%S") or string.format("reset-%d", math.floor(os.clock() * 1000))
+    local path = string.format("%s\\%s_%s.jl", dir, jl.game, stamp)
     jl.f = io.open(path, "wb")
     if not jl.f then return end
     jl.t0 = os.clock()
