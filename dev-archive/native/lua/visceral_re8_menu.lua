@@ -19,7 +19,7 @@ local HAP_PATH = "re8_vr/re8_vr_haptics.json"
 local INTENSITY = { low = 0.45, medium = 0.80, high = 1.20 }
 local HAP = {
     enabled = true,
-    gate_left_shoot = true,
+    gate_left_shoot = false,   -- 2026-10-31 (Tefa): shots rumble both controllers, one-handed too
     intensity = "medium",
     auto_pulse = true,
     auto_pulse_on_s = 0.018,

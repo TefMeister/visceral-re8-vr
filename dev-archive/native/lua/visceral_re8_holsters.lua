@@ -38,6 +38,7 @@ local ENTER_M, LEAVE_M = 0.15, 0.22          -- in a spot under ENTER, out again
 local BUZZ_ENTER = { sec = 0.05, amp = 0.35 } -- a tick on entering a spot
 local BUZZ_GRAB = { sec = 0.08, amp = 0.70 }  -- a stronger one on grabbing there
 local BUZZ_HZ = 1.0
+local BUZZ_ON = false   -- 2026-10-31 (Tefa): no rumble on any holster spot; weapon handling keeps its rumble
 
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
 local function L(s) log.info(TAG .. " " .. s) end
@@ -108,6 +109,7 @@ local function put_away(wc)
 end
 
 local function buzz(joy, b)
+    if not BUZZ_ON then return end
     pcall(function() vrmod:trigger_haptic_vibration(0.0, b.sec, BUZZ_HZ, b.amp, joy) end)
 end
 
