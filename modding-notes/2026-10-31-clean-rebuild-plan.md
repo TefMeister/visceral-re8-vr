@@ -151,3 +151,11 @@ ratio, indoors and outdoors; (3) Tefa judges the end result only.
   highlight roll-off differs from the world's, so no single brightness serves.
 - b004: tone_wp=1 + exposure_gt 10846 (the scope's curve uses the world's white point). The 10-30 flicker came with
   tone_wp=1 AND the scope-camera write together; b004 has only the first, so it tells the two apart.
+- b004 worn (10:52): NO FLICKER with tone_wp=1 `[verified-live 2026-10-31, headset, n=1]`, so the flicker was the light
+  script's scope-camera write. The neon highlights stay (the curve's shape): left for the Fable matching job. b004 is
+  the scope base going forward.
+- Layer 3 (source 3020e1a): build.sh installs Andyalpa's pack (our copies) + the plugin + our scripts minus the finger
+  gestures (nothing else needs them; only the "no medicine while two-handed" flag came from them, and the holster
+  falls back on re8vr's own check) and minus the test tools; body turn and the gun report compiled off; the Emporium
+  installed by build.sh now. Tefa's saved settings (zones, grip spots, holds, slide hand, pairs = off, sounds, weapon
+  ids, holster, recoil, ammo counter, Hand Poser) copied back from the backup. Installed the moment the game closes.
