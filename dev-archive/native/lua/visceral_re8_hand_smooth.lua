@@ -1,0 +1,208 @@
+-- visceral_re8_hand_smooth.lua -- steadier hands: a One Euro filter on both controllers, put in where praydog's VR layer
+-- turns the controllers into the game's hands (2026-11-01, Tefa: "is there a way to add some smoothing to the motion
+-- controls ... to reduce the hand shakyness", then "yes for hand smoothing").
+--
+-- WHY THE SHAKE IS THE HAND: the Ghost Hand run of 2026-10-31 22:29 shows the game adds none of its own (the game's hand
+-- wanders 0.5-0.8 cm at 95%, the same as the controller) [measured 2026-10-31]; a long gun makes a small wrist tremor big
+-- at the muzzle.
+--
+-- HOW: REFramework's RE8VR::update_hand_ik (src/mods/vr/games/RE8VR.cpp) builds each hand as
+--     rot = C * Rc * Qoff        pos = cam + C * (Pc - Phmd) + C * Rc * Poff
+-- from the controller (Rc, Pc), the camera turn C, and the hand offsets re8vr.<side>_hand_rotation_offset / _position_offset.
+-- To get the hand of a SMOOTHED controller (Rs, Ps) instead, the offsets are set, right before each update_hand_ik, to
+--     Qoff' = Rc^-1 * Rs * Qoff          Poff' = Rc^-1 * ((Ps - Pc) + Rs * Poff)
+-- so everything after it (the grip, the reloads, the muzzle, the bullet, the scope) sees the steadier hand.
+-- The hook is re8_vr.lua's __re8_arm_ik_update_override, chained (the holster script's heal hold chains it too).
+--
+-- ONE EURO FILTER (Casiez, Roussel, Vogel 2012): steady when the hand moves slowly, no drag when it moves fast, because the
+-- cut-off rises with speed. Filtered in the tracking space, so turning, walking and the head do not smear it.
+--
+-- PROVES ITSELF: every 10 s the log says how much frame-to-frame turn the gun hand had while held still, raw and smoothed.
+-- Menu: "Visceral RE8 hand smoothing" (on / off, strength, which hands). Saved in visceral_re8/hand_smooth.json.
+
+local TAG = "[visceral-re8-smooth]"
+local FILE = "visceral_re8/hand_smooth.json"
+
+-- strength 0..10 -> the cut-off when still: 12 Hz * 0.65^strength (4 = 2.1 Hz, about 75 ms of settling; 10 = 0.16 Hz)
+local CUTOFF_TOP_HZ, CUTOFF_STEP = 12.0, 0.65
+local BETA_ROT = 6.0          -- cut-off rise per rad/s of turn: a 3 rad/s flick is followed at ~20 Hz
+local BETA_POS = 20.0         -- cut-off rise per m/s of move: 1 m/s is followed at ~22 Hz
+local D_CUTOFF_HZ = 1.0       -- the speed estimate's own cut-off (the paper's 1 Hz)
+local SNAP_M, SNAP_RAD = 0.5, 1.0   -- a jump bigger than this in one frame (recentre, tracking lost) is taken as it is
+local DT_MIN, DT_MAX = 1 / 500, 0.1
+local STILL_RAD_S = 0.35      -- "held still" for the proof line: the raw hand turning slower than this
+local REPORT_S = 10.0
+
+local cfg = { on = true, strength = 4, right = true, left = true }
+pcall(function()
+    local f = json.load_file(FILE)
+    if type(f) == "table" then for k, v in pairs(f) do cfg[k] = v end end
+end)
+local function save() pcall(function() json.dump_file(FILE, cfg) end) end
+
+-- ---- small maths ----------------------------------------------------------------------------------------------------------
+local function alpha(cutoff_hz, dt) local tau = 1.0 / (2 * math.pi * cutoff_hz); return 1.0 / (1.0 + tau / dt) end
+local function v3(v) return Vector3f.new(v.x, v.y, v.z) end
+local function lerp3(a, b, t) return Vector3f.new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t) end
+local function len3(v) return math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) end
+local function qdot(a, b) return a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z end
+local function qangle(a, b) local d = math.min(1.0, math.abs(qdot(a, b))); return 2 * math.acos(d) end
+local function nlerp(a, b, t)   -- the short way round; per-frame steps are small, so nlerp is as good as slerp here
+    local s = qdot(a, b) < 0 and -1 or 1
+    return Quaternion.new(a.w + (s * b.w - a.w) * t, a.x + (s * b.x - a.x) * t, a.y + (s * b.y - a.y) * t, a.z + (s * b.z - a.z) * t):normalized()
+end
+local function qsame(a, b) return a ~= nil and b ~= nil and math.abs(a.w - b.w) < 1e-6 and math.abs(a.x - b.x) < 1e-6 and math.abs(a.y - b.y) < 1e-6 and math.abs(a.z - b.z) < 1e-6 end
+local function vsame(a, b) return a ~= nil and b ~= nil and math.abs(a.x - b.x) < 1e-6 and math.abs(a.y - b.y) < 1e-6 and math.abs(a.z - b.z) < 1e-6 end
+
+-- ---- one hand ---------------------------------------------------------------------------------------------------------------
+-- side: "left" / "right"; ci: 1 / 2 in vrmod:get_controllers()
+local function new_hand(side, ci)
+    return { side = side, ci = ci, have = false, rs = nil, ps = nil, wspeed = 0, vspeed = 0,
+             q_int = nil, p_int = nil, q_out = nil, p_out = nil,   -- the offsets someone else wants (intended), and ours as written
+             raw_sum = 0, out_sum = 0, still_n = 0 }
+end
+local hands = { new_hand("left", 1), new_hand("right", 2) }
+local function wanted(h) return (h.side == "right" and cfg.right) or (h.side == "left" and cfg.left) end
+
+local function offsets_get(h)
+    local q, p = nil, nil
+    pcall(function() q = re8vr[h.side .. "_hand_rotation_offset"]; p = re8vr[h.side .. "_hand_position_offset"] end)
+    return q, p
+end
+local function offsets_set(h, q, p)
+    pcall(function()
+        re8vr[h.side .. "_hand_rotation_offset"] = q
+        re8vr[h.side .. "_hand_position_offset"] = p
+    end)
+    h.q_out, h.p_out = offsets_get(h)   -- read back, so the next compare is against what is really stored
+end
+-- whoever else set the offsets (re8_vr.lua's own menu or its late OpenXR fix, the zones script's aim trim) is the intended
+-- value: anything there that is not what we wrote last
+local function track_intended(h)
+    local q, p = offsets_get(h)
+    if q == nil or p == nil then return false end
+    if h.q_int == nil or not qsame(q, h.q_out) then h.q_int = Quaternion.new(q.w, q.x, q.y, q.z) end
+    if h.p_int == nil or not vsame(p, h.p_out) then h.p_int = Vector4f.new(p.x, p.y, p.z, p.w or 0) end
+    return true
+end
+local function restore(h)
+    if h.q_int ~= nil and h.q_out ~= nil then offsets_set(h, h.q_int, h.p_int) end
+    h.q_out, h.p_out, h.have = nil, nil, false
+end
+
+-- the filter: once a frame per hand
+local function step(h, rc, pc, dt)
+    if not h.have then h.rs, h.ps, h.wspeed, h.vspeed, h.have = rc, pc, 0, 0, true; return end
+    local ang, dist = qangle(h.rs, rc), len3(Vector3f.new(pc.x - h.ps.x, pc.y - h.ps.y, pc.z - h.ps.z))
+    if ang > SNAP_RAD or dist > SNAP_M then h.rs, h.ps, h.wspeed, h.vspeed = rc, pc, 0, 0; return end
+    local ad = alpha(D_CUTOFF_HZ, dt)
+    h.wspeed = h.wspeed + (ang / dt - h.wspeed) * ad
+    h.vspeed = h.vspeed + (dist / dt - h.vspeed) * ad
+    local still_hz = CUTOFF_TOP_HZ * CUTOFF_STEP ^ math.max(0, math.min(10, tonumber(cfg.strength) or 4))
+    local prev_rs = h.rs
+    h.rs = nlerp(h.rs, rc, alpha(still_hz + BETA_ROT * h.wspeed, dt))
+    h.ps = lerp3(h.ps, pc, alpha(still_hz + BETA_POS * h.vspeed, dt))
+    -- the proof: frame-to-frame turn, raw and smoothed, while the hand is held still
+    if h.raw_prev ~= nil and ang / dt < STILL_RAD_S then
+        h.raw_sum = h.raw_sum + qangle(h.raw_prev, rc)
+        h.out_sum = h.out_sum + qangle(prev_rs, h.rs)
+        h.still_n = h.still_n + 1
+    end
+    h.raw_prev = rc
+end
+
+-- the offsets that make update_hand_ik draw the smoothed controller (the formulas at the top)
+local function apply(h, rc, pc)
+    local ri = rc:inverse()
+    local q = (ri * h.rs * h.q_int):normalized()
+    local poff = v3(h.p_int)
+    local rp = h.rs * poff
+    local p = ri * Vector3f.new(h.ps.x - pc.x + rp.x, h.ps.y - pc.y + rp.y, h.ps.z - pc.z + rp.z)
+    offsets_set(h, q, Vector4f.new(p.x, p.y, p.z, h.p_int.w or 0))
+end
+
+-- ---- the hook ---------------------------------------------------------------------------------------------------------------
+local frame_id, stepped_frame = 0, -1
+local last_t = os.clock()
+local last_report = os.clock()
+local errors = 0
+re.on_frame(function() frame_id = frame_id + 1 end)
+
+local function run()
+    if rawget(_G, "re8vr") == nil or vrmod == nil then return end
+    local active = cfg.on and vrmod:is_hmd_active()
+    local ctl = nil
+    if active then pcall(function() ctl = vrmod:get_controllers() end) end
+    if ctl == nil or ctl[1] == nil or ctl[2] == nil then active = false end
+    local new_frame = stepped_frame ~= frame_id
+    local now = os.clock()
+    local dt = math.max(DT_MIN, math.min(DT_MAX, now - last_t))
+    if new_frame then stepped_frame = frame_id; last_t = now end
+    for _, h in ipairs(hands) do
+        if not track_intended(h) then
+        elseif not active or not wanted(h) then
+            if h.q_out ~= nil then restore(h) end
+        else
+            local m = vrmod:get_transform(ctl[h.ci])
+            local rc = m:to_quat():normalized()
+            local pc = v3(m[3])
+            if new_frame then step(h, rc, pc, dt) end
+            if h.have then apply(h, rc, pc) end
+        end
+    end
+    if now - last_report > REPORT_S then
+        last_report = now
+        local r = hands[2]
+        if r.still_n > 30 then
+            log.info(string.format("%s gun hand held still (%d frames): raw turn %.4f deg a frame, smoothed %.4f (%.0f%% of the shake taken out); strength %s",
+                TAG, r.still_n, math.deg(r.raw_sum / r.still_n), math.deg(r.out_sum / r.still_n),
+                100 * (1 - (r.out_sum / math.max(1e-9, r.raw_sum))), tostring(cfg.strength)))
+        end
+        for _, h in ipairs(hands) do h.raw_sum, h.out_sum, h.still_n = 0, 0, 0 end
+    end
+end
+
+local prev_override = rawget(_G, "__re8_arm_ik_update_override")
+local function our_override()
+    local ok, err = pcall(run)
+    if not ok then
+        errors = errors + 1
+        if errors <= 5 then log.info(TAG .. " error (smoothing skipped this time): " .. tostring(err)) end
+        for _, h in ipairs(hands) do pcall(restore, h) end
+    end
+    if type(prev_override) == "function" then
+        local ok2, handled = pcall(prev_override)
+        if ok2 and handled == true then return true end
+    end
+    return false
+end
+rawset(_G, "__re8_arm_ik_update_override", our_override)
+
+-- the zones script's aim trim lays itself over the offsets the VR layer wants, not over our smoothed ones
+rawset(_G, "__re8_hand_smooth_intended", function(side)
+    for _, h in ipairs(hands) do if h.side == side and h.q_out ~= nil then return h.q_int, h.p_int end end
+    return nil
+end)
+
+re.on_script_reset(function()
+    for _, h in ipairs(hands) do pcall(restore, h) end
+    if rawget(_G, "__re8_arm_ik_update_override") == our_override then rawset(_G, "__re8_arm_ik_update_override", prev_override) end
+    rawset(_G, "__re8_hand_smooth_intended", nil)
+end)
+
+-- ---- the menu ---------------------------------------------------------------------------------------------------------------
+re.on_draw_ui(function()
+    if not imgui.tree_node("Visceral RE8 hand smoothing") then return end
+    local c, v = imgui.checkbox("Smooth the hands", cfg.on)
+    if c then cfg.on = v; save() end
+    c, v = imgui.slider_int("Strength (0 = light, 10 = heavy)", math.floor(tonumber(cfg.strength) or 4), 0, 10)
+    if c then cfg.strength = v; save() end
+    c, v = imgui.checkbox("Right hand (the gun)", cfg.right)
+    if c then cfg.right = v; save() end
+    c, v = imgui.checkbox("Left hand", cfg.left)
+    if c then cfg.left = v; save() end
+    imgui.text("Steady when the hand moves slowly; fast moves are followed at once.")
+    imgui.tree_pop()
+end)
+
+log.info(TAG .. " loaded (" .. (cfg.on and ("on, strength " .. tostring(cfg.strength)) or "off") .. ")")

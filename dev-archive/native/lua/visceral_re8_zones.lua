@@ -282,6 +282,9 @@ local function aim_capture()
     if not v then return false end
     pcall(function()
         local q, p = v.right_hand_rotation_offset, v.right_hand_position_offset
+        -- 2026-11-01: with the hand smoothing on, the offsets in re8vr carry its correction; take the ones it keeps as intended
+        local intended = rawget(_G, "__re8_hand_smooth_intended")
+        if type(intended) == "function" then local iq, ip = intended("right"); if iq and ip then q, p = iq, ip end end
         if q and p then aim_base_rot = Quaternion.new(q.w, q.x, q.y, q.z); aim_base_pos = Vector4f.new(p.x, p.y, p.z, p.w) end
     end)
     return aim_base_rot ~= nil
