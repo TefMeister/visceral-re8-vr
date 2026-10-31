@@ -20,7 +20,7 @@ back, the scope picture flickering) `[reported 2026-10-30]`.
 | Ours, NOT in build.sh (put in by hand / by an app) | visceral_re8_emporium.lua (by hand 2026-10-29), hand_poser.lua (the Hand Poser app) |
 | Andyalpa's pack, shipped as received | re8_vr_drop_physics, re8_vr_hand_poser |
 | The scope mod (and its dev leftovers) | re8_scope_autostart, _cam_clone, _cam_fix, _cam_probe, _frametime, _harness, _host_follow, _layer_knobs, _m6_mirror_producer, _vr_companion; re8_vrz_reload_guard, _rifle_steady, _scope_sounds_menu; re8scope/ (17 files); utility/, vr/ |
-| STRAYS: other games' scripts, nobody installed them on purpose | re2_sharpness_removal, re2_smooth_movement, re2_vr_crosshair, re2_vr_grenade, re2_vr_melee, re4_vr_crosshair |
+| praydog's REFramework package (RE8_pd-upscaler_76298bd zip), NOT strays | re2_sharpness_removal, re2_smooth_movement, re2_vr_crosshair, re2_vr_grenade, re2_vr_melee, re4_vr_crosshair, utility/, vr/ |
 
 `reframework/plugins/`: visceral_re8_native.dll (ours), re_scope_vr.dll (scope mod, trim build 2ac1dd49),
 REFramework.NET.dll + Ijwhost + managed/ + source/ (the REFramework MCP's own plugin, auto-installed 2026-10-23).
@@ -29,8 +29,11 @@ Game root: dinput8.dll (REFramework), openxr_loader.dll, nvngx_dlss.dll (scope m
 bindings file (ours), ModdedByFluffyModManager.txt (Fluffy was used once: check what it put in natives/).
 `reframework/data/`: 20 re_scope_*.txt settings, visceral_re8/, re7_vr/, re8_vr/, hand_poser/.
 
-Still to sort before step 3: which scope files are the shipped v1.1.5 zip and which are dev leftovers (compare with the
-zip), and what Fluffy put in `natives/`.
+Correction (same day): the six re2_/re4_ scripts were first called strays; they ship in praydog's own package
+`[measured 2026-10-31: unzip -l of RE8_pd-upscaler_76298bd_2026-03-11_original-package.zip]`. Every re8_scope_*,
+re8_vrz_*, re8scope/ file, the 14 re_scope_*.txt and natives/stm/movie/rtex/*.rtex.5 (3 files) are in the released
+RE-Village-VR-Scope-v1.1.5-manual.zip `[measured 2026-10-31]`. Left unexplained: PDPerfPlugin.dll (dated 2026-10-19),
+nvngx_dlss.dll; Steam's verify settles both.
 
 ## Step 2: every feature, keep or drop (Tefa ticks)
 
@@ -67,7 +70,31 @@ Built but NOT proven (worn and broken, or never worn):
 Test tools, out of the player build either way (kept in the repo): gun_survey, gun_cycle, bodyprobe, gunreport, the
 scope probes. BeG0nE's jitter and Ghost Hand recorders stay in (PROTOCOL 18 / 20).
 
+## Tefa's picks (2026-10-31)
+
+KEEP: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 16 17 18 19 21 22. DROP: 15 (hand pairs), 20 (body turns like RE2), 23 (hold
+the grip to keep the gun). Tefa's changes to the kept ones, verbatim in spirit:
+
+- **4** LT seats only the SAME magazine that was taken out and is still held. A NEW magazine from the pouch: LG held and
+  brought to the activation area plays the game's own animation of it going into the well (no LT).
+- **7** Left thumb on the thumb rest brings up the game's D-pad menu; RG on a weapon icon "takes it out" of the menu.
+- **11** No finger gestures (Andyalpa's re8_vr_hand_gestures out). Holster zones set to a default for an adult human.
+  The ammo counter shows while RG is held (instead of the game's aim mode, which no button presses any more).
+- **19** The docked hand simple and normal: never jumps to the slide when a rack is due; it goes on the slide only with
+  LG held in the slide's activation area; the slide can be racked any time, not only when empty; a casing or shell
+  flies out only after a real shot, otherwise the rack is cosmetic. Still wanted: the grip-handle dock removed and, on
+  handguns, the hand on the bottom of the magazine for the eject / insert; a docked hand's place movable by hand (a hand
+  that docks on the rifle's grip handle instead of its magazine is moved to the magazine).
+- **22** The game's OWN empty-trigger sound per weapon on every RT press, not our click; a new one only once the last
+  has finished, so fast pulls never cut it off and restart it.
+
 ## Step 3: clear the game (no game running)
+
+DONE 2026-10-31 ~11:xx: every mod file MOVED (not deleted) to
+`D:/RE Village REFramework builds/_before-clean-rebuild-2026-10-31/game/` (366 MB: reframework/, natives/, dinput8,
+openxr_loader, nvngx_dlss, PDPerfPlugin, the bindings file, logs, the crash dump, CrashReport_FMMBACKUP.exe; config.ini
+left in place, a copy beside); saves copied to `.../saves/1196590/`. Steam verify started. ⚠️ Fluffy Mod Manager still
+lists the scope mod as installed: never press its uninstall (it would restore stale backups); reset its list.
 
 1. Back up the whole game folder's mod files, `reframework/data/`, the saves and the system save (music muted there).
 2. Remove every mod file; Steam "verify integrity" until the game is vanilla.
