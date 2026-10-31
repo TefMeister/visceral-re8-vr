@@ -28,9 +28,9 @@ constexpr float HAP_PAD_HZ = 1.0f;               // praydog's re8_vr.lua passes 
 constexpr bool HAP_DEF_ENABLED = true;
 // 2026-10-31 (Tefa: "i don't like the rumble ... just a quick haptic buzz when using holsters is enough"): the game's own
 // rumble (shots, hits) no longer reaches the controllers; the plugin still takes the forward over, so praydog's stays off too
-// Then, the same morning (Tefa: "anything rumble that is weapon related is a welcome feature ... shooting to rumble both
-// controllers, but not to have it on any of the holster spots"): back on; shots reach both hands (the menu's gate_left_shoot
-// now defaults off) and the holster spots are quiet instead (visceral_re8_holsters.lua, re8_vr_holster.json)
+// Then, the same morning (Tefa: "anything rumble that is weapon related is a welcome feature"): back on, stronger (the menu's
+// intensity "high"), the left hand only while it is on the gun (gate_left_shoot); the holster spots buzz once when used,
+// never while the hand just sits in one (visceral_re8_holsters.lua, re8_vr_holster.json)
 constexpr bool GAME_RUMBLE_TO_CONTROLLERS = true;
 constexpr bool HAP_DEF_GATE_LEFT = true;
 constexpr float HAP_DEF_SCALE = 0.80f;

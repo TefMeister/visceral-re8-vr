@@ -8247,6 +8247,24 @@ HEAL.abort_native_use = function()
     return true
 end
 
+-- Visceral RE8 2026-10-31 (Tefa: "using a health potion should give a low constant rumble while the liquid is pouring out
+-- for about 2 seconds and then fade in and out"): started when the use goes through (the pour / inject below)
+local POUR_RUMBLE = { sec = 2.0, fade = 0.4, amp = 0.25, hz = 80.0, left = 0.6 }   -- left = the catching palm's share
+HEAL._pour_rumble_t0 = nil
+HEAL.pour_rumble_start = function() HEAL._pour_rumble_t0 = os.clock() end
+re.on_frame(function()
+    local t0 = HEAL._pour_rumble_t0
+    if t0 == nil then return end
+    local t = os.clock() - t0
+    if t >= POUR_RUMBLE.sec then HEAL._pour_rumble_t0 = nil; return end
+    local k = math.max(0.0, math.min(1.0, t / POUR_RUMBLE.fade, (POUR_RUMBLE.sec - t) / POUR_RUMBLE.fade))
+    local amp = POUR_RUMBLE.amp * k
+    pcall(function()
+        haptic_pulse(vrmod:get_right_joystick(), 0.05, POUR_RUMBLE.hz, amp)
+        haptic_pulse(vrmod:get_left_joystick(), 0.05, POUR_RUMBLE.hz, amp * POUR_RUMBLE.left)
+    end)
+end)
+
 rawset(_G, "__re8_heal_abort_native_use", HEAL.abort_native_use)
 rawset(_G, "__re8_heal_is_native_use_active", HEAL.is_native_use_active)
 
@@ -8592,6 +8610,7 @@ function HEAL.tick_use()
         HEAL.restore_lua_medicine_hold(med, row)
         return
     end
+    HEAL.pour_rumble_start()   -- Visceral RE8 2026-10-31: the low pouring rumble
     HEAL._hp_dip_restore = nil
     HEAL.lua_authorized = false
     HEAL.remedy_equipped = false

@@ -38,7 +38,10 @@ local ENTER_M, LEAVE_M = 0.15, 0.22          -- in a spot under ENTER, out again
 local BUZZ_ENTER = { sec = 0.05, amp = 0.35 } -- a tick on entering a spot
 local BUZZ_GRAB = { sec = 0.08, amp = 0.70 }  -- a stronger one on grabbing there
 local BUZZ_HZ = 1.0
-local BUZZ_ON = false   -- 2026-10-31 (Tefa): no rumble on any holster spot; weapon handling keeps its rumble
+local BUZZ_ON = true
+-- 2026-10-31 (Tefa: "i dont want the constant vibration that lets me know i'm at the activation zone ... what i do want is
+-- holster spots to give a nice short buzz when i actually use them"): no tick on entering a spot, the grab buzz stays
+local BUZZ_ON_ENTER = false
 
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
 local function L(s) log.info(TAG .. " " .. s) end
@@ -186,7 +189,7 @@ re.on_pre_application_entry("UpdateBehavior", function()
     end
     for _, s in ipairs(SPOTS) do
         local d = dist(hand, spot_pos(hmd, s))
-        if not inside[s.name] and d < ENTER_M then inside[s.name] = true; buzz(rj, BUZZ_ENTER)
+        if not inside[s.name] and d < ENTER_M then inside[s.name] = true; if BUZZ_ON_ENTER then buzz(rj, BUZZ_ENTER) end
         elseif inside[s.name] and d > LEAVE_M then inside[s.name] = false end
         if inside[s.name] then
             _G.__visceral_holster_zone = true
