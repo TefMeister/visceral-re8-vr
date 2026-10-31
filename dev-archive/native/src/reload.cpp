@@ -618,7 +618,20 @@ bool hand_near_mag() {
 }
 // the zones the menu draws (zones.h): the magazine grab and the well, every frame; the well is measured while the magazine
 // sits in it, so it is known before the first pull-out too
+// 2026-10-31 (Tefa: "there is no shell insertion activation zone at all"): a pump shotgun's shells go in at the same WELL
+// zone (dock_dist / dock_need, long guns), measured at the shell joint, but it was only published for magazine guns, and the
+// port was only measured when a round was taken. Now the port is measured every frame while the shell sits home in the gun,
+// and published as the WELL ("on" 2 = a round in the left hand on its way in), so Grip Zones shows and sizes it.
+bool shell_port_gun() { return g_w != nullptr && g_w->reload == Reload::ROUND && g_w->shape == weapons::Shape::LONG && g_w->breech == weapons::Breech::NONE; }
+void publish_shell_port() {
+    Vec3 lp{}, port;
+    if (g_shell != nullptr && !g_round_in_hand && g_shell_have_rest && get_v3(JOINT, g_shell, "get_LocalPosition", lp) && dist(lp, g_shell_rest) < 0.002f)
+        capture_port(g_shell);
+    if (port_world(port)) zones::publish(zones::WELL, zones::center(zones::WELL, port), zones::radius(zones::WELL), g_round_in_hand ? 2.0f : 1.0f);
+    else zones::clear(zones::WELL);
+}
 void publish_zones() {
+    if (managed_now() && shell_port_gun()) { zones::clear(zones::MAG); publish_shell_port(); return; }
     if (!managed_now() || g_w->reload != Reload::MAG) { zones::clear(zones::MAG); zones::clear(zones::WELL); return; }
     Vec3 mp, port;
     Quat mq;
