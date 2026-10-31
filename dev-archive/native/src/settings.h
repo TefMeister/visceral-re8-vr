@@ -203,6 +203,9 @@ constexpr bool PALM_ON_SLIDE = true;
 constexpr bool SHELL_WORLD_WRITE = true;          // 2026-10-24: the pouch shell is placed in the world (off = the old gun-local write)
 constexpr float SHELL_HOLD_DOWN_M = 0.07f;       // a shotgun shell from the pouch sits this much lower in the world than the
                                                  // magazine hold (Tefa 2026-10-24: "shell needs to be lowered about 7 cm for now")
+// 2026-10-31: SHELL_HOLD_DOWN_M as ONE fixed spot in the hold's own axes (m), so every round lands in the same place and turns
+// with the hand: the mean of nine pickups logged 22:0x-22:1x (its 7 cm drop "in the hold's axes"), Tefa's sliders tuned on it
+constexpr float SHELL_DROP_LOCAL[3] = {-0.046f, 0.025f, 0.045f};
 constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close to its target = the arm reached it: measure the palm then
 
 // body.cpp (2026-10-24, Tefa idea 6): the drawn body lags the look / walk direction like Visceral RE2's
