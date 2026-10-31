@@ -244,7 +244,7 @@ void hand_checks() {
     }
     if (d > dock_need() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
     // 2026-10-30: a handgun's magazine goes in with LG and LT held and a push PISTOL_INSERT_PUSH of the way in (Tefa)
-    if (mag && pistol_mag()) {
+    if (mag && pistol_mag() && g_lt_to_seat) {   // 2026-10-31: only the same magazine going back in; a pouch one seats by itself
         static float told = -10.0f;
         const bool lt = bridge::held(bridge::S_LTRIG), deep = d <= dock_need() * (1.0f - PISTOL_INSERT_PUSH);
         if (!lt || !deep) {
@@ -447,7 +447,9 @@ void pouch_grab() {
     }
     // from the pouch: a long gun's magazine goes in only on an LT press at the well, as a pulled-out one (Tefa 2026-10-30: "a mag
     // is only inserted with LG held, Mag in the activation area and LT pressed once"); a handgun's needs LT held and a push
-    g_lt_to_seat = true;
+    // 2026-10-31 (Tefa): "taking a new mag from the pouch still requires LT to be pressed and that should be removed, only the
+    // requirement to press LT when i need to re-insert the same mag i just took out": a pouch magazine seats at the well by itself
+    g_lt_to_seat = false;
     set_state(St::IN_HAND, "taken from the ammo spot");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);

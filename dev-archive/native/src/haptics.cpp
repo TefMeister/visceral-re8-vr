@@ -137,6 +137,7 @@ bool begin_order(bool& shooting) {
 // re8_vr.lua re8_on_pre_order_vibration (Lua 2135): OrderVibration(app.VibrationTask)
 int pre_order_task(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned long long) {
     if (argc < 3 || !bridge::flag(bridge::S_NATIVE_HAPTICS)) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    if (!GAME_RUMBLE_TO_CONTROLLERS) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     auto* task = (MO*)argv[2];
     if (!is_managed(task)) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     const float* lp = field_ptr<float>(task, "MotorPower_0");
@@ -156,6 +157,7 @@ int pre_order_task(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsi
 // the argument slots as raw bits, the way the Lua's sdk.to_float(args[3]) / args[4] read them (args[1] = the VM context).
 int pre_order_floats(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned long long) {
     if (argc < 4 || !bridge::flag(bridge::S_NATIVE_HAPTICS)) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
+    if (!GAME_RUMBLE_TO_CONTROLLERS) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     const float seconds = *(const float*)&argv[2];
     const float power = *(const float*)&argv[3];
     bool shooting = false;

@@ -26,6 +26,9 @@ constexpr float HAP_PAD_HZ = 1.0f;               // praydog's re8_vr.lua passes 
 
 // haptics.cpp defaults, used until the menu Lua sends the saved file (re8_vr_haptics.lua CFG, "medium" = 0.80)
 constexpr bool HAP_DEF_ENABLED = true;
+// 2026-10-31 (Tefa: "i don't like the rumble ... just a quick haptic buzz when using holsters is enough"): the game's own
+// rumble (shots, hits) no longer reaches the controllers; the plugin still takes the forward over, so praydog's stays off too
+constexpr bool GAME_RUMBLE_TO_CONTROLLERS = false;
 constexpr bool HAP_DEF_GATE_LEFT = true;
 constexpr float HAP_DEF_SCALE = 0.80f;
 constexpr bool HAP_DEF_AUTO_PULSE = true;

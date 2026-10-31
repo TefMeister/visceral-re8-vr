@@ -65,7 +65,8 @@ void frame() {
     bridge::put(bridge::S_LONG_GUN, (s.weapon != nullptr && weapons::find(s.weapon_id) != nullptr && weapons::find(s.weapon_id)->shape == weapons::Shape::LONG) ? 1.0f : 0.0f);
     // 03:25 (Tefa: "the pistol still has the left hand dock the grip even when mag is out and the gun needs racking"): no
     // two-handed grip while the magazine is out, nor while a rack is still due
-    bridge::put(bridge::S_GRIP_VETO, (reload::hand_on_mag() || reload::hand_near_mag() || reload::mag_out() || rack::needed() || (rack::active() && !pump_hold) || (rack::pump_gun() && !pump_hold) || pairs::active()) ? 1.0f : 0.0f);   // (2026-10-25: a hand pair holds the hand)
+    // 2026-10-31 (Tefa: "i want to be able to grip the weapon even if it needs racking"): a rack due no longer vetoes it
+    bridge::put(bridge::S_GRIP_VETO, (reload::hand_on_mag() || reload::hand_near_mag() || reload::mag_out() || (rack::active() && !pump_hold) || (rack::pump_gun() && !pump_hold) || pairs::active()) ? 1.0f : 0.0f);   // (2026-10-25: a hand pair holds the hand)
     // the held gun's number for the menu's per-gun settings (ri3046 -> 3046)
     int num = 0;
     for (char c : s.weapon_id) { if (c >= '0' && c <= '9') num = num * 10 + (c - '0'); else if (num > 0) break; }
