@@ -66,6 +66,7 @@ float g_last_grab = -10.0f, g_last_dock = -10.0f;
 bool g_pouch_ours = false;        // inside our own pouch spot (used when Andyalpa's ammo spot never reports)
 
 int g_mag_rounds = 0;             // rounds that left with the magazine
+bool g_same_mag = false;          // 2026-10-31: the magazine in the hand is the one pulled from this gun: it goes back with its own rounds
 int g_chamber = 0;                // 2026-10-31: the round kept in the chamber while the magazine is out (CHAMBER_ROUND)
 bool g_lt_to_seat = false;        // a magazine pulled out by hand: it goes back in only on a fresh LT press at the well (Tefa 2026-10-25)
 bool g_dry = false;               // the gun was empty when its magazine came out
@@ -194,7 +195,10 @@ void fill_magazine() {
     g_chamber = 0;
     if (CHAMBER_ROUND && g_w != nullptr && g_w->rack && !g_w->pump && in_chamber == 0) g_dry = true;   // fired dry meanwhile (or never had one): rack
     player::set_loaded(g_mag_rounds + in_chamber);
-    const int took = player::game_reload(-1);
+    // 2026-10-31 (Tefa, "real gun"): the same magazine back in holds just its own rounds; only a fresh one from the pouch is
+    // filled from the carried ammo (a 7-round magazine out = 1 chambered + 6; one shot with it in the hand; back in = 6, rack)
+    const int took = g_same_mag ? 0 : player::game_reload(-1);
+    g_same_mag = false;
     const int total = player::loaded();
     g_mag_rounds = 0;
     g_drop_gun = nullptr;
@@ -325,6 +329,7 @@ void begin_drop() {
     g_mag_rounds = n - g_chamber;
     g_dry = n == 0;
     g_drop_gun = g_gun;
+    g_same_mag = false;   // dropped to the floor: the next one comes from the pouch
     if (!player::set_loaded(g_chamber)) { LOGW("%s reload: %s: no way to empty the gun found, no drop (see type_probe.txt)", TAG, g_id.c_str()); g_drop_gun = nullptr; return; }
     bridge::sfx(bridge::SFX_MAG_OUT);
     Vec3 p, s;
@@ -377,6 +382,7 @@ void pull_out() {
     }
     g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
     g_lt_to_seat = true;     // it goes back in only on a fresh LT press at the well (hand_checks)
+    g_same_mag = true;
     set_state(St::IN_HAND, pistol_mag() ? "released (B) into the left hand" : "pulled out by hand (LT)");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -459,6 +465,7 @@ void pouch_grab() {
     // 2026-10-31 (Tefa): "taking a new mag from the pouch still requires LT to be pressed and that should be removed, only the
     // requirement to press LT when i need to re-insert the same mag i just took out": a pouch magazine seats at the well by itself
     g_lt_to_seat = false;
+    g_same_mag = false;   // a fresh one: filled from the carried ammo when it goes in
     set_state(St::IN_HAND, "taken from the ammo spot");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
