@@ -25,8 +25,11 @@ local FILE = "visceral_re8/hand_smooth.json"
 
 -- strength 0..10 -> the cut-off when still: 12 Hz * 0.65^strength (4 = 2.1 Hz, about 75 ms of settling; 10 = 0.16 Hz)
 local CUTOFF_TOP_HZ, CUTOFF_STEP = 12.0, 0.65
-local BETA_ROT = 6.0          -- cut-off rise per rad/s of turn: a 3 rad/s flick is followed at ~20 Hz
-local BETA_POS = 20.0         -- cut-off rise per m/s of move: 1 m/s is followed at ~22 Hz
+-- the cut-off's rise with speed, at strength 0; each strength step keeps BETA_STEP of it, so a heavy setting stays heavy
+-- while aiming slowly (2026-11-01, first wear: "i don't think the hand smoothing works"; strength 0 and 10 logged alike)
+local BETA_ROT = 6.0          -- per rad/s of turn: at strength 4 a 3 rad/s flick is still followed at ~9 Hz
+local BETA_POS = 20.0         -- per m/s of move
+local BETA_STEP = 0.8
 local D_CUTOFF_HZ = 1.0       -- the speed estimate's own cut-off (the paper's 1 Hz)
 local SNAP_M, SNAP_RAD = 0.5, 1.0   -- a jump bigger than this in one frame (recentre, tracking lost) is taken as it is
 local DT_MIN, DT_MAX = 1 / 500, 0.1
@@ -91,24 +94,32 @@ local function restore(h)
 end
 
 -- the filter: once a frame per hand
+-- ⚠️ the speed is the CONTROLLER's own (this frame against the last), as in Casiez's reference code. The first build
+-- (2026-11-01 00:05) took it from the gap between the smoothed hand and the controller: the harder it smoothed, the wider
+-- the gap, the faster the hand looked, the more it let through, so every strength ended up about the same.
 local function step(h, rc, pc, dt)
-    if not h.have then h.rs, h.ps, h.wspeed, h.vspeed, h.have = rc, pc, 0, 0, true; return end
-    local ang, dist = qangle(h.rs, rc), len3(Vector3f.new(pc.x - h.ps.x, pc.y - h.ps.y, pc.z - h.ps.z))
-    if ang > SNAP_RAD or dist > SNAP_M then h.rs, h.ps, h.wspeed, h.vspeed = rc, pc, 0, 0; return end
+    if not h.have or h.raw_prev == nil then h.rs, h.ps, h.wspeed, h.vspeed, h.have, h.raw_prev, h.rawp_prev = rc, pc, 0, 0, true, rc, pc; return end
+    local gap_ang, gap_dist = qangle(h.rs, rc), len3(Vector3f.new(pc.x - h.ps.x, pc.y - h.ps.y, pc.z - h.ps.z))
+    local ang, dist = qangle(h.raw_prev, rc), len3(Vector3f.new(pc.x - h.rawp_prev.x, pc.y - h.rawp_prev.y, pc.z - h.rawp_prev.z))
+    h.raw_prev, h.rawp_prev = rc, pc
+    if gap_ang > SNAP_RAD or gap_dist > SNAP_M or ang > SNAP_RAD or dist > SNAP_M then h.rs, h.ps, h.wspeed, h.vspeed = rc, pc, 0, 0; return end
     local ad = alpha(D_CUTOFF_HZ, dt)
     h.wspeed = h.wspeed + (ang / dt - h.wspeed) * ad
     h.vspeed = h.vspeed + (dist / dt - h.vspeed) * ad
-    local still_hz = CUTOFF_TOP_HZ * CUTOFF_STEP ^ math.max(0, math.min(10, tonumber(cfg.strength) or 4))
+    local st = math.max(0, math.min(10, tonumber(cfg.strength) or 4))
+    local still_hz, beta_k = CUTOFF_TOP_HZ * CUTOFF_STEP ^ st, BETA_STEP ^ st
     local prev_rs = h.rs
-    h.rs = nlerp(h.rs, rc, alpha(still_hz + BETA_ROT * h.wspeed, dt))
-    h.ps = lerp3(h.ps, pc, alpha(still_hz + BETA_POS * h.vspeed, dt))
+    h.rs = nlerp(h.rs, rc, alpha(still_hz + BETA_ROT * beta_k * h.wspeed, dt))
+    h.ps = lerp3(h.ps, pc, alpha(still_hz + BETA_POS * beta_k * h.vspeed, dt))
     -- the proof: frame-to-frame turn, raw and smoothed, while the hand is held still
-    if h.raw_prev ~= nil and ang / dt < STILL_RAD_S then
-        h.raw_sum = h.raw_sum + qangle(h.raw_prev, rc)
+    if ang / dt < STILL_RAD_S then
+        h.raw_sum = h.raw_sum + ang
         h.out_sum = h.out_sum + qangle(prev_rs, h.rs)
         h.still_n = h.still_n + 1
+        h.still_frame = true
+    else
+        h.still_frame = false
     end
-    h.raw_prev = rc
 end
 
 -- the offsets that make update_hand_ik draw the smoothed controller (the formulas at the top)
@@ -138,10 +149,25 @@ local function run()
     local now = os.clock()
     local dt = math.max(DT_MIN, math.min(DT_MAX, now - last_t))
     if new_frame then stepped_frame = frame_id; last_t = now end
+    -- the game's own right hand (drawn last frame), the number that matters: does the hand on screen turn less?
+    if new_frame then
+        local gq = nil
+        pcall(function() local t = re8vr.right_hand_ik_transform; if t then gq = t:call("get_Rotation") end end)
+        local r = hands[2]
+        if gq ~= nil then
+            gq = Quaternion.new(gq.w, gq.x, gq.y, gq.z)
+            if r.game_prev ~= nil and r.still_frame then r.game_sum = (r.game_sum or 0) + qangle(r.game_prev, gq); r.game_n = (r.game_n or 0) + 1 end
+            r.game_prev = gq
+        end
+    end
     for _, h in ipairs(hands) do
         if not track_intended(h) then
         elseif not active or not wanted(h) then
             if h.q_out ~= nil then restore(h) end
+            if active and new_frame then   -- still measured while switched off, so on and off compare in the log
+                local m = vrmod:get_transform(ctl[h.ci])
+                step(h, m:to_quat():normalized(), v3(m[3]), dt)
+            end
         else
             local m = vrmod:get_transform(ctl[h.ci])
             local rc = m:to_quat():normalized()
@@ -154,11 +180,14 @@ local function run()
         last_report = now
         local r = hands[2]
         if r.still_n > 30 then
-            log.info(string.format("%s gun hand held still (%d frames): raw turn %.4f deg a frame, smoothed %.4f (%.0f%% of the shake taken out); strength %s",
+            local gn = r.game_n or 0
+            log.info(string.format("%s gun hand held still (%d frames): controller turn %.4f deg a frame, smoothed %.4f (%.0f%% of the shake taken out), the game's hand %s; strength %s %s",
                 TAG, r.still_n, math.deg(r.raw_sum / r.still_n), math.deg(r.out_sum / r.still_n),
-                100 * (1 - (r.out_sum / math.max(1e-9, r.raw_sum))), tostring(cfg.strength)))
+                100 * (1 - (r.out_sum / math.max(1e-9, r.raw_sum))),
+                gn > 0 and string.format("%.4f", math.deg(r.game_sum / gn)) or "not read",
+                tostring(cfg.strength), (cfg.on and cfg.right) and "(on)" or "(OFF)"))
         end
-        for _, h in ipairs(hands) do h.raw_sum, h.out_sum, h.still_n = 0, 0, 0 end
+        for _, h in ipairs(hands) do h.raw_sum, h.out_sum, h.still_n, h.game_sum, h.game_n = 0, 0, 0, 0, 0 end
     end
 end
 
