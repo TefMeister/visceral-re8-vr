@@ -203,8 +203,15 @@ re.on_pre_application_entry("UpdateBehavior", function()
                 else
                     buzz(rj, BUZZ_GRAB)
                     local id = item_id(item)
-                    if id ~= nil and id == held_id() then
-                        L(string.format("grab at %s: PUT AWAY item %s -> %s", s.name, tostring(id), put_away(wc) and "asked" or "FAILED"))
+                    -- 2026-10-31: "already in the hand" told by the WEAPON object (the id compare missed: a held gun was taken out
+                    -- again and came out invisible); put away with Andyalpa's proven stow
+                    local iw = rawget(_G, "__re8_holster_item_weapon")
+                    local wpn = type(iw) == "function" and safe(function() return iw(item) end) or nil
+                    local held = (wpn ~= nil and v.weapon ~= nil and safe(function() return wpn:get_address() == v.weapon:get_address() end) == true)
+                        or (id ~= nil and id == held_id())
+                    if held then
+                        local ok, how = stow()
+                        L(string.format("grab at %s: PUT AWAY item %s (%s) -> %s", s.name, tostring(id), how, ok and "done" or "FAILED"))
                     else
                         -- Andyalpa's proven native equip (the D-pad path), exported by re8_vr_holster.lua; the old
                         -- set_RequestedItem only as the fall-back (it never brought a gun out, 2026-10-31)

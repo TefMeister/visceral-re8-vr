@@ -4756,6 +4756,8 @@ end
 rawset(_G, "__re8_holster_stow_to_bare", function(slot) return unequip_current_to_bare_hands(slot) == true end)
 -- Visceral RE8 2026-10-31: the same proven native equip the D-pad path uses, for visceral_re8_holsters.lua's body spots
 -- (its own set_RequestedItem never brought a gun out).
+-- and the weapon an inventory item is (to tell "already in the hand" from "take it out", 2026-10-31)
+rawset(_G, "__re8_holster_item_weapon", function(item_internal) return item_internal and get_item_weapon(item_internal) or nil end)
 rawset(_G, "__re8_holster_equip_item", function(item_internal, source)
     local weapon = item_internal and get_item_weapon(item_internal)
     if not weapon then return false end
@@ -6960,11 +6962,15 @@ HJ.slot_world_pos = function(slot_key, P)
     local off_r, off_u, off_f = get_profile_slot_offsets(P, slot_key)
     if slot_key == "medicine" and HJ.visceral_med_back then
         local o = HJ.visceral_med_back
+        local now = os.clock()
+        if HJ._med_back_pos and now - (HJ._med_back_t or 0) < 0.008 then return HJ._med_back_pos end   -- asked many times a frame
         local br, bu, bf = HJ.torso_yaw_axes()
         local cam = nil
         pcall(function() cam = sdk.get_primary_camera():call("get_GameObject"):call("get_Transform"):call("get_Position") end)
         if br and cam then
-            return holster_pos_with_offsets({ x = cam.x, y = cam.y, z = cam.z }, o.right, o.up, o.fwd, nil, nil, nil, br, bu, bf)
+            HJ._med_back_pos = holster_pos_with_offsets({ x = cam.x, y = cam.y, z = cam.z }, o.right, o.up, o.fwd, nil, nil, nil, br, bu, bf)
+            HJ._med_back_t = now
+            return HJ._med_back_pos
         end
     end
     -- Same-frame cache: LateUpdate suppress + on_frame both refresh zones; without
