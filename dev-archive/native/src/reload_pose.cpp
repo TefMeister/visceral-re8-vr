@@ -12,6 +12,8 @@
 #include <string>
 
 namespace vn::reload::detail {
+Vec3 g_shell_down_local{};      // 2026-10-31: the shell's drop below the hold, in the hold's own axes, taken when the round is picked up
+bool g_shell_down_ok = false;
 Vec3 g_shell_scale{1, 1, 1};     // 2026-10-31: the shell joint's own scale, read the first time it is carried (put back by shell_home)
 bool g_shell_scale_ok = false;
 
@@ -167,7 +169,17 @@ void pose_shell() {   // the gun's shell joint rides in the left hand while a ro
     Vec3 wp, lp;
     Quat wr, lr;
     if (!held_pose(wp, wr)) return;
-    wp.y -= SHELL_HOLD_DOWN_M;   // the world's up is +Y
+    // 2026-10-31 (Tefa: "the shell does not stay put, it shifts around with my hand rotation"): the 7 cm was taken straight
+    // down in the WORLD every frame, so turning the wrist slid the shell across the palm. Now it is measured once, when the
+    // round is taken (the hand at the pouch, a steady pose), turned into the hold's own axes, and kept there: the shell
+    // moves with the hand as one piece. shell_home (the round leaves the hand) starts it afresh for the next one.
+    if (!g_shell_down_ok) {
+        g_shell_down_local = rotate(qinv(qnorm(wr)), Vec3{0.0f, -SHELL_HOLD_DOWN_M, 0.0f});   // the world's up is +Y
+        g_shell_down_ok = true;
+        LOGI("%s reload: %s round taken: its %.0f cm drop is now fixed to the hand (%.3f %.3f %.3f in the hold's axes)", TAG, g_id.c_str(),
+             SHELL_HOLD_DOWN_M * 100.0f, g_shell_down_local.x, g_shell_down_local.y, g_shell_down_local.z);
+    }
+    wp = wp + rotate(qnorm(wr), g_shell_down_local);
     // 2026-10-31: the menu's sliders for the round in the hand (per gun): move along the hold's own axes, turn, size
     const auto sv = [](int i) { const float v = bridge::view((bridge::Slot)(bridge::S_SHELL_HOLD + i)); return bridge::has(v) ? v : 0.0f; };
     wp = wp + rotate(qnorm(wr), Vec3{sv(0), sv(1), sv(2)} * 0.01f);
@@ -200,6 +212,7 @@ void pose_shell() {   // the gun's shell joint rides in the left hand while a ro
     }
 }
 void shell_home() {
+    g_shell_down_ok = false;   // 2026-10-31: the next round measures its drop afresh
     if (g_shell != nullptr && g_shell_scale_ok) set_any(JOINT, g_shell, "set_LocalScale", &g_shell_scale);   // 2026-10-31: its own size back
     if (g_shell != nullptr && g_shell_have_rest) shell_write(g_shell_rest, g_shell_rest_rot);
 }
