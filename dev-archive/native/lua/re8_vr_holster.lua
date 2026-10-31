@@ -6951,8 +6951,22 @@ HJ.slot_base_pos = function(slot_key)
         right, up, fwd
 end
 
+-- Visceral RE8 2026-10-31 (Tefa: "move the health drink holster to the back and little to the right, as RE2 sub weapon is"):
+-- the drink spot taken from the headset, as Visceral RE2's BACK spot (side 0.12 right, up -0.62, fwd -0.30), turned with the
+-- body's yaw only. This file's torso "right" axis points to Ethan's LEFT (its right-chest and right-hip spots both carry a
+-- negative right offset) [inferred-static], so RE2's +0.12 right goes in as -0.12. nil = Andyalpa's right-chest spot.
+HJ.visceral_med_back = { right = -0.12, up = -0.62, fwd = -0.30 }
 HJ.slot_world_pos = function(slot_key, P)
     local off_r, off_u, off_f = get_profile_slot_offsets(P, slot_key)
+    if slot_key == "medicine" and HJ.visceral_med_back then
+        local o = HJ.visceral_med_back
+        local br, bu, bf = HJ.torso_yaw_axes()
+        local cam = nil
+        pcall(function() cam = sdk.get_primary_camera():call("get_GameObject"):call("get_Transform"):call("get_Position") end)
+        if br and cam then
+            return holster_pos_with_offsets({ x = cam.x, y = cam.y, z = cam.z }, o.right, o.up, o.fwd, nil, nil, nil, br, bu, bf)
+        end
+    end
     -- Same-frame cache: LateUpdate suppress + on_frame both refresh zones; without
     -- this the mesh gets two different joint samples per frame (walk jigger).
     if slot_key == "pistol" or slot_key == "knife" or slot_key == "medicine" or slot_key == "longarm" then
