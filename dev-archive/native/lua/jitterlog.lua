@@ -67,7 +67,10 @@ function jl.vr_on()
     if dir == nil then return end
     local stamp = type(os.date) == "function" and os.date("%Y%m%d-%H%M%S") or string.format("reset-%d", math.floor(os.clock() * 1000))
     local path = string.format("%s\\%s_%s.jl", dir, jl.game, stamp)
-    jl.f = io.open(path, "wb")
+    -- after "Reset scripts" REFramework also refuses absolute paths ("This API does not allow the use of absolute paths",
+    -- 2026-11-01 00:24): that is an error, not a nil, so it is caught; no recording until the game is started again
+    jl.f = nil
+    pcall(function() jl.f = io.open(path, "wb") end)
     if not jl.f then return end
     jl.t0 = os.clock()
     jl.on = true
