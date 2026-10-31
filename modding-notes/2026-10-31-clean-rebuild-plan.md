@@ -127,3 +127,21 @@ Saved with lanes builds.py in the private builds repo, `visceral-re8-vr/clean re
 - b002 Layer 2: scope v1.1.5 + its trim DLL 2ac1dd49 + Tefa's scope settings (tone_wp=0, the pre-flicker file) + the
   steady light. Checks: the scope picture steady (no flicker), the scope's colour against the world outdoors and
   indoors, no brightening or darkening walking indoors to outdoors, both eyes the same.
+- b002 result (Tefa): the scope FLICKERS; the world too bright outside, a little too bright inside `[reported 2026-10-31]`.
+  Cause of the mix-up: the repo's visceral_re8_whitepoint.lua + whitepoint.json are the 2026-10-30 03:30 experiment
+  (pin "mean", grading "trim", and ScopeCam2's ToneMapping written every frame from the main camera's lateUpdate hook),
+  not the 01:10 state Tefa approved. The scope-camera write began the night the flicker began `[hypothesis]`: two
+  writers on the scope camera at different moments of the frame.
+- b003 Layer 2 again: the 01:10 light (pin off, grading off, EV 6.4 held, contrast 1.2, never touches ScopeCam2), the
+  scope unchanged. One change, so b003 tests the flicker alone. Checks: the scope steady? the world's brightness out and in?
+
+### Why the scope and the world still differ with every adaptation off (for the matching job)
+
+Two recipes, not one: the world = the main camera's tone mapping at the held EV 6.4, the game's colour grading off.
+The scope = a second camera (ScopeCam2, re8_scope_cam_clone.lua) with its own copy of the tone mapping, its exposure
+frozen at the authored EV 3 (ev_auto=0), then the scope DLL's own curve on top (exposure_gt, the wb blue-shift, the
+r/g/b trim). Holding both still only stopped each from changing; it never made them the same. MATCHING JOB (Fable):
+(1) one recipe: the scope camera reads the world's EV and tone settings each frame from ONE writer, at the scope's own
+update; the scope DLL's curve set neutral; (2) measure instead of judging by eye: a capture of the scope's centre and
+of the world behind it at the same moment (same scene, magnified), averaged per colour, and the trim set from the
+ratio, indoors and outdoors; (3) Tefa judges the end result only.
