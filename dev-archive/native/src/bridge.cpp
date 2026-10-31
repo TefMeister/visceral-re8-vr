@@ -190,6 +190,8 @@ void sfx(Sfx code) {
     PlaySoundW(f.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
 }
 
+bool lua_has_sfx(Sfx code) { return g_arr != nullptr && ((((int)elems()[S_SFX_LUA_HAS]) >> code) & 1) != 0; }
+
 bool experiment(Experiment ex) { return g_arr != nullptr && (((int)elems()[S_EXPERIMENT]) & (int)ex) != 0; }
 
 } // namespace vn::bridge

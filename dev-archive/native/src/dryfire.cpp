@@ -6,16 +6,19 @@
 #include "player.h"
 #include "rack.h"
 #include "reload.h"
+#include "settings.h"
 
 #include <windows.h>
 #include <mmsystem.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <vector>
 
 namespace vn::dryfire {
+using namespace vn::settings;
 namespace {
 std::vector<char> g_wav;      // the click, read once
 bool g_read = false;
@@ -46,8 +49,15 @@ void frame() {
     if (!bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) return;
     if (!reload::managed_now()) return;
     const char* why = why_not();
-    if (why == nullptr || !load()) return;
-    PlaySoundA(g_wav.data(), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);   // a new press restarts it: never a missed click
+    if (why == nullptr) return;
+    // never cut the last click off (Tefa 2026-10-31): a press before it has finished stays quiet
+    static auto last = std::chrono::steady_clock::time_point{};
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last < std::chrono::duration<float>(DRY_CLICK_GAP_S)) return;
+    last = now;
+    // the game's own empty click when the sounds script has one (job 12, given from its heard list); our wav until then
+    if (bridge::lua_has_sfx(bridge::SFX_DRY_FIRE)) bridge::sfx(bridge::SFX_DRY_FIRE);
+    else if (load()) PlaySoundA(g_wav.data(), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
     static int n = 0;
     if (++n <= 5 || n % 100 == 0) LOGI("%s dry fire: click (%s, #%d)", TAG, why, n);
 }

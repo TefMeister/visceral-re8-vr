@@ -36,6 +36,7 @@ local JOBS = {
     { code = 5, name = "bolt turned up" }, { code = 6, name = "bolt back (click)" },
     { code = 7, name = "bolt forward (click)" }, { code = 8, name = "bolt turned down" },
     { code = 9, name = "magazine out" }, { code = 10, name = "magazine in" }, { code = 11, name = "shell in" },
+    { code = 12, name = "empty click" },   -- 2026-10-31 (Tefa): the game's own dry-fire click, given this job from the heard list
 }
 
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
@@ -568,7 +569,7 @@ re.on_pre_application_entry("UpdateHID", function()
     local b = rawget(_G, "visceral_re8_bridge")
     if not b or not b.ready() then return end
     local mask = 0
-    for code = 1, 11 do if job_key(code) then mask = mask | (1 << code) end end
+    for code = 1, 12 do if job_key(code) then mask = mask | (1 << code) end end
     b.w(S_SFX_LUA_HAS, mask)
     if run ~= nil and os.clock() - run.last > RUN_QUIET_SEC then finish_run() end
     local seq = b.r(S_SFX_SEQ)

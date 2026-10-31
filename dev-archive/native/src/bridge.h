@@ -97,7 +97,8 @@ enum Slot : int {
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,
     SFX_BOLT_UP = 5, SFX_BOLT_BACK = 6, SFX_BOLT_FORWARD = 7, SFX_BOLT_DOWN = 8,
-    SFX_MAG_OUT = 9, SFX_MAG_IN = 10, SFX_SHELL_IN = 11,   // 2026-10-24 (Tefa: "not the mag being inserted")
+    SFX_MAG_OUT = 9, SFX_MAG_IN = 10, SFX_SHELL_IN = 11,
+    SFX_DRY_FIRE = 12,   // 2026-10-31 (Tefa: the game's own empty click, not our beep)   // 2026-10-24 (Tefa: "not the mag being inserted")
 };
 enum Experiment : int {        // S_EXPERIMENT bits (menu "Visceral RE8 reload" -> "Experiments")
     EX_MAG_HIDE_AT_DROP = 1,   // the old way: the gun's own magazine display switched off the moment the magazine drops
@@ -105,7 +106,8 @@ enum Experiment : int {        // S_EXPERIMENT bits (menu "Visceral RE8 reload" 
     EX_NO_SMOOTH = 4,          // no smoothing of the left hand going onto / off the gun
     EX_GAME_RELOAD = 8,        // the game's own reload is let through (its motion plays the gun's handling sounds, learned by the Lua)
 };
-void sfx(Sfx code);            // ask the Lua for a handling sound (plays the plugin's wav itself when the Lua has none)
+void sfx(Sfx code);
+bool lua_has_sfx(Sfx code);   // the sounds script has a game sound for this code            // ask the Lua for a handling sound (plays the plugin's wav itself when the Lua has none)
 bool experiment(Experiment e);
 
 enum RecoilFlag : int {       // S_RECOIL_FLAGS bits = the globals re8_vr_recoil.lua read
