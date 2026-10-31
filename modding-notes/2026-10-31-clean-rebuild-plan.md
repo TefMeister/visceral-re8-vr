@@ -108,3 +108,14 @@ lists the scope mod as installed: never press its uninstall (it would restore st
 4. Then the kept "not proven" items one at a time, each worn before the next goes in.
 
 build.sh is changed to install exactly the kept list (and nothing that only tests), so a rebuild is one command.
+
+## Step 3 result and layer 1 (2026-10-31, ~09:15)
+
+Steam verify: "1 updated" (CrashReport.exe, which Fluffy had renamed), BuildID 22373341 `[measured 2026-10-31]`, so every
+other moved file was ours. PDPerfPlugin.dll (270,848 B, sha 2e3b10d4) + nvngx_dlss.dll (54,779,504 B) are the working
+DLSS pair (UpscalerBasePlugin 1.1.2 + DLSS 310.5.3), not game files. The flat menu check was skipped: the files are
+proven vanilla and layer 1's first start shows the same.
+
+LAYER 1 INSTALLED: praydog's RE8.zip from the 76298bd package (openvr_api.dll left out, so OpenXR), the DLSS pair, our
+re2_fw_config.txt (idle timer 86400, Single Frame Multipass) and our re8_vr.lua (the cold-start hand fix). Nothing else.
+Check in the headset: picture in both eyes, hands where the controllers are from the first second, height right.
