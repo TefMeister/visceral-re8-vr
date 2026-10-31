@@ -21,7 +21,6 @@ local TAG = "[visceral-re8-hud]"
 local ON = true
 local CENTER_X, CENTER_Y = 960.0, 540.0   -- the cross's centre: the middle of the game's 1920 x 1080 GUI
 local RX, RY = 300.0, 170.0               -- the slots' distance from the centre (was 560 / 300: "too far apart")
-local LABEL_FONT = 44.0                   -- one font size for all four labels (GUI units; the game's HUD text is ~28)
 local LABEL_DY = 90.0                     -- a label sits this far above an upper slot, below a lower one
 
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
@@ -72,10 +71,12 @@ local function apply(this)
                 t:call("set_Scale", Vector3f.new(1.0, 1.0, 1.0))
                 t:call("set_Visible", true)
             end)
-            local ok = pcall(function() t:call("set_FontSize", LABEL_FONT) end)
+            -- 2026-10-31: set_FontSize is NOT called any more. It throws inside the game (wrong argument), 4 times a frame
+            -- while the cross shows; REFramework unwinds the game half-done and Village crashed a second later at
+            -- re8.exe+0x415879c (log 2026-10-31 11:10, 521 throws; the same address as the 10-25 and 10-30 crashes).
             if not font_told then
                 font_told = true
-                L(ok and string.format("labels: font size %.0f set on the texts", LABEL_FONT) or "labels: the text has no set_FontSize: sizes stay the game's")
+                L("labels: the game's own font size (set_FontSize is never called: it threw and crashed the game)")
             end
         end
     end
