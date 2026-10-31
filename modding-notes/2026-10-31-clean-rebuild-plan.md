@@ -159,3 +159,31 @@ ratio, indoors and outdoors; (3) Tefa judges the end result only.
   falls back on re8vr's own check) and minus the test tools; body turn and the gun report compiled off; the Emporium
   installed by build.sh now. Tefa's saved settings (zones, grip spots, holds, slide hand, pairs = off, sounds, weapon
   ids, holster, recoil, ammo counter, Hand Poser) copied back from the backup. Installed the moment the game closes.
+
+## Layer 3 builds b005-b017 (2026-10-31, worn by Tefa through the day unless marked)
+
+- b005 Andyalpa's pack + the plugin with the kept features. The D-pad crashed the game: set_FontSize threw 521 times,
+  then re8.exe+0x415879c.
+- b006 set_FontSize never called. D-pad opens, no crash `[verified-live 2026-10-31, headset, n=1]`.
+- b007 holster spots take the gun through Andyalpa's native equip (set_RequestedItem never produced one). All four
+  spots produce a gun; rifle magazine LG+LT out, LT back in `[verified-live 2026-10-31, headset, n=1]`.
+- b008 the left grip takes a gun with a rack due; a pouch magazine seats with LG only (no LT); rumble off (misread).
+- b009 / b010 rumble as Tefa meant it: no hum in holster zones, one short buzz on using a spot, weapon handling buzzes,
+  a shot stronger and in both hands only while both are on the gun, the drink a 2 s pour rumble with fades. Tefa:
+  "sooooooo satisfying" `[verified-live 2026-10-31, headset, n=1]`.
+- b011 the zones script makes its spheres only while a Grip Zones row is open (the shotgun draw crashed in setMesh).
+- b012 the pistol slide racks any time; no lock-back on a magazine change with rounds left; the chambered round stays.
+- b013 the health drink from the lower back, a little right (RE2's sub-weapon spot). Worn: works.
+- b014 real-gun magazines: the same magazine goes back with only its own rounds; a chambered round fires with the
+  magazine out. Tefa: "wow this is so cool" `[verified-live 2026-10-31, headset, n=1]`. Also seen: performance lower
+  than the morning; the shotgun from the right hip invisible; the pistol spot dead until another gun was taken.
+- b015 a gun already in hand is put away instead of equipped again (the invisible shotgun). UNWORN.
+- b016 the ammo counter told the moment a magazine comes out (the rifle's stayed wrong until the next shot). UNWORN.
+- b017 the empty click can use the game's own sound (sound job 12 "empty click", picked once in the menu "Visceral
+  RE8 sounds"); until then our click; never restarted within 0.15 s. UNWORN, and the game sound not yet picked.
+
+Tefa's question: a full pouch magazine into a gun with a round chambered, does it show 13/12? The code says no: the
+game's reload tops up to capacity `[inferred-static]`, not tested.
+
+Still open: performance (measure frame time first), the bullets drawn in the magazine (Fable, Wednesday 2026-11-04,
+REFramework.NET back first), the scope's colours matched by measuring (Fable), refinements to kept items 4, 7, 11, 19.
