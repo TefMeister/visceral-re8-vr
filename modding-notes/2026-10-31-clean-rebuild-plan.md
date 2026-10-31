@@ -119,3 +119,11 @@ proven vanilla and layer 1's first start shows the same.
 LAYER 1 INSTALLED: praydog's RE8.zip from the 76298bd package (openvr_api.dll left out, so OpenXR), the DLSS pair, our
 re2_fw_config.txt (idle timer 86400, Single Frame Multipass) and our re8_vr.lua (the cold-start hand fix). Nothing else.
 Check in the headset: picture in both eyes, hands where the controllers are from the first second, height right.
+
+## Builds (Tefa: "save these builds as well", one saved build per layer, a few checks each)
+
+Saved with lanes builds.py in the private builds repo, `visceral-re8-vr/clean rebuild/`:
+- b001 Layer 1: REFramework + the VR base. Tefa: "everything is good so far".
+- b002 Layer 2: scope v1.1.5 + its trim DLL 2ac1dd49 + Tefa's scope settings (tone_wp=0, the pre-flicker file) + the
+  steady light. Checks: the scope picture steady (no flicker), the scope's colour against the world outdoors and
+  indoors, no brightening or darkening walking indoors to outdoors, both eyes the same.
