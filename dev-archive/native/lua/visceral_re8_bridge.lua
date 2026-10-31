@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 175   -- 2026-10-29: 174 the brightness tick box (src/bridge.h S_AUTO_EXPOSURE_ON, exposure.cpp); 2026-10-28: 169-173 the slide's left-side sphere (src/zones.h SLIDE_LEFT); 2026-10-27: 154-168 the handle / drum / insert zones (src/zones.h); 2026-10-26: 153 the left hand's spot for Hand Poser (src/pairs.cpp); 2026-10-25 (late): 142-152 the hand pairs (src/pairs.h); 2026-10-25: 141 the arc over the gun (cm); 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
+local N = 182   -- 2026-10-31: 175-181 the round in the left hand (src/bridge.h S_SHELL_HOLD); 2026-10-29: 174 the brightness tick box (src/bridge.h S_AUTO_EXPOSURE_ON, exposure.cpp); 2026-10-28: 169-173 the slide's left-side sphere (src/zones.h SLIDE_LEFT); 2026-10-27: 154-168 the handle / drum / insert zones (src/zones.h); 2026-10-26: 153 the left hand's spot for Hand Poser (src/pairs.cpp); 2026-10-25 (late): 142-152 the hand pairs (src/pairs.h); 2026-10-25: 141 the arc over the gun (cm); 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9
@@ -41,6 +41,27 @@ local SLIDE_HAND_FILE = "visceral_re8/slide_hand.json"
 -- 2026-10-25: "arc" (cm), how high the hand arcs over the gun on its way onto the slide / pump / bolt (smooth.cpp)
 local HAND_KEYS = { "x", "y", "z", "rx", "ry", "rz", "arc" }
 local slide_hands = { any = { x = 0.0, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0, arc = 0.0 } }
+-- 2026-10-31 (Tefa: "the shotgun shell size and positioning in re8, how do i change that"): the round / shell in the left
+-- hand, per gun: move (cm) and turn (deg) along the hold's own axes, and its size (percent)
+local S_SHELL_HOLD = 175
+local SHELL_FILE = "visceral_re8/shell_hold.json"
+local SHELL_KEYS = { "x", "y", "z", "rx", "ry", "rz", "size" }
+local shell_holds = {}
+pcall(function()
+    local d = json.load_file(SHELL_FILE)
+    if type(d) == "table" then
+        for gun, t in pairs(d) do
+            if type(t) == "table" then
+                shell_holds[gun] = {}
+                for _, k in ipairs(SHELL_KEYS) do shell_holds[gun][k] = type(t[k]) == "number" and t[k] or (k == "size" and 100.0 or 0.0) end
+            end
+        end
+    end
+end)
+local function shell_for(key)
+    if not shell_holds[key] then shell_holds[key] = { x = 0.0, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0, size = 100.0 } end
+    return shell_holds[key]
+end
 local function read_slide_hands()
     local d = json.load_file(SLIDE_HAND_FILE)
     if type(d) ~= "table" then return end
@@ -281,6 +302,10 @@ local function village_readings()
     w(S_SLIDE_HAND, hand.x); w(S_SLIDE_HAND + 1, hand.y); w(S_SLIDE_HAND + 2, hand.z)
     w(S_SLIDE_HAND_ROT, hand.rx); w(S_SLIDE_HAND_ROT + 1, hand.ry); w(S_SLIDE_HAND_ROT + 2, hand.rz)
     w(141, hand.arc or 0.0)   -- S_ARC_CM
+    do   -- 2026-10-31: the round in the left hand
+        local sh = shell_holds[gun_key(r(S_WEAPON_NUM))]
+        for i, k in ipairs(SHELL_KEYS) do w(S_SHELL_HOLD + i - 1, sh and sh[k] or (k == "size" and 100.0 or 0.0)) end
+    end
     w(S_EXPERIMENT, experiments)
     -- 2026-10-24 first wear: the patched REFramework switch is gone (stock loader since the scope's 2026-10-01 move), so the
     -- "LG only" rule is the scope's grip script's own (`grip button 1`, off by default since 2026-10-02 for the scope)
@@ -450,6 +475,22 @@ re.on_draw_ui(function()
             if c then hand[k] = nv; moved = true end
         end
         if moved then last_hand_edit = os.clock(); pcall(function() json.dump_file(SLIDE_HAND_FILE, slide_hands) end) end
+        -- 2026-10-31: the round / shell in the left hand, this gun
+        if imgui.tree_node("The round / shell in the left hand (" .. (key == "any" and "no gun in hand" or key) .. ")") then
+            local sh = shell_for(key)
+            local smoved = false
+            local SL = { x = "move 1, cm", y = "move 2, cm", z = "move 3, cm", rx = "turn 1, deg", ry = "turn 2, deg", rz = "turn 3, deg", size = "size, percent (100 = the game's)" }
+            for _, k in ipairs(SHELL_KEYS) do
+                local lo, hi = -15.0, 15.0
+                if k:sub(1, 1) == "r" then lo, hi = -180.0, 180.0 elseif k == "size" then lo, hi = 25.0, 300.0 end
+                local c, nv = imgui.slider_float(SL[k] .. "##shell_" .. k, sh[k], lo, hi, "%.1f")
+                if c then sh[k] = nv; smoved = true end
+            end
+            if imgui.button("Reset##shell_reset") then for _, k in ipairs(SHELL_KEYS) do sh[k] = (k == "size") and 100.0 or 0.0 end; smoved = true end
+            imgui.text("Take a round from the pouch to see it move. Saved per gun.")
+            if smoved then pcall(function() json.dump_file(SHELL_FILE, shell_holds) end) end
+            imgui.tree_pop()
+        end
         if imgui.tree_node("Experiments (try a fix without restarting)") then
             for _, e in ipairs(EXPERIMENTS) do
                 local on = (experiments & e.bit) ~= 0

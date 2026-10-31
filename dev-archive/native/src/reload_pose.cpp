@@ -5,11 +5,15 @@
 #include "joints.h"
 #include "player.h"
 #include "settings.h"
+#include "bridge.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace vn::reload::detail {
+Vec3 g_shell_scale{1, 1, 1};     // 2026-10-31: the shell joint's own scale, read the first time it is carried (put back by shell_home)
+bool g_shell_scale_ok = false;
 
 using namespace joints;
 using namespace vn::settings;
@@ -164,6 +168,21 @@ void pose_shell() {   // the gun's shell joint rides in the left hand while a ro
     Quat wr, lr;
     if (!held_pose(wp, wr)) return;
     wp.y -= SHELL_HOLD_DOWN_M;   // the world's up is +Y
+    // 2026-10-31: the menu's sliders for the round in the hand (per gun): move along the hold's own axes, turn, size
+    const auto sv = [](int i) { const float v = bridge::view((bridge::Slot)(bridge::S_SHELL_HOLD + i)); return bridge::has(v) ? v : 0.0f; };
+    wp = wp + rotate(qnorm(wr), Vec3{sv(0), sv(1), sv(2)} * 0.01f);
+    wr = qnorm(qmul(qnorm(wr), quat_from_ypr(sv(3), sv(4), sv(5))));
+    const float pct = sv(6);
+    const float k = (pct >= 10.0f && pct <= 400.0f) ? pct / 100.0f : 1.0f;
+    if (!g_shell_scale_ok) {
+        Vec3 s0;
+        g_shell_scale = (get_v3(JOINT, g_shell, "get_LocalScale", s0) && s0.x > 0.01f) ? s0 : Vec3{1, 1, 1};
+        g_shell_scale_ok = true;
+    }
+    const Vec3 sc = g_shell_scale * k;
+    set_any(JOINT, g_shell, "set_LocalScale", &sc);
+    static float told_k = -1.0f;
+    if (std::fabs(k - told_k) > 0.005f) { told_k = k; LOGI("%s reload: %s round in the hand: size %.0f%% (menu)", TAG, g_id.c_str(), k * 100.0f); }
     static std::string told;
     if (told != g_id) {
         told = g_id;
@@ -180,7 +199,10 @@ void pose_shell() {   // the gun's shell joint rides in the left hand while a ro
         shell_write(lp, lr);
     }
 }
-void shell_home() { if (g_shell != nullptr && g_shell_have_rest) shell_write(g_shell_rest, g_shell_rest_rot); }
+void shell_home() {
+    if (g_shell != nullptr && g_shell_scale_ok) set_any(JOINT, g_shell, "set_LocalScale", &g_shell_scale);   // 2026-10-31: its own size back
+    if (g_shell != nullptr && g_shell_have_rest) shell_write(g_shell_rest, g_shell_rest_rot);
+}
 
 // the gun's mesh parts and whether each is drawn, once per gun: which one is the loose shell (2026-10-19)
 void log_parts() {

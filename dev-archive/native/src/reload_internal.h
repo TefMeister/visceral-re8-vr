@@ -29,6 +29,8 @@ extern bool g_round_in_hand;
 extern MO* g_shell;
 extern Vec3 g_shell_rest;
 extern Quat g_shell_rest_rot;
+extern Vec3 g_shell_scale;       // 2026-10-31: the shell joint's own scale (reload_pose.cpp)
+extern bool g_shell_scale_ok;
 extern bool g_shell_have_rest;
 
 // ---- the pose helpers reload.cpp calls (defined in reload_pose.cpp) -------------------------------------------------

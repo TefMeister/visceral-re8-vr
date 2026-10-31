@@ -304,6 +304,7 @@ void hand_checks() {
 void put_back_on_swap(const char* why) {
     if (g_round_in_hand) { g_round_in_hand = false; shell_home(); LOGI("%s reload: round put back (%s)", TAG, why); }
     g_shell_have_rest = false;
+    g_shell_scale_ok = false;   // 2026-10-31: another gun, another shell joint
     MO* old = g_drop_gun != nullptr ? g_drop_gun : g_gun;
     if (g_stash > 0 && is_managed(old)) { set_loaded_on(old, g_stash); LOGI("%s reload: %s: %d rounds that waited for a rack put in (%s)", TAG, g_id.c_str(), g_stash, why); }
     g_stash = 0;

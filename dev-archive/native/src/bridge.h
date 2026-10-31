@@ -92,7 +92,10 @@ enum Slot : int {
                               // zones.h SLIDE_LEFT, drawn as zone 23 by visceral_re8_zones.lua); the left hand's spot (153) gains
                               // 9 rounds from the pouch
     S_AUTO_EXPOSURE_ON = 174, // 2026-10-29: 1 = the game keeps its own automatic brightness (visceral_re8_menu.lua tick box); 0 or unset = ours keeps it off (exposure.cpp)
-    S_COUNT = 175,            // 2026-10-29: 174 the brightness tick box; 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
+    // 2026-10-31 (Tefa: "the shotgun shell size and positioning in re8, how do i change that"): the round in the left hand,
+    // per gun, from the menu "Visceral RE8 reload" (visceral_re8_bridge.lua, saved in visceral_re8/shell_hold.json):
+    S_SHELL_HOLD = 175,       // 175-181, WRITTEN BY THE LUA MENU: move 1-3 (cm, the hold's own axes), turn 1-3 (deg), size (percent, 0 = unset = 100)
+    S_COUNT = 175,            // the button snapshot's length (unchanged: the slots from 175 on are read live with view()); the Lua array is 182 long            // 2026-10-29: 174 the brightness tick box; 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
 };
 enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,
