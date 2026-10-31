@@ -369,7 +369,11 @@ re.on_application_entry("UpdateMotion", function()
     end
     -- made once a gun is in hand; any still missing (its model was loading) asked again once a second (2026-10-30: the
     -- magazine's sphere, asked first while the model loaded, was never made)
-    if gun_num(b) > 0 and now - last_respawn_t > RESPAWN_EVERY_S then
+    -- 2026-10-31: made ONLY while a row is open in the Grip Zones window. Making them at every draw crashed Village: taking the
+    -- shotgun out, setMesh threw inside the game a second after the first sphere was made, then re8.exe+0x415879c (log
+    -- 2026-10-31 12:08; the same address and the same setMesh as the 10-25 22:06 and 10-30 21:55 crashes). In play nothing
+    -- here touches a mesh now; with the window's row open the risk stays (a Grip Zones session, not play).
+    if gun_num(b) > 0 and open_key ~= nil and now - last_respawn_t > RESPAWN_EVERY_S then
         local missing = false
         for _, z in ipairs(ZONES) do if z.act and balls[z.i] == nil then missing = true end end
         if missing then
