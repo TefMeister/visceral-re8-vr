@@ -201,9 +201,17 @@ re.on_pre_application_entry("UpdateBehavior", function()
                     if id ~= nil and id == held_id() then
                         L(string.format("grab at %s: PUT AWAY item %s -> %s", s.name, tostring(id), put_away(wc) and "asked" or "FAILED"))
                     else
-                        local ok = pcall(function() wc:call("set_RequestedItem", item) end)
+                        -- Andyalpa's proven native equip (the D-pad path), exported by re8_vr_holster.lua; the old
+                        -- set_RequestedItem only as the fall-back (it never brought a gun out, 2026-10-31)
+                        local eq = rawget(_G, "__re8_holster_equip_item")
+                        local ok, how = false, "set_RequestedItem"
+                        if type(eq) == "function" then
+                            local pok, r = pcall(eq, item, "visceral " .. s.name)
+                            ok, how = pok and r == true, "Andyalpa's native equip"
+                        end
+                        if not ok and how == "set_RequestedItem" then ok = pcall(function() wc:call("set_RequestedItem", item) end) end
                         if ok then take_until = os.clock() + TAKE_ARRIVE_S end
-                        L(string.format("grab at %s: TAKE OUT item %s (quick slot %s) -> %s", s.name, tostring(id), s.slot, ok and "asked" or "FAILED"))
+                        L(string.format("grab at %s: TAKE OUT item %s (quick slot %s) by %s -> %s", s.name, tostring(id), s.slot, how, ok and "done" or "FAILED"))
                     end
                 end
             end

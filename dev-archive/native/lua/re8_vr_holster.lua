@@ -4754,6 +4754,13 @@ end
 -- Visceral RE8 (2026-10-25): visceral_re8_holsters.lua puts the gun away when the right grip lets go (Tefa: "RG needed to
 -- actually hold the gun in hand"); it uses this proven stow instead of an untested one of its own.
 rawset(_G, "__re8_holster_stow_to_bare", function(slot) return unequip_current_to_bare_hands(slot) == true end)
+-- Visceral RE8 2026-10-31: the same proven native equip the D-pad path uses, for visceral_re8_holsters.lua's body spots
+-- (its own set_RequestedItem never brought a gun out).
+rawset(_G, "__re8_holster_equip_item", function(item_internal, source)
+    local weapon = item_internal and get_item_weapon(item_internal)
+    if not weapon then return false end
+    return native_equip(item_internal, weapon, source or "visceral body spot") == true
+end)
 
 local HOLSTER_ACTION = { pending = nil, shoot_until = 0 }
 
