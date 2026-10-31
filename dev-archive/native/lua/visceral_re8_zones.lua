@@ -429,6 +429,23 @@ re.on_application_entry("UpdateMotion", function()
             end
         end
         if #parts > 0 then log.info(TAG .. " spheres (open in Grip Zones: " .. tostring(open_key) .. "): " .. table.concat(parts, " | ")) end
+        -- 2026-11-01 (Tefa: the pump's and the shell port's spheres never show, the front grip's and the magazine's do): where
+        -- the shown sphere really is, against where it was asked to be, the gun hand and the camera
+        if show_i ~= nil and balls[show_i] and alive(balls[show_i].go) then
+            local ball = balls[show_i]
+            local x, y, zz, r = live(b, show_i)
+            local d = function(a, c) if a == nil or c == nil then return -1 end; return math.sqrt((a.x - c.x) ^ 2 + (a.y - c.y) ^ 2 + (a.z - c.z) ^ 2) end
+            local want = Vector3f.new(x, y, zz)
+            local got, sc, rh, cam, act, drw = nil, nil, nil, nil, nil, nil
+            pcall(function() got = ball.xform:call("get_Position") end)
+            pcall(function() sc = ball.xform:call("get_Scale") end)
+            pcall(function() local t = rawget(_G, "re8vr") and re8vr.right_hand_ik_transform; if t then rh = t:call("get_Position") end end)
+            pcall(function() local c = sdk.get_primary_camera(); if c then cam = c:call("get_WorldMatrix")[3] end end)
+            pcall(function() act = ball.go:call("get_Active"); drw = ball.go:call("get_DrawSelf") end)
+            log.info(string.format("%s WHERE %s: asked (%.3f, %.3f, %.3f) r %.3f; really %s, %.3f m off; scale %s; %.3f m from the gun hand, %.3f m from the camera; active %s draw %s",
+                TAG, tostring(open_key), x, y, zz, r or 0, got and string.format("(%.3f, %.3f, %.3f)", got.x, got.y, got.z) or "unread", d(got, want),
+                sc and string.format("%.2f", sc.x) or "unread", d(want, rh), d(want, cam), tostring(act), tostring(drw)))
+        end
     end
 end)
 

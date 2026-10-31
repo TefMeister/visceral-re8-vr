@@ -83,8 +83,8 @@ Zone builtin(Key k, const char* part) {
 }
 // 2026-10-30 (Tefa: "fewer zones per gun ... handguns and revolvers all need grip handle ... please make it customizable so we
 // can add things if needed"): which zones a gun has. The rest of the built-in rules sit where each zone is published
-// (rack.cpp, reload.cpp, pairs.cpp); this one adds only the front grip: long guns (pump shotguns too since 2026-10-31), not
-// handguns or revolvers. zones.json { "on": true / false } per zone, for every gun
+// (rack.cpp, reload.cpp, pairs.cpp); this one adds only the front grip: long guns, not pump shotguns (their
+// front handle is the pump), handguns or revolvers. zones.json { "on": true / false } per zone, for every gun
 // ("default") or one gun, overrides it either way. A zone that is off has size 0: it neither shows nor takes the hand.
 // 2026-10-30 (Tefa: "each pistol with a magazine - instead of gripping the grip handle, left hand actually grips the mag
 // itself ... so for pistols, rename the grip handle to magazine. on revolvers with a drum this won't apply"): no grip handle on
@@ -94,9 +94,10 @@ bool builtin_on(Key k) {
     const weapons::Weapon* w = weapons::find(weapons::canonical(player::now().weapon_id));
     if (w == nullptr) return true;
     if (k == HANDLE) return w->reload != weapons::Reload::MAG;
-    // 2026-10-31 (Tefa: "the Grip zones don't show the shotgun front handle grip zone"): pump shotguns have it again; the
-    // left hand's two-handed hold on the pump handle is this zone, the pump zone (rack.cpp) is where LG + LT works the pump
-    return w->shape == weapons::Shape::LONG;
+    // 2026-11-01: NOT on pump shotguns after all. 2026-10-31 I turned it on for them, reading Tefa's "the shotgun front handle
+    // grip zone" as the front grip; Tefa meant the pump ("pump where LG takes it, is still not showing the sphere"), and the
+    // extra front grip "does nothing". The pump is the shotgun's front handle.
+    return w->shape == weapons::Shape::LONG && !w->pump;
 }
 void apply(Zone& z, bool& on, const std::map<std::string, Entry>* group, const char* key) {
     if (group == nullptr) return;
