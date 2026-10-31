@@ -32,6 +32,7 @@ local S_BARE_HANDS, S_INTERACTION_BLOCKED = 88, 89   -- ammo_hud.cpp: two of the
 local S_HUD_PING = 87     -- the plugin bumps it after an ammo change: refresh the game's remaining-ammo display
 local REMAIN_AMMO_GUI = 1927694450   -- Andyalpa's ETHAN_REMAIN_AMMO_HASH (re8_vr_ammo_hud.lua)
 local hud_ping_seen = 0
+local hud_update_told, hud_methods_told, hud_gui_told = nil, false, false   -- 2026-10-31: the counter refresh probe
 local S_SLIDE_HAND = 84   -- x, y, z: the hand on the slide, nudged in cm (gun axes: right, up, forward), saved below
 local S_SLIDE_HAND_ROT = 93   -- x, y, z: the same hand turned, degrees about the gun's axes (2026-10-24)
 local S_EXPERIMENT, S_WEAPON_NUM = 96, 97
@@ -336,6 +337,33 @@ local function village_readings()
                 pcall(function() mode = drv:call("get_mode") end)
                 pcall(function() item = drv:call("get_itemID") end)
                 if mode ~= nil and item ~= nil then pcall(function() order:call("showRemainAmmo", mode, item) end) end
+                -- 2026-10-31 (Tefa: "the ammo counter still doesn't increase with the mag or shell insert, only when i fire"):
+                -- show alone does not re-read the count; the counter also has updateRemainAmmo (type_probe.txt), asked here
+                -- through its order the same way, and the order's ammo methods are logged once to see what else there is
+                if mode ~= nil and item ~= nil then
+                    local ok_u, err_u = pcall(function() order:call("updateRemainAmmo", mode, item) end)
+                    if hud_update_told ~= ok_u then hud_update_told = ok_u; log.info(TAG .. " ammo counter: updateRemainAmmo through the order " .. (ok_u and "called" or ("failed: " .. tostring(err_u)))) end
+                end
+                if not hud_methods_told then
+                    hud_methods_told = true
+                    pcall(function()
+                        local names = {}
+                        local td = order:get_type_definition()
+                        while td do
+                            for _, m in ipairs(td:get_methods()) do
+                                local n = m:get_name()
+                                if n:lower():find("ammo") or n:lower():find("update") then names[#names + 1] = td:get_full_name() .. "." .. n .. "(" .. m:get_num_params() .. ")" end
+                            end
+                            td = td:get_parent_type()
+                        end
+                        log.info(TAG .. " ammo counter order methods: " .. table.concat(names, ", "))
+                    end)
+                end
+            end
+            -- the counter itself (app.GUIRemainAmmo) has updateRemainAmmo(GUIRequest.Parameter) too: logged once for the next step
+            if not hud_gui_told then
+                hud_gui_told = true
+                pcall(function() log.info(TAG .. " ammo counter driver type: " .. drv:get_type_definition():get_full_name()) end)
             end
         end)
     end
