@@ -61,9 +61,12 @@ put "$HERE/data/visceral_re8/whitepoint.json" reframework/data/visceral_re8/whit
 put "$HERE/bindings/_interaction_profiles_oculus_touch_controller.json" _interaction_profiles_oculus_touch_controller.json code
 # ours, plus our copies of pack files (Andyalpa's + our changes): re8_vr.lua (switches), and the holster, its visuals and
 # the hand gestures with the loading-flood guard (2026-10-24)
+# 2026-10-31 clean rebuild (Tefa's keep list, modding-notes/2026-10-31-clean-rebuild-plan.md): out are the finger gestures
+# (re8_vr_hand_gestures.lua; our copy stays in lua/ so the pack loop below skips the pack's too) and the test tools
+# (gun_survey, gun_cycle, bodyprobe); in is the Emporium options window, until now put in by hand
 for f in visceral_re8_bridge.lua visceral_re8_menu.lua visceral_re8_sounds.lua re8_vr.lua jitterlog.lua \
-         re8_vr_holster.lua re8_vr_holster_visuals.lua re8_vr_hand_gestures.lua visceral_re8_gun_survey.lua visceral_re8_gun_cycle.lua visceral_re8_holsters.lua visceral_re8_hud.lua \
-         re8_vrz_begone_grip.lua visceral_re8_origin.lua visceral_re8_zones.lua visceral_re8_whitepoint.lua visceral_re8_bodyprobe.lua; do
+         re8_vr_holster.lua re8_vr_holster_visuals.lua visceral_re8_holsters.lua visceral_re8_hud.lua visceral_re8_emporium.lua \
+         re8_vrz_begone_grip.lua visceral_re8_origin.lua visceral_re8_zones.lua visceral_re8_whitepoint.lua; do
     put "$HERE/lua/$f" "reframework/autorun/$f" code
 done
 for f in "$PACK"/autorun/*.lua; do

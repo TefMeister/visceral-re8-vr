@@ -201,7 +201,7 @@ constexpr float PALM_MEASURE_REACH_M = 0.02f;    // the drawn wrist this close t
 
 // body.cpp (2026-10-24, Tefa idea 6): the drawn body lags the look / walk direction like Visceral RE2's
 // ---- the body turn through the GAME'S OWN rule (turn.cpp, 2026-10-29) ----
-constexpr bool  TURN_GAME_ON = true;
+constexpr bool  TURN_GAME_ON = false;   // 2026-10-31 rebuild: Tefa dropped "body turns like RE2" (feature 20)
 constexpr bool  TURN_FORCE_ON = false;            // true = on without the menu tick box (the 2026-10-29 flat desk test); Tefa's runs: the tick box decides              // on: turn.cpp drives app.PlayerMovement's statics; body.cpp's joint rewriting stays out
 constexpr float TURN_STAND_DEG = 60.0f;           // Tefa 2026-10-25: the head this far off the body before the body comes round, standing
 constexpr float TURN_WALK_DEG = 45.0f;            // walking
@@ -234,7 +234,7 @@ constexpr int   NODOCK_FAKE_JOINT = 0;            // the joint index answered in
 constexpr float FINGER_OPEN_RAMP_M = 0.14f;       // the hand starts opening this far outside the grab zone, fully open at its edge
 
 // gunreport.cpp (2026-10-29): the gun's place in the right hand, measured and written down
-constexpr bool  GUNREPORT_ON = true;
+constexpr bool  GUNREPORT_ON = false;   // 2026-10-31 rebuild: a test tool, out of the player build
 constexpr float GUNREPORT_PERIOD_S = 5.0f;        // a line this often while a gun is in hand
 constexpr float GUNREPORT_CHANGE_M = 0.02f;       // and at once when the gun moves this far in the hand's own frame
 constexpr float GUNREPORT_CHANGE_MIN_GAP_S = 1.0f; // but never more than one such line a second
