@@ -390,13 +390,12 @@ bool on_pump() { return g_hand_on && pump(); }
 float travel() { return g_travel; }
 
 // ---- the right hand on the bolt (2026-11-01, rack_right.cpp decides when; the bolt itself is the same one) -----------
-bool bolt_may_take() {
-    return RELOAD_ON && bolt() && g_joint != nullptr && g_have_rest && !g_hand_on && !g_right &&
-           (g_parked || g_needed || pose_lock() || g_bstate != 0 || g_turn > 0.0f);
-}
+// 2026-11-01 (Tefa, after the first wear: "bolt racking can be done at any time with RG, not only when it's needed"): the right
+// hand may work the bolt any time; a rack with no shot before it is cosmetic (no round lost, no case thrown: eject.cpp)
+bool bolt_free() { return RELOAD_ON && bolt() && g_joint != nullptr && g_have_rest && !g_hand_on && !g_right; }
 void right_take() {
     g_right = true;
-    g_armed = false;
+    g_armed = g_spent = false;   // each RG take is a fresh cycle (LT stays held through several while the gun is locked)
     g_bolt_t = -1.0f;
     ghosthand::event("bolt", "take");
     LOGI("%s rack: %s bolt taken by the RIGHT hand (step %d)", TAG, g_id.c_str(), g_bstate);

@@ -26,16 +26,22 @@ Pose blend(const Pose& a, const Pose& b, float u) { return {lerp(a.p, b.p, u), n
 MO* target_of(MO* ik) { return field_obj(ik, "Target"); }
 bool tf_pose(MO* tf, Pose& out) { return player::get_pose(tf, out.p, out.q); }
 
-// ON: the gun on the left controller, the right hand gliding onto / riding the bolt. BACK: the right hand gliding back to
-// the grip, the gun still on the left. HANDOVER: the gun back on the right hand, its target eased to the controller's.
-enum class Phase { OFF, ON, BACK, HANDOVER };
-const char* phase_name(Phase p) { return p == Phase::ON ? "on the bolt" : p == Phase::BACK ? "back to the grip" : p == Phase::HANDOVER ? "handed back" : "off"; }
+// LOCKED: LT held with the left hand on the front: the gun on the left controller, the right hand riding the grip.
+// ON: and RG held: the right hand gliding onto / riding the bolt. BACK: the right hand gliding back to the grip (then LOCKED
+// again while LT is held). HANDOVER: the gun back on the right hand, its target eased to the controller's.
+enum class Phase { OFF, LOCKED, ON, BACK, HANDOVER };
+const char* phase_name(Phase p) {
+    return p == Phase::LOCKED ? "locked" : p == Phase::ON ? "on the bolt" : p == Phase::BACK ? "back to the grip" : p == Phase::HANDOVER ? "handed back" : "off";
+}
 Phase g_phase = Phase::OFF;
 float g_t0 = 0.0f;            // the current glide's start
 float g_u = 0.0f, g_u0 = 0.0f;   // 0 = the right hand on the grip, 1 = on the bolt; g_u0 at the glide's start
 
 MO* g_weapon_tf = nullptr;    // the gun this take holds (its transform)
-Pose g_gun_k{}, g_right_k{}, g_left_k{};   // the gun, the right and the left IK targets, in the left controller's frame
+Pose g_gun_k{};               // the gun in the left controller's frame at the take
+Pose g_right_in_gun{}, g_left_in_gun{};   // both hands' IK targets in the gun's frame: they stay docked on it
+Pose g_gun_s{};               // the gun as drawn: it trails the left controller slowly (Tefa: "not freeze in place, but very slow to move")
+float g_smooth_t = -1.0f;
 Quat g_grip_turn{0, 0, 0, 1}; // the right hand's turn in the gun's frame (as it holds the grip): kept on the bolt
 Pose g_bolt_rest{};           // the bolt joint at rest, in the gun's frame
 Vec3 g_palm{};                // R_Hand -> R_Palm in the hand's frame (zero: the wrist goes on the bolt)
@@ -95,13 +101,16 @@ bool take() {
     if (!left_controller(lc) || !tf_pose(s.weapon_tf, g0) || s.ik_right == nullptr || s.ik_left == nullptr ||
         !tf_pose(target_of(s.ik_right), rt0) || !tf_pose(target_of(s.ik_left), lt0) || bolt == nullptr ||
         !get_v3(JOINT, bolt, "get_Position", jp) || !get_q(JOINT, bolt, "get_Rotation", jq)) {
-        LOGW("%s rack_right: RG for the bolt, but something could not be read (left controller / gun / hand targets / bolt joint): not taken", TAG);
+        LOGW("%s rack_right: LT on the front, but something could not be read (left controller / gun / hand targets / bolt joint): not taken", TAG);
         return false;
     }
     const Pose ilc = inverse(lc);
     g_gun_k = mul(ilc, g0);
-    g_right_k = mul(ilc, rt0);
-    g_left_k = mul(ilc, lt0);
+    const Pose ig = inverse(g0);
+    g_right_in_gun = mul(ig, rt0);
+    g_left_in_gun = mul(ig, lt0);
+    g_gun_s = g0;                 // it starts where it is drawn: no jump at the take
+    g_smooth_t = -1.0f;
     g_grip_turn = qnorm(qmul(qinv(g0.q), rt0.q));
     Pose bg = mul(inverse(g0), Pose{jp, qnorm(jq)});   // the bolt in the gun's frame, then back to its rest
     bg.p = bg.p - Vec3{0, 0, rack::bolt_dz()};
@@ -126,7 +135,7 @@ bool take() {
     g_drift_n = 0;
     g_drift_log_t = now_s();
     g_praydog_frame = -1.0f;
-    LOGI("%s rack_right: RIGHT hand takes the bolt: gun %s (local %.3f %.3f %.3f); bolt %.3f m from the right hand's target, %.3f m from the left's; palm offset %.3f m",
+    LOGI("%s rack_right: LT on the front: the rifle LOCKED in the left hand: gun %s (local %.3f %.3f %.3f); bolt %.3f m from the right hand's target, %.3f m from the left's; palm offset %.3f m",
          TAG, g_parented ? "parented" : "NOT parented", g_local_p.x, g_local_p.y, g_local_p.z, dist(jp, rt0.p), dist(jp, lt0.p),
          std::sqrt(g_palm.x * g_palm.x + g_palm.y * g_palm.y + g_palm.z * g_palm.z));
     return true;
@@ -137,6 +146,12 @@ void to_back(const char* why) {
     g_phase = Phase::BACK;
     glide_start();
     LOGI("%s rack_right: %s: the right hand goes back to the grip", TAG, why);
+}
+
+void to_handover(const char* why) {
+    put_local_back(why);
+    g_phase = Phase::HANDOVER;
+    g_t0 = now_s();
 }
 
 void to_off() {
@@ -162,6 +177,7 @@ void check_drift() {
 } // namespace
 
 bool active() { return g_phase == Phase::ON || g_phase == Phase::BACK; }
+bool locked() { return g_phase == Phase::LOCKED || active(); }
 
 void abort(const char* why) {
     if (g_phase == Phase::OFF) return;
@@ -174,30 +190,35 @@ void frame(bool play, bool lg, bool lt) {
     const auto& s = player::now();
     const bool rg = bridge::held(bridge::S_RGRIP);
     if (g_phase != Phase::OFF && s.weapon_tf != g_weapon_tf) { abort("the gun changed"); return; }
-    if (g_phase == Phase::ON || g_phase == Phase::BACK) check_drift();
+    if (locked()) check_drift();
 
+    const bool front = lg && bridge::flag(bridge::S_GRIPPING_WEAPON) && std::strcmp(rack::part_name(), "bolt") == 0;   // a bolt gun only
+    const bool busy = reload::mag_out() || reload::session_active() || reload::hand_on_mag() || rack::active();
     switch (g_phase) {
     case Phase::OFF:
-        if (!bridge::pressed(bridge::S_RGRIP) || !lg || !lt || !play || !bridge::flag(bridge::S_GRIPPING_WEAPON)) break;
-        if (std::strcmp(rack::part_name(), "bolt") != 0) break;   // a bolt gun only (the rifle)
-        if (!rack::bolt_may_take() || reload::session_active() || reload::hand_on_mag() || reload::mag_out()) {
-            if (now_s() - g_why_t > 1.0f) {
-                g_why_t = now_s();
-                LOGI("%s rack_right: RG with the left hand on the front and LT held, but the bolt is not free now (%s)", TAG,
-                     reload::mag_out() || reload::session_active() || reload::hand_on_mag() ? "a magazine is being handled" : "no rack due, or the left hand has it");
-            }
+        if (!bridge::pressed(bridge::S_LTRIG) || !front || !play || busy) break;
+        if (!take()) break;
+        g_phase = Phase::LOCKED;
+        g_u = 0.0f;
+        bridge::rumble(bridge::LEFT, RIGHT_RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+        break;
+    case Phase::LOCKED:
+        if (!lt || !lg || !play) { to_handover(!lt ? "LT let go" : !lg ? "LG let go" : "cutscene / hands not free"); break; }
+        if (!bridge::pressed(bridge::S_RGRIP)) break;
+        if (!rack::bolt_free()) {
+            if (now_s() - g_why_t > 1.0f) { g_why_t = now_s(); LOGI("%s rack_right: RG with the rifle locked, but the bolt is not free (the left hand has it?)", TAG); }
             break;
         }
-        if (!take()) break;
         rack::right_take();
         g_phase = Phase::ON;
-        g_u = 0.0f;
         glide_start();
         bridge::rumble(bridge::RIGHT, RIGHT_RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+        LOGI("%s rack_right: RG: the right hand goes onto the bolt", TAG);
         break;
     case Phase::ON:
         g_u = g_u0 + (1.0f - g_u0) * ease(glide_k());
         if (!rg) to_back("RG let go");
+        else if (!lt) to_back("LT let go: the lock ends");
         else if (!lg) to_back("LG let go: the left hand no longer holds the gun");
         else if (!play) to_back("cutscene / hands not free");
         else if (!rack::right_on()) to_back("the rack let go of it");
@@ -205,9 +226,8 @@ void frame(bool play, bool lg, bool lt) {
     case Phase::BACK:
         g_u = g_u0 * (1.0f - ease(glide_k()));
         if (glide_k() >= 1.0f) {
-            put_local_back("RG let go");
-            g_phase = Phase::HANDOVER;
-            g_t0 = now_s();
+            if (lt && lg && play) { g_phase = Phase::LOCKED; LOGI("%s rack_right: the right hand back on the grip: still locked (LT held)", TAG); }
+            else to_handover(!lt ? "LT let go" : "LG let go");
         }
         break;
     case Phase::HANDOVER:
@@ -219,9 +239,17 @@ void frame(bool play, bool lg, bool lt) {
     g_now_ok = false;
     Pose lc{};
     if (g_phase != Phase::OFF && left_controller(lc)) {
-        g_gun_now = mul(lc, g_gun_k);
-        g_left_now = mul(lc, g_left_k);
-        g_grip_now = mul(lc, g_right_k);
+        // 2026-11-01 (Tefa: "if it can be done then not freeze in place, but very slow to move while. why i'm asking is because i
+        // need the left hand docked on the front end at all times for it to look good"): the gun eases toward where the left
+        // controller would carry it, and BOTH hands are drawn on the gun (the left on the front, the right on the grip or the
+        // bolt), so the left hand never leaves the front however the controller moves
+        const float now = now_s();
+        const float dt = g_smooth_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_smooth_t);
+        g_smooth_t = now;
+        g_gun_s = blend(g_gun_s, mul(lc, g_gun_k), 1.0f - std::exp(-dt / RIGHT_RACK_LOCK_FOLLOW_SEC));
+        g_gun_now = g_gun_s;
+        g_left_now = mul(g_gun_s, g_left_in_gun);
+        g_grip_now = mul(g_gun_s, g_right_in_gun);
         g_now_ok = true;
     }
 }
@@ -236,21 +264,23 @@ void on_ik(MO* ik) {
         const float frame = bridge::view(bridge::S_FRAME);
         if (frame != g_praydog_frame) { g_praydog_frame = frame; g_praydog = cur; }   // the first solve: as the VR layer asked
         const Pose want = g_phase == Phase::HANDOVER ? blend(g_grip_now, g_praydog, ease((now_s() - g_t0) / RIGHT_RACK_HANDOVER_SEC))
-                                                     : blend(g_grip_now, bolt_hand(), g_u);
+                        : g_phase == Phase::LOCKED ? g_grip_now
+                                                   : blend(g_grip_now, bolt_hand(), g_u);
         player::set_pose(t, want.p, want.q);
     } else if (ik == s.ik_left && g_phase != Phase::HANDOVER) {
-        player::set_pose(target_of(ik), g_left_now.p, g_left_now.q);   // the left hand stays on the front, riding its controller
+        player::set_pose(target_of(ik), g_left_now.p, g_left_now.q);   // the left hand stays docked on the front of the gun
     }
 }
 
 void write_gun() {
-    if (!active() || !g_now_ok || g_weapon_tf == nullptr || player::now().weapon_tf != g_weapon_tf) return;
+    if (!locked() || !g_now_ok || g_weapon_tf == nullptr || player::now().weapon_tf != g_weapon_tf) return;
     player::set_pose(g_weapon_tf, g_gun_now.p, g_gun_now.q);
     g_put = g_gun_now;
     g_written = true;
 }
 
 void late_point() { write_gun(); }
+void render_point() { write_gun(); }
 void begin_render_point() { write_gun(); }
 
 } // namespace vn::rack_right

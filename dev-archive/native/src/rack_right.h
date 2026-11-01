@@ -4,7 +4,12 @@
 //
 // The gun hangs off the right hand in the game, so while the right hand is on the bolt the gun is carried by the LEFT
 // controller: at the take, the gun, the right hand's target and the left hand's target are each kept in the left
-// controller's frame. While RG is held:
+// controller's frame.
+// 2026-11-01, after the first wear (Tefa: "really cool! it works ... throws the gun a little and left hand doesn't stay on like
+// solidly holding on to the gun ... can the LT press on the front of the rifle make it freeze in place and bolt racking can be
+// done at any time with RG"): LT held with the left hand on the front LOCKS the rifle in the left hand (taken then, while the
+// hands are calm; the right hand rides the grip), and RG works the bolt any time while it is locked. LT let go = the gun
+// handed back to the right hand. While RG is held:
 //   - the gun's own transform is written every frame where the left controller now carries it (late update + before
 //     rendering, after the arm solves), so it stays put in the left hand while the right hand leaves the grip;
 //   - the left hand is drawn where it was on the front, riding the left controller;
@@ -22,7 +27,9 @@ void frame(bool play, bool lg, bool lt);   // rack.cpp's frame, before its own t
 void abort(const char* why);               // rack.cpp: no gun / no headset: everything put back at once
 void on_ik(MO* ik);                         // ik.cpp, LAST: both hands' targets while the right hand has the bolt
 void late_point();                          // LateUpdateBehavior post: the gun where the left hand carries it
+void render_point();                        // PrepareRendering post: again, after the grip script's last solve
 void begin_render_point();                  // BeginRendering pre: and once more, after the arm solves
 bool active();                              // the right hand is on (or gliding to / from) the bolt: no shot
+bool locked();                              // the rifle is held by the left hand (LT on the front)
 
 } // namespace vn::rack_right

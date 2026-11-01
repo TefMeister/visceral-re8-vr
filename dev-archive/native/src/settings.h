@@ -187,7 +187,8 @@ constexpr float PUMP_BACK_M = -0.080f;
 
 // rack_right.cpp (2026-11-01): the RIGHT hand works the bolt while the left hand holds the front (RG, with LG on the front + LT)
 constexpr float RIGHT_RACK_GLIDE_SEC = 0.15f;     // the right hand gliding from the grip onto the bolt, and back
-constexpr float RIGHT_RACK_HANDOVER_SEC = 0.20f;  // then the gun handed back to the right controller, eased over this
+constexpr float RIGHT_RACK_HANDOVER_SEC = 0.30f;  // the gun handed back to the right controller, eased over this (0.20 "throws the gun a little", 2026-11-01)
+constexpr float RIGHT_RACK_LOCK_FOLLOW_SEC = 0.40f; // LT held: the rifle trails the left controller this slowly (time to cover ~63% of the way)
 constexpr bool  RIGHT_PALM_ON_BOLT = true;        // the palm (not the wrist) on the bolt joint, from R_Hand -> R_Palm
 constexpr float RIGHT_BOLT_HAND_X_M = 0.0f;       // the palm's place from the bolt joint, the gun's axes (x right, y up, z along
 constexpr float RIGHT_BOLT_HAND_Y_M = 0.0f;       // the barrel): first try right on the joint, moved after Tefa has seen it
