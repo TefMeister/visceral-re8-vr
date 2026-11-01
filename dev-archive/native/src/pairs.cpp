@@ -88,7 +88,8 @@ bool dock_applies(zones::Key k) {
     if (w == nullptr) return false;
     switch (k) {
     case zones::HANDLE: return w->shape == weapons::Shape::PISTOL && w->reload != weapons::Reload::NONE;
-    case zones::DRUM: return w->breech == weapons::Breech::CYLINDER;
+    // 2026-11-01 23:5x (Tefa: "the drum grab can actually completely go then, as it is not openable at all"): not on the Wolfsbane
+    case zones::DRUM: return w->breech == weapons::Breech::CYLINDER && std::strcmp(w->id, settings::GATE_GUN) != 0;
     case zones::INSERT: return w->breech == weapons::Breech::BREAK;
     default: return false;
     }
