@@ -9,6 +9,8 @@
 #include "reload.h"
 #include "settings.h"
 #include "weapons.h"
+
+#include <cstring>
 #include "zones.h"
 
 #include <windows.h>
