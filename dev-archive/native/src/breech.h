@@ -34,5 +34,7 @@ int free_chambers();                     // a revolver's chambers neither loaded
 int spent_casings();
 void insert_lt();          // LT with the hand at the GM 79's insert point: the round or the spent case comes out
 bool spent();              // the GM 79 holds a spent case (fired, not taken out yet)
+void pose_point();         // 2026-11-01: LateUpdateBehavior post / PrepareRendering post / BeginRendering pre: the GM 79's barrel
+                           // swung open or shut (written after the animation, the way rack.cpp writes the slide)
 
 } // namespace vn::breech

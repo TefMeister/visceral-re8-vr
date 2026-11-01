@@ -160,6 +160,10 @@ constexpr float SWING_WINDOW_MIN_S = 0.035f, SWING_WINDOW_MAX_S = 0.17f, SWING_C
 constexpr float SWING_RIGHT_M = 0.04f, SWING_RIGHT_MS = 0.85f, SWING_RIGHT_RATIO = 0.55f, SWING_RIGHT_MAX_UP = 0.4f;
 constexpr float SWING_UP_M = 0.05f, SWING_UP_MS = 1.15f, SWING_UP_RATIO = 0.68f;
 constexpr float DRUM_TILT_DEG = 30.0f;
+// 2026-11-01 (Tefa: "did you also do the grenade launcher opened positions"): the GM 79's barrel ("Carrier", the joint its
+// barrel, sight and muzzles hang from) tips muzzle-down about its own X when open; 40 deg found live on the simulator
+constexpr float BREAK_OPEN_DEG = 40.0f;
+constexpr float BREAK_SWING_SEC = 0.15f;      // the barrel's swing open or shut
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

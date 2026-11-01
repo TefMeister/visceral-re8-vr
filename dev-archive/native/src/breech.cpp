@@ -26,6 +26,10 @@ namespace {
 const weapons::Weapon* g_w = nullptr;
 std::string g_id;
 bool g_open = false;
+MO* g_carrier = nullptr;       // 2026-11-01: the GM 79's barrel joint, its rest turn, and how far it is swung open (0..1)
+Quat g_carrier_rest{0, 0, 0, 1};
+bool g_carrier_ok = false;
+float g_swing = 0.0f, g_swing_t = -1.0f;
 Quat g_prev{0, 0, 0, 1};
 bool g_have_prev = false;
 float g_prev_t = 0.0f;
@@ -245,6 +249,7 @@ void frame() {
         g_id = id;
         g_w = weapons::find(id);
         g_open = false;   // a gun comes out of the inventory closed
+        g_carrier = nullptr; g_carrier_ok = false; g_swing = 0.0f; g_swing_t = -1.0f;
         g_spent = false;
         g_last_loaded = -1;
         g_spent_n = 0;
@@ -281,6 +286,27 @@ void frame() {
     }
     if (g_w->breech == Breech::CYLINDER) { if (g_open && g_drag == 0) swing_close(); return; }
     if (BREECH_FLICK_ON) flick();
+}
+
+void pose_point() {
+    if (!here() || g_w->breech != Breech::BREAK) return;
+    const auto& s = player::now();
+    if (g_carrier == nullptr && s.weapon_tf != nullptr) {
+        g_carrier = joints::joint_by_name(s.weapon_tf, L"Carrier");
+        g_carrier_ok = g_carrier != nullptr && joints::get_q(joints::JOINT, g_carrier, "get_LocalRotation", g_carrier_rest);
+        LOGI("%s breech: %s barrel joint %s", TAG, g_id.c_str(), g_carrier_ok ? "Carrier found: it swings open with the breech" : "NOT found: no visible swing");
+    }
+    if (!g_carrier_ok) return;
+    const float now = now_s();
+    const float dt = g_swing_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_swing_t);
+    g_swing_t = now;
+    const float want = g_open ? 1.0f : 0.0f;
+    const float step = BREAK_SWING_SEC > 0.0f ? dt / BREAK_SWING_SEC : 1.0f;
+    g_swing = want > g_swing ? std::fmin(want, g_swing + step) : std::fmax(want, g_swing - step);
+    if (g_swing <= 0.0f) return;   // shut: the animation's own pose stands
+    const float h = BREAK_OPEN_DEG * g_swing * 3.14159265f / 360.0f;
+    Quat q = qnorm(qmul(g_carrier_rest, Quat{std::sin(h), 0, 0, std::cos(h)}));
+    joints::set_any(joints::JOINT, g_carrier, "set_LocalRotation", &q);
 }
 
 } // namespace vn::breech
