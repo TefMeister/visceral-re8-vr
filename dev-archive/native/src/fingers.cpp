@@ -98,6 +98,8 @@ void render_point() {
     g_episode = true;
 }
 
+bool busy() { return g_open > 0.001f || g_episode; }
+
 void begin_render() {
     if (g_poser) return;
     for (int i = 0; i < N; ++i)

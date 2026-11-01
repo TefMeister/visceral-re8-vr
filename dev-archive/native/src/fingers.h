@@ -13,5 +13,6 @@ namespace vn::fingers {
 void frame();          // UpdateBehavior pre: in an area or not, the eased amount
 void render_point();   // PrepareRendering post: read the animated fingers once, write the opened ones
 void begin_render();   // BeginRendering pre: write them again (the engine re-poses joints between the two)
+bool busy();           // 2026-11-01: the left fingers are being opened toward a part (righthand.cpp stands aside)
 
 } // namespace vn::fingers

@@ -176,6 +176,7 @@ constexpr bool  FOREARM_HOLD_ON = true;
 constexpr bool  PUMP_BOLT_ON = true;           // pumpbolt.cpp (2026-11-01): the M1897's bolt slides with its pump
 constexpr int   PUMP_BOLT_SETTLE_FRAMES = 30;  // frames after a draw before the rests are taken
 constexpr bool  RIGHT_STILL_ON = true;         // righthand.cpp (2026-11-01): the right fingers held still with no weapon out
+constexpr bool  LEFT_STILL_ON = true;          // righthand.cpp (2026-11-01 23:3x): the left fingers too, whenever the left hand is free
 constexpr float RIGHT_STILL_SEC = 0.2f;        // the ease into and out of it
 constexpr bool  DRY_GAME_SHOT = false;         // dryfire.cpp (2026-11-01): requestShootNoneBullet is a BLANK SHOT (a full gunshot sound, measured), not the empty click: off
 constexpr int   FOREARM_SETTLE_FRAMES = 45;    // frames after a draw before the forearm's pose is kept
