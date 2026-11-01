@@ -163,6 +163,9 @@ constexpr float DRUM_TILT_DEG = 30.0f;
 // 2026-11-01 (Tefa: "did you also do the grenade launcher opened positions"): the GM 79's barrel ("Carrier", the joint its
 // barrel, sight and muzzles hang from) tips muzzle-down about its own X when open; 40 deg found live on the simulator
 constexpr float BREAK_OPEN_DEG = 40.0f;
+// forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
+constexpr bool  FOREARM_HOLD_ON = true;
+constexpr int   FOREARM_SETTLE_FRAMES = 45;    // frames after a draw before the forearm's pose is kept
 constexpr float BREAK_SWING_SEC = 0.15f;      // the barrel's swing open or shut
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;

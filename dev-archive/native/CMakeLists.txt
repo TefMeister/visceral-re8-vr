@@ -27,6 +27,7 @@ add_library(visceral_re8_native SHARED
     src/turn.cpp
     src/gunreport.cpp
     src/fingers.cpp
+    src/forearm.cpp
     src/nodock.cpp
     src/breech.cpp
     src/dryfire.cpp

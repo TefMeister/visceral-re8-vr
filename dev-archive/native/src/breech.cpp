@@ -105,8 +105,9 @@ void flick() {
     // revolver: rolled left (+) opens, right (-) closes; break action: muzzle down (-) opens, up (+) closes
     const float open_sign = g_w->breech == Breech::BREAK ? -1.0f : 1.0f;
     // 2026-10-27 (Tefa: "B does not open the drum, only LG at the drum does"): a flick only closes a revolver
-    if (!g_open && g_rate * open_sign >= BREECH_FLICK_DEG_S && g_w->breech == Breech::BREAK) set_open(true, "flick");
-    else if (g_open && g_rate * open_sign <= -BREECH_FLICK_DEG_S) set_open(false, "flick");
+    // 2026-11-01 (Tefa: "only LG + LT on the front grip to open, to close LG + LT on the front grip or a flick upwards"): a flick
+    // only closes the GM 79 too; opening is the left hand's alone
+    if (g_open && g_rate * open_sign <= -BREECH_FLICK_DEG_S) set_open(false, "flick");
 }
 } // namespace
 
@@ -257,8 +258,9 @@ void frame() {
         g_docked = false;
         g_have_prev = false;
         g_rate = 0.0f;
-        if (here()) LOGI("%s breech: %s (%s) opens to load: right B or a flick (%s)", TAG, id.c_str(), weapons::name(id),
-                         g_w->breech == Breech::BREAK ? "muzzle down = open, up = closed" : "roll left = open, right = closed");
+        if (here()) LOGI("%s breech: %s (%s) %s", TAG, id.c_str(), weapons::name(id),
+                         g_w->breech == Breech::BREAK ? "opens with LG + LT on its front grip; closes the same way or with a flick up"
+                                                      : "opens with LG at the drum and a drag; closes with a flick (roll right) or a push");
     }
     if (!here()) return;
     if (!bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) { g_have_prev = false; return; }
@@ -277,8 +279,8 @@ void frame() {
         bridge::rumble(bridge::RIGHT, BREECH_BUZZ_AMP, BREECH_BUZZ_SEC, RELOAD_BUZZ_HZ);
     }
     g_last_loaded = ld;
-    // right B: the GM 79 only (2026-10-27, Tefa: "B does not open the drum")
-    if (g_w->breech == Breech::BREAK && bridge::pressed(bridge::S_RB)) { set_open(!g_open, "right B"); return; }
+    // 2026-11-01 (Tefa: "please disable B opening and closing the grenade launcher"): right B no longer opens or closes it
+    // (it comes back with the semi-immersive and automatic reload modes, ideas/fresh)
     // the GM 79 with the left hand on its front grip: LT opens / closes it (2026-10-27)
     if (g_w->breech == Breech::BREAK && bridge::flag(bridge::S_GRIPPING_WEAPON) && bridge::held(bridge::S_LGRIP) && bridge::pressed(bridge::S_LTRIG)) {
         set_open(!g_open, "LT with the left hand on the front");

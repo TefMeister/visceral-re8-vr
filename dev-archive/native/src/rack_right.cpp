@@ -57,7 +57,9 @@ bool g_now_ok = false;
 float g_praydog_frame = -1.0f;
 Pose g_praydog{};             // the right target as the VR layer asked it, at the frame's first solve (the handover's end)
 Pose g_gun_in_right{};        // the gun in the right IK target's frame at the take: where it hangs once handed back
-Pose g_last_right{};          // the right target we wrote last: where a handover starts
+Pose g_last_right{};
+Pose g_left_grip{};           // 2026-11-01: the left target the grip asks for during a hand-back (first solve of the frame)
+float g_left_frame = -1.0f;          // the right target we wrote last: where a handover starts
 float g_ho_sec = 0.3f;        // this handover's length
 Pose g_ho_right{}, g_ho_gun{}; // the right target and the gun when it began
 bool g_ho_left = false;       // LG still held: the left hand rides the gun through it
@@ -280,7 +282,19 @@ void on_ik(MO* ik) {
         player::set_pose(t, want.p, want.q);
         g_last_right = want;
     } else if (ik == s.ik_left && (g_phase != Phase::HANDOVER || g_ho_left)) {
-        player::set_pose(target_of(ik), g_left_now.p, g_left_now.q);   // the left hand stays docked on the front of the gun
+        MO* t = target_of(ik);
+        if (g_phase == Phase::HANDOVER) {
+            // 2026-11-01: eased from riding the gun to where the grip asks for it (the left target as the writers before this
+            // one left it, read at the frame's first solve), so the hand-back never ends in a snap: measured on the simulator,
+            // the left hand turned 175 deg in one frame as the hand-back ended [verified-live 2026-11-01, n=1]
+            Pose cur{};
+            const float frame = bridge::view(bridge::S_FRAME);
+            if (frame != g_left_frame && tf_pose(t, cur)) { g_left_frame = frame; g_left_grip = cur; }
+            const Pose want = blend(g_left_now, g_left_grip, ease((now_s() - g_t0) / g_ho_sec));
+            player::set_pose(t, want.p, want.q);
+            return;
+        }
+        player::set_pose(t, g_left_now.p, g_left_now.q);   // the left hand stays docked on the front of the gun
     }
 }
 
