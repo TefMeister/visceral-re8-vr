@@ -206,6 +206,7 @@ constexpr float GATE_BUZZ_AMP = 0.3f, GATE_BUZZ_SEC = 0.04f;
 constexpr Vec3  GATE_HAMMER_OFF{0.0f, 0.02f, -0.02f};   // the palm from the Hammer joint, gun axes (m); "hammer" in lid_swing.json
 constexpr Vec3  GATE_HAMMER_AXIS{1.0f, 0.0f, 0.0f};    // the hammer's turn from cocked to down: a first guess, "hammer_axis" / "hammer_deg"
 constexpr float GATE_HAMMER_DOWN_DEG = -35.0f;
+constexpr bool  GATE_FAN_OPEN_LOCKS = true;   // 2026-11-02: palm on the hammer, cocked: the game's two locks on the next shot opened (fanning)
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

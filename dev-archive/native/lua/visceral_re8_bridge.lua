@@ -340,8 +340,9 @@ local function village_readings()
                 -- 2026-10-31 (Tefa: "the ammo counter still doesn't increase with the mag or shell insert, only when i fire"):
                 -- show alone does not re-read the count; the counter also has updateRemainAmmo (type_probe.txt), asked here
                 -- through its order the same way, and the order's ammo methods are logged once to see what else there is
-                if mode ~= nil and item ~= nil then
-                    local ok_u, err_u = pcall(function() order:call("updateRemainAmmo", mode, item) end)
+                -- 2026-11-02: our own lookup read it: app.GUIRemainAmmoOrder.updateRemainAmmo(System.Boolean isEnable), one yes / no
+                do
+                    local ok_u, err_u = pcall(function() order:call("updateRemainAmmo", true) end)
                     if hud_update_told ~= ok_u then hud_update_told = ok_u; log.info(TAG .. " ammo counter: updateRemainAmmo through the order " .. (ok_u and "called" or ("failed: " .. tostring(err_u)))) end
                 end
                 if not hud_methods_told then

@@ -185,6 +185,33 @@ bool take() {
     return true;
 }
 
+// 2026-11-02 (Tefa: "after a shot the game still rotates the drum in game's own speed, pressing LT just pushes the hammer down but
+// it doesn't actually rotate the drum, so shooting speed is the same"): the game's gun (app.WeaponGunCore, read with our own
+// lookup) holds the next shot behind two locks, readyShootBySequence (the shot animation done: the thumb cocking, the drum
+// turning) and readyShootByTimer (ShootableTime). With the palm on the hammer and the hammer cocked by LT, both are opened
+// every frame, so the next pull fires at once. Every change of the locks is logged, to see which one held it.
+int g_fan_lines = 0;
+int g_fan_last = -1;
+void fan_frame() {
+    MO* gun = player::now().gun;
+    if (gun == nullptr) return;
+    bool* seq = field_ptr<bool>(gun, "readyShootBySequence");
+    bool* tim = field_ptr<bool>(gun, "readyShootByTimer");
+    bool* back = field_ptr<bool>(gun, "readyShootByTriggerBack");
+    float* st = field_ptr<float>(gun, "ShootableTime");
+    const int now = (seq && *seq ? 1 : 0) | (tim && *tim ? 2 : 0) | (back && *back ? 4 : 0) | (g_cocked ? 8 : 0);
+    if (now != g_fan_last && g_fan_lines < 80) {
+        ++g_fan_lines;
+        LOGI("%s gate: fanning: hammer %s, the game's locks: after the animation %s, timer %s (ShootableTime %.3f), trigger let go %s%s", TAG,
+             g_cocked ? "cocked" : "down", seq ? (*seq ? "open" : "SHUT") : "?", tim ? (*tim ? "open" : "SHUT") : "?", st ? *st : -1.0f,
+             back ? (*back ? "yes" : "no") : "?", seq == nullptr || tim == nullptr ? " (a field was not found)" : "");
+        g_fan_last = now;
+    }
+    if (!g_cocked || !GATE_FAN_OPEN_LOCKS) return;
+    if (seq) *seq = true;
+    if (tim) *tim = true;
+}
+
 // 2026-11-01 23:4x (Tefa: "with the guard closed, LG puts the palm on the hammer and after every shot, LT pushes the hammer down
 // again, making it possible to rapidly fire. if B is pressed while LG is held on the hammer, left hand must automatically travel
 // to the drum"): LG near the hammer with the cover shut docks the left palm there; the gun stays on the right hand
@@ -205,6 +232,7 @@ bool take_hammer() {
     g_left_t0 = now_s();
     g_weapon_tf = s.weapon_tf;
     g_cocked = true;
+    g_fan_lines = 0; g_fan_last = -1;
     g_hammer_cap = false;   // the thumb and the hammer read at the next render point, before any shot
     g_last_loaded = player::loaded();
     LOGI("%s gate: LG at the hammer (%.3f m): the left palm on it; after each shot LT pushes it back down, B sends the hand to the drum", TAG, d);
@@ -402,6 +430,7 @@ void frame() {
                 bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
                 LOGI("%s gate: LT: the palm cocks the hammer", TAG);
             }
+            fan_frame();
             break;
         }
         if (g_phase == Phase::OFF && !open && play && bridge::pressed(bridge::S_LGRIP)) {
