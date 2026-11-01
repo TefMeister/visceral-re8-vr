@@ -180,6 +180,14 @@ constexpr float RIGHT_STILL_SEC = 0.2f;        // the ease into and out of it
 constexpr bool  DRY_GAME_SHOT = false;         // dryfire.cpp (2026-11-01): requestShootNoneBullet is a BLANK SHOT (a full gunshot sound, measured), not the empty click: off
 constexpr int   FOREARM_SETTLE_FRAMES = 45;    // frames after a draw before the forearm's pose is kept
 constexpr float BREAK_SWING_SEC = 0.15f;      // the barrel's swing open or shut
+// 2026-11-01 22:4x (Tefa: "with the wolfsbane magnum revolver i got it wrong, that needs B to open the reloading cover, then
+// LG + LT to insert bullets, then either LT again to close the cover or B to close the cover"): the M1851 loads through a
+// cover (its "Lid" joint), not a swing-out drum. The cover's swing is a first guess, tuned live by
+// reframework/data/visceral_re8/lid_swing.json (re-read each time the cover opens): {"axis":[x,y,z],"deg":N,"sec":S}
+constexpr const char* GATE_GUN = "ri3008_Inventory";
+constexpr Vec3  LID_AXIS{0.0f, 0.0f, 1.0f};
+constexpr float LID_OPEN_DEG = 80.0f;
+constexpr float LID_SWING_SEC = 0.12f;
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

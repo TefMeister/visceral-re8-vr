@@ -3,6 +3,7 @@
 #include "bridge.h"
 #include "ghosthand.h"
 #include "joints.h"
+#include "json_mini.h"
 #include "player.h"
 #include "reload.h"
 #include "settings.h"
@@ -29,7 +30,9 @@ bool g_open = false;
 bool g_lt_wait = false;
 bool g_loading = false;        // 2026-11-01: rounds are going in by LT: the hand sits at the loading place
 float g_load_blend = 0.0f, g_load_t = -1.0f;        // 2026-11-01: closed by LT: LT let go before it can open the drum again
-MO* g_carrier = nullptr;       // 2026-11-01: the GM 79's barrel joint, its rest turn, and how far it is swung open (0..1)
+Vec3 g_lid_axis = LID_AXIS;    // 2026-11-01 22:4x: the M1851's cover swing, from lid_swing.json when present
+float g_lid_deg = LID_OPEN_DEG, g_lid_sec = LID_SWING_SEC;
+MO* g_carrier = nullptr;       // 2026-11-01: the GM 79's barrel joint (the M1851's "Lid"), its rest turn, and how far it is swung open (0..1)
 Quat g_carrier_rest{0, 0, 0, 1};
 bool g_carrier_ok = false;
 float g_swing = 0.0f, g_swing_t = -1.0f;
@@ -49,7 +52,24 @@ bool g_docked = false;        // the left hand is docked on the drum
 Vec3 g_sw_from{};             // the swing to close: where the gun hand was when the window began (seen from the headset's facing)
 float g_sw_t = -10.0f, g_sw_cool = -10.0f;
 
-const char* part() { return g_w != nullptr && g_w->breech == Breech::BREAK ? "barrel" : "cylinder"; }
+bool gate_gun() { return g_w != nullptr && g_w->breech == Breech::CYLINDER && g_id == GATE_GUN; }
+const char* part() { return g_w != nullptr && g_w->breech == Breech::BREAK ? "barrel" : gate_gun() ? "loading cover" : "cylinder"; }
+
+void load_lid_tune() {   // re-read each time the cover opens, so the swing can be tuned while the game runs
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    const auto f = std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "lid_swing.json";
+    json::Value v;
+    if (!json::load_file(f.wstring(), v)) return;
+    if (const auto* a = v.get("axis"); a != nullptr && a->kind == json::Value::ARR && a->arr.size() == 3) {
+        Vec3 ax{(float)a->arr[0].n, (float)a->arr[1].n, (float)a->arr[2].n};
+        const float l = std::sqrt(ax.x * ax.x + ax.y * ax.y + ax.z * ax.z);
+        if (l > 1e-4f) g_lid_axis = ax * (1.0f / l);
+    }
+    if (const auto* d = v.get("deg"); d != nullptr && d->kind == json::Value::NUM) g_lid_deg = (float)d->n;
+    if (const auto* s = v.get("sec"); s != nullptr && s->kind == json::Value::NUM) g_lid_sec = (float)s->n;
+    LOGI("%s breech: lid_swing.json: axis (%.2f %.2f %.2f), %.0f deg, %.2f s", TAG, g_lid_axis.x, g_lid_axis.y, g_lid_axis.z, g_lid_deg, g_lid_sec);
+}
 
 void click() {   // the same chamber click as the bolt (rack.cpp)
     wchar_t exe[MAX_PATH]{};
@@ -61,6 +81,7 @@ void click() {   // the same chamber click as the bolt (rack.cpp)
 void set_open(bool open, const char* why) {
     if (open == g_open) return;
     g_open = open;
+    if (open && gate_gun()) load_lid_tune();
     g_last_flip = now_s();
     click();
     bridge::rumble(bridge::RIGHT, BREECH_BUZZ_AMP, BREECH_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -169,8 +190,9 @@ void drum_taken() {
     if (!cylinder()) return;
     g_docked = true;
     g_drag = 0;
-    LOGI("%s breech: the left hand is on the drum (%s): %s", TAG, g_open ? "open" : "closed",
-         g_open ? "rounds from the pouch go in one per LT; with none in the hand, LT closes it" : "hold LT and drag it out to the left to open it");
+    LOGI("%s breech: the left hand is on the %s (%s): %s", TAG, gate_gun() ? "loading cover" : "drum", g_open ? "open" : "closed",
+         g_open ? "rounds from the pouch go in one per LT; with none in the hand, LT closes it"
+                : gate_gun() ? "right B opens the cover" : "hold LT and drag it out to the left to open it");
 }
 
 void drum_dock_frame(bool lt_pressed, bool lt_held) {
@@ -186,6 +208,10 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
         g_drag_prog = std::fmax(0.0f, (g_drag > 0 ? g_drag_from - x : x - g_drag_from) / DRUM_DRAG_M);
         if (g_drag_prog >= 1.0f) { set_open(g_drag > 0, g_drag > 0 ? "dragged open" : "pushed shut"); g_drag = 0; return; }
         if (g_drag > 0 && !lt_held) { LOGI("%s breech: LT let go before the drum clicked open (%.0f%%)", TAG, g_drag_prog * 100.0f); g_drag = 0; }
+        return;
+    }
+    if (!g_open && gate_gun()) {   // 2026-11-01 22:4x: the M1851's cover opens with right B only (frame())
+        if (lt_pressed) LOGI("%s breech: LT on the closed cover: right B opens it first", TAG);
         return;
     }
     if (!g_open) {   // closed: LG + LT on the drum takes it; dragging it out opens it
@@ -277,7 +303,8 @@ void frame() {
         g_rate = 0.0f;
         if (here()) LOGI("%s breech: %s (%s) %s", TAG, id.c_str(), weapons::name(id),
                          g_w->breech == Breech::BREAK ? "opens with LG + LT on its front grip; closes the same way or with a flick up"
-                                                      : "opens with LG at the drum and a drag; closes with a flick (roll right) or a push");
+                         : gate_gun() ? "right B opens the loading cover; LG on it + LT puts pouch rounds in; LT with none in the hand, or right B, closes it"
+                                      : "opens with LG at the drum and a drag; closes with a swing of the gun hand or LT with none in the hand");
     }
     if (!here()) return;
     if (!bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) { g_have_prev = false; return; }
@@ -303,28 +330,42 @@ void frame() {
         set_open(!g_open, "LT with the left hand on the front");
         return;
     }
+    if (gate_gun()) {   // 2026-11-01 22:4x: right B opens and closes the M1851's cover; no swing closes it (Tefa named LT or B)
+        if (bridge::pressed(bridge::S_RB)) {
+            if (g_open) g_loading = false;
+            set_open(!g_open, "right B");
+        }
+        return;
+    }
     if (g_w->breech == Breech::CYLINDER) { if (g_open && g_drag == 0) swing_close(); return; }
     if (BREECH_FLICK_ON) flick();
 }
 
 void pose_point() {
-    if (!here() || g_w->breech != Breech::BREAK) return;
+    const bool lid = gate_gun();   // 2026-11-01 22:4x: the M1851's cover swings the same way the GM 79's barrel does
+    if (!here() || (g_w->breech != Breech::BREAK && !lid)) return;
     const auto& s = player::now();
     if (g_carrier == nullptr && s.weapon_tf != nullptr) {
-        g_carrier = joints::joint_by_name(s.weapon_tf, L"Carrier");
+        g_carrier = joints::joint_by_name(s.weapon_tf, lid ? L"Lid" : L"Carrier");
         g_carrier_ok = g_carrier != nullptr && joints::get_q(joints::JOINT, g_carrier, "get_LocalRotation", g_carrier_rest);
-        LOGI("%s breech: %s barrel joint %s", TAG, g_id.c_str(), g_carrier_ok ? "Carrier found: it swings open with the breech" : "NOT found: no visible swing");
+        Vec3 lp{};
+        if (g_carrier_ok) joints::get_v3(joints::JOINT, g_carrier, "get_LocalPosition", lp);
+        LOGI("%s breech: %s %s joint %s (rest turn %.3f %.3f %.3f %.3f, at %.3f %.3f %.3f)", TAG, g_id.c_str(), part(),
+             g_carrier_ok ? (lid ? "Lid found: it swings open with the cover" : "Carrier found: it swings open with the breech") : "NOT found: no visible swing",
+             g_carrier_rest.x, g_carrier_rest.y, g_carrier_rest.z, g_carrier_rest.w, lp.x, lp.y, lp.z);
     }
     if (!g_carrier_ok) return;
     const float now = now_s();
     const float dt = g_swing_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_swing_t);
     g_swing_t = now;
     const float want = g_open ? 1.0f : 0.0f;
-    const float step = BREAK_SWING_SEC > 0.0f ? dt / BREAK_SWING_SEC : 1.0f;
+    const float sec = lid ? g_lid_sec : BREAK_SWING_SEC;
+    const float step = sec > 0.0f ? dt / sec : 1.0f;
     g_swing = want > g_swing ? std::fmin(want, g_swing + step) : std::fmax(want, g_swing - step);
     if (g_swing <= 0.0f) return;   // shut: the animation's own pose stands
-    const float h = BREAK_OPEN_DEG * g_swing * 3.14159265f / 360.0f;
-    Quat q = qnorm(qmul(g_carrier_rest, Quat{std::sin(h), 0, 0, std::cos(h)}));
+    const float h = (lid ? g_lid_deg : BREAK_OPEN_DEG) * g_swing * 3.14159265f / 360.0f, sh = std::sin(h);
+    const Vec3 ax = lid ? g_lid_axis : Vec3{1, 0, 0};
+    Quat q = qnorm(qmul(g_carrier_rest, Quat{ax.x * sh, ax.y * sh, ax.z * sh, std::cos(h)}));
     joints::set_any(joints::JOINT, g_carrier, "set_LocalRotation", &q);
 }
 
