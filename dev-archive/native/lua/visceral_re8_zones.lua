@@ -376,16 +376,15 @@ re.on_application_entry("UpdateMotion", function()
     -- shotgun out, setMesh threw inside the game a second after the first sphere was made, then re8.exe+0x415879c (log
     -- 2026-10-31 12:08; the same address and the same setMesh as the 10-25 22:06 and 10-30 21:55 crashes). In play nothing
     -- here touches a mesh now; with the window's row open the risk stays (a Grip Zones session, not play).
-    if gun_num(b) > 0 and open_key ~= nil and now - last_respawn_t > RESPAWN_EVERY_S then
-        local missing = false
-        for _, z in ipairs(ZONES) do if z.act and balls[z.i] == nil then missing = true end end
-        if missing then
-            last_respawn_t = now
-            if not swept then swept = true; sweep_leftovers() end
-            for _, z in ipairs(ZONES) do
-                if z.act and balls[z.i] == nil then balls[z.i] = spawn(z.i); spawn_tried = spawn_tried or balls[z.i] ~= nil end
-            end
-        end
+    -- 2026-11-01: ONE ball, moved to whichever zone's row is open. With a ball per zone only the first one made ever drew:
+    -- on the simulator the LEMI's magazine ball (made first) showed at the hand while its well ball, made next and placed
+    -- 10 cm from it, did not; the pump, slide and shell-port balls never did [measured 2026-11-01, simulator, n=3 guns].
+    -- Only one row is open at a time, so one ball does the job (and makes one mesh, not eight: the setMesh crashes above).
+    if gun_num(b) > 0 and open_key ~= nil and balls[0] == nil and now - last_respawn_t > RESPAWN_EVERY_S then
+        last_respawn_t = now
+        if not swept then swept = true; sweep_leftovers() end
+        balls[0] = spawn(0)
+        spawn_tried = spawn_tried or balls[0] ~= nil
     end
     -- the one zone to show: the row open in the Grip Zones window, when the gun in hand has that zone
     local show_i, show_k = nil, nil
@@ -393,9 +392,10 @@ re.on_application_entry("UpdateMotion", function()
         local _, _, _, r, on = live(b, z.i)
         if z.act and z.key == open_key and on and on > 0.5 and r and r > 0 then show_i, show_k = z.i, hand_k(b, z) end
     end
+    local the_ball = balls[0]
     for _, z in ipairs(ZONES) do
-        local ball = balls[z.i]
-        if ball and alive(ball.go) and ball.xform then
+        local ball = the_ball
+        if ball and alive(ball.go) and ball.xform and (z.i == show_i or (show_i == nil and z.i == 0)) then
             local show = z.i == show_i
             set_on(ball, show)
             if show then
@@ -409,8 +409,8 @@ re.on_application_entry("UpdateMotion", function()
                     ball.xform:call("set_LocalScale", Vector3f.new(s, s, s))
                     ball.xform:call("set_Scale", Vector3f.new(s, s, s))
                 end)
-                if not ball.shown_logged then
-                    ball.shown_logged = true
+                if ball.shown_key ~= z.key then
+                    ball.shown_key = z.key
                     log.info(TAG .. string.format(" sphere %s first shown: r %.3f m, step %d of %d", z.key, r, step, STEPS))
                 end
             end
@@ -421,18 +421,18 @@ re.on_application_entry("UpdateMotion", function()
         last_where_t = now
         local parts = {}
         for _, z in ipairs(ZONES) do
-            local ball = balls[z.i]
-            if ball then
+            local ball = balls[0]
+            if ball and z.act then
                 local _, _, _, r, on = live(b, z.i)
-                parts[#parts + 1] = string.format("%s %s r %.2f%s", z.key, alive(ball.go) and (ball.on and "SHOWN" or (on and on > 0.5 and "near-off" or "not on gun")) or "DEAD",
-                    r or 0, ball.on and (" step " .. tostring(ball.step)) or "")
+                parts[#parts + 1] = string.format("%s %s r %.2f%s", z.key, alive(ball.go) and ((ball.on and z.i == show_i) and "SHOWN" or (on and on > 0.5 and "near-off" or "not on gun")) or "DEAD",
+                    r or 0, (ball.on and z.i == show_i) and (" step " .. tostring(ball.step)) or "")
             end
         end
         if #parts > 0 then log.info(TAG .. " spheres (open in Grip Zones: " .. tostring(open_key) .. "): " .. table.concat(parts, " | ")) end
         -- 2026-11-01 (Tefa: the pump's and the shell port's spheres never show, the front grip's and the magazine's do): where
         -- the shown sphere really is, against where it was asked to be, the gun hand and the camera
-        if show_i ~= nil and balls[show_i] and alive(balls[show_i].go) then
-            local ball = balls[show_i]
+        if show_i ~= nil and balls[0] and alive(balls[0].go) then
+            local ball = balls[0]
             local x, y, zz, r = live(b, show_i)
             local d = function(a, c) if a == nil or c == nil then return -1 end; return math.sqrt((a.x - c.x) ^ 2 + (a.y - c.y) ^ 2 + (a.z - c.z) ^ 2) end
             local want = Vector3f.new(x, y, zz)
