@@ -137,6 +137,15 @@ local function note(key, where, how, motion)
     end
     h.n = h.n + 1
     h.where, h.how, h.motion, h.t = where, how, motion, os.clock()
+    -- 2026-11-01 (Tefa: "the game also plays an empty sound once, sometimes multiple times before going quiet, so the hammer
+    -- cocking sound cannot play with the games own sound"): every gun sound the game itself plays bumps the shared counter
+    -- (src/bridge.h S_GAME_SFX_SEQ); the plugin's empty click waits a moment and stays quiet when it moved. Not our own
+    -- replays, not the steps and rustles of moving.
+    local nm = tostring(names[key] or "")
+    if not replaying and not nm:find("_MVT_SMALL") and not nm:find("_MVT_RUN") and not nm:find("_MVT_WALK") and not nm:find("WHOOSH") then
+        local b = rawget(_G, "visceral_re8_bridge")
+        if b and b.ready() then pcall(function() b.w(182, (b.r(182) or 0) + 1) end) end
+    end
     if h.n <= LOG_PER_ID then L(string.format("heard %s '%s' on %s (upper motion %s), #%d", key, tostring(names[key] or "?"), tostring(where), tostring(motion), h.n)) end
 end
 

@@ -95,6 +95,7 @@ enum Slot : int {
     // 2026-10-31 (Tefa: "the shotgun shell size and positioning in re8, how do i change that"): the round in the left hand,
     // per gun, from the menu "Visceral RE8 reload" (visceral_re8_bridge.lua, saved in visceral_re8/shell_hold.json):
     S_SHELL_HOLD = 175,       // 175-181, WRITTEN BY THE LUA MENU: move 1-3 (cm, the hold's own axes), turn 1-3 (deg), size (percent, 0 = unset = 100)
+    S_GAME_SFX_SEQ = 182,     // 2026-11-01, WRITTEN BY THE SOUNDS SCRIPT: +1 on every gun sound the game itself plays (not ours, not footsteps)
     S_COUNT = 175,            // the button snapshot's length (unchanged: the slots from 175 on are read live with view()); the Lua array is 182 long            // 2026-10-29: 174 the brightness tick box; 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
 };
 enum Sfx : int {               // S_SFX_CODE values

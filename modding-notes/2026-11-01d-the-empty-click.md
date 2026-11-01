@@ -16,3 +16,17 @@ Tefa: "can you see about the empty click sounds next" (idea of 2026-10-31: the g
 ## So
 No game empty click turned up; Village reloads by itself instead of clicking. Ours stays. If a game sound is wanted instead, a
 short click the game does play (a revolver's hammer, SND_MOT_RI3008_SE_MVT_PRE_SHOT, or a slide stop) could be given job 12.
+
+## Later the same day: the hammer, and quiet while the game clicks (build b035)
+Tefa: "it doesn't sound like the gun click sound unfortunately, so if you can swap every empty click sound for a short one like
+the hammer being cocked ... the game also plays an empty sound once, sometimes multiple times before going quiet, so the hammer
+cocking sound cannot play with the games own sound and must only play once the gun is quiet".
+- The click is now the game's own M1851 hammer cock (SND_MOT_RI3008_SE_MVT_PRE_SHOT, wwise 740255369), played on the revolver by
+  tools/sim/zz_test_trigger.lua and recorded with tools/sim/rec.py: 133 ms (a light click, then the catch), at -13 dBFS, the
+  level the game played it at. sfx/dry_hammer.wav; the old dry_click.wav is kept.
+- The game's own empty sound: heard once, on the first empty pull of the F2 run dry WITH spare rounds (-26 dBFS, our click muted
+  by the dry_click_off test switch), then nothing on eight more pulls [verified-live 2026-11-01, n=1]. Never with no spare rounds.
+- So each empty press now waits DRY_WAIT_S (0.12 s): the sounds script bumps a shared counter on every gun sound the game plays
+  (bridge slot 182, not our replays, not footsteps); if it moved, ours stays quiet ("the game played its own sound for this press").
+  On the repeat run the game made no sound of its own, so the hold-back is unproven: if Tefa still hears both together, the game's
+  empty sound does not pass through the sounds script's hooks and needs another way to be seen.

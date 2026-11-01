@@ -276,7 +276,8 @@ constexpr bool  RACK_SLIDE_ANY_TIME = true;
 constexpr bool  CHAMBER_ROUND = true;
 // 2026-10-31 (Tefa: "games own empty trigger sound ... only play when the previous sound has finished playing, not cut the
 // other sound off"): a click only once the last one has had this long to finish (fast presses in between are quiet)
-constexpr float DRY_CLICK_GAP_S = 0.15f;   // 2026-10-31 rebuild: a test tool, out of the player build
+constexpr float DRY_CLICK_GAP_S = 0.15f;
+constexpr float DRY_WAIT_S = 0.12f;           // 2026-11-01: an empty press waits this long for the game's own empty sound before ours plays   // 2026-10-31 rebuild: a test tool, out of the player build
 constexpr float GUNREPORT_PERIOD_S = 5.0f;        // a line this often while a gun is in hand
 constexpr float GUNREPORT_CHANGE_M = 0.02f;       // and at once when the gun moves this far in the hand's own frame
 constexpr float GUNREPORT_CHANGE_MIN_GAP_S = 1.0f; // but never more than one such line a second
