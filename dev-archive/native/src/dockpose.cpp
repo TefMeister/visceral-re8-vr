@@ -59,7 +59,7 @@ void refresh() {   // at most once a second: re-read dock_poses.json when the wi
 }
 
 // the docked spots (dockpose.h); 2000+N (inside a pair's start sphere, not taken) and 0 are not docked
-bool docked(int spot) { return (spot >= 3 && spot <= 9) || (spot >= 1000 && spot < 2000); }
+bool docked(int spot) { return (spot >= 3 && spot <= 10) || (spot >= 1000 && spot < 2000); }   // (10: the Wolfsbane's hammer, 2026-11-02)
 
 Pose wanted(int gun, int spot) {
     if (!docked(spot)) return Pose{};

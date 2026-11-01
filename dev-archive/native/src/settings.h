@@ -177,7 +177,10 @@ constexpr bool  PUMP_BOLT_ON = true;           // pumpbolt.cpp (2026-11-01): the
 constexpr int   PUMP_BOLT_SETTLE_FRAMES = 30;  // frames after a draw before the rests are taken
 constexpr bool  RIGHT_STILL_ON = true;         // righthand.cpp (2026-11-01): the right fingers held still with no weapon out
 constexpr bool  LEFT_STILL_ON = true;          // righthand.cpp (2026-11-01 23:3x): the left fingers too, whenever the left hand is free
-constexpr float RIGHT_STILL_SEC = 0.2f;        // the ease into and out of it
+constexpr float RIGHT_STILL_SEC = 0.2f;
+constexpr float STILL_DEBOUNCE_S = 0.25f;      // 2026-11-02: a free hand's still / animated change counts once it lasted this long
+constexpr float FINGER_SWAY_DEG = 2.5f;        // 2026-11-02: the free hands' slow finger drift, degrees at its widest (middle joint)
+constexpr float FINGER_SWAY_W1 = 0.9f, FINGER_SWAY_W2 = 0.37f;   // its two waves, radians a second (about 7 s and 17 s)        // the ease into and out of it
 constexpr bool  DRY_GAME_SHOT = false;         // dryfire.cpp (2026-11-01): requestShootNoneBullet is a BLANK SHOT (a full gunshot sound, measured), not the empty click: off
 constexpr int   FOREARM_SETTLE_FRAMES = 45;    // frames after a draw before the forearm's pose is kept
 constexpr float BREAK_SWING_SEC = 0.15f;      // the barrel's swing open or shut

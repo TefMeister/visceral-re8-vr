@@ -46,6 +46,9 @@ struct Still {
     bool have[N] = {};
     float k = 0.0f, last_t = -1.0f;
     bool was = false;
+    bool pending = false;    // 2026-11-02: a change of want must last STILL_DEBOUNCE_S before it counts (the twitch)
+    float since = 0.0f;
+    float phase = 0.0f;      // the sway's offset for this hand, so the two hands never move together
 
     void render(MO* skel, bool want, const char* why) {
         for (auto& h : have) h = false;
@@ -53,9 +56,13 @@ struct Still {
         const float t = now_s(), dt = last_t < 0.0f ? 0.0f : std::fmin(0.1f, t - last_t);
         last_t = t;
         want = want && tf != nullptr;
-        if (want != was) { was = want; LOGI("%s righthand: %s fingers %s", TAG, side, want ? why : "back to the game's"); }
+        // 2026-11-02 (Tefa: "left hand is twitching when walking, not animating anymore but jittery"): the free left hand's
+        // want flipped many times a second (the game docking it while LG is up, put back by smooth.cpp), each flip easing
+        // the fingers between still and animated. A flip now counts only once it has lasted STILL_DEBOUNCE_S
+        if (want != pending) { pending = want; since = t; }
+        if (pending != was && t - since >= STILL_DEBOUNCE_S) { was = pending; LOGI("%s righthand: %s fingers %s", TAG, side, was ? why : "back to the game's"); }
         const float step = RIGHT_STILL_SEC > 0.0f ? dt / RIGHT_STILL_SEC : 1.0f;
-        k = want ? std::fmin(1.0f, k + step) : std::fmax(0.0f, k - step);
+        k = was ? std::fmin(1.0f, k + step) : std::fmax(0.0f, k - step);
         if (k <= 0.0f || tf == nullptr) return;
         const float u = ease(k);
         for (int i = 0; i < N; ++i) {
@@ -65,7 +72,14 @@ struct Still {
             if (!rest_ok[i]) { Quat r; if (!get_q(JOINT, j, "get_BaseLocalRotation", r)) continue; rest[i] = qnorm(r); rest_ok[i] = true; }
             Quat cur;
             if (!get_q(JOINT, j, "get_LocalRotation", cur)) continue;
-            target[i] = nlerp(qnorm(cur), rest[i], u);
+            // 2026-11-02 (Tefa: "both need a subtle finger sway that is not tied to movement just natural subtle hand
+            // movement"): a slow drift of each finger's curl about the rest pose, two slow waves per finger, phased apart
+            const int f = i / 3;
+            const float w = (i % 3 == 0) ? 0.6f : (i % 3 == 1) ? 1.0f : 0.8f;   // base, middle, tip
+            const float a = FINGER_SWAY_DEG * w * (0.6f * std::sin(t * FINGER_SWAY_W1 + f * 1.3f + phase) + 0.4f * std::sin(t * FINGER_SWAY_W2 + f * 2.1f + phase * 0.7f));
+            const float h = a * 3.14159265f / 360.0f;
+            const Quat sway = qnorm(qmul(rest[i], Quat{0, 0, std::sin(h), std::cos(h)}));
+            target[i] = nlerp(qnorm(cur), sway, u);
             have[i] = true;
             set_any(JOINT, j, "set_LocalRotation", &target[i]);
         }
@@ -77,6 +91,7 @@ struct Still {
 };
 Still g_right{RIGHT, "right"};
 Still g_left{LEFT, "left"};
+struct PhaseInit { PhaseInit() { g_left.phase = 2.4f; } } g_phase_init;
 } // namespace
 
 void render_point() {
@@ -85,7 +100,8 @@ void render_point() {
     g_right.render(s.tf, RIGHT_STILL_ON && play && s.weapon == nullptr, "held still: no weapon out (the relaxed rest pose)");
     // 2026-11-01 23:3x (Tefa: "left hand is still animating while walking"): the left fingers the same, whenever the left hand
     // is free: not gripping or holding anything, no Hand Poser on it, and not opening toward a part (fingers.cpp)
-    const bool left_free = !bridge::held(bridge::S_LGRIP) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !rack::active() &&
+    // (2026-11-02: the game's own "gripping" flag left out: it flickers while LG is up, the game docking the free hand)
+    const bool left_free = !bridge::held(bridge::S_LGRIP) && !rack::active() &&
                            !reload::mag_in_hand() && !reload::round_in_hand() && !gate::owns_left() &&
                            bridge::view(bridge::S_POSER_HELD) <= 0.5f && !fingers::busy();
     g_left.render(s.tf, LEFT_STILL_ON && play && left_free, "held still: the left hand is free (the relaxed rest pose)");
