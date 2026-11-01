@@ -31,6 +31,7 @@ void* slide_joint();          // this frame's slide / pump / bolt joint (ghostha
 const char* part_name();      // "slide" | "pump" | "bolt"
 
 // the right hand on the bolt (2026-11-01, rack_right.h holds the gesture, the gun and the hands; the bolt is this one)
+bool bolt_wants_left();       // 2026-11-01: a rack is due and the left hand is in the bolt zone: the magazine leaves it to the bolt
 bool bolt_free();             // a bolt gun whose bolt nobody holds (the right hand may work it any time)
 void right_take();            // the right hand has the bolt: the pull is read from the right controller
 void right_off(const char* why);

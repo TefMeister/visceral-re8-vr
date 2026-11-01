@@ -393,6 +393,13 @@ float travel() { return g_travel; }
 // 2026-11-01 (Tefa, after the first wear: "bolt racking can be done at any time with RG, not only when it's needed"): the right
 // hand may work the bolt any time; a rack with no shot before it is cosmetic (no round lost, no case thrown: eject.cpp)
 bool bolt_free() { return RELOAD_ON && bolt() && g_joint != nullptr && g_have_rest && !g_hand_on && !g_right; }
+// 2026-11-01 (Tefa: "yes": when a rack is due and the hand is near both, the bolt wins over the magazine). On the F2 the
+// magazine sits right under the bolt and their zones overlap; the magazine took the hand first (reload runs before rack).
+bool bolt_wants_left() {
+    if (!bolt_free() || !(g_needed || g_parked || g_bstate != 0 || g_turn > 0.0f)) return false;
+    float d = 0.0f;
+    return near_joint(d);
+}
 void right_take() {
     g_right = true;
     g_armed = g_spent = false;   // each RG take is a fresh cycle (LT stays held through several while the gun is locked)
@@ -517,7 +524,7 @@ void frame() {
         // good in theory but is actually distracting"): off. A hand that came from the grip waits for LG to be let go again
         constexpr bool RACK_FROM_GRIP_ZONE = false;
         const bool from_zone = RACK_FROM_GRIP_ZONE && due && bridge::pressed(bridge::S_LGRIP) && in_grip_zone();
-        const bool want = lg && !reload::hand_on_mag() && !reload::hand_near_mag() && (!g_from_grip || from_zone);   // (2026-10-25: the magazine first)
+        const bool want = lg && !reload::hand_on_mag() && (!reload::hand_near_mag() || bolt_wants_left()) && (!g_from_grip || from_zone);   // (2026-10-25: the magazine first; 2026-11-01: but a due bolt wins)
         if (want) {
             float off = 99.0f;
             bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);
