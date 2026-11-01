@@ -23,6 +23,7 @@ add_library(visceral_re8_native SHARED
     src/rack.cpp
     src/rack_right.cpp
     src/gate.cpp
+    src/lookup.cpp
     src/eject.cpp
     src/body.cpp
     src/turn.cpp

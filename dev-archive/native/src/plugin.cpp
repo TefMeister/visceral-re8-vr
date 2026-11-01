@@ -31,6 +31,7 @@
 #include "nodock.h"
 #include "breech.h"
 #include "gate.h"
+#include "lookup.h"
 #include "dryfire.h"
 #include "eject.h"
 #include "bridge.h"
@@ -64,7 +65,8 @@ void on_frame() {
     zones::frame();
     reload::frame();
     breech::frame();
-    gate::frame();                                     // 2026-11-01: the Wolfsbane loaded by the right hand (after breech: right B)
+    gate::frame();
+    lookup::frame();                                   // 2026-11-02: our own read-only look at the game's type list (lookup.h)                                     // 2026-11-01: the Wolfsbane loaded by the right hand (after breech: right B)
     rack::frame();
     dryfire::frame();                                  // 2026-10-30: the empty click on RT (after reload + rack: they say if it fires)
     smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
