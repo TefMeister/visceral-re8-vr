@@ -103,7 +103,8 @@ void render_point() {
     // (2026-11-02: the game's own "gripping" flag left out: it flickers while LG is up, the game docking the free hand)
     const bool left_free = !bridge::held(bridge::S_LGRIP) && !rack::active() &&
                            !reload::mag_in_hand() && !reload::round_in_hand() && !gate::owns_left() &&
-                           bridge::view(bridge::S_POSER_HELD) <= 0.5f && !fingers::busy();
+                           bridge::view(bridge::S_POSER_HELD) <= 0.5f;   // (2026-11-02: no longer stands aside for fingers.cpp: that
+                           // opening is written AFTER this now, on top of the still pose, so the two no longer take turns: the twitch)
     g_left.render(s.tf, LEFT_STILL_ON && play && left_free, "held still: the left hand is free (the relaxed rest pose)");
 }
 
