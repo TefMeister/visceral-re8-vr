@@ -206,6 +206,8 @@ constexpr float GATE_BUZZ_AMP = 0.3f, GATE_BUZZ_SEC = 0.04f;
 constexpr Vec3  GATE_HAMMER_OFF{0.0f, 0.02f, -0.02f};   // the palm from the Hammer joint, gun axes (m); "hammer" in lid_swing.json
 constexpr Vec3  GATE_HAMMER_AXIS{1.0f, 0.0f, 0.0f};    // the hammer's turn from cocked to down: a first guess, "hammer_axis" / "hammer_deg"
 constexpr float GATE_HAMMER_DOWN_DEG = -35.0f;
+constexpr float GATE_FAN_FIRE_WINDOW_S = 0.15f;   // 2026-11-02: RT held + LT: the trigger lock opened this long for the one shot
+constexpr float GATE_FAN_ASK_BEFORE_S = 0.05f;    // ... and the game asked for the shot itself this long before the window ends, if none went off
 constexpr bool  GATE_FAN_OPEN_LOCKS = true;   // 2026-11-02: palm on the hammer, cocked: the game's two locks on the next shot opened (fanning)
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;

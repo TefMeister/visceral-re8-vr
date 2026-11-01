@@ -192,6 +192,28 @@ bool take() {
 // every frame, so the next pull fires at once. Every change of the locks is logged, to see which one held it.
 int g_fan_lines = 0;
 int g_fan_last = -1;
+// 2026-11-02 (Tefa: "can i hold RT and when i press down on the hammer it basically shoots with LG held on the hammer and LT
+// pressed?"): real fanning. With RT HELD, LT cocks AND fires: for a short window the third lock (the trigger let go) is opened
+// too, so the game's own shot goes off through its own path (ammo, sound, recoil); if none has gone off near the window's end,
+// the game's own request (app.PlayerGun.requestShootForProcess) is asked once. Outside the window the trigger lock stays the
+// game's, so a held RT never turns into full auto.
+float g_fire_until = 0.0f;
+int g_fire_loaded = -1;
+bool g_fire_asked = false;
+void request_shot() {
+    MO* pg = call_ptr(player::now().updater, "get_playerGun");
+    if (!is_managed(pg)) { LOGI("%s gate: fan shot: no player gun to ask", TAG); return; }
+    auto* m = find_method_deep(pg->get_type_definition(), "requestShootForProcess");
+    if (m == nullptr) { LOGI("%s gate: fan shot: requestShootForProcess not found", TAG); return; }
+    m->call<void>(API::get()->get_vm_context(), (void*)pg, false);
+    LOGI("%s gate: fan shot: the game's own shot did not go off in the window: asked it with requestShootForProcess", TAG);
+}
+void fan_fire(const char* why) {
+    g_fire_until = now_s() + GATE_FAN_FIRE_WINDOW_S;
+    g_fire_loaded = player::loaded();
+    g_fire_asked = false;
+    LOGI("%s gate: fan shot (%s): the trigger lock opened for %.2f s", TAG, why, GATE_FAN_FIRE_WINDOW_S);
+}
 void fan_frame() {
     MO* gun = player::now().gun;
     if (gun == nullptr) return;
@@ -207,9 +229,17 @@ void fan_frame() {
              back ? (*back ? "yes" : "no") : "?", seq == nullptr || tim == nullptr ? " (a field was not found)" : "");
         g_fan_last = now;
     }
+    const float t = now_s();
+    if (g_fire_until > 0.0f) {
+        const int ld = player::loaded();
+        if (ld >= 0 && g_fire_loaded >= 0 && ld < g_fire_loaded) { g_fire_until = 0.0f; LOGI("%s gate: fan shot went off", TAG); }
+        else if (t >= g_fire_until) { g_fire_until = 0.0f; LOGI("%s gate: fan shot: nothing went off (loaded %d)", TAG, ld); }
+        else if (!g_fire_asked && t >= g_fire_until - GATE_FAN_ASK_BEFORE_S && g_cocked) { g_fire_asked = true; request_shot(); }
+    }
     if (!g_cocked || !GATE_FAN_OPEN_LOCKS) return;
     if (seq) *seq = true;
     if (tim) *tim = true;
+    if (back && g_fire_until > 0.0f && t < g_fire_until) *back = true;   // only inside a fan shot's window
 }
 
 // 2026-11-01 23:4x (Tefa: "with the guard closed, LG puts the palm on the hammer and after every shot, LT pushes the hammer down
@@ -424,11 +454,14 @@ void frame() {
             const int ld = player::loaded();
             if (g_last_loaded > 0 && ld >= 0 && ld < g_last_loaded) { g_cocked = false; LOGI("%s gate: shot: the hammer is down (LT cocks it)", TAG); }
             g_last_loaded = ld;
-            if (bridge::pressed(bridge::S_LTRIG) && !g_cocked) {
-                g_cocked = true;
-                cock_sound();
-                bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
-                LOGI("%s gate: LT: the palm cocks the hammer", TAG);
+            if (bridge::pressed(bridge::S_LTRIG)) {
+                if (!g_cocked) {
+                    g_cocked = true;
+                    cock_sound();
+                    bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
+                    LOGI("%s gate: LT: the palm cocks the hammer", TAG);
+                }
+                if (bridge::held(bridge::S_RTRIG) && player::loaded() > 0) fan_fire("LT with RT held");
             }
             fan_frame();
             break;
