@@ -307,7 +307,7 @@ constexpr int   NODOCK_FAKE_JOINT = 0;            // the joint index answered in
 constexpr float FINGER_OPEN_RAMP_M = 0.14f;       // the hand starts opening this far outside the grab zone, fully open at its edge
 
 // gunreport.cpp (2026-10-29): the gun's place in the right hand, measured and written down
-constexpr bool  GUNREPORT_ON = false;
+constexpr bool  GUNREPORT_ON = true;    // 2026-11-02: on again (Tefa: "guns are sitting lower again"), so a bad launch is measured
 // 2026-10-31 (Tefa: "pistol ... hand on the slide and be able to rack it whenever"): a slide (not a pump or a bolt) can be
 // taken with LG in its zone and racked any time; a rack with none due is cosmetic (rack.cpp complete)
 constexpr bool  RACK_SLIDE_ANY_TIME = true;
