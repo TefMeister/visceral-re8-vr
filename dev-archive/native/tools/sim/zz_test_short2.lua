@@ -18,13 +18,34 @@ local function inv()
     return go and comp(go, NS .. ".survivor.Inventory")
 end
 re.on_frame(function()
-    local r = json.load_file(F); if not r or (not r.list and not r.call and not r.gift and not r.joints) then return end
+    local r = json.load_file(F); if not r or (not r.list and not r.call and not r.gift and not r.joints and not r.enum and not r.imlist and not r.imcall) then return end
     json.dump_file(F, {})
     local ok, err = pcall(function()
         if r.gift then   -- {"gift": "wp4100", "count": n}: gives that gun into the hand (memory only; the game saves at typewriters)
             local wt = sdk.find_type_definition(NS .. ".EquipmentDefine.WeaponType"):get_field(r.gift):get_data(nil)
             local im = sdk.get_managed_singleton(NS .. ".gamemastering.InventoryManager")
             log.info("[test-short2] gift " .. r.gift .. " (" .. tostring(wt) .. "): " .. tostring(im:call("addAndEquipMainWeapon", wt, r.count or 1, r.item or 0)))
+            return
+        end
+        if r.enum then   -- {"enum": "<type>", "find": "<word>"}: that enum's names and values containing <word>
+            local out = {}
+            for _, f in ipairs(sdk.find_type_definition(r.enum):get_fields()) do
+                local n = f:get_name(); if f:is_static() and n:lower():find((r.find or ""):lower()) then out[#out + 1] = n .. "=" .. tostring(f:get_data(nil)) end
+            end
+            log.info("[test-short2] " .. r.enum .. " '" .. (r.find or "") .. "': " .. table.concat(out, ", ")); return
+        end
+        if r.imlist or r.imcall then   -- the InventoryManager: list its methods with a word, or call one with numbers
+            local im = sdk.get_managed_singleton(NS .. ".gamemastering.InventoryManager")
+            if r.imlist then
+                local td, out = im:get_type_definition(), {}
+                for _, m in ipairs(td:get_methods()) do local n = m:get_name()
+                    if n:lower():find(r.imlist:lower()) then
+                        local ps = {}; for _, p in ipairs(m:get_param_types() or {}) do ps[#ps + 1] = p:get_full_name() end
+                        out[#out + 1] = n .. "(" .. table.concat(ps, ", ") .. ")" end end
+                log.info("[test-short2] InventoryManager methods with '" .. r.imlist .. "': " .. table.concat(out, " | "))
+            else
+                log.info("[test-short2] InventoryManager " .. r.imcall .. " -> " .. tostring(im:call(r.imcall, table.unpack(r.args or {}))))
+            end
             return
         end
         if r.joints then   -- {"joints": 1}: the gun in hand's joint names

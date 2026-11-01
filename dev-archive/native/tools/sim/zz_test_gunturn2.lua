@@ -9,6 +9,15 @@ local function gun_joint(name)
         if j:call("get_Name") == name then return j end
     end
 end
+local function write()
+    if not want or not want.j then return end
+    local h = math.rad(want.deg) / 2
+    local q = Quaternion.new(math.cos(h), want.axis == "x" and math.sin(h) or 0, want.axis == "y" and math.sin(h) or 0, want.axis == "z" and math.sin(h) or 0)
+    want.j:call("set_LocalRotation", q)
+end
+-- written after the animation (LateUpdateBehavior post) and again before drawing, as the mod's own slide is
+re.on_application_entry("LateUpdateBehavior", function() pcall(write) end)
+re.on_pre_application_entry("PrepareRendering", function() pcall(write) end)
 re.on_pre_application_entry("BeginRendering", function()
     pcall(function()
         local r = json.load_file(F)
