@@ -229,7 +229,12 @@ bool part_center(zones::Key k, Vec3& c, float& r) {
 
 bool landing(const Vec3& rp, const Quat& rq, Vec3& rel, Quat& qrel) {
     if (g_dock >= 0) {   // a built-in dock: the hand sits on the part's centre, with the turn it had at the take
-        rel = rotate(qinv(qnorm(rq)), g_dock_c[g_dock] - rp);
+        Vec3 c = g_dock_c[g_dock];
+        Quat gq;   // 2026-11-01: rounds going into the drum: the hand sits at the loading place (eased)
+        const float b = DOCKS[g_dock].key == zones::DRUM ? breech::drum_load_blend() : 0.0f;
+        if (b > 0.0f && zones::gun_rot(gq))
+            c = c + rotate(qnorm(gq), Vec3{DRUM_LOAD_HAND_OFF[0] * b, DRUM_LOAD_HAND_OFF[1] * b, DRUM_LOAD_HAND_OFF[2] * b});
+        rel = rotate(qinv(qnorm(rq)), c - rp);
         qrel = g_turn;
         return true;
     }

@@ -153,6 +153,12 @@ constexpr float INSERT_ZONE_M = 0.07f; constexpr Vec3 INSERT_OFF{0.0f, 0.05f, 0.
 // gun's own left / right) it clicks open / shut; let go past this share of a closing drag it swings shut; the gun tipped
 // this far muzzle-up with the drum open drops the spent casings (live rounds stay)
 constexpr float DRUM_DRAG_M = 0.05f;
+// 2026-11-01 (Tefa: "LG + repeated LT should insert as many bullets as needed or as many as player has, then after last bullet is
+// in the chamber, move the hand to the drum automatically, after which one more LT closes the drum shut"): while rounds go in,
+// the docked left hand sits this far from the drum's dock centre, in the gun's own axes (m; a first guess, Tefa fine-tunes),
+// and eases there and back over this long
+constexpr float DRUM_LOAD_HAND_OFF[3] = {0.0f, 0.02f, -0.05f};
+constexpr float DRUM_LOAD_EASE_SEC = 0.15f;
 // the swing that closes the open drum (2026-10-27, Tefa: "the actual player hand swing ... andyalpa already had that implemented
 // in re7 and re2"): Andyalpa's RE7 numbers (re7_vr_reload_ext.lua close_gesture_*): the gun hand over 35-170 ms, a swipe right
 // (4 cm, 0.85 m/s, mostly sideways) or a kick up (5 cm, 1.15 m/s, mostly up), then 0.8 s before another counts

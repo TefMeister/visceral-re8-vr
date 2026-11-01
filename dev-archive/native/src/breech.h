@@ -28,7 +28,8 @@ bool blocks_fire();         // a breech gun that is open
 // held the hand docks on the drum and each LT puts one in; full, one more LT takes the drum and it is pushed shut until it
 // clicks, or (hand off it, or a push left half way) the gun hand's swing right or kick up closes it (Andyalpa's RE7 gesture).
 void drum_taken();                       // the left hand docked on the drum (pairs.cpp)
-void drum_dock_frame(bool lt_pressed, bool lt_held);   // each frame the hand is docked on the drum
+void drum_dock_frame(bool lt_pressed, bool lt_held);
+float drum_load_blend();      // 2026-11-01: 0 = the hand on the drum, 1 = at the loading place (rounds going in)   // each frame the hand is docked on the drum
 void drum_undock();                      // LG let go while docked on the drum
 int free_chambers();                     // a revolver's chambers neither loaded nor holding a spent casing (-1 = not a revolver)
 int spent_casings();

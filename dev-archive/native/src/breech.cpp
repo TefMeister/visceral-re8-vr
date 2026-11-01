@@ -26,7 +26,9 @@ namespace {
 const weapons::Weapon* g_w = nullptr;
 std::string g_id;
 bool g_open = false;
-bool g_lt_wait = false;        // 2026-11-01: closed by LT: LT let go before it can open the drum again
+bool g_lt_wait = false;
+bool g_loading = false;        // 2026-11-01: rounds are going in by LT: the hand sits at the loading place
+float g_load_blend = 0.0f, g_load_t = -1.0f;        // 2026-11-01: closed by LT: LT let go before it can open the drum again
 MO* g_carrier = nullptr;       // 2026-11-01: the GM 79's barrel joint, its rest turn, and how far it is swung open (0..1)
 Quat g_carrier_rest{0, 0, 0, 1};
 bool g_carrier_ok = false;
@@ -168,11 +170,17 @@ void drum_taken() {
     g_docked = true;
     g_drag = 0;
     LOGI("%s breech: the left hand is on the drum (%s): %s", TAG, g_open ? "open" : "closed",
-         g_open ? "LT puts a round in, LT when full takes the drum to push it shut" : "hold LT and drag it out to the left to open it");
+         g_open ? "each LT puts a round in from the carried ammo; when full (or out) one more LT closes it" : "hold LT and drag it out to the left to open it");
 }
 
 void drum_dock_frame(bool lt_pressed, bool lt_held) {
     if (!cylinder() || !g_docked) return;
+    {   // ease the hand between the drum and the loading place
+        const float now = now_s(), dt = g_load_t < 0 ? 0.0f : std::fmin(0.1f, now - g_load_t);
+        g_load_t = now;
+        const float step = dt / DRUM_LOAD_EASE_SEC, want = (g_open && g_loading) ? 1.0f : 0.0f;
+        g_load_blend = want > g_load_blend ? std::fmin(want, g_load_blend + step) : std::fmax(want, g_load_blend - step);
+    }
     const float x = across();
     if (g_drag != 0) {   // a drag in progress: out to the left opens, back to the right shuts
         g_drag_prog = std::fmax(0.0f, (g_drag > 0 ? g_drag_from - x : x - g_drag_from) / DRUM_DRAG_M);
@@ -193,9 +201,23 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
         }
         return;
     }
-    // 2026-11-01 (Tefa: "grenade launcher and revolvers must not open with a swing, only LG + LT, but close with LG + LT and the
-    // motion swing"): LT on the open drum with no round in the hand closes it (full or not); the flick still closes it too.
-    // The push-to-close drag of 10-27 is no longer needed for that.
+    // 2026-11-01 (Tefa: "LG + repeated LT should insert as many bullets as needed or as many as player has, then after last
+    // bullet is in the chamber, move the hand to the drum automatically, after which one more LT closes the drum shut"):
+    // while chambers are free and rounds are carried, each LT puts one in straight from the carried ammo
+    if (free_chambers() > 0) {
+        if (reload::insert_direct()) {
+            g_loading = true;
+            bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s breech: LT: a round into the drum (%d loaded, %d free, carried %d)", TAG, player::loaded(), free_chambers(), player::reserve());
+            if (free_chambers() > 0 && reload::insert_direct_possible()) return;
+            g_loading = false;
+            LOGI("%s breech: %s: the hand goes back on the drum; one more LT closes it", TAG, free_chambers() > 0 ? "out of rounds" : "drum full");
+            return;
+        }
+        if (g_loading) { g_loading = false; LOGI("%s breech: no more rounds: the hand goes back on the drum; one more LT closes it", TAG); return; }
+    }
+    // 2026-11-01 (Tefa: "... close with LG + LT and the motion swing"): LT on the open drum, nothing to load, closes it
+    g_loading = false;
     set_open(false, "LG + LT on the drum");
     g_lt_wait = true;   // the same LT press must not take the drum to open it again
 }
@@ -203,10 +225,13 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
 void drum_undock() {
     if (!cylinder() || !g_docked) return;
     g_docked = false;
+    g_loading = false; g_load_blend = 0.0f; g_load_t = -1.0f;
     // let go: the drum stays where it is; the gun hand's swing (right, or up) closes it (2026-10-27, Tefa)
     if (g_open) LOGI("%s breech: hand off the drum: swing the gun hand right or up to close it", TAG);
     g_drag = 0;
 }
+
+float drum_load_blend() { return (cylinder() && g_docked) ? g_load_blend : 0.0f; }
 
 int free_chambers() {
     if (!cylinder()) return -1;

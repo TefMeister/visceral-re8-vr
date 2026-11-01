@@ -779,6 +779,11 @@ bool insert_from_hand() {
     if (--g_rounds_n <= 0) { g_rounds_n = 0; g_round_in_hand = false; shell_home(); ghosthand::event("shell", "done"); }
     return true;
 }
+bool insert_direct_possible() { return !g_round_in_hand && managed_now() && player::reserve() != 0 && supply(); }
+bool insert_direct() {
+    if (g_round_in_hand || !managed_now() || !supply()) return false;
+    return insert_round();
+}
 void pocket_round() { ++g_pocket; LOGI("%s reload: a round back with the carried ammo (%d taken out by hand)", TAG, g_pocket); }
 
 } // namespace vn::reload

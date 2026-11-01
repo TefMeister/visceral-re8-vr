@@ -37,6 +37,8 @@ bool load_round();
 void pocket_round();
 // 2026-10-27: a revolver's rounds in the left hand (0 = none), and one of them into the drum (breech.cpp, LT on the drum)
 int rounds_in_hand();
-bool insert_from_hand();      // ik.cpp: keep the left hand on its controller while it carries a magazine / round
+bool insert_from_hand();
+bool insert_direct();
+bool insert_direct_possible();   // a round could be taken from the carried ammo now         // 2026-11-01: one round from the carried ammo straight into the open drum (LT, no pouch trip)      // ik.cpp: keep the left hand on its controller while it carries a magazine / round
 
 } // namespace vn::reload
