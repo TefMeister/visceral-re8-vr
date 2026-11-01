@@ -42,6 +42,17 @@ const char* why_not() {   // why the gun will not fire now, or nullptr when it w
     if (player::loaded() == 0) return "it is empty";
     return nullptr;
 }
+// 2026-11-01 (Tefa: "can you see about the empty click sounds next"; the idea: "the game's own empty click on every trigger pull
+// of an empty gun"): app.PlayerGun.requestShootNoneBullet(), the game's own shot with no bullet (found in the type list next to
+// get_isGunShootEmpty), plays its own empty click. False when it is not there (our wav then).
+bool game_dry_shot() {
+    MO* pg = call_ptr(player::now().updater, "get_playerGun");
+    if (!is_managed(pg)) return false;
+    auto* m = find_method_deep(pg->get_type_definition(), "requestShootNoneBullet");
+    if (m == nullptr) return false;
+    m->call<void>(API::get()->get_vm_context(), (void*)pg);
+    return true;
+}
 } // namespace
 
 void frame() {
@@ -55,11 +66,13 @@ void frame() {
     const auto now = std::chrono::steady_clock::now();
     if (now - last < std::chrono::duration<float>(DRY_CLICK_GAP_S)) return;
     last = now;
-    // the game's own empty click when the sounds script has one (job 12, given from its heard list); our wav until then
-    if (bridge::lua_has_sfx(bridge::SFX_DRY_FIRE)) bridge::sfx(bridge::SFX_DRY_FIRE);
+    // the game's own dry shot first; then a sound given job 12 in the sounds script; our wav last
+    const char* how = "our click";
+    if (DRY_GAME_SHOT && game_dry_shot()) how = "the game's own dry shot";
+    else if (bridge::lua_has_sfx(bridge::SFX_DRY_FIRE)) { bridge::sfx(bridge::SFX_DRY_FIRE); how = "the sound given job 12"; }
     else if (load()) PlaySoundA(g_wav.data(), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
     static int n = 0;
-    if (++n <= 5 || n % 100 == 0) LOGI("%s dry fire: click (%s, #%d)", TAG, why, n);
+    if (++n <= 5 || n % 100 == 0) LOGI("%s dry fire: click (%s, #%d): %s", TAG, why, n, how);
 }
 
 } // namespace vn::dryfire

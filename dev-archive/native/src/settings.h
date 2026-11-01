@@ -165,6 +165,7 @@ constexpr float DRUM_TILT_DEG = 30.0f;
 constexpr float BREAK_OPEN_DEG = 40.0f;
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;
+constexpr bool  DRY_GAME_SHOT = false;         // dryfire.cpp (2026-11-01): requestShootNoneBullet is a BLANK SHOT (a full gunshot sound, measured), not the empty click: off
 constexpr int   FOREARM_SETTLE_FRAMES = 45;    // frames after a draw before the forearm's pose is kept
 constexpr float BREAK_SWING_SEC = 0.15f;      // the barrel's swing open or shut
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
