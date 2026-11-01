@@ -35,6 +35,11 @@ for e in reframework_plugin_required_version reframework_plugin_initialize; do
     grep -q "$e" "$DLL" && echo "export $e: present" || { echo "export $e: MISSING"; exit 1; }
 done
 [ "${1:-}" = "--deploy" ] || exit 0
+# 2026-11-02: a deploy while Village is still running (or still closing) cannot replace the plugin, and a build saved right after
+# then holds the old files: refuse until re8.exe has gone
+if tasklist //FI "IMAGENAME eq re8.exe" 2>/dev/null | grep -qi "re8.exe"; then
+    echo "NOT DEPLOYED: Village (re8.exe) is still running or closing; wait until it has gone, then deploy again"; exit 2
+fi
 
 [ -f "$GAME/re8.exe" ] || { echo "game not found at $GAME"; exit 1; }
 BK="$BACKUPS/_backup-$(date +%Y-%m-%d-%H%M)-before-visceral-re8-deploy"
