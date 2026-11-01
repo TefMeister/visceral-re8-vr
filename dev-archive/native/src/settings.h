@@ -200,6 +200,8 @@ constexpr float GATE_GLIDE_SEC = 0.15f;        // a hand gliding onto its place
 constexpr float GATE_RETURN_SEC = 0.25f;       // the right hand back onto the grip before the thumb shuts the cover
 constexpr float GATE_CYL_TURN_SEC = 0.08f;     // the drum's one-chamber turn
 constexpr float GATE_BUZZ_AMP = 0.3f, GATE_BUZZ_SEC = 0.04f;
+constexpr float GATE_HAMMER_M = 0.08f;         // LG this close to the hammer (cover shut) puts the left palm on it
+constexpr Vec3  GATE_HAMMER_OFF{0.0f, 0.02f, -0.02f};   // the palm from the Hammer joint, gun axes (m); "hammer" in lid_swing.json
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

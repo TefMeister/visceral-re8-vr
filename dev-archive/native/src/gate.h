@@ -33,6 +33,9 @@ bool holding();             // HELD or RETURN: the gun is in the left hand (no s
 bool owns_left();           // the left hand is drawn by us (HELD to STAY): the grip script keeps off it
 void close_request(const char* why);   // right B while held: the right hand back to the grip, then the cover shuts
 void abort(const char* why);
-void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis);   // from lid_swing.json (breech.cpp)
+void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis, const Vec3& hammer);   // from lid_swing.json (breech.cpp)
+// 2026-11-01 23:4x: HAMMER, the cover shut: LG at the hammer docks the left palm there; a shot leaves the hammer down (no next
+// shot) until LT pushes it back; B opens the cover and the hand goes to the drum
+bool hammer_down();
 
 } // namespace vn::gate
