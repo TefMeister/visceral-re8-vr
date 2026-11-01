@@ -1,10 +1,18 @@
--- zz_test_gunturn2.lua -- TEST ONLY (RE2, 2026-11-01): turns one joint of the gun in hand, every frame before drawing, so a
+-- zz_test_gunturn2.lua -- TEST ONLY (RE2 and RE3, 2026-11-01): turns one joint of the gun in hand, every frame before drawing, so a
 -- screenshot shows which part it is. Request reframework/data/zz_gunturn.json {"joint": "_03", "deg": 45, "axis": "x"};
 -- {"joint": ""} stops.
 local F, want = "zz_gunturn.json", nil
+local NS = (reframework:get_game_name() == "re3") and "offline" or "app.ropeway"   -- RE3's types live under offline.
+local function comp(go, tn)
+    local t = sdk.typeof(tn)
+    if t == nil then local td = sdk.find_type_definition(tn); t = td and td:get_runtime_type() end
+    local c = t and go:call("getComponent(System.Type)", t)
+    if c then return c end
+    for _, x in ipairs(go:call("get_Components"):get_elements()) do if x:get_type_definition():get_full_name() == tn then return x end end
+end
 local function gun_joint(name)
-    local pm = sdk.get_managed_singleton("app.ropeway.PlayerManager")
-    local eq = pm:call("get_CurrentPlayer"):call("getComponent(System.Type)", sdk.typeof("app.ropeway.survivor.Equipment"))
+    local pm = sdk.get_managed_singleton(NS .. ".PlayerManager")
+    local eq = comp(pm:call("get_CurrentPlayer"), NS .. ".survivor.Equipment")
     for _, j in ipairs(eq:call("get_EquipWeapon"):call("get_GameObject"):call("get_Transform"):call("get_Joints"):get_elements()) do
         if j:call("get_Name") == name then return j end
     end
