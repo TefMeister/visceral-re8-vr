@@ -143,7 +143,10 @@ constexpr float ZONE_HAND_MARK_M = 0.02f;
 constexpr int   ZONE_FILE_CHECK_FRAMES = 20;
 // numbered hand pairs (pairs.h, 2026-10-25): an activation sphere and a landing spot, set in the Grab Zones window
 // 2026-10-27 the new gun parts (zones.h HANDLE / DRUM / INSERT): where they start and how big (guesses; Grab Zones moves them)
-constexpr float HANDLE_ZONE_M = 0.08f; constexpr Vec3 HANDLE_OFF{-0.04f, -0.04f, 0.0f};   // below-left of the gun hand: the cupping hand
+// 2026-11-01 (Tefa: "with revolvers, move the hand to grip under the grip handle instead of the side"): was {-0.04, -0.04, 0}
+// (below-left), whose 8 cm sphere overlapped the drum's on the Handcannon so the handle took the hand meant for the drum.
+// Under the grip now: 16 cm from the drum's centre, more than the two radii together (14 cm)
+constexpr float HANDLE_ZONE_M = 0.08f; constexpr Vec3 HANDLE_OFF{0.0f, -0.09f, -0.02f};   // under the grip: the cupping hand
 constexpr float DRUM_ZONE_M = 0.06f;   constexpr Vec3 DRUM_OFF{0.0f, 0.04f, 0.08f};      // a revolver's cylinder, above and ahead of the hand
 constexpr float INSERT_ZONE_M = 0.07f; constexpr Vec3 INSERT_OFF{0.0f, 0.05f, 0.12f};    // the GM 79's breech
 // 2026-10-27 the revolver's drum by hand (breech.cpp): dragged this far sideways (the left controller against the right, the
