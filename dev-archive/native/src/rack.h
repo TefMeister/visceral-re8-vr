@@ -35,6 +35,7 @@ bool bolt_free();             // a bolt gun whose bolt nobody holds (the right h
 void right_take();            // the right hand has the bolt: the pull is read from the right controller
 void right_off(const char* why);
 bool right_on();
+bool right_busy();            // the right hand's bolt cycle is under way (it finishes even with LT let go)
 bool bolt_rest(Vec3& local_pos, Quat& local_rot);   // the bolt joint's rest, local to its parent (the gun)
 float bolt_dz();              // the bolt joint's travel from rest, along the gun's Z (m)
 float bolt_half_turn_rad();   // half its turn about its own Z (radians, for a quaternion)

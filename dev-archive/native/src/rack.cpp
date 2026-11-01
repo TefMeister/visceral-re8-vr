@@ -408,6 +408,7 @@ void right_off(const char* why) {
     else LOGI("%s rack: right hand off the bolt (%s)", TAG, why);
 }
 bool right_on() { return g_right; }
+bool right_busy() { return g_right && g_armed && (g_bstate != 0 || g_turn > 0.0f); }   // a right-hand rack under way
 bool bolt_rest(Vec3& local_pos, Quat& local_rot) { local_pos = g_rest; local_rot = g_rest_rot; return g_have_rest && g_joint != nullptr; }
 float bolt_dz() { return g_have_rest ? z_now() - g_rest.z : 0.0f; }
 float bolt_half_turn_rad() { return BOLT_TURN_DEG * g_turn * 3.14159265f / 360.0f; }
@@ -490,11 +491,12 @@ void frame() {
             g_base = along_gun() + g_travel * RACK_PULL_M;   // the travel carries on from where the bolt is
             LOGI("%s rack: the right hand works the bolt (LT held)", TAG);
             ghosthand::event("bolt", "start");
-        } else if (!lt && g_armed) {
+        } else if (!lt && g_armed && g_bstate == 0 && g_turn <= 0.0f) {   // let go before the bolt moved: nothing started
             g_armed = false;
-            if (g_bstate != 3) LOGI("%s rack: LT let go: the bolt stays at step %d", TAG, g_bstate);
         }
-        bolt_step(lt && g_armed);
+        // 2026-11-01 (Tefa: "when LT is let go mid way of RG racking the bolt, gun must stay frozen until racking is complete"):
+        // once the right hand's bolt is moving it finishes without LT
+        bolt_step(g_armed);
         return;
     }
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {

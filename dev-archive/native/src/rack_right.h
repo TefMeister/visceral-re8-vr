@@ -9,7 +9,10 @@
 // solidly holding on to the gun ... can the LT press on the front of the rifle make it freeze in place and bolt racking can be
 // done at any time with RG"): LT held with the left hand on the front LOCKS the rifle in the left hand (taken then, while the
 // hands are calm; the right hand rides the grip), and RG works the bolt any time while it is locked. LT let go = the gun
-// handed back to the right hand. While RG is held:
+// handed back to the right hand.
+// 2026-11-01, third pass (Tefa): LG + LT on the front only make RG ready; RG pressed and held then holds the rifle in the left
+// hand (the slow trail) and takes the bolt. LT let go mid-rack: the rack finishes first. LG let go mid-rack: the rifle back
+// onto the right hand quickly (RIGHT_RACK_DROP_SEC), the bolt left where it was, to be finished later. While RG is held:
 //   - the gun's own transform is written every frame where the left controller now carries it (late update + before
 //     rendering, after the arm solves), so it stays put in the left hand while the right hand leaves the grip;
 //   - the left hand is drawn where it was on the front, riding the left controller;
@@ -30,6 +33,6 @@ void late_point();                          // LateUpdateBehavior post: the gun 
 void render_point();                        // PrepareRendering post: again, after the grip script's last solve
 void begin_render_point();                  // BeginRendering pre: and once more, after the arm solves
 bool active();                              // the right hand is on (or gliding to / from) the bolt: no shot
-bool locked();                              // the rifle is held by the left hand (LT on the front)
+bool locked();                              // the gun is ours: held by the left hand, or being handed back
 
 } // namespace vn::rack_right
