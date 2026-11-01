@@ -75,6 +75,10 @@ void load_lid_tune() {   // re-read each time the cover opens, so the swing can 
     };
     const Vec3 left = v3("left", GATE_LEFT_OFF), right = v3("right", GATE_RIGHT_OFF), cyl = v3("cyl_axis", GATE_CYL_AXIS), hammer = v3("hammer", GATE_HAMMER_OFF);
     gate::tune(left, right, cyl, hammer);
+    {
+        const auto* hd = v.get("hammer_deg");
+        gate::tune_hammer(v3("hammer_axis", GATE_HAMMER_AXIS), hd != nullptr && hd->kind == json::Value::NUM ? (float)hd->n : GATE_HAMMER_DOWN_DEG);
+    }
     LOGI("%s breech: lid_swing.json: axis (%.2f %.2f %.2f), %.0f deg, %.2f s; left hand (%.3f %.3f %.3f), right hand (%.3f %.3f %.3f), drum axis (%.2f %.2f %.2f)", TAG,
          g_lid_axis.x, g_lid_axis.y, g_lid_axis.z, g_lid_deg, g_lid_sec, left.x, left.y, left.z, right.x, right.y, right.z, cyl.x, cyl.y, cyl.z);
 }

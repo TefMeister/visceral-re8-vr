@@ -75,6 +75,17 @@ float g_praydog_frame = -1.0f;
 
 Vec3 g_left_off = GATE_LEFT_OFF, g_right_off = GATE_RIGHT_OFF, g_cyl_axis = GATE_CYL_AXIS, g_hammer_off = GATE_HAMMER_OFF;
 bool g_cocked = true;      // 2026-11-01: the palm on the hammer: a shot leaves it down until LT pushes it back
+// 2026-11-01 23:5x (Tefa: "game still does the cocking with right hand and LT does nothing. LG must suppress the game from cocking
+// the hammer with right thumb automatically"): while the palm is on the hammer the right thumb and the hammer are written by us
+// after the animation: the thumb as it was at the take, the hammer cocked (as at the take) or down (after a shot, until LT)
+const wchar_t* const THUMB[3] = {L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"};
+MO* g_thumb[3] = {};
+Quat g_thumb_q[3] = {};
+MO* g_hammer = nullptr;
+Quat g_hammer_cocked{0, 0, 0, 1};
+bool g_hammer_cap = false;
+Vec3 g_hammer_axis = GATE_HAMMER_AXIS;
+float g_hammer_deg = GATE_HAMMER_DOWN_DEG;
 int g_last_loaded = -1;
 
 void cock_sound() {   // the hammer being cocked (the same recording as the empty click: SND_MOT_RI3008_SE_MVT_PRE_SHOT)
@@ -140,8 +151,9 @@ bool take_hammer() {
     MO* hammer = joint_by_name(s.weapon_tf, L"Hammer");
     if (hammer == nullptr || !tf_pose(s.weapon_tf, g0) || s.ik_left == nullptr || !tf_pose(target_of(s.ik_left), lt0) ||
         !get_v3(JOINT, hammer, "get_Position", hp) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lw)) return false;
+    // 2026-11-01 23:5x: the first wear's five shots all came before a dock: LG had to be within 8 cm of the hammer. Now LG
+    // anywhere with the cover shut puts the palm on it, as LG anywhere does with the cover open
     const float d = dist(lw, hp);
-    if (d > GATE_HAMMER_M) return false;
     const Pose ig = inverse(g0);
     const Quat lturn = g_have_left_turn ? g_grip_left_turn : qnorm(qmul(ig.q, lt0.q));
     g_left_in_gun = {ig.p + rotate(ig.q, hp) + g_hammer_off, lturn};
@@ -149,6 +161,7 @@ bool take_hammer() {
     g_left_t0 = now_s();
     g_weapon_tf = s.weapon_tf;
     g_cocked = true;
+    g_hammer_cap = false;   // the thumb and the hammer read at the next render point, before any shot
     g_last_loaded = player::loaded();
     LOGI("%s gate: LG at the hammer (%.3f m): the left palm on it; after each shot LT pushes it back down, B sends the hand to the drum", TAG, d);
     return true;
@@ -289,6 +302,7 @@ bool holding() { return g_phase == Phase::HELD || g_phase == Phase::RETURN; }
 bool owns_left() { return g_phase == Phase::HELD || g_phase == Phase::RETURN || g_phase == Phase::STAY || g_phase == Phase::HAMMER || (g_phase == Phase::HANDOVER && g_ho_left); }
 
 void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis, const Vec3& hammer) { g_left_off = left; g_right_off = right; g_cyl_axis = cyl_axis; g_hammer_off = hammer; }
+void tune_hammer(const Vec3& axis, float deg) { g_hammer_axis = axis; g_hammer_deg = deg; }
 bool hammer_down() { return g_phase == Phase::HAMMER && !g_cocked; }
 
 void close_request(const char* why) { if (g_phase == Phase::HELD) to_return(why); }
@@ -412,6 +426,28 @@ void on_ik(MO* ik) {
     }
 }
 
-void late_point() { write_gun(); turn_drum(); }
+void hold_hammer() {   // the palm on the hammer: the right thumb kept still, the hammer cocked or down by us, not the animation
+    if (g_phase != Phase::HAMMER) return;
+    const auto& s = player::now();
+    if (!g_hammer_cap) {
+        if (s.tf == nullptr || s.weapon_tf == nullptr) return;
+        bool ok = true;
+        for (int i = 0; i < 3; ++i) { g_thumb[i] = joint_by_name(s.tf, THUMB[i]); ok = ok && g_thumb[i] != nullptr && get_q(JOINT, g_thumb[i], "get_LocalRotation", g_thumb_q[i]); }
+        g_hammer = joint_by_name(s.weapon_tf, L"Hammer");
+        const bool hok = g_hammer != nullptr && get_q(JOINT, g_hammer, "get_LocalRotation", g_hammer_cocked);
+        if (!hok) g_hammer = nullptr;
+        if (!ok) for (auto& t : g_thumb) t = nullptr;
+        g_hammer_cap = true;
+        LOGI("%s gate: palm on the hammer: right thumb %s, hammer %s (down = %.0f deg about %.2f %.2f %.2f)", TAG, ok ? "held still" : "NOT found",
+             hok ? "held by us" : "NOT found", g_hammer_deg, g_hammer_axis.x, g_hammer_axis.y, g_hammer_axis.z);
+    }
+    for (int i = 0; i < 3; ++i) if (g_thumb[i] != nullptr) set_any(JOINT, g_thumb[i], "set_LocalRotation", &g_thumb_q[i]);
+    if (g_hammer != nullptr) {
+        Quat q = g_cocked ? g_hammer_cocked : qnorm(qmul(g_hammer_cocked, axis_turn(g_hammer_axis, g_hammer_deg)));
+        set_any(JOINT, g_hammer, "set_LocalRotation", &q);
+    }
+}
+
+void late_point() { write_gun(); turn_drum(); hold_hammer(); }
 
 } // namespace vn::gate
