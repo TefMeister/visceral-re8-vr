@@ -29,6 +29,7 @@ add_library(visceral_re8_native SHARED
     src/fingers.cpp
     src/forearm.cpp
     src/righthand.cpp
+    src/pumpbolt.cpp
     src/nodock.cpp
     src/breech.cpp
     src/dryfire.cpp
