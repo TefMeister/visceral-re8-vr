@@ -206,7 +206,11 @@ void request_shot() {
     auto* m = find_method_deep(pg->get_type_definition(), "requestShootForProcess");
     if (m == nullptr) { LOGI("%s gate: fan shot: requestShootForProcess not found", TAG); return; }
     m->call<void>(API::get()->get_vm_context(), (void*)pg, false);
-    LOGI("%s gate: fan shot: the game's own shot did not go off in the window: asked it with requestShootForProcess", TAG);
+    // 2026-11-02 (Tefa: "shooting works, but the muzzle don't flash"): that request fires the round only; the game has its own
+    // effects-only partner (lookup: app.PlayerGun.requestShootForProcessEffectOnly), asked right after
+    auto* fx = find_method_deep(pg->get_type_definition(), "requestShootForProcessEffectOnly");
+    if (fx != nullptr) fx->call<void>(API::get()->get_vm_context(), (void*)pg);
+    LOGI("%s gate: fan shot: the game's own shot did not go off in the window: asked it with requestShootForProcess%s", TAG, fx != nullptr ? " + its effects" : " (effects call NOT found)");
 }
 void fan_fire(const char* why) {
     g_fire_until = now_s() + GATE_FAN_FIRE_WINDOW_S;
