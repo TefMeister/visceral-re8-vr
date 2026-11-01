@@ -3,6 +3,7 @@
 #include "breech.h"
 #include "bridge.h"
 #include "joints.h"
+#include "json_mini.h"
 #include "player.h"
 #include "reload.h"
 #include "settings.h"
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <cmath>
+#include <cstdio>
 #include <string>
 
 namespace vn::gate {
@@ -95,6 +97,48 @@ void cock_sound() {   // the hammer being cocked (the same recording as the empt
     PlaySoundW(f.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
 }
 
+// 2026-11-02 (Tefa: "left hand docks on the hammer at an angle my hand currently is, only the finger poses are saved but not how
+// it sits on the hammer every time"): the left hand's turn on the gun at its first dock on the hammer (and on the drum hold) is
+// kept per gun in reframework/data/visceral_re8/gate_turns.json and used at every dock after; Dock Poser tunes on top of it.
+// Delete the file (or a line in it) to take a new one at the next dock.
+std::filesystem::path turns_path() {
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    return std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "gate_turns.json";
+}
+bool kept_turn(const std::string& key, Quat& q) {
+    json::Value v;
+    if (!json::load_file(turns_path().wstring(), v)) return false;
+    const auto* a = v.get(key);
+    if (a == nullptr || a->kind != json::Value::ARR || a->arr.size() != 4) return false;
+    q = qnorm({(float)a->arr[0].n, (float)a->arr[1].n, (float)a->arr[2].n, (float)a->arr[3].n});
+    return true;
+}
+void keep_turn(const std::string& key, const Quat& q) {
+    json::Value v;
+    json::load_file(turns_path().wstring(), v);
+    std::string out = "{";
+    bool first = true;
+    char buf[160];
+    if (v.kind == json::Value::OBJ)
+        for (const auto& [k, e] : v.obj) {
+            if (k == key || e.kind != json::Value::ARR || e.arr.size() != 4) continue;
+            std::snprintf(buf, sizeof(buf), "%s\n  \"%s\": [%.6f, %.6f, %.6f, %.6f]", first ? "" : ",", k.c_str(), e.arr[0].n, e.arr[1].n, e.arr[2].n, e.arr[3].n);
+            out += buf; first = false;
+        }
+    std::snprintf(buf, sizeof(buf), "%s\n  \"%s\": [%.6f, %.6f, %.6f, %.6f]\n}\n", first ? "" : ",", key.c_str(), q.x, q.y, q.z, q.w);
+    out += buf;
+    if (FILE* f = _wfopen(turns_path().wstring().c_str(), L"wb")) { std::fwrite(out.data(), 1, out.size(), f); std::fclose(f); }
+    LOGI("%s gate: the left hand's turn at the %s kept (gate_turns.json): every dock there sits the same from now on", TAG, key.c_str());
+}
+Quat dock_turn(const char* where, const Quat& now_turn) {
+    const std::string key = g_id + " " + where;
+    Quat q;
+    if (kept_turn(key, q)) return q;
+    keep_turn(key, now_turn);
+    return now_turn;
+}
+
 void put_local_back(const char* why) {
     if (g_weapon_tf != nullptr && g_parented) {
         set_any(XFORM, g_weapon_tf, "set_LocalPosition", &g_local_p);
@@ -120,7 +164,7 @@ bool take() {
     MO* lid = joint_by_name(s.weapon_tf, L"Lid");
     if (cyl != nullptr && get_v3(JOINT, cyl, "get_Position", p)) cyl_in_gun = ig.p + rotate(ig.q, p);
     if (lid != nullptr && get_v3(JOINT, lid, "get_Position", p)) lid_in_gun = ig.p + rotate(ig.q, p);
-    const Quat lturn = g_have_left_turn ? g_grip_left_turn : qnorm(qmul(ig.q, lt0.q));
+    const Quat lturn = dock_turn("drum", g_have_left_turn ? g_grip_left_turn : qnorm(qmul(ig.q, lt0.q)));
     g_left_in_gun = {cyl_in_gun + g_left_off, lturn};
     g_right_dock_in_gun = {lid_in_gun + g_right_off, g_right_in_gun.q};
     g_left_from = lt0;
@@ -155,7 +199,7 @@ bool take_hammer() {
     // anywhere with the cover shut puts the palm on it, as LG anywhere does with the cover open
     const float d = dist(lw, hp);
     const Pose ig = inverse(g0);
-    const Quat lturn = g_have_left_turn ? g_grip_left_turn : qnorm(qmul(ig.q, lt0.q));
+    const Quat lturn = dock_turn("hammer", g_have_left_turn ? g_grip_left_turn : qnorm(qmul(ig.q, lt0.q)));
     g_left_in_gun = {ig.p + rotate(ig.q, hp) + g_hammer_off, lturn};
     g_left_from = lt0;
     g_left_t0 = now_s();
@@ -306,6 +350,11 @@ void tune_hammer(const Vec3& axis, float deg) { g_hammer_axis = axis; g_hammer_d
 bool hammer_down() { return g_phase == Phase::HAMMER && !g_cocked; }
 int left_spot() { return g_phase == Phase::HAMMER ? 10 : owns_left() ? 6 : 0; }
 bool right_at_cover() { return g_phase == Phase::HELD && g_rdock; }
+bool gun_rot(Quat& q) {
+    if (!g_now_ok || (g_phase != Phase::HELD && g_phase != Phase::RETURN && g_phase != Phase::HANDOVER)) return false;
+    q = g_gun_now.q;
+    return true;
+}
 
 void close_request(const char* why) { if (g_phase == Phase::HELD) to_return(why); }
 

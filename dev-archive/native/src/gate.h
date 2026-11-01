@@ -41,6 +41,10 @@ bool hammer_down();
 // right hand when it docks on the gun to insert bullets"): the spots told to Hand Poser (pairs.cpp writes them)
 int left_spot();    // 10 = the hammer, 6 = the drum (the gun held for loading), 0 = none of ours
 bool right_at_cover();
+// 2026-11-02 (Tefa: "when i rotate my right hand when left hand is holding the gun and right hand is free, left hand moves with
+// the rotation of my right hand"): the gun's turn as WE place it while the left hand holds it (the game's own transform
+// still hangs off the right hand when the arms are solved); false = not held by us
+bool gun_rot(Quat& q);
 void tune_hammer(const Vec3& axis, float deg);   // lid_swing.json "hammer_axis", "hammer_deg": the hammer's turn from cocked to down
 
 } // namespace vn::gate

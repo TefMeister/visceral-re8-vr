@@ -34,5 +34,6 @@ void render_point();                        // PrepareRendering post: again, aft
 void begin_render_point();                  // BeginRendering pre: and once more, after the arm solves
 bool active();                              // the right hand is on (or gliding to / from) the bolt: no shot
 bool locked();                              // the gun is ours: held by the left hand, or being handed back
+bool gun_rot(Quat& q);                      // 2026-11-02: the gun's turn as we place it while locked (false = not locked)
 
 } // namespace vn::rack_right

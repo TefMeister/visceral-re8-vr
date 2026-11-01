@@ -327,7 +327,7 @@ re.on_script_reset(function()   -- the VR mode's own offsets back, so a reset ne
 end)
 
 local function write_state(b)
-    local st = { t = os.time(), gun = gun_num(b), zones = {}, spot = math.floor((b.r(153) or 0) + 0.5) }   -- 153: the left hand's spot (Dock Poser)
+    local st = { t = os.time(), gun = gun_num(b), zones = {}, spot = math.floor((b.r(153) or 0) + 0.5), rspot = math.floor((b.r(184) or 0) + 0.5) }   -- 153: the left hand's spot (Dock Poser); 184 (2026-11-02): the right hand's
     local hx, hy, hz, _, hon = live(b, 3)
     -- 2026-11-01: a gun with nothing to rack (a revolver) has no hand point from the plugin: the drawn left hand's own place
     -- (its IK target) stands in, so the drum and the handle get a hand distance too

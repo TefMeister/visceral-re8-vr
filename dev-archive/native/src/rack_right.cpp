@@ -195,6 +195,7 @@ void check_drift() {
 
 bool active() { return g_phase == Phase::ON || g_phase == Phase::BACK; }
 bool locked() { return g_phase != Phase::OFF; }   // the gun is ours (held by the left hand, or being handed back)
+bool gun_rot(Quat& q) { if (!locked() || !g_now_ok) return false; q = g_gun_now.q; return true; }
 
 void abort(const char* why) {
     if (g_phase == Phase::OFF) return;
