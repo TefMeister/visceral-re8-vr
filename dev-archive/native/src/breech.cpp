@@ -170,7 +170,7 @@ void drum_taken() {
     g_docked = true;
     g_drag = 0;
     LOGI("%s breech: the left hand is on the drum (%s): %s", TAG, g_open ? "open" : "closed",
-         g_open ? "each LT puts a round in from the carried ammo; when full (or out) one more LT closes it" : "hold LT and drag it out to the left to open it");
+         g_open ? "rounds from the pouch go in one per LT; with none in the hand, LT closes it" : "hold LT and drag it out to the left to open it");
 }
 
 void drum_dock_frame(bool lt_pressed, bool lt_held) {
@@ -194,29 +194,21 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
         return;
     }
     if (!lt_pressed) return;
-    if (reload::rounds_in_hand() > 0) {   // a round from the hand into the drum
+    if (reload::rounds_in_hand() > 0 && free_chambers() > 0) {   // a round from the hand into the drum (full: LT closes, below)
         if (reload::insert_from_hand()) {
+            g_loading = true;   // 2026-11-01: the hand sits at the loading place while rounds go in
             bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s breech: a round into the drum (%d loaded, %d left in the hand)", TAG, player::loaded(), reload::rounds_in_hand());
+            if (reload::rounds_in_hand() == 0 || free_chambers() == 0) {
+                g_loading = false;
+                LOGI("%s breech: %s: the hand goes back on the drum; one more LT closes it", TAG, free_chambers() == 0 ? "drum full" : "no rounds left in the hand");
+            }
         }
         return;
     }
-    // 2026-11-01 (Tefa: "LG + repeated LT should insert as many bullets as needed or as many as player has, then after last
-    // bullet is in the chamber, move the hand to the drum automatically, after which one more LT closes the drum shut"):
-    // while chambers are free and rounds are carried, each LT puts one in straight from the carried ammo
-    if (free_chambers() > 0) {
-        if (reload::insert_direct()) {
-            g_loading = true;
-            bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
-            LOGI("%s breech: LT: a round into the drum (%d loaded, %d free, carried %d)", TAG, player::loaded(), free_chambers(), player::reserve());
-            if (free_chambers() > 0 && reload::insert_direct_possible()) return;
-            g_loading = false;
-            LOGI("%s breech: %s: the hand goes back on the drum; one more LT closes it", TAG, free_chambers() > 0 ? "out of rounds" : "drum full");
-            return;
-        }
-        if (g_loading) { g_loading = false; LOGI("%s breech: no more rounds: the hand goes back on the drum; one more LT closes it", TAG); return; }
-    }
-    // 2026-11-01 (Tefa: "... close with LG + LT and the motion swing"): LT on the open drum, nothing to load, closes it
+    // 2026-11-01 21:1x (Tefa: "please leave only the trip to pouch one, not just hand on the drum without the trip. still keep
+    // the hand movement please and of course the LT until all bullets are in"): rounds come ONLY from the pouch (b039's LT
+    // straight from the carried ammo is gone); LT on the open drum with nothing in the hand closes it
     g_loading = false;
     set_open(false, "LG + LT on the drum");
     g_lt_wait = true;   // the same LT press must not take the drum to open it again
