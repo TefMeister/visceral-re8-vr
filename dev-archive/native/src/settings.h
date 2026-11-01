@@ -188,6 +188,17 @@ constexpr const char* GATE_GUN = "ri3008_Inventory";
 constexpr Vec3  LID_AXIS{0.0f, 0.0f, 1.0f};
 constexpr float LID_OPEN_DEG = 80.0f;
 constexpr float LID_SWING_SEC = 0.12f;
+// gate.cpp (2026-11-01 22:5x, Tefa's Wolfsbane plan): the gun held by the left hand while the right hand loads it. Hand places are
+// offsets in the gun's own axes (m) from the Cylinder joint (left) and the Lid joint (right); all first guesses, tuned live in
+// lid_swing.json ("left", "right", "cyl_axis")
+constexpr float GATE_DOCK_M = 0.10f;           // the right controller this close to the cover docks the right hand there
+constexpr Vec3  GATE_LEFT_OFF{0.0f, -0.04f, 0.0f};
+constexpr Vec3  GATE_RIGHT_OFF{0.0f, 0.0f, -0.03f};
+constexpr Vec3  GATE_CYL_AXIS{0.0f, 0.0f, 1.0f};
+constexpr float GATE_GLIDE_SEC = 0.15f;        // a hand gliding onto its place
+constexpr float GATE_RETURN_SEC = 0.25f;       // the right hand back onto the grip before the thumb shuts the cover
+constexpr float GATE_CYL_TURN_SEC = 0.08f;     // the drum's one-chamber turn
+constexpr float GATE_BUZZ_AMP = 0.3f, GATE_BUZZ_SEC = 0.04f;
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

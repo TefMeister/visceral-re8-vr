@@ -2,6 +2,7 @@
 #include "ik.h"
 #include "common.h"
 #include "dockpose.h"
+#include "gate.h"
 #include "player.h"
 #include "rack.h"
 #include "rack_right.h"
@@ -22,7 +23,8 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     rack::on_ik(ik);
     smooth::on_ik(ik);   // eases the left hand when whoever places it changes
     dockpose::on_ik(ik); // (2026-10-28): the docked spot's wrist from Dock Poser, eased on its own
-    rack_right::on_ik(ik); // LAST (2026-11-01): the right hand on the bolt, the left hand holding the front
+    rack_right::on_ik(ik); // 2026-11-01: the right hand on the bolt, the left hand holding the front
+    gate::on_ik(ik);       // LAST (2026-11-01): the Wolfsbane held by the left hand while the right hand loads it
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }
 } // namespace

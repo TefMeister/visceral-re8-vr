@@ -35,6 +35,10 @@ int free_chambers();                     // a revolver's chambers neither loaded
 int spent_casings();
 void insert_lt();          // LT with the hand at the GM 79's insert point: the round or the spent case comes out
 bool spent();              // the GM 79 holds a spent case (fired, not taken out yet)
+// 2026-11-01 22:5x (Tefa's Wolfsbane plan, gate.h): the M1851 opens its loading cover with right B; gate.cpp does the rest
+bool cover_gun();                        // the gun in hand is the M1851 (a cover, not a swing-out drum)
+void close_cover(const char* why);       // gate.cpp: the thumb shuts it once the rounds are in
+bool drop_casing();                      // gate.cpp: the drum turned: one spent casing falls out (false = none left)
 void pose_point();         // 2026-11-01: LateUpdateBehavior post / PrepareRendering post / BeginRendering pre: the GM 79's barrel
                            // swung open or shut (written after the animation, the way rack.cpp writes the slide)
 

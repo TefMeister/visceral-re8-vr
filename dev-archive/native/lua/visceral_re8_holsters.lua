@@ -173,6 +173,8 @@ re.on_pre_application_entry("UpdateBehavior", function()
     local released = grip_was and not grip
     grip_was = grip
     if pressed and rack_combo(v) then rack_rg = true; L("RG with LG + LT on the gun: the bolt, not a holster") end
+    -- 2026-11-01 (Tefa's Wolfsbane plan): the right hand takes rounds from the left-hip pouch while the left hand holds the gun
+    if pressed and rawget(_G, "re8_gate_hold") ~= nil and _G.re8_gate_hold() then rack_rg = true; L("RG while the Wolfsbane is held by the left hand: rounds, not a holster") end
     if not grip then rack_rg = false end
     if HOLD_TO_KEEP then
         local now = os.clock()

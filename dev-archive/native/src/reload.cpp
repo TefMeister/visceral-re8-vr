@@ -7,6 +7,7 @@
 #include "joints.h"
 #include "player.h"
 #include "breech.h"
+#include "gate.h"
 #include "pairs.h"
 #include "rack.h"
 #include "rack_right.h"
@@ -423,6 +424,7 @@ void pouch_grab() {
     const float now = now_s();
     if (now - g_last_grab < RELOAD_GRAB_COOLDOWN_SEC) return;
     g_last_grab = now;
+    if (gate::here()) return;   // 2026-11-01 (Tefa): the Wolfsbane's rounds come from the pouch by the RIGHT hand (gate.cpp)
     if (g_w->reload == Reload::ROUND) {
         if (g_round_in_hand) return;
         if (!breech::loading_allowed()) {   // 2026-10-19: a revolver / the GM 79 takes rounds only while it is open
@@ -476,14 +478,16 @@ void pouch_grab() {
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
 }
 
-void track_pouch() {   // our own spot, beside Andyalpa's (his reports through the bridge)
+Vec3 pouch_spot() {   // our own left-hip spot, from the headset (RE2's numbers)
     Vec3 f = rotate(bridge::hmd_rot(), Vec3{0, 0, -1});
     f.y = 0;
     const float len = std::sqrt(f.x * f.x + f.z * f.z);
     f = len < 1e-4f ? Vec3{0, 0, -1} : f * (1.0f / len);
     const Vec3 right{-f.z, 0, f.x};
-    const Vec3 spot = bridge::hmd_pos() + right * LEFT_HIP_POUCH[0] + Vec3{0, LEFT_HIP_POUCH[1], 0} + f * LEFT_HIP_POUCH[2];
-    const float d = dist(bridge::hand_pos(bridge::LEFT), spot);
+    return bridge::hmd_pos() + right * LEFT_HIP_POUCH[0] + Vec3{0, LEFT_HIP_POUCH[1], 0} + f * LEFT_HIP_POUCH[2];
+}
+void track_pouch() {   // our own spot, beside Andyalpa's (his reports through the bridge)
+    const float d = dist(bridge::hand_pos(bridge::LEFT), pouch_spot());
     if (!g_pouch_ours && d < POUCH_ENTER_M) g_pouch_ours = true;
     else if (g_pouch_ours && d > POUCH_LEAVE_M) g_pouch_ours = false;
 }
@@ -522,6 +526,7 @@ bool mag_out() { return managed_now() && g_w->reload == Reload::MAG && g_st != S
 bool session_active() { return mag_out() || g_round_in_hand; }
 bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st == St::IN_HAND || g_st == St::INSERT); }
 bool round_in_hand() { return managed_now() && g_round_in_hand; }
+float pouch_dist(bridge::Hand h) { return dist(bridge::hand_pos(h), pouch_spot()); }
 bool in_pouch() { return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours; }
 
 
@@ -716,7 +721,7 @@ void frame() {
     track_pouch();
     // 2026-10-24 (Tefa: "left hand on the mag does seem to fight the game at first, as it starts throwing the gun and hands
     // around"): the grip script took the two-handed grip with LG held at the gun and steered the gun at the hand
-    bridge::put(bridge::S_GRIP_VETO, hand_on_mag() ? 1.0f : 0.0f);
+    bridge::put(bridge::S_GRIP_VETO, (hand_on_mag() || gate::owns_left()) ? 1.0f : 0.0f);   // (2026-11-01: or the Wolfsbane held, gate.cpp)
     if (g_w == nullptr || g_gun == nullptr) return;
 
     if (g_w->reload == Reload::MAG) {

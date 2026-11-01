@@ -1,6 +1,7 @@
 // breech.cpp -- see breech.h.
 #include "breech.h"
 #include "bridge.h"
+#include "gate.h"
 #include "ghosthand.h"
 #include "joints.h"
 #include "json_mini.h"
@@ -68,7 +69,14 @@ void load_lid_tune() {   // re-read each time the cover opens, so the swing can 
     }
     if (const auto* d = v.get("deg"); d != nullptr && d->kind == json::Value::NUM) g_lid_deg = (float)d->n;
     if (const auto* s = v.get("sec"); s != nullptr && s->kind == json::Value::NUM) g_lid_sec = (float)s->n;
-    LOGI("%s breech: lid_swing.json: axis (%.2f %.2f %.2f), %.0f deg, %.2f s", TAG, g_lid_axis.x, g_lid_axis.y, g_lid_axis.z, g_lid_deg, g_lid_sec);
+    auto v3 = [&](const char* k, Vec3 d) {
+        const auto* a = v.get(k);
+        return (a != nullptr && a->kind == json::Value::ARR && a->arr.size() == 3) ? Vec3{(float)a->arr[0].n, (float)a->arr[1].n, (float)a->arr[2].n} : d;
+    };
+    const Vec3 left = v3("left", GATE_LEFT_OFF), right = v3("right", GATE_RIGHT_OFF), cyl = v3("cyl_axis", GATE_CYL_AXIS);
+    gate::tune(left, right, cyl);
+    LOGI("%s breech: lid_swing.json: axis (%.2f %.2f %.2f), %.0f deg, %.2f s; left hand (%.3f %.3f %.3f), right hand (%.3f %.3f %.3f), drum axis (%.2f %.2f %.2f)", TAG,
+         g_lid_axis.x, g_lid_axis.y, g_lid_axis.z, g_lid_deg, g_lid_sec, left.x, left.y, left.z, right.x, right.y, right.z, cyl.x, cyl.y, cyl.z);
 }
 
 void click() {   // the same chamber click as the bolt (rack.cpp)
@@ -210,10 +218,7 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
         if (g_drag > 0 && !lt_held) { LOGI("%s breech: LT let go before the drum clicked open (%.0f%%)", TAG, g_drag_prog * 100.0f); g_drag = 0; }
         return;
     }
-    if (!g_open && gate_gun()) {   // 2026-11-01 22:4x: the M1851's cover opens with right B only (frame())
-        if (lt_pressed) LOGI("%s breech: LT on the closed cover: right B opens it first", TAG);
-        return;
-    }
+    if (gate_gun()) return;   // 2026-11-01 22:5x: the M1851 is loaded by gate.cpp (the right hand), not by this dock
     if (!g_open) {   // closed: LG + LT on the drum takes it; dragging it out opens it
         if (!lt_held) g_lt_wait = false;
         if (lt_held && !g_lt_wait) { g_drag = 1; g_drag_from = x; g_drag_prog = 0.0f; LOGI("%s breech: drum taken: drag it out to the left until it clicks", TAG); }
@@ -255,9 +260,13 @@ int free_chambers() {
     if (!cylinder()) return -1;
     const int cap = player::capacity(), ld = player::loaded();
     if (cap <= 0 || ld < 0) return 0;
+    if (gate_gun()) return std::max(0, cap - ld);   // the M1851: the casings fall out as the drum turns (gate.cpp)
     return std::max(0, cap - ld - g_spent_n);
 }
 int spent_casings() { return cylinder() ? g_spent_n : 0; }
+bool cover_gun() { return here() && gate_gun(); }
+void close_cover(const char* why) { if (cover_gun()) { set_open(false, why); g_spent_n = 0; } }
+bool drop_casing() { if (!cover_gun() || g_spent_n <= 0) return false; --g_spent_n; return true; }
 
 void insert_lt() {
     if (!here() || g_w->breech != Breech::BREAK) return;
@@ -316,7 +325,7 @@ void frame() {
     }
     // a revolver fired: the casing stays in its chamber until the open drum is tipped muzzle-up
     if (g_w->breech == Breech::CYLINDER && !g_open && g_last_loaded > 0 && ld >= 0 && ld < g_last_loaded) g_spent_n += g_last_loaded - ld;
-    if (g_w->breech == Breech::CYLINDER && g_open && g_spent_n > 0 && muzzle_up()) {
+    if (g_w->breech == Breech::CYLINDER && g_open && g_spent_n > 0 && muzzle_up() && !gate_gun()) {   // (the M1851: each LT turn drops one)
         LOGI("%s breech: tipped muzzle-up: %d spent casing(s) fall out, %d live round(s) stay", TAG, g_spent_n, ld);
         g_spent_n = 0;
         bridge::sfx(bridge::SFX_MAG_OUT);
@@ -330,10 +339,10 @@ void frame() {
         set_open(!g_open, "LT with the left hand on the front");
         return;
     }
-    if (gate_gun()) {   // 2026-11-01 22:4x: right B opens and closes the M1851's cover; no swing closes it (Tefa named LT or B)
+    if (gate_gun()) {   // 2026-11-01 22:4x: right B opens the M1851's cover; gate.cpp loads it and shuts it (Tefa's plan, 22:5x)
         if (bridge::pressed(bridge::S_RB)) {
-            if (g_open) g_loading = false;
-            set_open(!g_open, "right B");
+            if (gate::holding()) gate::close_request("right B");   // the right hand back to the grip first, then the thumb shuts it
+            else set_open(!g_open, "right B");
         }
         return;
     }

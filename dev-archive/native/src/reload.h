@@ -12,6 +12,7 @@
 // Ammo is Village's own model (player.cpp, read from the game's type list 2026-10-18): the gun's item record holds its
 // rounds, the gun's own reload() tops it up from the carried ammo, its switchMagazineDisp hides the magazine.
 #pragma once
+#include "bridge.h"
 #include "common.h"
 
 namespace vn::reload {
@@ -28,6 +29,7 @@ bool mag_in_hand();      // a magazine is in the left hand (or going in)
 bool round_in_hand();    // a shell / round is in the left hand
 bool hand_on_mag();
 bool hand_near_mag();     // the left hand within MAG_GRAB_M of the seated magazine (the rack and the grip keep off)      // the left hand holds the magazine going in, or seated, until LG is let go
+float pouch_dist(bridge::Hand h);   // 2026-11-01: a hand's distance from our left-hip pouch spot (m)
 bool in_pouch();         // the left hand is in the ammo spot
 void on_racked();        // rack.cpp: the slide / pump cycled: rounds waiting for it go in
 void on_ik(MO* ik);

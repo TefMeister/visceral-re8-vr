@@ -1,6 +1,7 @@
 // dryfire.cpp -- see dryfire.h.
 #include "dryfire.h"
 #include "breech.h"
+#include "gate.h"
 #include "bridge.h"
 #include "common.h"
 #include "joints.h"
@@ -98,6 +99,7 @@ void frame() {
     if (!bridge::pressed(bridge::S_RTRIG)) return;
     if (!bridge::flag(bridge::S_CAN_USE_HANDS) || bridge::flag(bridge::S_CUTSCENE)) return;
     if (!reload::managed_now()) return;
+    if (gate::here() && breech::is_open()) return;   // 2026-11-01: RT on the open Wolfsbane puts a round in (gate.cpp), no click
     const char* why = why_not();
     if (why == nullptr) return;
     // never cut the last click off (Tefa 2026-10-31): a press before it has finished stays quiet
