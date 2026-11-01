@@ -51,6 +51,7 @@ int g_log_near = 0;
 // returns, so a pending rack, a locked-back slide or a half-worked bolt survive a swap
 struct Kept { bool needed, parked; int bstate; float turn, travel; };
 std::map<std::string, Kept> g_kept;
+std::map<std::string, std::pair<Vec3, Quat>> g_rest_by_id;   // 2026-11-01: each gun's slide / pump rest, read once
 
 bool g_capture = false;       // take the hand's turn (and, with no slide joint, its place) at the next left-arm solve
 // the slide joint relative to the right hand target, measured after each frame's animation (late_point)
@@ -464,10 +465,16 @@ void frame() {
         for (const wchar_t* n : pump() ? std::initializer_list<const wchar_t*>{L"Reload_Slider", L"Pump", L"Forend", L"Slide"}   // M1897: Reload_Slider
                                        : std::initializer_list<const wchar_t*>{L"Slide", L"Handle", L"Lever", L"Bolt"})
             if ((g_joint = joint_by_name(s.weapon_tf, n)) != nullptr) break;
-    if (g_joint != nullptr && !g_have_rest && get_v3(JOINT, g_joint, "get_LocalPosition", g_rest)) {
-        g_have_rest = true;
-        if (!get_q(JOINT, g_joint, "get_LocalRotation", g_rest_rot)) g_rest_rot = Quat{0, 0, 0, 1};
-        LOGI("%s rack: %s %s joint rests at local %.3f %.3f %.3f", TAG, g_id.c_str(), part(), g_rest.x, g_rest.y, g_rest.z);
+    // 2026-11-01 (Tefa, worn: the LEMI came back from a swap with its slide shut though locked back; simulator: the rest was
+    // re-read with the slide already back, "rests at local 0.000 0.041 0.020"): each gun's rest is read once and kept
+    if (g_joint != nullptr && !g_have_rest) {
+        if (auto it = g_rest_by_id.find(g_id); it != g_rest_by_id.end()) { g_rest = it->second.first; g_rest_rot = it->second.second; g_have_rest = true; }
+        else if (get_v3(JOINT, g_joint, "get_LocalPosition", g_rest)) {
+            g_have_rest = true;
+            if (!get_q(JOINT, g_joint, "get_LocalRotation", g_rest_rot)) g_rest_rot = Quat{0, 0, 0, 1};
+            g_rest_by_id[g_id] = {g_rest, g_rest_rot};
+            LOGI("%s rack: %s %s joint rests at local %.3f %.3f %.3f", TAG, g_id.c_str(), part(), g_rest.x, g_rest.y, g_rest.z);
+        }
     }
     publish_zones();
     if (g_w == nullptr || s.gun == nullptr || !bridge::live()) { hand_off("no gun / no headset"); rack_right::abort("no gun / no headset"); return; }

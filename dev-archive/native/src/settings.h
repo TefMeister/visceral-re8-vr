@@ -163,8 +163,10 @@ constexpr float DRUM_LOAD_EASE_SEC = 0.15f;
 // in re7 and re2"): Andyalpa's RE7 numbers (re7_vr_reload_ext.lua close_gesture_*): the gun hand over 35-170 ms, a swipe right
 // (4 cm, 0.85 m/s, mostly sideways) or a kick up (5 cm, 1.15 m/s, mostly up), then 0.8 s before another counts
 constexpr float SWING_WINDOW_MIN_S = 0.035f, SWING_WINDOW_MAX_S = 0.17f, SWING_COOLDOWN_S = 0.8f;
-constexpr float SWING_RIGHT_M = 0.04f, SWING_RIGHT_MS = 0.85f, SWING_RIGHT_RATIO = 0.55f, SWING_RIGHT_MAX_UP = 0.4f;
-constexpr float SWING_UP_M = 0.05f, SWING_UP_MS = 1.15f, SWING_UP_RATIO = 0.68f;
+// 2026-11-01 (Tefa, worn: "flick is too sensitive"): firmer than Andyalpa's RE7 numbers (were 0.04 m / 0.85 m/s right,
+// 0.05 m / 1.15 m/s up)
+constexpr float SWING_RIGHT_M = 0.07f, SWING_RIGHT_MS = 1.3f, SWING_RIGHT_RATIO = 0.55f, SWING_RIGHT_MAX_UP = 0.4f;
+constexpr float SWING_UP_M = 0.08f, SWING_UP_MS = 1.6f, SWING_UP_RATIO = 0.68f;
 constexpr float DRUM_TILT_DEG = 30.0f;
 // 2026-11-01 (Tefa: "did you also do the grenade launcher opened positions"): the GM 79's barrel ("Carrier", the joint its
 // barrel, sight and muzzles hang from) tips muzzle-down about its own X when open; 40 deg found live on the simulator
