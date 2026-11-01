@@ -304,6 +304,8 @@ bool owns_left() { return g_phase == Phase::HELD || g_phase == Phase::RETURN || 
 void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis, const Vec3& hammer) { g_left_off = left; g_right_off = right; g_cyl_axis = cyl_axis; g_hammer_off = hammer; }
 void tune_hammer(const Vec3& axis, float deg) { g_hammer_axis = axis; g_hammer_deg = deg; }
 bool hammer_down() { return g_phase == Phase::HAMMER && !g_cocked; }
+int left_spot() { return g_phase == Phase::HAMMER ? 10 : owns_left() ? 6 : 0; }
+bool right_at_cover() { return g_phase == Phase::HELD && g_rdock; }
 
 void close_request(const char* why) { if (g_phase == Phase::HELD) to_return(why); }
 

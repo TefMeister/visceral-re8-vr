@@ -37,6 +37,10 @@ void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis, const Vec3&
 // 2026-11-01 23:4x: HAMMER, the cover shut: LG at the hammer docks the left palm there; a shot leaves the hammer down (no next
 // shot) until LT pushes it back; B opens the cover and the hand goes to the drum
 bool hammer_down();
+// 2026-11-02 (Tefa: "in hand poser, docking left hand on the hammer doesn't show that the hand is docked at all, same with the
+// right hand when it docks on the gun to insert bullets"): the spots told to Hand Poser (pairs.cpp writes them)
+int left_spot();    // 10 = the hammer, 6 = the drum (the gun held for loading), 0 = none of ours
+bool right_at_cover();
 void tune_hammer(const Vec3& axis, float deg);   // lid_swing.json "hammer_axis", "hammer_deg": the hammer's turn from cocked to down
 
 } // namespace vn::gate

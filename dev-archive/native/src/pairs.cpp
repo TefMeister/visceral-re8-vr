@@ -5,7 +5,9 @@
 #include "json_mini.h"
 #include "player.h"
 #include "breech.h"
+#include "gate.h"
 #include "rack.h"
+#include "rack_right.h"
 #include "reload.h"
 #include "settings.h"
 #include "weapons.h"
@@ -193,7 +195,8 @@ void frame() {
     // left hand is, so Hand Poser keeps one pose per gun AND spot. A landing spot while a pair holds the hand, the slide /
     // pump / bolt, the magazine, or an activation sphere the hand is inside without having taken it.
     float spot = 0.0f;
-    if (g_dock >= 0) spot = DOCKS[g_dock].spot;
+    if (gate::left_spot() > 0) spot = (float)gate::left_spot();   // 2026-11-02: the Wolfsbane's hammer (10) / drum hold (6), gate.cpp
+    else if (g_dock >= 0) spot = DOCKS[g_dock].spot;
     else if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
     else if (rack::active()) spot = rack::slide_from_left() ? 8.0f : 3.0f;   // 2026-10-28: a pistol's slide from the left
     else if (reload::hand_on_mag()) spot = 4.0f;
@@ -205,6 +208,8 @@ void frame() {
                 if (for_gun(p, gun) && dist(world(p.a), lp) <= p.r) { spot = 2000.0f + (float)p.n; break; }
     }
     bridge::put(bridge::S_LEFT_SPOT, spot);
+    // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
+    bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? 2.0f : 0.0f);
 
     // 2026-10-30 (Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it"): the gun's
     // pair whose activation sphere the left hand is nearest (measured in its own radii) is handed to the zones script, which
