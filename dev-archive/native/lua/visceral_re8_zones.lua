@@ -329,6 +329,15 @@ end)
 local function write_state(b)
     local st = { t = os.time(), gun = gun_num(b), zones = {}, spot = math.floor((b.r(153) or 0) + 0.5) }   -- 153: the left hand's spot (Dock Poser)
     local hx, hy, hz, _, hon = live(b, 3)
+    -- 2026-11-01: a gun with nothing to rack (a revolver) has no hand point from the plugin: the drawn left hand's own place
+    -- (its IK target) stands in, so the drum and the handle get a hand distance too
+    if (hon or 0) <= 0.5 then
+        pcall(function()
+            local t = rawget(_G, "re8vr") and re8vr.left_hand_ik_transform
+            local p = t and t:call("get_Position")
+            if p then hx, hy, hz, hon = p.x, p.y, p.z, 1 end
+        end)
+    end
     for _, z in ipairs(ZONES) do
         if z.key ~= "hand" then
             local x, y, zz, r, on = live(b, z.i)

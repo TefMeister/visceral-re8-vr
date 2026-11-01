@@ -14,6 +14,10 @@ and Village on Single Frame Multipass (Two Frame Sequential freezes on the first
   (`STROKE_DIR=hands`) or a given muzzle direction in room (`STROKE_VEC=x,y,z`). The controller's own forward is NOT
   the barrel: a pull along it counted a quarter of its length on the F2.
 - `walk.py rsqueeze <0|1>`: RG.
+- `feel.py "<log text>" [step] [span]`: press LG at points around the left hand until the game log shows the text (the
+  drum, handle and insert docks take the hand by the CONTROLLER, a few cm from the drawn hand the walker measures).
+- `zz_test_equip.lua` (TEST ONLY, copy into reframework/autorun for a survey, take it out after) + `equip.sh <item id>`: adds
+  any missing Village gun in play and equips one by its item id (Andyalpa's native equip).
 - `openrow.py`: keep a Grip Zones row open (the key in `openkey.txt`; `stop` ends it).
 - `wins.py <pid> [class]`: list the game's windows; with `via` it closes the game cleanly.
 - `waitchain.py <pid>`: what each thread of a hung program waits on (Windows Wait Chain Traversal).
