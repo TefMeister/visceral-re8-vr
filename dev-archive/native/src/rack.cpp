@@ -7,6 +7,7 @@
 #include "ghosthand.h"
 #include "joints.h"
 #include "player.h"
+#include "rack_right.h"
 #include "reload.h"
 #include "settings.h"
 #include "weapons.h"
@@ -37,6 +38,7 @@ bool g_hold_closed = false;
 bool g_from_left = false;
 bool g_near_left = false;     // 2026-10-28: the last near_joint() found the hand in the slide's LEFT-side sphere, nearer than the right     // 2026-10-28: this pistol slide hold was taken from the gun hand's left side (see slide_side)
 bool g_from_grip = false;     // LG has been held since the hand was on the grip: the slide waits for it to be let go
+bool g_right = false;         // 2026-11-01: the RIGHT hand works the bolt (rack_right.cpp); the pull is read from it
 int g_auto = 0;               // 2 = the pump handle is returning by itself
 float g_auto_t0 = 0.0f;
 float g_travel = 0.0f, g_base = 0.0f, g_max_pull = 0.0f;
@@ -73,6 +75,7 @@ int g_palm_logs = 0, g_palm_misses = 0;
 float g_palm_closest = 99.0f;
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
+bridge::Hand working_hand() { return g_right ? bridge::RIGHT : bridge::LEFT; }   // the buzz goes to the hand on the part
 
 // ---- ONE HOLD PER GUN AND PART (2026-10-24, Tefa in the headset: "hand doesn't just grab on to the gun in one certain pose, it
 // depends which way my hand is rotated before and how far the gun is, how the gun itself is rotated ... this needs to be a
@@ -193,8 +196,8 @@ Vec3 barrel_room() {
     const float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return len > 0.10f ? v * (1.0f / len) : controller_fwd();
 }
-float along_gun() {
-    const Vec3 d = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
+float along_gun() {   // the working hand against the other one, along the barrel (2026-11-01: the right hand may work the bolt)
+    const Vec3 d = g_right ? bridge::hand_pos(bridge::RIGHT) - bridge::hand_pos(bridge::LEFT) : bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
     return d.x * g_axis.x + d.y * g_axis.y + d.z * g_axis.z;
 }
 // the left controller on the gun line: over the gun hand or ahead of it along the barrel, close to the line
@@ -267,7 +270,7 @@ void complete() {
     g_needed = g_parked = false;
     g_hold_closed = true;
     reload::on_racked();
-    bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+    bridge::rumble(working_hand(), RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
     LOGI("%s rack: %s %s cycle complete (%s), %d loaded", TAG, g_id.c_str(), part(), was ? "was needed: it fires again" : "cosmetic", player::loaded());
 }
 
@@ -292,7 +295,7 @@ void hand_off(const char* why) {
 }
 
 void write_joint() {
-    if (g_joint == nullptr || !g_have_rest || !(g_hand_on || g_travel > 0.0f || g_turn > 0.0f || g_hold_closed)) return;
+    if (g_joint == nullptr || !g_have_rest || !(g_hand_on || g_right || g_travel > 0.0f || g_turn > 0.0f || g_hold_closed)) return;
     Vec3 p{g_rest.x, g_rest.y, z_now()};
     set_any(JOINT, g_joint, "set_LocalPosition", &p);
     if (bolt()) {   // the bolt turns about the barrel (local Z) as it is lifted
@@ -334,7 +337,7 @@ void bolt_step(bool lt) {
             g_pulled = true;
             bridge::sfx(bridge::SFX_BOLT_BACK);
             eject::by_hand();   // the spent case leaves with the bolt
-            bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            bridge::rumble(working_hand(), RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: bolt back (click): push it forward", TAG);
         }
         break;
@@ -345,7 +348,7 @@ void bolt_step(bool lt) {
             g_bstate = 3;
             g_travel = 0.0f;
             bridge::sfx(bridge::SFX_BOLT_FORWARD);
-            bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            bridge::rumble(working_hand(), RACK_BUZZ_AMP, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s rack: bolt home (click): it turns down by itself", TAG);
         }
         break;
@@ -386,6 +389,30 @@ bool left_near_gun() { float off = 99.0f; if (g_joint != nullptr && near_joint(o
 bool on_pump() { return g_hand_on && pump(); }
 float travel() { return g_travel; }
 
+// ---- the right hand on the bolt (2026-11-01, rack_right.cpp decides when; the bolt itself is the same one) -----------
+bool bolt_may_take() {
+    return RELOAD_ON && bolt() && g_joint != nullptr && g_have_rest && !g_hand_on && !g_right &&
+           (g_parked || g_needed || pose_lock() || g_bstate != 0 || g_turn > 0.0f);
+}
+void right_take() {
+    g_right = true;
+    g_armed = false;
+    g_bolt_t = -1.0f;
+    ghosthand::event("bolt", "take");
+    LOGI("%s rack: %s bolt taken by the RIGHT hand (step %d)", TAG, g_id.c_str(), g_bstate);
+}
+void right_off(const char* why) {
+    if (!g_right) return;
+    if (g_armed && g_bstate == 0) ghosthand::event("bolt", "cancel");
+    g_right = g_armed = false;
+    if (g_bstate != 0 || g_turn > 0.0f) LOGI("%s rack: right hand off the bolt (%s): it stays at step %d", TAG, why, g_bstate);
+    else LOGI("%s rack: right hand off the bolt (%s)", TAG, why);
+}
+bool right_on() { return g_right; }
+bool bolt_rest(Vec3& local_pos, Quat& local_rot) { local_pos = g_rest; local_rot = g_rest_rot; return g_have_rest && g_joint != nullptr; }
+float bolt_dz() { return g_have_rest ? z_now() - g_rest.z : 0.0f; }
+float bolt_half_turn_rad() { return BOLT_TURN_DEG * g_turn * 3.14159265f / 360.0f; }
+
 void need(const char* why) {
     if (!rackable()) return;
     if (!g_needed) LOGI("%s rack: %s %s NEEDED (%s): the trigger waits until then", TAG, g_id.c_str(), pump() ? "pump" : "rack", why);
@@ -403,7 +430,7 @@ void frame() {
         g_id = id;
         const auto* w = weapons::find(id);
         g_w = (w != nullptr && (w->rack || w->pump)) ? w : nullptr;
-        g_needed = g_parked = g_hand_on = g_armed = g_pulled = g_spent = g_hold_closed = g_have_rest = g_capture = g_rel_ok = false;
+        g_needed = g_parked = g_hand_on = g_armed = g_pulled = g_spent = g_hold_closed = g_have_rest = g_capture = g_rel_ok = g_right = false;
         g_auto = 0;
         g_travel = 0.0f;
         g_bstate = 0;
@@ -436,7 +463,7 @@ void frame() {
         LOGI("%s rack: %s %s joint rests at local %.3f %.3f %.3f", TAG, g_id.c_str(), part(), g_rest.x, g_rest.y, g_rest.z);
     }
     publish_zones();
-    if (g_w == nullptr || s.gun == nullptr || !bridge::live()) { hand_off("no gun / no headset"); return; }
+    if (g_w == nullptr || s.gun == nullptr || !bridge::live()) { hand_off("no gun / no headset"); rack_right::abort("no gun / no headset"); return; }
 
     const int loaded = player::loaded();
     const bool shot = g_last_loaded > 0 && loaded >= 0 && loaded < g_last_loaded && !reload::mag_out();
@@ -455,6 +482,22 @@ void frame() {
     if (!lg) g_from_grip = false;
     else if (bridge::flag(bridge::S_GRIPPING_WEAPON)) g_from_grip = true;
 
+    rack_right::frame(play, lg, lt);   // 2026-11-01: RG with LG on the front and LT held: the right hand takes the bolt
+    if (g_w == nullptr || !bolt() || g_hand_on) right_off("no bolt gun / the left hand has it");
+    if (g_right) {
+        if (lt && !g_armed && !g_spent) {
+            g_armed = true;
+            g_axis = barrel_room();
+            g_base = along_gun() + g_travel * RACK_PULL_M;   // the travel carries on from where the bolt is
+            LOGI("%s rack: the right hand works the bolt (LT held)", TAG);
+            ghosthand::event("bolt", "start");
+        } else if (!lt && g_armed) {
+            g_armed = false;
+            if (g_bstate != 3) LOGI("%s rack: LT let go: the bolt stays at step %d", TAG, g_bstate);
+        }
+        bolt_step(lt && g_armed);
+        return;
+    }
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
         // Tefa 2026-10-18: "suppress weapon docking on the handle when the slide needs racking": with a rack due, the left
         // grip held near the gun always takes the slide (our IK target wins over the VR layer's grip dock); with none due

@@ -9,6 +9,7 @@
 #include "breech.h"
 #include "pairs.h"
 #include "rack.h"
+#include "rack_right.h"
 #include "settings.h"
 #include "weapons.h"
 #include "zones.h"
@@ -491,7 +492,7 @@ void track_pouch() {   // our own spot, beside Andyalpa's (his reports through t
 // held back until the pump. Now they stay in the gun and PlayerGun.tryAttack is refused until the rack / pump is done.
 thread_local bool t_attack_blocked = false;
 int pre_try_attack(int, void**, REFrameworkTypeDefinitionHandle*, unsigned long long) {
-    t_attack_blocked = managed_now() && (rack::needed() || breech::blocks_fire());
+    t_attack_blocked = managed_now() && (rack::needed() || breech::blocks_fire() || rack_right::active());   // (2026-11-01: not with the right hand on the bolt)
     if (!t_attack_blocked) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     static int n = 0;
     if (++n <= 5 || n % 500 == 0) LOGI("%s reload: trigger refused until %s (#%d)", TAG, breech::blocks_fire() ? "it is closed" : g_w->pump ? "the pump" : "the rack", n);

@@ -185,6 +185,16 @@ constexpr float BARREL_MUZZLE_MIN_M = 0.05f;     // the muzzle joint at least th
 constexpr float SLIDE_BACK_M = -0.045f;          // the slide joint fully back, local Z from rest (when the joint is known)
 constexpr float PUMP_BACK_M = -0.080f;
 
+// rack_right.cpp (2026-11-01): the RIGHT hand works the bolt while the left hand holds the front (RG, with LG on the front + LT)
+constexpr float RIGHT_RACK_GLIDE_SEC = 0.15f;     // the right hand gliding from the grip onto the bolt, and back
+constexpr float RIGHT_RACK_HANDOVER_SEC = 0.20f;  // then the gun handed back to the right controller, eased over this
+constexpr bool  RIGHT_PALM_ON_BOLT = true;        // the palm (not the wrist) on the bolt joint, from R_Hand -> R_Palm
+constexpr float RIGHT_BOLT_HAND_X_M = 0.0f;       // the palm's place from the bolt joint, the gun's axes (x right, y up, z along
+constexpr float RIGHT_BOLT_HAND_Y_M = 0.0f;       // the barrel): first try right on the joint, moved after Tefa has seen it
+constexpr float RIGHT_BOLT_HAND_Z_M = 0.0f;
+constexpr float RIGHT_RACK_BUZZ_AMP = 0.25f;      // the short tick in the right hand as it takes the bolt
+constexpr float RIGHT_RACK_LOG_SEC = 1.0f;        // how often the "gun held by the left hand" proof line is written
+
 // smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
 constexpr float SMOOTH_ARC_SEC = 0.30f;           // the same ease when the hand ARCS over the gun onto / off the slide / pump / bolt (slower, so the arc is a path, not a blink)

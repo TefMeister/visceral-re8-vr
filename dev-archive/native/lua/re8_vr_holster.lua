@@ -9634,7 +9634,9 @@ INV.tick = function()
     -- Open on rising edge of (in zone + right grip). Close via native UI / same gesture.
     -- Order either way works: grip then touch, or touch then grip.
     local grip_now = get_right_grip_pressed() == true
-    local open_ready = INV.in_zone == true and grip_now
+    -- Visceral RE8 (2026-11-01): never while RG is working the bolt (visceral_re8_holsters.lua, rack_right.cpp)
+    local rr = rawget(_G, "__visceral_right_rack")
+    local open_ready = INV.in_zone == true and grip_now and not (type(rr) == "function" and rr() == true)
     local open_edge = open_ready and not INV.open_ready_prev
     INV.open_ready_prev = open_ready
     if INV.in_zone and not grip_now then

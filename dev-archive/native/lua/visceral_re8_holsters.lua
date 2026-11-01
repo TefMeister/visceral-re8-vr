@@ -145,6 +145,17 @@ local logged_slots = false
 local take_until = 0.0        -- a gun was just asked for (TAKE OUT) and may not be in the hand yet
 local stow_when_here = false  -- the grip let go before it arrived
 
+-- 2026-11-01 (Tefa: "holding it with LG on the fron part then holding LT makes it possible to press RG and the right hand goes on
+-- the bolt to rack it"): an RG pressed while the left hand holds the gun (LG, docked) with LT held is the bolt
+-- (rack_right.cpp), never a holster grab or Andyalpa's inventory gesture, until RG is let go again
+local rack_rg = false
+local function rack_combo(v)
+    local lj = vrmod:get_left_joystick()
+    return v ~= nil and v.was_gripping_weapon == true and vrmod:is_action_active(vrmod:get_action_grip(), lj) == true
+        and vrmod:is_action_active(vrmod:get_action_trigger(), lj) == true
+end
+_G.__visceral_right_rack = function() return rack_rg end
+
 re.on_pre_application_entry("UpdateBehavior", function()
     _G.__visceral_holster_zone = false
     if not ON or not vrmod:is_hmd_active() then return end
@@ -161,6 +172,8 @@ re.on_pre_application_entry("UpdateBehavior", function()
     local pressed = grip and not grip_was
     local released = grip_was and not grip
     grip_was = grip
+    if pressed and rack_combo(v) then rack_rg = true; L("RG with LG + LT on the gun: the bolt, not a holster") end
+    if not grip then rack_rg = false end
     if HOLD_TO_KEEP then
         local now = os.clock()
         if grip then stow_when_here = false end
@@ -193,7 +206,7 @@ re.on_pre_application_entry("UpdateBehavior", function()
         elseif inside[s.name] and d > LEAVE_M then inside[s.name] = false end
         if inside[s.name] then
             _G.__visceral_holster_zone = true
-            if pressed then
+            if pressed and not rack_rg then
                 local item = slot_item(s.slot)
                 local wc = weapon_change()
                 if item == nil then

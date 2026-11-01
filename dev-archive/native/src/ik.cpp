@@ -4,6 +4,7 @@
 #include "dockpose.h"
 #include "player.h"
 #include "rack.h"
+#include "rack_right.h"
 #include "recoil.h"
 #include "reload.h"
 #include "smooth.h"
@@ -20,7 +21,8 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     reload::on_ik(ik);
     rack::on_ik(ik);
     smooth::on_ik(ik);   // eases the left hand when whoever places it changes
-    dockpose::on_ik(ik); // last (2026-10-28): the docked spot's wrist from Dock Poser, eased on its own
+    dockpose::on_ik(ik); // (2026-10-28): the docked spot's wrist from Dock Poser, eased on its own
+    rack_right::on_ik(ik); // LAST (2026-11-01): the right hand on the bolt, the left hand holding the front
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }
 } // namespace

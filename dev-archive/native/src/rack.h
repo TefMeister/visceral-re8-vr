@@ -30,4 +30,13 @@ float travel();               // 0 = rest, 1 = fully back
 void* slide_joint();          // this frame's slide / pump / bolt joint (ghosthand.cpp), or nullptr
 const char* part_name();      // "slide" | "pump" | "bolt"
 
+// the right hand on the bolt (2026-11-01, rack_right.h holds the gesture, the gun and the hands; the bolt is this one)
+bool bolt_may_take();         // a bolt gun whose bolt may be worked now (a rack due, locked back or mid-cycle), nobody on it
+void right_take();            // the right hand has the bolt: the pull is read from the right controller
+void right_off(const char* why);
+bool right_on();
+bool bolt_rest(Vec3& local_pos, Quat& local_rot);   // the bolt joint's rest, local to its parent (the gun)
+float bolt_dz();              // the bolt joint's travel from rest, along the gun's Z (m)
+float bolt_half_turn_rad();   // half its turn about its own Z (radians, for a quaternion)
+
 } // namespace vn::rack

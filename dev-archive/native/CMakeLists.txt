@@ -21,6 +21,7 @@ add_library(visceral_re8_native SHARED
     src/pairs.cpp
     src/reload_pose.cpp
     src/rack.cpp
+    src/rack_right.cpp
     src/eject.cpp
     src/body.cpp
     src/turn.cpp
