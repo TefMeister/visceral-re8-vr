@@ -26,6 +26,7 @@ namespace {
 const weapons::Weapon* g_w = nullptr;
 std::string g_id;
 bool g_open = false;
+bool g_lt_wait = false;        // 2026-11-01: closed by LT: LT let go before it can open the drum again
 MO* g_carrier = nullptr;       // 2026-11-01: the GM 79's barrel joint, its rest turn, and how far it is swung open (0..1)
 Quat g_carrier_rest{0, 0, 0, 1};
 bool g_carrier_ok = false;
@@ -180,7 +181,8 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
         return;
     }
     if (!g_open) {   // closed: LG + LT on the drum takes it; dragging it out opens it
-        if (lt_held) { g_drag = 1; g_drag_from = x; g_drag_prog = 0.0f; LOGI("%s breech: drum taken: drag it out to the left until it clicks", TAG); }
+        if (!lt_held) g_lt_wait = false;
+        if (lt_held && !g_lt_wait) { g_drag = 1; g_drag_from = x; g_drag_prog = 0.0f; LOGI("%s breech: drum taken: drag it out to the left until it clicks", TAG); }
         return;
     }
     if (!lt_pressed) return;
@@ -191,13 +193,11 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
         }
         return;
     }
-    if (free_chambers() == 0) {   // full: one more LT takes the drum, pushed back to the right it clicks shut
-        g_drag = -1; g_drag_from = x; g_drag_prog = 0.0f;
-        LOGI("%s breech: drum full and taken: push it to the right until it clicks (or let go past half to swing it shut)", TAG);
-        return;
-    }
-    bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
-    LOGI("%s breech: LT on the open drum with no round in the hand (%d free): take rounds from the ammo pouch", TAG, free_chambers());
+    // 2026-11-01 (Tefa: "grenade launcher and revolvers must not open with a swing, only LG + LT, but close with LG + LT and the
+    // motion swing"): LT on the open drum with no round in the hand closes it (full or not); the flick still closes it too.
+    // The push-to-close drag of 10-27 is no longer needed for that.
+    set_open(false, "LG + LT on the drum");
+    g_lt_wait = true;   // the same LT press must not take the drum to open it again
 }
 
 void drum_undock() {
