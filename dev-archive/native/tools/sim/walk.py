@@ -16,6 +16,7 @@ def put(p):
     r = I.pose_from_ypr(p["right"][0:3], p["right"][3], p["right"][4]); inp.hand(S.HAND_RIGHT, grip=r, aim=r)
     l = I.pose_from_ypr(p["left"][0:3], p["left"][3], p["left"][4])
     inp.hand(S.HAND_LEFT, grip=l, aim=l, squeeze=p.get("squeeze", 0.0), trigger=p.get("trigger", 0.0))
+    if p.get("rsqueeze") is not None: inp.hand(S.HAND_RIGHT, squeeze=p["rsqueeze"])
     I.write(inp); save(p)
 def hand_cm(key):
     t0 = time.time()
@@ -32,7 +33,7 @@ def hand_cm(key):
     return None
 if __name__ == "__main__":
     p = load()
-    if sys.argv[1] in ("squeeze", "trigger"):
+    if sys.argv[1] in ("squeeze", "trigger", "rsqueeze"):
         p[sys.argv[1]] = float(sys.argv[2]); put(p); print(sys.argv[1], sys.argv[2]); sys.exit()
     if sys.argv[1] == "set":   # set left x y z yaw pitch
         p["left"] = [float(v) for v in sys.argv[2:7]]; put(p); print("left at", p["left"]); sys.exit()
