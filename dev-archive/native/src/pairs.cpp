@@ -14,6 +14,7 @@
 
 #include <cstring>
 #include "zones.h"
+#include "shells.h"
 
 #include <windows.h>
 
@@ -34,7 +35,8 @@ int g_active = -1;                 // index into g_pairs of the pair holding the
 // 2026-10-27 (Tefa: the parts every gun needs): built-in docks beside the numbered pairs, each a zone on the gun (zones.h)
 // where LG puts the left hand and keeps it while LG is held, and where LT does that part's job (breech.cpp)
 struct Dock { zones::Key key; const char* name; float spot; };
-const Dock DOCKS[] = {{zones::HANDLE, "handle", 5.0f}, {zones::DRUM, "drum", 6.0f}, {zones::INSERT, "insert point", 7.0f}};
+const Dock DOCKS[] = {{zones::HANDLE, "handle", 5.0f}, {zones::DRUM, "drum", 6.0f}, {zones::INSERT, "insert point", 7.0f},
+                      {zones::WELL, "shell port", 8.0f}};   // 2026-11-02: the pump shotguns' shell port (shells.h)
 constexpr int NDOCKS = (int)(sizeof(DOCKS) / sizeof(DOCKS[0]));
 int g_dock = -1;                   // index into DOCKS of the dock holding the left hand, -1 = none
 Vec3 g_dock_c[NDOCKS]{};           // this frame's dock centres (world) and whether each is on this gun
@@ -93,6 +95,7 @@ bool dock_applies(zones::Key k) {
     // 2026-11-01 23:5x (Tefa: "the drum grab can actually completely go then, as it is not openable at all"): not on the Wolfsbane
     case zones::DRUM: return w->breech == weapons::Breech::CYLINDER && std::strcmp(w->id, settings::GATE_GUN) != 0;
     case zones::INSERT: return w->breech == weapons::Breech::BREAK;
+    case zones::WELL: return shells::port_gun();
     default: return false;
     }
 }
@@ -131,31 +134,51 @@ void frame() {
         g_dock_on[i] = ok && dock_applies(DOCKS[i].key);
         g_dock_c[i] = world(z.off);
         g_dock_r[i] = z.r;
+        if (DOCKS[i].key == zones::WELL) {   // where reload.cpp measured the port (it draws the zone itself)
+            Vec3 c;
+            g_dock_on[i] = g_dock_on[i] && reload::port_center(c);
+            if (g_dock_on[i]) { g_dock_c[i] = zones::center(zones::WELL, c); g_dock_r[i] = zones::radius(zones::WELL); }
+            continue;
+        }
         if (g_dock_on[i]) zones::publish(DOCKS[i].key, g_dock_c[i], g_dock_r[i]);
         else zones::clear(DOCKS[i].key);
     }
     if (g_dock >= 0 && (!ok || !lg || !play || !g_dock_on[g_dock])) {
         LOGI("%s pairs: the left hand leaves the %s (%s)", TAG, DOCKS[g_dock].name, !lg ? "LG let go" : "the gun or the scene changed");
         if (DOCKS[g_dock].key == zones::DRUM) breech::drum_undock();
+        if (DOCKS[g_dock].key == zones::WELL) shells::undock();
         g_dock = -1;
     }
     // 2026-10-27: rounds in the hand for a revolver, LG held, brought to the drum: the hand docks there (no fresh LG needed)
     if (g_dock < 0 && g_active < 0 && ok && play && lg && reload::rounds_in_hand() > 0) {
         Vec3 lp;
         for (int i = 0; i < NDOCKS; ++i) {
-            if (DOCKS[i].key != zones::DRUM || !g_dock_on[i] || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp) || dist(g_dock_c[i], lp) > g_dock_r[i]) continue;
+            const bool wants = DOCKS[i].key == zones::DRUM || DOCKS[i].key == zones::WELL || (DOCKS[i].key == zones::INSERT && breech::spent());
+            if (!wants || !g_dock_on[i] || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp) || dist(g_dock_c[i], lp) > g_dock_r[i]) continue;
             g_dock = i;
             Vec3 hp;
             Quat hq;
             g_turn = player::get_pose(field_obj(s.ik_left, "Target"), hp, hq) ? qnorm(qmul(qinv(rq), qnorm(hq))) : Quat{0, 0, 0, 1};
             bridge::rumble(bridge::LEFT, PAIR_BUZZ_AMP, PAIR_BUZZ_SEC, PAIR_BUZZ_HZ);
-            LOGI("%s pairs: rounds in hand at the drum: the left hand docks there (LT puts each in)", TAG);
-            breech::drum_taken();
+            LOGI("%s pairs: round(s) in hand at the %s: the left hand docks there (LT %s)", TAG, DOCKS[i].name, DOCKS[i].key == zones::INSERT ? "swaps the spent case for it" : "puts each in");
+            if (DOCKS[i].key == zones::DRUM) breech::drum_taken();
+            break;
+        }
+    }
+    if (g_dock < 0 && g_active < 0 && ok && play && lg && breech::hold_round()) {
+        for (int i = 0; i < NDOCKS; ++i) {
+            if (DOCKS[i].key != zones::INSERT || !g_dock_on[i]) continue;
+            g_dock = i;
+            Vec3 hp;
+            Quat hq;
+            g_turn = player::get_pose(field_obj(s.ik_left, "Target"), hp, hq) ? qnorm(qmul(qinv(rq), qnorm(hq))) : Quat{0, 0, 0, 1};
+            LOGI("%s pairs: the round went into the barrel: the hand holds it there until LG lets go", TAG);
         }
     }
     if (g_dock >= 0) {   // the part's job: the drum each frame (LT taps, LT held drags), the GM 79's insert point on LT
         if (DOCKS[g_dock].key == zones::DRUM) breech::drum_dock_frame(bridge::pressed(bridge::S_LTRIG), bridge::held(bridge::S_LTRIG));
         else if (DOCKS[g_dock].key == zones::INSERT && bridge::pressed(bridge::S_LTRIG)) breech::insert_lt();
+        else if (DOCKS[g_dock].key == zones::WELL) shells::dock_frame(bridge::pressed(bridge::S_LTRIG));
     }
     if (g_active >= 0 && (!ok || !lg || !play || g_active >= (int)g_pairs.size() || !for_gun(g_pairs[g_active], gun))) {
         LOGI("%s pairs: pair %d let go (%s)", TAG, g_active < (int)g_pairs.size() ? g_pairs[g_active].n : 0, !lg ? "LG let go" : "the gun or the scene changed");
@@ -166,7 +189,7 @@ void frame() {
         Vec3 lp;
         if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) {
             for (int i = 0; i < NDOCKS && !reload::round_in_hand(); ++i) {   // a round in hand goes into the gun, not onto a dock
-                if (!g_dock_on[i] || dist(g_dock_c[i], lp) > g_dock_r[i]) continue;
+                if (!g_dock_on[i] || DOCKS[i].key == zones::WELL || dist(g_dock_c[i], lp) > g_dock_r[i]) continue;   // the shell port only with shells in hand
                 g_dock = i;
                 Vec3 hp;
                 Quat hq;

@@ -330,4 +330,8 @@ constexpr unsigned PERF_HITCH_MS = 25;           // a gap between two frames (or
 // shellclip.cpp (2026-11-02): the game's finger movement for a round going in
 constexpr float SHELLCLIP_BLEND_S = 0.06f;      // blended in from the hand's pose, and back out, over this long
 
+// shells.cpp (2026-11-02): pump shotguns, two shells per pouch grab
+constexpr int SHELLS_PER_GRAB = 2;               // a pouch grab takes this many (fewer if fewer are carried or fit)
+constexpr float SHELLS_STEP_S = 0.55f;           // one shell after another: the finger movement (0.48 s) and a breath
+
 } // namespace vn::settings

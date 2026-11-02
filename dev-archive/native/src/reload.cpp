@@ -2,6 +2,7 @@
 // RE2: the magazine joint's LOCAL pose is written, after the gun's own animation, and never read back the same frame.
 #include "reload.h"
 #include "shellclip.h"
+#include "shells.h"
 #include "reload_internal.h"
 #include "bridge.h"
 #include "ghosthand.h"
@@ -246,7 +247,7 @@ void hand_checks() {
         set_state(g_joint != nullptr ? St::HAND_FALL : St::OUT, "left grip let go");
         return;
     }
-    if (g_round_in_hand && g_w->breech == weapons::Breech::CYLINDER) return;   // 2026-10-27: docked on the drum, LT puts each in
+    if (g_round_in_hand && (g_w->breech == weapons::Breech::CYLINDER || shells::port_gun())) return;   // docked on the drum / the shell port (2026-11-02), LT puts each in
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
     if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
@@ -290,10 +291,9 @@ void hand_checks() {
     } else {
         if (breech::spent()) {   // 2026-10-27: the GM 79's spent case comes out first (LG + LT at the insert point)
             static float told_spent = -10.0f;
-            if (now - told_spent > 2.0f) {
+            if (now - told_spent > 2.0f) {   // 2026-11-02: no refusal buzz: the hand docks here and LT swaps them (breech.cpp)
                 told_spent = now;
-                bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
-                LOGI("%s reload: the spent case is still in: take it out first (LG + LT at the insert point)", TAG);
+                LOGI("%s reload: the spent case is still in: LT here swaps it for the round in the hand", TAG);
             }
             return;
         }
@@ -458,9 +458,10 @@ void pouch_grab() {
         }
         capture_port(g_shell);
         g_round_in_hand = true;
+        g_rounds_n = shells::port_gun() ? shells::grab_count(player::unlimited() ? -1 : std::max(0, player::reserve()) + g_pocket, cap > 0 ? cap - player::loaded() - g_stash : -1) : 1;   // 2026-11-02: two shells (shells.h)
         ghosthand::event("shell", "start");
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
-        LOGI("%s reload: a round in the left hand (carried %d)", TAG, player::reserve());
+        LOGI("%s reload: %d round(s) in the left hand (carried %d)", TAG, g_rounds_n, player::reserve());
         return;
     }
     if (g_st != St::OUT) return;
@@ -791,6 +792,8 @@ bool insert_direct() {
     if (g_round_in_hand || !managed_now() || !supply()) return false;
     return insert_round();
 }
+void grab_from_pouch() { g_last_grab = -10.0f; pouch_grab(); }   // 2026-11-02: breech.cpp, LG held into the pouch
+bool port_center(Vec3& out) { return port_world(out); }       // 2026-11-02: pairs.cpp, the shell port dock
 void pocket_round() { ++g_pocket; LOGI("%s reload: a round back with the carried ammo (%d taken out by hand)", TAG, g_pocket); }
 
 } // namespace vn::reload

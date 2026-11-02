@@ -44,6 +44,8 @@ float g_rate = 0.0f;          // smoothed signed turn rate about the flick axis,
 float g_last_flip = -10.0f;
 float g_peak = 0.0f;          // the biggest rate this second, for the log (how hard Tefa flicks)
 bool g_spent = false;         // the GM 79 fired and its case is still in the barrel (2026-10-27)
+bool g_spent_in_hand = false; // 2026-11-02: the spent case taken out is held in the left hand until LG lets go (thrown away)
+bool g_hold_round = false;    // 2026-11-02: a round just went into the open barrel by hand: the hand stays on it while LG is held
 int g_last_loaded = -1;       // rounds in the gun last frame: a drop while closed = a shot
 int g_spent_n = 0;            // a revolver's spent casings still in the drum (2026-10-27)
 int g_drag = 0;               // the drum dragged by hand: +1 opening, -1 closing, 0 not
@@ -152,6 +154,8 @@ bool is_open() { return here() && g_open; }
 bool loading_allowed() { return !here() || g_open; }
 bool blocks_fire() { return is_open(); }
 bool spent() { return here() && g_w->breech == Breech::BREAK && g_spent; }
+bool spent_in_hand() { return here() && g_w->breech == Breech::BREAK && g_spent_in_hand; }
+bool hold_round() { return here() && g_w->breech == Breech::BREAK && g_open && g_hold_round; }
 
 // the left controller across the gun: its sideways offset from the right controller, in the right controller's own axes
 // (+ = to the gun's right). The drum swings out to the left
@@ -279,11 +283,18 @@ void insert_lt() {
         LOGI("%s breech: LT at the insert point: the barrel is closed: open it first", TAG);
         return;
     }
-    if (g_spent) {
+    if (g_spent) {   // 2026-11-02 (Tefa): it comes out INTO the left hand; with a live round already in the hand, one LT swaps them
         g_spent = false;
+        g_spent_in_hand = true;
         bridge::sfx(bridge::SFX_MAG_OUT);
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
-        LOGI("%s breech: the spent case is out", TAG);
+        if (reload::round_in_hand() && reload::insert_from_hand()) {
+            g_last_loaded = player::loaded();
+            g_hold_round = true;
+            LOGI("%s breech: LT swapped them: the spent case out into the hand, the live round in (loaded %d); LG let go drops the case", TAG, player::loaded());
+        } else {
+            LOGI("%s breech: the spent case is out, in the left hand: let go to throw it away, or keep LG held to the pouch for a live round", TAG);
+        }
         return;
     }
     const int have = player::loaded();
@@ -308,6 +319,8 @@ void frame() {
         g_open = false;   // a gun comes out of the inventory closed
         g_carrier = nullptr; g_carrier_ok = false; g_swing = 0.0f; g_swing_t = -1.0f;
         g_spent = false;
+        g_spent_in_hand = false;
+        g_hold_round = false;
         g_last_loaded = -1;
         g_spent_n = 0;
         g_drag = 0;
@@ -335,7 +348,16 @@ void frame() {
         bridge::sfx(bridge::SFX_MAG_OUT);
         bridge::rumble(bridge::RIGHT, BREECH_BUZZ_AMP, BREECH_BUZZ_SEC, RELOAD_BUZZ_HZ);
     }
+    if (g_w->breech == Breech::BREAK && g_open && ld > g_last_loaded && g_last_loaded >= 0 && bridge::held(bridge::S_LGRIP)) g_hold_round = true;
     g_last_loaded = ld;
+    // 2026-11-02 (Tefa's three ways): the spent case held in the left hand; LG let go throws it away; LG held into the pouch
+    // also takes a live round (a buzz says so), which then goes in by itself at the open barrel (nothing is in it)
+    if (g_spent_in_hand && !bridge::held(bridge::S_LGRIP)) { g_spent_in_hand = false; LOGI("%s breech: LG let go: the spent case is thrown away", TAG); }
+    if (g_spent_in_hand && g_open && reload::in_pouch() && !reload::round_in_hand()) {
+        reload::grab_from_pouch();
+        if (reload::round_in_hand()) LOGI("%s breech: LG held to the pouch with the spent case: a live round in the hand too", TAG);
+    }
+    if (g_hold_round && !bridge::held(bridge::S_LGRIP)) g_hold_round = false;
     // 2026-11-01 (Tefa: "please disable B opening and closing the grenade launcher"): right B no longer opens or closes it
     // (it comes back with the semi-immersive and automatic reload modes, ideas/fresh)
     // the GM 79 with the left hand on its front grip: LT opens / closes it (2026-10-27)

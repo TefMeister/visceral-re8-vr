@@ -35,6 +35,11 @@ int free_chambers();                     // a revolver's chambers neither loaded
 int spent_casings();
 void insert_lt();          // LT with the hand at the GM 79's insert point: the round or the spent case comes out
 bool spent();              // the GM 79 holds a spent case (fired, not taken out yet)
+// 2026-11-02 (Tefa's three ways to load the GM 79): LG + LT at the insert point takes the spent case out INTO the left hand
+// (with a live round already in the hand the same LT swaps them); LG let go throws it away; LG held into the pouch takes a live
+// round as well, which goes in by itself at the open barrel; a round that went in by hand is held there until LG lets go
+bool spent_in_hand();
+bool hold_round();         // pairs.cpp keeps the left hand docked at the insert point while this says so
 // 2026-11-01 22:5x (Tefa's Wolfsbane plan, gate.h): the M1851 opens its loading cover with right B; gate.cpp does the rest
 bool cover_gun();                        // the gun in hand is the M1851 (a cover, not a swing-out drum)
 void close_cover(const char* why);       // gate.cpp: the thumb shuts it once the rounds are in
