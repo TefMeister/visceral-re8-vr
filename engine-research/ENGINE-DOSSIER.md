@@ -34,6 +34,27 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
 - Joints: root, Body, Trigger, Hammer, Cylinder, Five_/Seven_Bullet00.., Lid (the loading cover), vfx_muzzle. It loads through
   the cover (no swing-out crane) (Tefa, 2026-11-01).
 
+## §5 Leads handed over by the other lanes (drained from inbox/ 2026-11-02)
+
+- **Accuracy from movement:** no spread value is needed; the scope project replaces the shot's rotation at the bullet
+  build step (hip shots flew straight on the sniper rifle `[verified-live 2026-09-21, n=10]`, scope project dossier
+  §9bk/§9bl). Blend clean and scattered rotations there, weight from movement and the two-hand grip; check a pistol and
+  the shotgun use the same step first. Topic: `external-research/topics/2026-10-26-accuracy-from-movement-*.md` (/gr).
+- **Drawn spheres ignore their size:** public RE Engine mods parent the mesh to the gun and size it each frame with
+  `set_LocalScale`, not `set_Scale` `[reported 2026-10-26]`. First step: read back get_Scale / get_LocalScale (/gr).
+- **ri5052 is a knife:** Andyalpa's holster profile saves `"last_knife_id": "ri5052"` `[inferred-static 2026-10-26]`;
+  ri5003 probably another knife `[hypothesis]`. The stalled swap that crashed was likely the knife's INVENTORY item (/gr).
+- **The standing origin** is taken from the head at VR start and again on every OpenXR recenter, never saved
+  `[inferred-static 2026-10-26, REFramework source]`; Lua `vrmod:get/set_standing_origin`. A height pin is a stop-gap (/gr).
+- **Ghost Hand over 107 runs** `[measured 2026-10-19..25]`: gestures finish slide 40/40, breech 24/24, pump 153/155,
+  shell 121/124, mag 212/228, bolt 98/127. The bolt logs no `_need` so its misses cannot be judged; 16 runs logged the game
+  hand ~156 m away (world vs room space, before the camera was found): ignore those runs' jump and lag numbers (/gd).
+- **Log facts 2026-10-27..11-01** `[measured]`: the (mode, item) ammo call was rejected (superseded: §3, the bool call
+  works); `hand_poser/command.json`, `zones_open.json`, `zones.json` read empty thousands of times (harmless, buries the
+  log: check size before `json.load_file`); `[visceral-re8-hud]` cannot find `app.GUIRequestOpenQuickEquipParameter` or
+  `app.PlayerUpdater`; the `set_FontSize` access violations stopped after 10-31 (/gd).
+- /gs 2026-10-27: the board's OPEN block had not been re-dated after an entry (re-audited since).
+
 ## Dead ends
 
 - praydog's connector on the 76298bd build (§1). The game's held-trigger shot with only `readyShootByTimer` forced (§2).
