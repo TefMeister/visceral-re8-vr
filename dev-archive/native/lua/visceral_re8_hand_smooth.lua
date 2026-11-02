@@ -139,9 +139,36 @@ local last_report = os.clock()
 local errors = 0
 re.on_frame(function() frame_id = frame_id + 1 end)
 
+-- 2026-11-02, Tefa: "hand smoothing must always be off for melee weapons in any game, only option for guns. smooth melee
+-- feels so bad in vr". A real gun (app.WeaponGunCore) in hand, looked up five times a second; the knife and bare hands are not.
+local gun_cache = { t = -1, yes = false }
+local gun_core_t = nil
+local function gun_in_hand()
+    local now = os.clock()
+    if now - gun_cache.t < 0.2 then return gun_cache.yes end
+    gun_cache.t = now
+    local yes = false
+    pcall(function()
+        gun_core_t = gun_core_t or sdk.find_type_definition("app.WeaponGunCore")
+        local pm = sdk.get_managed_singleton("app.PropsManager")
+        local pl = pm and pm:get_field("<Player>k__BackingField")
+        local u = nil
+        for _, tn in ipairs({ "app.PlayerUpdater", "app.PlayerUpdaterFPS" }) do
+            local t = sdk.typeof(tn)
+            u = u or (t and pl and pl:call("getComponent(System.Type)", t))
+        end
+        local pg = u and u:call("get_playerGun")
+        local w = pg and pg:call("get_equipWeaponObject")
+        yes = w ~= nil and gun_core_t ~= nil and w:get_type_definition():is_a(gun_core_t)
+    end)
+    if yes ~= gun_cache.yes then log.info(TAG .. (yes and " working: a gun is in hand" or " paused: no gun in hand (knife, bare hands)")) end
+    gun_cache.yes = yes
+    return yes
+end
+
 local function run()
     if rawget(_G, "re8vr") == nil or vrmod == nil then return end
-    local active = cfg.on and vrmod:is_hmd_active()
+    local active = cfg.on and vrmod:is_hmd_active() and gun_in_hand()
     local ctl = nil
     if active then pcall(function() ctl = vrmod:get_controllers() end) end
     if ctl == nil or ctl[1] == nil or ctl[2] == nil then active = false end
