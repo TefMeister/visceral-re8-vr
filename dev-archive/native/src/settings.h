@@ -323,4 +323,8 @@ constexpr float GUNREPORT_PERIOD_S = 5.0f;        // a line this often while a g
 constexpr float GUNREPORT_CHANGE_M = 0.02f;       // and at once when the gun moves this far in the hand's own frame
 constexpr float GUNREPORT_CHANGE_MIN_GAP_S = 1.0f; // but never more than one such line a second
 
+// perfprobe.cpp (2026-11-02): the always-on performance recorder
+constexpr int PERF_PERIOD_S = 2;                 // one line every this many seconds (the temperature logger also writes every 2 s)
+constexpr unsigned PERF_HITCH_MS = 25;           // a gap between two frames (or presents) longer than this counts as a stutter
+
 } // namespace vn::settings

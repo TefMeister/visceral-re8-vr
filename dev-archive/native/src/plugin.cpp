@@ -51,11 +51,13 @@
 #include "zones.h"
 #include "weapons.h"
 #include "exposure.h"
+#include "perfprobe.h"
 
 using namespace vn;
 
 namespace {
 void on_frame() {
+    perfprobe::frame();                                // 2026-11-02: the performance recorder counts every game frame (perfprobe.h)
     static std::atomic<bool> installed{false};
     if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); ik::install(); body::install(); nodock::install(); equipguard::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
     bridge::frame_begin();
@@ -97,6 +99,8 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
         return true;
     }
     param->functions->log_info("%s loaded: Hands Off port, haptics + recoil + manual reloads", TAG);
+    perfprobe::start();                                // 2026-11-02: always-on performance recorder, its own thread (perfprobe.h)
+    param->functions->on_present([]() { perfprobe::present(); });
     // the bridge Lua writes its readings at UpdateHID pre; reading after it, at UpdateBehavior pre, sees this frame's
     param->functions->on_pre_application_entry("UpdateBehavior", []() { on_frame(); });
     // the ammo counter is placed at the right hand just before it is drawn (re8_vr_ammo_hud.lua did the same)
