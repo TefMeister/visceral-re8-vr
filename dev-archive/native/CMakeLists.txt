@@ -42,7 +42,8 @@ add_library(visceral_re8_native SHARED
     src/json_mini.cpp
     src/smooth.cpp
     src/exposure.cpp
-    src/perfprobe.cpp)
+    src/perfprobe.cpp
+    src/shellclip.cpp)
 target_include_directories(visceral_re8_native PRIVATE include src)
 target_link_libraries(visceral_re8_native PRIVATE winmm dxgi psapi)   # winmm: the bolt click (rack.cpp); dxgi + psapi: perfprobe.cpp
 set_target_properties(visceral_re8_native PROPERTIES OUTPUT_NAME "visceral_re8_native" PREFIX "")

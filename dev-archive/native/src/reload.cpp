@@ -1,6 +1,7 @@
 // reload.cpp -- see reload.h. The state machine is the RE7 RELOADED mod's / Visceral RE2's (same states and timings). Joint space as in
 // RE2: the magazine joint's LOCAL pose is written, after the gun's own animation, and never read back the same frame.
 #include "reload.h"
+#include "shellclip.h"
 #include "reload_internal.h"
 #include "bridge.h"
 #include "ghosthand.h"
@@ -219,6 +220,7 @@ bool insert_round() {
         --g_pocket;   // one taken out by hand goes back first (it never left the carried ammo's count)
     } else if (player::game_reload(1) < 1) { LOGI("%s reload: no round went in (none carried?)", TAG); return false; }
     bridge::sfx(bridge::SFX_SHELL_IN);
+    shellclip::play(g_id);   // 2026-11-02: the game's own finger movement for a round going in (shellclip.h)
     if (g_w->pump && empty) rack::need("shells into an empty pump gun");   // the trigger waits for the pump
     tell_hud();
     LOGI("%s reload: %s round in: loaded %d, waiting for the pump %d, carried %d", TAG, g_id.c_str(), player::loaded(), g_stash, player::reserve());

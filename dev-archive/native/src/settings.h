@@ -327,4 +327,7 @@ constexpr float GUNREPORT_CHANGE_MIN_GAP_S = 1.0f; // but never more than one su
 constexpr int PERF_PERIOD_S = 2;                 // one line every this many seconds (the temperature logger also writes every 2 s)
 constexpr unsigned PERF_HITCH_MS = 25;           // a gap between two frames (or presents) longer than this counts as a stutter
 
+// shellclip.cpp (2026-11-02): the game's finger movement for a round going in
+constexpr float SHELLCLIP_BLEND_S = 0.06f;      // blended in from the hand's pose, and back out, over this long
+
 } // namespace vn::settings

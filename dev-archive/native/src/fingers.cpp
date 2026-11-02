@@ -6,6 +6,7 @@
 #include "rack.h"
 #include "reload.h"
 #include "settings.h"
+#include "shellclip.h"
 
 #include <cmath>
 
@@ -46,7 +47,7 @@ void frame() {
     const auto& s = player::now();
     const bool play = FINGER_OPEN_ON && bridge::live() && bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     const bool free_hand = !bridge::held(bridge::S_LGRIP) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !rack::active() &&
-                           !reload::mag_in_hand() && !reload::round_in_hand();
+                           !reload::mag_in_hand() && !reload::round_in_hand() && !shellclip::playing();
     // 2026-10-25 (Tefa, screenshots: the hand "teleport alternates between hand poses" near the gun): the open hand stepped on
     // at the zone's edge and fought Hand Poser, which holds the same joints. Now it ramps with the distance to the gun, and
     // stands down entirely while a poser holds any finger

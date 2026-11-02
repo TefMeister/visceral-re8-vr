@@ -52,6 +52,7 @@
 #include "weapons.h"
 #include "exposure.h"
 #include "perfprobe.h"
+#include "shellclip.h"
 
 using namespace vn;
 
@@ -81,6 +82,7 @@ void on_frame() {
     body::frame();
     fingers::frame();
     nodock::frame();
+    shellclip::frame();      // 2026-11-02: the test file for the shell-in finger clip (shellclip.h)
 }
 } // namespace
 
@@ -110,7 +112,7 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
     param->functions->on_pre_application_entry("LateUpdateBehavior", []() { recoil::physics_point(); });
     // the gun's joints (magazine, slide) after its own animation, and again before drawing (the engine rewrites them)
     param->functions->on_post_application_entry("LateUpdateBehavior", []() { body::late_point(); reload::late_point(); rack::late_point(); pumpbolt::point(); rack_right::late_point(); breech::pose_point(); gate::late_point(); });
-    param->functions->on_post_application_entry("PrepareRendering", []() { body::render_point(); righthand::render_point(); fingers::render_point(); forearm::render_point();   /* 2026-11-02: the still hands first, the opening hand on top */ reload::render_point(); rack::render_point(); pumpbolt::point(); rack_right::render_point(); breech::pose_point(); gate::late_point(); ghosthand::render_point(); });
-    param->functions->on_pre_application_entry("BeginRendering", []() { exposure::render_point(); reload::render_point(); rack::begin_render_point(); pumpbolt::point(); rack_right::begin_render_point(); breech::pose_point(); gate::late_point(); righthand::begin_render(); fingers::begin_render(); forearm::begin_render(); body::begin_render(); });
+    param->functions->on_post_application_entry("PrepareRendering", []() { body::render_point(); righthand::render_point(); fingers::render_point(); forearm::render_point();   /* 2026-11-02: the still hands first, the opening hand on top */ reload::render_point(); rack::render_point(); pumpbolt::point(); rack_right::render_point(); breech::pose_point(); gate::late_point(); ghosthand::render_point(); shellclip::render_point(); });
+    param->functions->on_pre_application_entry("BeginRendering", []() { exposure::render_point(); reload::render_point(); rack::begin_render_point(); pumpbolt::point(); rack_right::begin_render_point(); breech::pose_point(); gate::late_point(); righthand::begin_render(); fingers::begin_render(); forearm::begin_render(); body::begin_render(); shellclip::begin_render(); });
     return true;
 }
