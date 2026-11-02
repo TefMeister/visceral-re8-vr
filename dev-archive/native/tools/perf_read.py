@@ -94,6 +94,14 @@ def crash_after(t_end):
         return []
 
 
+def game_running():
+    try:
+        r = subprocess.run(["tasklist", "/FI", "IMAGENAME eq re8.exe"], capture_output=True, text=True, timeout=30)
+        return "re8.exe" in r.stdout.lower()
+    except (OSError, subprocess.SubprocessError):
+        return True   # unknown: do not claim a close
+
+
 def closing(rows, stuck):
     """A normal close also stops the frames (about 12 s on 2026-11-02), but the game lets go of its memory as it goes:
     the last line's video memory or private memory well under what it was when the frames stopped."""
@@ -144,6 +152,9 @@ def main():
         print("ENDED: THE WHOLE PC WENT DOWN. Windows' record after the last line:")
         for c in crashes:
             print("   ", c[:160])
+    elif stuck >= HUNG_ROWS and age > 10 and not game_running():
+        print(f"ended: the game closed. It drew nothing for its last {stuck * 2} s, which a normal close does too "
+              "(about 8-12 s); a freeze that someone then closed by hand would look the same")
     elif stuck >= HUNG_ROWS and closing(rows, stuck):
         print(f"ended: the game closed (it stopped drawing for its last {stuck * 2} s while it let go of its memory, "
               "which is a normal shutdown)")

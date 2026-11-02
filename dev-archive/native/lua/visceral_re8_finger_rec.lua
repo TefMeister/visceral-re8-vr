@@ -14,6 +14,7 @@
 --     fill            fill the held gun to capacity
 --     probe           write finger_rec/probe.txt: which transforms carry finger joints, which carry a motion
 --     guns            write finger_rec/guns.txt: every gun the inventory holds, by id (2026-11-02)
+--     give <number>   add an item to the inventory by its id number (testing only, modding save)
 --     equip <id>      take that gun out (e.g. equip ri3051) with Andyalpa's proven native equip (re8_vr_holster.lua)
 -- The file is deleted once read. Status goes to finger_rec/status.txt and the REFramework log ("[finger-rec]").
 -- Off when no command comes: it costs nothing until a take starts.
@@ -220,9 +221,22 @@ local function poll()
     elseif cmd == "probe" then probe()
     elseif cmd == "guns" then
         local ids = {}
-        for _, g in ipairs(inventory_guns()) do ids[#ids + 1] = g.id end
+        for _, g in ipairs(inventory_guns()) do
+            local w = safe(function() return g.item:call("get_work") end)
+            ids[#ids + 1] = g.id .. "=" .. tostring(w and safe(function() return w:get_field("ItemID") end))
+        end
         pcall(function() fs.write(DIR .. "/guns.txt", table.concat(ids, "\n") .. "\n") end)
         status("guns: " .. #ids .. " (" .. table.concat(ids, " ") .. ")")
+    elseif cmd == "give" then
+        -- testing only, on the modding save (backed up first): an item by its id number (the RE Engine name hash of
+        -- e.g. "ri3049"), the way the 2026-10-24 inventory test did it through the connector
+        local id = tonumber(arg)
+        local im = safe(function() return sdk.get_managed_singleton("app.InventoryManager") end)
+        local inv = im and safe(function() return im:call("get_activeInventory") end)
+        local core = im and id and safe(function() return im:call("createItemCore", id, 1, 0, 0) end)
+        local work = core and safe(function() return core:call("get_work") end)
+        local ok = work and inv and pcall(function() inv:call("addItem", work, false, false, false) end)
+        status(string.format("give %s: core %s, work %s, added %s", tostring(arg), tostring(core ~= nil), tostring(work ~= nil), tostring(ok == true)))
     elseif cmd == "equip" then
         local eq, done = rawget(_G, "__re8_holster_equip_item"), false
         for _, g in ipairs(inventory_guns()) do
