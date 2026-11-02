@@ -25,6 +25,7 @@ LHM_GLOB = os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\LibreHa
 WINDOW_S = 600          # "first / last ten minutes"
 TAIL_S = 30             # the last seconds shown row by row
 HUNG_ROWS = 3           # this many lines in a row with no game frames = the game was stuck
+CLOSE_DROP = 0.8        # ...unless its memory fell under this share of where it was: then it was closing
 SENSORS = {             # LibreHardwareMonitor ids -> short names
     "/intelcpu/0/temperature/16": "cpu_C", "/intelcpu/0/power/0": "cpu_W", "/intelcpu/0/voltage/0": "cpu_V",
     "/intelcpu/0/load/0": "cpu_load", "/gpu-nvidia/0/temperature/0": "gpu_C", "/gpu-nvidia/0/power/0": "gpu_W",
@@ -93,6 +94,17 @@ def crash_after(t_end):
         return []
 
 
+def closing(rows, stuck):
+    """A normal close also stops the frames (about 12 s on 2026-11-02), but the game lets go of its memory as it goes:
+    the last line's video memory or private memory well under what it was when the frames stopped."""
+    start, last = rows[-stuck], rows[-1]
+    for k in ("vram_mb", "private_mb"):
+        a, b = start.get(k), last.get(k)
+        if a and b is not None and b < a * CLOSE_DROP:
+            return True
+    return False
+
+
 def avg(rows, k):
     v = [r[k] for r in rows if r.get(k) is not None]
     return sum(v) / len(v) if v else None
@@ -132,6 +144,9 @@ def main():
         print("ENDED: THE WHOLE PC WENT DOWN. Windows' record after the last line:")
         for c in crashes:
             print("   ", c[:160])
+    elif stuck >= HUNG_ROWS and closing(rows, stuck):
+        print(f"ended: the game closed (it stopped drawing for its last {stuck * 2} s while it let go of its memory, "
+              "which is a normal shutdown)")
     elif stuck >= HUNG_ROWS:
         print(f"ENDED: THE GAME WAS STUCK for its last {stuck * 2} s (no frames while the recorder kept writing)")
     elif age < 10:

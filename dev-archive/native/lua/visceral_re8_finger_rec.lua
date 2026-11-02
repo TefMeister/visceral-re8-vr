@@ -13,6 +13,8 @@
 --     empty           empty the held gun (so the next reload is the full one); the gun's record, as player.cpp does
 --     fill            fill the held gun to capacity
 --     probe           write finger_rec/probe.txt: which transforms carry finger joints, which carry a motion
+--     guns            write finger_rec/guns.txt: every gun the inventory holds, by id (2026-11-02)
+--     equip <id>      take that gun out (e.g. equip ri3051) with Andyalpa's proven native equip (re8_vr_holster.lua)
 -- The file is deleted once read. Status goes to finger_rec/status.txt and the REFramework log ("[finger-rec]").
 -- Off when no command comes: it costs nothing until a take starts.
 
@@ -178,6 +180,28 @@ local function probe()
     status("probe written")
 end
 
+-- 2026-11-02: the guns the quick slots do not hold, for the takes. The inventory walk is re8_vr_holster.lua's
+-- inventory_rows(), shortened; the equip is its exported __re8_holster_equip_item (the D-pad path).
+local function inventory_guns()
+    local out = {}
+    local im = safe(function() return sdk.get_managed_singleton("app.InventoryManager") end)
+    local inv = im and safe(function() return im:call("get_activeInventory") end)
+    local list = inv and (safe(function() return inv:call("get_items") end) or safe(function() return inv:get_field("<items>k__BackingField") end))
+    local n = list and safe(function() return list:call("get_Count") end) or 0
+    local weapon_of = rawget(_G, "__re8_holster_item_weapon")
+    for i = 0, (n or 0) - 1 do
+        local e = safe(function() return list:call("get_Item", i) end)
+        local item = e
+        if e and not safe(function() return e:get_type_definition():is_a("app.ItemCore") end) then
+            item = safe(function() return e:get_field("<Item>k__BackingField") end) or safe(function() return e:get_field("Item") end) or e
+        end
+        local id = item and safe(function() return item:call("get_weaponName") end)
+        local w = item and type(weapon_of) == "function" and safe(function() return weapon_of(item) end)
+        if id and tostring(id) ~= "" and w then out[#out + 1] = { id = tostring(id), item = item } end
+    end
+    return out
+end
+
 local function poll()
     local f = safe(function() return io.open(CMD, "r") end)
     if not f then return end
@@ -194,6 +218,17 @@ local function poll()
         local ok, n = set_loaded(w, cmd == "empty" and 0 or nil)
         status(string.format("%s: %s (%s)", cmd, ok and "done" or "failed", tostring(n)))
     elseif cmd == "probe" then probe()
+    elseif cmd == "guns" then
+        local ids = {}
+        for _, g in ipairs(inventory_guns()) do ids[#ids + 1] = g.id end
+        pcall(function() fs.write(DIR .. "/guns.txt", table.concat(ids, "\n") .. "\n") end)
+        status("guns: " .. #ids .. " (" .. table.concat(ids, " ") .. ")")
+    elseif cmd == "equip" then
+        local eq, done = rawget(_G, "__re8_holster_equip_item"), false
+        for _, g in ipairs(inventory_guns()) do
+            if g.id == arg and type(eq) == "function" then local ok, r = pcall(eq, g.item, "finger_rec"); done = ok and r == true end
+        end
+        status(string.format("equip %s: %s", arg, done and "done" or "FAILED (not owned, or no equip function)"))
     else status("unknown command: " .. line) end
 end
 
