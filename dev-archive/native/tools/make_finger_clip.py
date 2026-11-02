@@ -19,6 +19,19 @@ FINGERS = ["IndexF1", "IndexF2", "IndexF3", "MiddleF1", "MiddleF2", "MiddleF3", 
            "PinkyF1", "PinkyF2", "PinkyF3", "Thumb1", "Thumb2", "Thumb3"]
 
 
+RE2_FINGERS = [f"l_hand_{f}" for f in ("index_0", "index_1", "index_2", "middle_0", "middle_1", "middle_2", "ring_0", "ring_1",
+                                         "ring_2", "ring_3", "little_0", "little_1", "little_2", "little_3", "thumb_0", "thumb_1", "thumb_2")]
+
+
+def write(out, pick, names, cols):
+    t0 = float(pick[0][0])
+    with open(out, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["t"] + [f"{n}.{c}" for n in names for c in "xyzw"])
+        for r in pick:
+            w.writerow([f"{float(r[0]) - t0:.4f}"] + [r[i] for c4 in cols for i in c4])
+
+
 def layers(cell):
     out = {}
     for m in cell.split("|"):
@@ -37,9 +50,21 @@ def main():
     ap.add_argument("--transform", default="player")
     ap.add_argument("--cycle", type=int, default=1, help="which cycle of the loop (0 = the first)")
     ap.add_argument("--layer", default="1")
+    ap.add_argument("--window", default="", help="T0,T1 seconds: cut this time window instead of a motion cycle (RE2 / RE3 play a"
+                    " whole reload as one motion, 2026-11-02)")
+    ap.add_argument("--re2", action="store_true", help="RE2 / RE3 takes: joints l_hand_index_0.., columns without a transform prefix")
     a = ap.parse_args()
     rows = list(csv.reader(open(a.take, newline="")))
     head, rows = rows[0], rows[1:]
+    if a.window:
+        t0, t1 = (float(x) for x in a.window.split(","))
+        r0 = next(float(r[0]) for r in rows if r[2] == "true") if any(r[2] == "true" for r in rows) else float(rows[0][0])
+        pick = [r for r in rows if t0 <= float(r[0]) - r0 <= t1]
+        names = RE2_FINGERS if a.re2 else [f"{a.side}{f}" for f in FINGERS]
+        cols = [[head.index(f"{n}.{c}" if a.re2 else f"{a.transform}:{n}.{c}") for c in "xyzw"] for n in names]
+        write(a.out, pick, names, cols)
+        print(f"window {t0:.2f}-{t1:.2f} s after the reload began: {len(pick)} frames, {len(names)} joints -> {a.out}")
+        return
     lay = f"{a.transform}.{a.layer}"
     cycles, cur, last = [], [], None
     for r in rows:
