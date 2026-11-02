@@ -34,7 +34,9 @@ local SPOTS = {
     { name = "left hip",       slot = "Down",  side = -0.20, up = -0.62, fwd =  0.02 },
     { name = "left shoulder",  slot = "Left",  side = -0.28, up = -0.22, fwd = -0.08 },
 }
-local ENTER_M, LEAVE_M = 0.15, 0.22          -- in a spot under ENTER, out again past LEAVE (no flicker at the edge)
+-- 2026-11-02 (Tefa: "the holster spot seemed to move a little every time ... or maybe the activation area is just too small"):
+-- bigger, 0.15 / 0.22 before
+local ENTER_M, LEAVE_M = 0.20, 0.28          -- in a spot under ENTER, out again past LEAVE (no flicker at the edge)
 local BUZZ_ENTER = { sec = 0.05, amp = 0.35 } -- a tick on entering a spot
 local BUZZ_GRAB = { sec = 0.08, amp = 0.70 }  -- a stronger one on grabbing there
 local BUZZ_HZ = 1.0
@@ -60,12 +62,43 @@ local function pos_of(m) local c = m[3]; return Vector3f.new(c.x, c.y, c.z) end
 local function dist(a, b) local dx, dy, dz = a.x - b.x, a.y - b.y, a.z - b.z; return math.sqrt(dx * dx + dy * dy + dz * dz) end
 
 -- headset position + offset turned by the headset's yaw only (OpenXR room space: +X right, +Y up, -Z forward)
+-- 2026-11-02 (Tefa: "do you know if holster spots are tied to the player body or always fixed with HMD?" ... "the holster
+-- spot seemed to move a little every time"): they turned with the HEAD, so glancing aside while reaching moved them. Village's
+-- drawn body faces wherever the head looks (the RE2-style body turn was dropped in the 2026-10-31 rebuild), so there is no
+-- separate body to follow. Instead the spots keep their OWN facing, the way RE2's body turns: it stays put while the head
+-- looks less than SPOT_DEADZONE_DEG away, and once past that it comes round to the head at SPOT_CATCH_DEG_S until it is
+-- within SPOT_SETTLE_DEG (the simulator check: a 25 degree head turn must leave the right hip spot where it was).
+local SPOT_DEADZONE_DEG, SPOT_CATCH_DEG_S, SPOT_SETTLE_DEG = 45.0, 120.0, 5.0
+local facing = { yaw = nil, t = -1, catching = false, logged = -10 }
+local function wrap(a) while a > math.pi do a = a - 2 * math.pi end; while a < -math.pi do a = a + 2 * math.pi end; return a end
+local function spot_facing(head_yaw)   -- updated once a frame; every spot_pos call in that frame gets the same answer
+    local now = os.clock()
+    if facing.yaw == nil then facing.yaw, facing.t = head_yaw, now; return facing.yaw end
+    if now - facing.t < 0.002 then return facing.yaw end
+    local dt = math.min(0.1, now - facing.t)
+    facing.t = now
+    local diff = wrap(head_yaw - facing.yaw)
+    if math.abs(diff) > math.rad(SPOT_DEADZONE_DEG) then facing.catching = true end
+    if facing.catching then
+        local step = math.rad(SPOT_CATCH_DEG_S) * dt
+        if math.abs(diff) <= math.max(step, math.rad(SPOT_SETTLE_DEG)) then facing.catching = false
+        else facing.yaw = wrap(facing.yaw + (diff > 0 and step or -step)) end
+    end
+    if now - facing.logged > 10 then
+        facing.logged = now
+        log.info(string.format("%s spots face %.0f deg from where the head looks%s", TAG, math.deg(wrap(facing.yaw - head_yaw)), facing.catching and " (coming round)" or ""))
+    end
+    return facing.yaw
+end
+
 local function spot_pos(hmd, s)
     local p = pos_of(hmd)
     local z = hmd[2]
     local fx, fz = -z.x, -z.z
     local len = math.sqrt(fx * fx + fz * fz)
     if len < 1e-4 then fx, fz = 0.0, -1.0 else fx, fz = fx / len, fz / len end
+    local y = spot_facing(math.atan(fx, fz))   -- the spots' own facing, not the head's (above)
+    fx, fz = math.sin(y), math.cos(y)
     local rx, rz = -fz, fx
     return Vector3f.new(p.x + rx * s.side + fx * s.fwd, p.y + s.up, p.z + rz * s.side + fz * s.fwd)
 end
@@ -201,6 +234,11 @@ re.on_pre_application_entry("UpdateBehavior", function()
         logged_slots = true
         L(string.format("spots on: quick slots Up %s, Right %s, Down %s, Left %s", tostring(SLOT.Up), tostring(SLOT.Right),
             tostring(SLOT.Down), tostring(SLOT.Left)))
+    end
+    if os.clock() - (facing.spot_logged or -10) > 10 then   -- 2026-11-02: proof the spots stay put when only the head turns
+        facing.spot_logged = os.clock()
+        local rp = spot_pos(hmd, SPOTS[2])
+        log.info(string.format("%s right hip spot at %.2f %.2f %.2f (room)", TAG, rp.x, rp.y, rp.z))
     end
     for _, s in ipairs(SPOTS) do
         local d = dist(hand, spot_pos(hmd, s))
