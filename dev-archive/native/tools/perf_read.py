@@ -152,7 +152,7 @@ def main():
         print("ENDED: THE WHOLE PC WENT DOWN. Windows' record after the last line:")
         for c in crashes:
             print("   ", c[:160])
-    elif stuck >= HUNG_ROWS and age > 10 and not game_running():
+    elif stuck >= HUNG_ROWS and not game_running():
         print(f"ended: the game closed. It drew nothing for its last {stuck * 2} s, which a normal close does too "
               "(about 8-12 s); a freeze that someone then closed by hand would look the same")
     elif stuck >= HUNG_ROWS and closing(rows, stuck):
