@@ -527,6 +527,31 @@ local function run(cmd)
         end
         L("watchshop: " .. n .. " method(s) watched; talk to the Duke now")
         write_back(cmd, n .. " watched")
+    elseif cmd:sub(1, 8) == "hookall " then
+        -- "hookall <type>" : log every method of that type when it runs (once per method per 2 s), skipping the per-frame ones
+        local tname = cmd:sub(9)
+        local td = sdk.find_type_definition(tname)
+        local n = 0
+        local skip = { onLateUpdate = true, updateInput = true, lateUpdate = true, update = true, onUpdate = true }
+        for _, m in ipairs(td and td:get_methods() or {}) do
+            local mname = m:get_name()
+            if not skip[mname] and not mname:match("^get_") and not mname:match("^set_") and not mname:match("^%.") then
+                local label = tname .. "." .. mname
+                if pcall(sdk.hook, m, function(args)
+                    local now = os.clock()
+                    if (hook_last[label] or 0) + 2 < now then hook_last[label] = now; L("RAN " .. label) end
+                end, function(r) return r end) then n = n + 1 end
+            end
+        end
+        L("hookall " .. tname .. ": " .. n .. " method(s)")
+        write_back(cmd, n .. " hooked")
+    elseif cmd:sub(1, 9) == "treelive " then
+        -- "treelive <type>" : the view tree of that screen's live driver (kept by watchshop), texts included
+        local d = live_drivers[cmd:sub(10)]
+        local go = d and safe(function() return d:call("get_GameObject") end)
+        if go == nil then L("no live driver/object for " .. cmd:sub(10)); write_back(cmd, "none"); return end
+        dump_game_object(go, tostring(safe(function() return go:call("get_Name") end) or "?"))
+        write_back(cmd, "see the log")
     elseif cmd:sub(1, 8) == "dumpdrv " then
         -- "dumpdrv <type>" : the live driver of that screen (kept by watchshop): its fields, and the first rows of its lists
         local d = live_drivers[cmd:sub(9)]

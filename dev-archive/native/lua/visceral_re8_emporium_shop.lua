@@ -50,7 +50,8 @@ local KITCHEN_TITLE = "Every Setting"
 local KITCHEN_MOTTO = "REFramework's full menu"
 local MENU_KEY_SLOT = 185          -- src/bridge.h S_MENU_KEY: the plugin presses REFramework's menu key (menukey.cpp)
 local MENU_KEY_AFTER_FRAMES = 45
-local SWALLOW_S = 0.6              -- one B reaches the shop twice (its order, then the screen); the second is swallowed   -- after the shop has finished closing, so the menu opens over the game
+local SWALLOW_S = 0.6
+local DUKE_STOCK = 1481905281      -- the Duke's stock at the village (assortmentHash read at a real visit, 2026-11-04)              -- one B reaches the shop twice (its order, then the screen); the second is swallowed   -- after the shop has finished closing, so the menu opens over the game
 local EMPTY_TEXT = "Nothing here yet"
 
 local function L(s) log.info(TAG .. " " .. tostring(s)) end
@@ -401,6 +402,18 @@ do
             end
             L(string.format("pick: mode %s (%s), list says %s -> card %d", tostring(addr), which, tostring(selected_index()), idx))
             if ui.mode_card ~= nil then idx = ui.mode_card end
+            if ui.real_screens and ui.level == "tabs" and v >= 1 and v <= 3 then
+                local this = safe(function() return sdk.to_managed_object(args[2]) end)
+                local ah = this and safe(function() return this:get_field("<assortmentHash>k__BackingField") end)
+                if this and (ah == nil or ah == 0) then
+                    pcall(function() this:set_field("<assortmentHash>k__BackingField", DUKE_STOCK) end)
+                end
+                L(string.format("real screen %d passed through (assortment %s)", v, tostring(ah)))
+                ui.in_real = v
+                ui.tab = v            -- the card IS the group: 1 Comfort, 2 Graphics, 3 Settings
+                ui.level = "real"
+                return
+            end
             ui.want_pick = idx
             skipping = true
             return sdk.PreHookResult.SKIP_ORIGINAL
@@ -480,6 +493,140 @@ do
             return retval
         end)
     end
+end
+
+-- ===== THE SUPPLIES SCREEN AS THE ON / OFF SCREEN (Tefa 2026-11-04: "in the shop screen can have a red lint in the corner
+-- for off, green for on and a description on the right hand side for a description of what the setting does") =====
+-- A group card opens the game's own Buy screen (the Duke's stock, so it builds its grid); its unit list is cut to the
+-- group's on/off settings, each tile then shows one: "On" / "Off" where the price was, the red Sold Out banner reading
+-- "Off" when off, the corner marker red or green; the name, the group and the help line go in the description panel.
+-- A on a tile flips the setting instead of buying (the buy steps are skipped). [hypothesis] until seen.
+local GREEN, RED = 0xFF40C040, 0xFF3030D0          -- via.Color rgba as 0xAABBGGRR
+local buy_drv = nil
+local function checks_for_group()
+    local out = {}
+    for _, e in ipairs(entries_for(TABS[ui.tab].tab)) do
+        if e.kind == "check" or e.kind == "button" then out[#out + 1] = e end
+    end
+    return out
+end
+local function control_named(root, name)
+    local found = nil
+    local function visit(c, d)
+        if c == nil or d > 12 or found then return end
+        if safe(function() return c:call("get_Name") end) == name then found = c return end
+        local ch = safe(function() return c:call("get_Child") end)
+        while ch ~= nil and not found do visit(ch, d + 1); ch = safe(function() return ch:call("get_Next") end) end
+    end
+    visit(root, 0)
+    return found
+end
+local function set_text(c, t) if c then pcall(function() c:call("set_Message", t) end) end end
+local function set_visible(c, v) if c then pcall(function() c:call("set_Visible", v) end) end end
+local function set_color(c, rgba)
+    if c == nil then return end
+    local col = safe(function()
+        local vt = ValueType.new(sdk.find_type_definition("via.Color"))
+        vt:set_field("rgba", rgba)
+        return vt
+    end)
+    if col then pcall(function() c:call("set_Color", col) end) end
+end
+local function buy_grid()
+    local go = buy_drv and safe(function() return buy_drv:call("get_GameObject") end)
+    local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
+    local view = gui and safe(function() return gui:call("get_View") end)
+    return view and control_named(view, "sg_list")
+end
+local function render_buy()
+    if not (ui.open and ui.level == "real" and buy_drv) then return end
+    local list = checks_for_group()
+    local grid = buy_grid()
+    if grid == nil then return end
+    for k = 1, 16 do
+        local tile = control_named(grid, "item" .. k)
+        local e = list[k]
+        if tile and e then
+            local on = value_text(e) == "On"
+            local price = control_named(tile, "c_price")
+            if price then
+                set_text(control_named(price, "m_num"), e.kind == "button" and "Use" or (on and "On" or "Off"))
+                set_visible(control_named(price, "icon_parts"), false)
+                set_visible(control_named(price, "t_bg_soldout"), e.kind ~= "button" and not on)
+                local so = control_named(price, "m_soldout")
+                set_visible(so, e.kind ~= "button" and not on)
+                set_text(so, "Off")
+            end
+            local new = control_named(tile, "c_new")
+            if new then
+                set_visible(new, true)
+                set_visible(control_named(new, "c_type0"), true)
+                set_visible(control_named(new, "c_type1"), false)
+                set_color(control_named(new, "Texture0"), on and GREEN or RED)
+            end
+        end
+    end
+    -- the description panel: the lit tile's name, the group, the help line
+    local idx = (tonumber(safe(function() return buy_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
+    local e = list[idx]
+    if e then
+        set_text(safe(function() return buy_drv:get_field("<itemNameText>k__BackingField") end), e.label or "?")
+        set_text(safe(function() return buy_drv:get_field("<itemCategoryText>k__BackingField") end), TABS[ui.tab].name)
+        set_text(safe(function() return buy_drv:get_field("<itemDescriptionText>k__BackingField") end),
+                 (e.help and e.help ~= "") and e.help or ("Now: " .. value_text(e) .. ". Press to change."))
+        set_text(safe(function() return buy_drv:get_field("<stockText>k__BackingField") end), value_text(e))
+    end
+end
+do
+    local bt = sdk.find_type_definition("app.GUIShopBuy")
+    local function hook(name, pre, post)
+        for _, m in ipairs(bt and bt:get_methods() or {}) do
+            if m:get_name() == name then pcall(sdk.hook, m, pre, post or function(r) return r end) end
+        end
+    end
+    -- the unit list cut to our settings (after the game built it from the Duke's stock)
+    hook("collectBuyUnits", function(args)
+        if ui.open and ui.level == "real" then buy_drv = safe(function() return sdk.to_managed_object(args[2]) end) end
+    end, function(retval)
+        if ui.open and ui.level == "real" and buy_drv then
+            local units = safe(function() return buy_drv:get_field("<buyUnits>k__BackingField") end)
+            local n = units and safe(function() return units:call("get_Count") end) or 0
+            local want = math.max(1, #checks_for_group())
+            if n > want then pcall(function() units:call("RemoveRange", want, n - want) end) end
+        end
+        return retval
+    end)
+    for _, name in ipairs({ "setupScrollGrid", "scrollGridSelectionChanged", "onChangeScrollGrid" }) do
+        hook(name, nil, function(retval)
+            if ui.open and ui.level == "real" then ui.render_buy_in = 2 end
+            return retval
+        end)
+    end
+    -- A on a tile: our flip, never a purchase
+    -- A on a tile first asks canBuyItem (needUnitSelectDialog, isSoldOutByUnit run with it, 2026-11-04 20:15); our tiles
+    -- have no real item behind them, so the game says no and stops there: the flip happens in that question instead
+    for _, name in ipairs({ "canBuyItem", "buyItem", "decideBuyItem", "createBuyDecideDialog", "createBuyUnitDecideDialog" }) do
+        hook(name, function(args)
+            if not (ui.open and ui.level == "real") then return end
+            local idx = (tonumber(safe(function() return buy_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
+            local e = checks_for_group()[idx]
+            if e and os.clock() > (ui.flip_quiet_until or 0) then
+                ui.flip_quiet_until = os.clock() + 0.3
+                if e.kind == "check" and e.set then
+                    local okg, cur = pcall(e.get)
+                    pcall(e.set, not (okg and cur == true))
+                elseif e.kind == "button" and e.press then pcall(e.press) end
+                L("flipped on the Supplies screen: " .. tostring(e.label) .. " -> " .. value_text(e))
+                ui.render_buy_in = 1
+            end
+            return sdk.PreHookResult.SKIP_ORIGINAL
+        end)
+    end
+    -- leaving the Buy screen (B): back to our groups
+    hook("onHide", nil, function(retval)
+        if ui.open and ui.level == "real" then ui.level, buy_drv = "tabs", nil; ui.render_in = 6 end
+        return retval
+    end)
 end
 
 -- ===== the X + A hold (headset) =====
@@ -569,6 +716,13 @@ re.on_frame(function()
         local ok, err = pcall(back)
         if not ok then L("back failed: " .. tostring(err)) end
     end
+    if ui.render_buy_in and ui.render_buy_in > 0 then
+        ui.render_buy_in = ui.render_buy_in - 1
+        if ui.render_buy_in == 0 then
+            local ok, err = pcall(render_buy)
+            if not ok then L("render_buy failed: " .. tostring(err)) end
+        end
+    end
     if ui.open and ui.render_in > 0 then
         ui.render_in = ui.render_in - 1
         if ui.render_in == 0 then pcall(render) end
@@ -627,6 +781,8 @@ re.on_frame(function()
                 end
                 ui.open, ui.menu, ui.top, ui.closing, ui.game_closing = false, nil, nil, false, false
                 L("kill: shop off, exclusive now " .. (m and exclusive_state(m) or "?"))
+            elseif line == "realbuy" then ui.real_screens = true; L("experiment: the cards open the game's real screens")
+            elseif line == "ownpages" then ui.real_screens = false; L("the cards open our own pages again")
             elseif line == "open" then pcall(open) elseif line == "close" then pcall(close)
             elseif line == "back" then pcall(back) elseif line:sub(1, 5) == "pick " then pcall(pick, tonumber(line:sub(6)) or 0) end
         end
