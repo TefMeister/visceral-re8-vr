@@ -128,3 +128,33 @@ next session.
   afterwards `[verified-live 2026-11-04, n=1]`. So the Emporium's Back is `suicideGUIShop()` (plus the wall's own handle).
 - A GUIRequest cannot be made from Lua (`sdk.create_instance("app.GUIRequest")` gives nil), so the driver's
   `show(Parameter)` / `suicideGUIShop()` pair is the whole API we need.
+
+## Tefa's design for it (2026-11-04 19:00, with three screenshots of the real shop's list screens)
+
+Verbatim: *"what i mean is using these screens, they are the screens that open up when choosing one of the 3 tablets in the
+emporium. all have things we can use, for instance in the shop screen can have a red lint in the corner for off, green for
+on and a description on the right hand side for a description of what the setting does - crosshair on and off for example,
+the one for upgrades, we can use these for sliders like smoothing strenght, reloading style - immersive, semi immersive or
+automatic - , recoil strength and so on and the one for selling stuff can be graphics options like supersampling, dlss, eye
+fix for single frame multipass, adaptive lighting if we can make that toggleable without breaking the scope colours and
+brightness and so on. the tree big tablets are for the setting group - we still have to name them but for now comfort,
+graphics and settings will do, and the Visceral emporium needs to be called VR Options Emporium. we also need to come up
+with custom images for all of these"*
+
+So:
+- **Header: "VR Options Emporium".** The three cards stay the setting GROUPS (Comfort / Graphics / Settings for now; names
+  to be decided).
+- **A card opens the game's own LIST screen behind it, filled with our settings, not one setting per card** (the cards-as-
+  settings pages built today are a stop-gap):
+  - **The Buy screen (the item grid, "Supplies")** = ON / OFF switches: each tile a setting, a **red tint in the corner =
+    off, green = on**, the description on the right-hand side (crosshair on/off, for example).
+  - **The Gunsmithy (upgrade list with level bars)** = SLIDERS and STEPPED CHOICES: smoothing strength, reloading style
+    (immersive / semi-immersive / automatic), recoil strength, and so on; the level bars show the value.
+  - **The Duke's Purse (the sell table: name / on hand / price / number)** = GRAPHICS options: supersampling, DLSS, the eye
+    fix for single frame multipass, adaptive lighting (only if it can be switched without breaking the scope's colour and
+    brightness), and so on.
+- **Custom pictures for all of it** (the three cards, every tile and list row): to be designed together.
+
+What it takes: those three screens are filled by the game's real shop flow (ShopBuy needs buyUnits; it crashed with none).
+So the next step is to learn how the game fills them: watch one real Duke visit with the hooks on (openMenu passing through),
+read what each screen is given (assortment, units, specs), then feed our own rows the same way.
