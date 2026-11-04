@@ -343,6 +343,9 @@ local function write_state(b)
             local x, y, zz, r, on = live(b, z.i)
             local e = { key = zone_key(z, b), on = (on or 0) > 0.5, r_cm = (r or 0) * 100 }
             if e.on and (hon or 0) > 0.5 then e.hand_cm = math.sqrt((hx - x) ^ 2 + (hy - y) ^ 2 + (hz - zz) ^ 2) * 100 end
+            -- 2026-11-04 (Tefa: "tweak the activation zones to be big enough just to not interfere with each other"): the centre
+            -- in the world, so tools/zone_sizes.py can measure how far apart the zones are (distances do not depend on the frame)
+            if e.on and x then e.x, e.y, e.z = x, y, zz end
             st.zones[#st.zones + 1] = e
         end
     end

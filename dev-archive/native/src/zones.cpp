@@ -134,6 +134,11 @@ void frame() {
     if (++n % ZONE_FILE_CHECK_FRAMES == 0 && file_changed()) load();
 }
 
+Vec3 file_offset(Key k, const char* part) {
+    const Zone b = builtin(k, part), z = get(k, part);
+    return z.off - b.off;
+}
+
 Zone get(Key k, const char* part) {
     Zone z = builtin(k, part);
     const Vec3 base = z.off;   // 2026-10-27: a part with a built-in place (HANDLE / DRUM / INSERT): the file's offset moves it from there

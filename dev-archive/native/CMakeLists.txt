@@ -45,6 +45,7 @@ add_library(visceral_re8_native SHARED
     src/perfprobe.cpp
     src/menukey.cpp
     src/shellclip.cpp
+    src/dockreport.cpp
     src/shells.cpp)
 target_include_directories(visceral_re8_native PRIVATE include src)
 target_link_libraries(visceral_re8_native PRIVATE winmm dxgi psapi)   # winmm: the bolt click (rack.cpp); dxgi + psapi: perfprobe.cpp

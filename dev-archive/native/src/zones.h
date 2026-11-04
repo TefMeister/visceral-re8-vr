@@ -24,7 +24,9 @@ enum PartKind : int { PK_SLIDE = 1, PK_PUMP = 2, PK_BOLT = 3 };
 struct Zone { Vec3 off{0, 0, 0}; float r = 0.0f; };
 
 void frame();                                              // UpdateBehavior: re-read zones.json when the menu saved it
-Zone get(Key k, const char* part = nullptr);               // the zone in force for the gun in hand ("bolt" / "slide" / "pump" for PART)
+Zone get(Key k, const char* part = nullptr);
+// 2026-11-04: how far zones.json moved the zone from its built-in place (gun axes, m); dockreport.cpp measures from the part itself
+Vec3 file_offset(Key k, const char* part = nullptr);               // the zone in force for the gun in hand ("bolt" / "slide" / "pump" for PART)
 float radius(Key k, const char* part = nullptr);
 // the zone's centre in the world: its anchor (a joint's world position) moved by the offset in the gun's own axes
 Vec3 center(Key k, const Vec3& anchor, const char* part = nullptr);
