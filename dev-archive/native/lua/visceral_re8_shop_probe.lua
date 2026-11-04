@@ -26,6 +26,7 @@ local naming = false
 local want_dump = false
 local seen, dumped = {}, {}
 local shop_handle = nil            -- what createGUIShopBuy() returned at the last "open"
+local hooks_on, block_decide, hook_last = false, false, {}
 
 -- the RE Engine name hash (murmur3_32 of the UTF-16LE name, seed 0xFFFFFFFF; the same as the item and sound ids,
 -- KNOWN.md 2026-10-24). createGUIShopBuy() makes the GUI whose alias hash is hash("ShopBuy") = 3474722425
@@ -432,6 +433,56 @@ local function run(cmd)
         local ok, r = pcall(function() return driver:call(method) end)
         L("driver." .. method .. "() -> ok=" .. tostring(ok) .. " result=" .. tostring(r))
         write_back(cmd, "ok=" .. tostring(ok))
+    elseif cmd == "hooks" then
+        -- log every call of the shop screens' own methods (once each 0.25 s per method), to see what keys drive;
+        -- with block_decide on, GUIShopMenu.openMenu is skipped (so F / A on a card opens nothing)
+        if hooks_on then write_back(cmd, "already on"); return end
+        hooks_on = true
+        local plan = {
+            ["app.GUIShopMenu"] = { "openMenu", "simpleListSelectionChanged", "mainStateFinished", "onCloseDialog",
+                                    "onHide", "onShow", "onFinishedHide", "applyToGuide", "setupSimpleList" },
+            ["app.GUIShop"] = { "openShop", "onHide", "onShow", "onFinishedHide" },
+            ["app.GUIDriver"] = { "suicide", "hide", "show", "enterExclusive", "leaveExclusive", "requestDestroy" },
+            ["app.GUIManager"] = { "suicideGUIShop", "leaveShopEvent", "enterShopEvent", "enterExclusive", "leaveExclusive" },
+        }
+        local n = 0
+        for tname, methods in pairs(plan) do
+            local td = sdk.find_type_definition(tname)
+            for _, mname in ipairs(methods) do
+                for _, m in ipairs(td and td:get_methods() or {}) do
+                    if m:get_name() == mname then
+                        local label = tname .. "." .. mname
+                        local ok = pcall(sdk.hook, m, function(args)
+                            local now = os.clock()
+                            if (hook_last[label] or 0) + 0.25 < now then
+                                hook_last[label] = now
+                                local this = safe(function() return sdk.to_managed_object(args[2]) end)
+                                L("CALL " .. label .. (this and (" on " .. type_name(this)) or ""))
+                            end
+                            if block_decide and label == "app.GUIShopMenu.openMenu" then
+                                L("  openMenu skipped (block_decide)")
+                                return sdk.PreHookResult.SKIP_ORIGINAL
+                            end
+                        end, function(retval) return retval end)
+                        if ok then n = n + 1 end
+                    end
+                end
+            end
+        end
+        L("hooks: " .. n .. " method(s) hooked")
+        write_back(cmd, n .. " hooked")
+    elseif cmd == "block on" or cmd == "block off" then
+        block_decide = cmd == "block on"
+        L("block_decide = " .. tostring(block_decide))
+        write_back(cmd, "block_decide=" .. tostring(block_decide))
+    elseif cmd == "selected" then
+        -- which card the shop menu has selected now
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        local list = driver and safe(function() return driver:get_field("<simpleList>k__BackingField") end)
+        local sel = list and (safe(function() return list:call("get_SelectedIndex") end) or safe(function() return list:call("get_selectedIndex") end))
+        L("selected: simpleList=" .. tostring(list) .. " index=" .. tostring(sel) .. " lastIndex="
+          .. tostring(driver and safe(function() return driver:get_field("<lastIndex>k__BackingField") end)))
+        write_back(cmd, "index=" .. tostring(sel))
     elseif cmd == "handles" then
         -- what the shop handle points at: the GUIHandle's own methods, and the object it wraps
         list_methods("app.GUIHandle")
