@@ -55,6 +55,9 @@ void frame() {
     float aim = 0.0f;
     if (play && free_hand && !g_poser) {
         if (reload::in_pouch()) { aim = 1.0f; g_why = "pouch"; }
+        // 2026-11-05 (Tefa, in the headset: "hand doesn't widen at the mag activation area ... but LG works there"): the seated
+        // magazine's zone opens the hand too (the same real-hand test the LG grab uses, reload.cpp hand_near_mag)
+        else if (reload::hand_near_mag()) { aim = 1.0f; g_why = "magazine"; }
         else if (s.gun != nullptr) { aim = rack::left_gun_closeness(); if (aim > 0.0f) g_why = "gun"; }
     }
     const bool want = aim > 0.001f;

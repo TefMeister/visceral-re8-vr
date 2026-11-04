@@ -54,7 +54,10 @@ void dock_frame(bool lt_pressed) {
     }
     ++g_done;
     bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
-    g_next_t = now + SHELLS_STEP_S;   // the next waits for the finger movement of this one
+    // 2026-11-05 (Tefa, in the headset: "i'm supposed to insert one shell at a time by pressing LT when docked, then lt for the
+    // next one"): ONE shell per LT press; the next press puts the next one in (was: one press put every shell in the hand in)
+    g_running = false;
+    LOGI("%s shells: one in by this LT press, %d left in the hand (LT again for the next), loaded %d", TAG, reload::rounds_in_hand(), player::loaded());
 }
 
 void undock() {

@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "bridge.h"
 #include "common.h"
 #include "joints.h"
 #include "player.h"
@@ -143,6 +144,9 @@ bool playing_left() { for (const auto& p : g_plays) if (p.clip->left) return tru
 bool playing_right() { for (const auto& p : g_plays) if (p.clip->right) return true; return false; }
 
 void frame() {
+    // 2026-11-05 (Tefa: "the fingers don't move at all, not even a little"): Hand Poser held the docked hand's saved pose over the
+    // clip; it now reads this slot and lets go of that hand while a clip plays (hand-poser-vr hand_poser.lua)
+    bridge::put(bridge::S_CLIP_PLAYING, (playing_left() ? 1.0f : 0.0f) + (playing_right() ? 2.0f : 0.0f));
     static float last_check = -1.0f;
     const float t = now_s();
     if (t - last_check < 0.25f) return;

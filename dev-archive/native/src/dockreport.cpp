@@ -54,8 +54,9 @@ int first_slot(int k) { return k < zones::HANDLE ? bridge::S_ZONES + k * 5 : bri
 bool zone_center(int k, Vec3& c) {
     const int s = k == zones::SLIDE_LEFT ? (int)bridge::S_ZONE_SLIDE_LEFT : first_slot(k);
     c = {bridge::view((bridge::Slot)s), bridge::view((bridge::Slot)(s + 1)), bridge::view((bridge::Slot)(s + 2))};
-    const float r = bridge::view((bridge::Slot)(s + 3));
-    return r > 0.0f && std::fabs(c.x) + std::fabs(c.y) + std::fabs(c.z) > 1e-4f && std::fabs(c.x) < 1e6f;
+    const float r = bridge::view((bridge::Slot)(s + 3)), on = bridge::view((bridge::Slot)(s + 4));
+    // 2026-11-05: a zone not published this gun (the slide-left sphere on a pump gun) keeps old numbers in its slots: skip it
+    return r > 0.0f && on > 0.5f && std::fabs(c.x) + std::fabs(c.y) + std::fabs(c.z) > 1e-4f && std::fabs(c.x) < 1e6f;
 }
 
 // yaw (about the gun's up), pitch (about its right), roll (about its forward), degrees, of the hand's turn in the gun's frame
