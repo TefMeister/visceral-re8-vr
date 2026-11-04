@@ -14,6 +14,9 @@ def stick(x, y, hold=0.4):
     I.write(I.Input().mode(poses="pass", buttons="set").hand(S.HAND_LEFT, stick=(x, y))); time.sleep(hold)
     I.write(I.Input().mode(poses="pass", buttons="set").hand(S.HAND_LEFT, stick=(0, 0)))
     print(time.strftime("%H:%M:%S"), "stick", x, y, flush=True)
+# 2026-11-04 22:2x: the VR Bench layer must be ON before the game starts (a close-out switches it off; without it the
+# virtual buttons reach nothing and the game sits at the title screen)
+subprocess.run([sys.executable, os.path.join(VB, "vrbench.py"), "start", os.path.join(G, "re8.exe")], check=False)
 env = dict(os.environ, XR_RUNTIME_JSON=SIM, SteamAppId="1196590")
 p = subprocess.Popen([os.path.join(G, "re8.exe")], cwd=G, env=env)
 print(time.strftime("%H:%M:%S"), "launched pid", p.pid, flush=True)
