@@ -399,6 +399,39 @@ local function run(cmd)
         end
         visit(view, 0, false)
         write_back(cmd, hits .. " set")
+    elseif cmd == "handles2" or cmd:sub(1, 5) == "pick " then
+        -- every handle the manager holds (guiHandles): index, alias, driver type, object name; "pick <n>" makes one current
+        local gm = sdk.get_managed_singleton("app.GUIManager")
+        local list = gm and safe(function() return gm:get_field("<guiHandles>k__BackingField") end)
+        local items = list and safe(function() return list:get_field("_items") end)
+        local n = list and safe(function() return list:get_field("_size") end) or 0
+        if items == nil then L("no guiHandles"); write_back(cmd, "no list"); return end
+        local want = tonumber(cmd:sub(6) or "")
+        for i = 0, n - 1 do
+            local h = safe(function() return items:get_element(i) end)
+            if h ~= nil then
+                local d = safe(function() return h:get_field("<driver>k__BackingField") end)
+                local go = d and safe(function() return d:call("get_GameObject") end)
+                local nm = go and safe(function() return go:call("get_Name") end) or "?"
+                if want == nil then
+                    L(string.format("  [%d] alias=%s driver=%s object='%s' valid=%s", i,
+                                    tostring(safe(function() return h:get_field("<aliasHash>k__BackingField") end)),
+                                    d and type_name(d) or "nil", tostring(nm), tostring(safe(function() return h:call("isValid") end))))
+                elseif want == i then
+                    shop_handle = h
+                    L(string.format("picked [%d] %s '%s'", i, d and type_name(d) or "nil", tostring(nm)))
+                end
+            end
+        end
+        write_back(cmd, want and ("picked " .. want) or (n .. " handle(s) listed"))
+    elseif cmd:sub(1, 6) == "dcall " then
+        -- "dcall <method>" : a 0-argument method on the current handle's driver (requestDestroy, onFinishedHide, ...)
+        local method = cmd:sub(7)
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        if driver == nil then L("no handle"); write_back(cmd, "no handle"); return end
+        local ok, r = pcall(function() return driver:call(method) end)
+        L("driver." .. method .. "() -> ok=" .. tostring(ok) .. " result=" .. tostring(r))
+        write_back(cmd, "ok=" .. tostring(ok))
     elseif cmd == "handles" then
         -- what the shop handle points at: the GUIHandle's own methods, and the object it wraps
         list_methods("app.GUIHandle")

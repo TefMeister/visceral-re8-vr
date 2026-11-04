@@ -70,7 +70,7 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
   ShopBuy). ⭐ `app.GUIDriver.show(app.GUIRequest.Parameter)` with a fresh empty Parameter SHOWS a 2D screen (ShopMenu: the three cards, over
   the village, taking the controls; the call throws after doing its work) `[verified-live 2026-11-04, n=1]`; drawSuspend off alone
   draws nothing; onShow(true) throws on ShopMenu and crashed on ShopBuy. A driver's order words (ExecuteDict keys = name hashes):
-  Suicide, Show, Hide, SetSegment, SetState, SetAttachTarget, EnterExclusive, LeaveExclusive, + one unknown (4213754707).
+  Suicide, Show, Hide, SetSegment, SetState, SetAttachTarget, EnterExclusive, LeaveExclusive, + one unknown (4213754707). `suicideGUIShop()` takes a shown ShopMenu off cleanly; `sdk.create_instance("app.GUIRequest")` is nil from Lua.
 - ShopBg shows in gameplay with `set_drawSuspend(false)` + `onShow(true)` on its driver `[verified-live 2026-11-04,
   n=1]`. ⛔ The same on a ShopBuy with no data crashes the game `[verified-live 2026-11-04, n=1]`.
 - GUI game objects are named "GUI" + alias (GUIShopBuy, GUIShopBg, GUIMouseCursor); `re.on_pre_gui_draw_element`

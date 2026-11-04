@@ -120,3 +120,11 @@ next session.
    enterExclusive on the ShopMenu driver, LeaveExclusive on close).
 4. The headset look: the cards are the game's own 2D GUI, which REFramework already projects into the headset the way
    it does the inventory `[reported]`; one VR run confirms.
+
+### Closing it (18:20)
+
+- Keyboard Esc on the cards opens the game's PAUSE menu on top (GUIPause); Esc again closes the pause; the cards stay.
+- `app.GUIManager.suicideGUIShop()` takes the cards (and the guide line) off cleanly: only the mouse cursor is drawn
+  afterwards `[verified-live 2026-11-04, n=1]`. So the Emporium's Back is `suicideGUIShop()` (plus the wall's own handle).
+- A GUIRequest cannot be made from Lua (`sdk.create_instance("app.GUIRequest")` gives nil), so the driver's
+  `show(Parameter)` / `suicideGUIShop()` pair is the whole API we need.
