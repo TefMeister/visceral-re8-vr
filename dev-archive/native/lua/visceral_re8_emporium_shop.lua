@@ -546,8 +546,9 @@ local function render_buy()
     local list = checks_for_group()
     local grid = buy_grid()
     if grid == nil then return end
+    -- the grid's tiles: the first is "si_list", then item1 .. item15 (the live tree, 2026-11-04)
     for k = 1, 16 do
-        local tile = control_named(grid, "item" .. k)
+        local tile = control_named(grid, k == 1 and "si_list" or ("item" .. (k - 1)))
         local e = list[k]
         if tile and e then
             local on = value_text(e) == "On"
@@ -568,6 +569,14 @@ local function render_buy()
                 set_color(control_named(new, "Texture0"), on and GREEN or RED)
             end
         end
+    end
+    -- the header: our group's name and motto, not "Supplies"
+    local go = safe(function() return buy_drv:call("get_GameObject") end)
+    local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
+    local view = gui and safe(function() return gui:call("get_View") end)
+    if view then
+        set_texts(view, "header", "m_header", TABS[ui.tab].name)
+        set_texts(view, "header", "m_header_desc", TABS[ui.tab].motto)
     end
     -- the description panel: the lit tile's name, the group, the help line
     local idx = (tonumber(safe(function() return buy_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1

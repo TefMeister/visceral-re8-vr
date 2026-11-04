@@ -199,3 +199,21 @@ read what each screen is given (assortment, units, specs), then feed our own row
    = the setting's name and help; A on a tile flips it instead of buying (hook `buyItem` / `decideBuyItem`).
 2. Gunsmithy as the slider screen (upgrade rows and level bars), Duke's Purse as the graphics table.
 3. Custom pictures (together), the group names, then one headset look.
+
+## 20:05-20:25: Supplies is the ON/OFF screen; "no merchant" ends the second freeze
+
+- A group card opens the game's real Buy screen (openMenu passed through; ShopBuy's assortmentHash = the village Duke's stock
+  1481905281). After `collectBuyUnits` the list is cut to the group's on/off settings; after each `setupScrollGrid` /
+  selection change the tiles are written: the price text = On / Off, the red Sold Out banner (text "Off") shown when off,
+  the corner marker (c_new > Texture0) tinted green / red; the header = the group's name and motto; the description panel =
+  the setting's name, the group, its help line. The grid's tiles are `si_list` (the first), then `item1` .. `item15`.
+- A on a tile first asks `canBuyItem` (with needUnitSelectDialog, isSoldOutByUnit); our tiles have no item, so the game
+  stopped there. The flip is done in that question (skipped). Moving across tiles flips nothing `[verified-live, n=1]`.
+- ⛔ A trip into ANY real sub-screen froze the player after closing, even with none of our changes (`realraw` switch,
+  n=2); `openShop(..., existMerchant = true, ...)` waits for a merchant's goodbye that never comes. **existMerchant = false
+  fixes it**: walking after Supplies in/out, flips and the Graphics card: picture change 22.0 and 25.9 `[verified-live
+  2026-11-04, n=2]`.
+- Seen: "Comfort / Easy on the stomach!", five tiles (Camera shake while walking Off, Other camera shakes Off, Roomscale
+  movement On, two more On), "Now: Off. Press to change." Rough edges left: the third tile's "On" text did not show; the
+  game's own item pictures stay on the tiles (our pictures to come); the unused tiles stay as empty slots.
+- Graphics and Settings still open the game's own Gunsmithy and Duke's Purse unchanged (they are next).
