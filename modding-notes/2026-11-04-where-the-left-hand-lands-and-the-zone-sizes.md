@@ -49,3 +49,37 @@ W870 pump 14 → 7.1, port 16 → 8.1) were put back to Tefa's sizes until the m
 2. A side view for the hold check: a camera that does not move the body (or Tefa's eyes); then dock_poses.json from the
    numbers.
 3. The other twelve guns (not in this save): give them on the modding save and run the same.
+
+## Later the same night (2026-11-04 23:15 to 11-05 00:30): "real hand", the F2's magazine hold, the headset run
+
+- Tefa: *"real hand please"*. Every grab now measures the controller: the magazine (reload.cpp grab_frame, hand_near_mag)
+  and the rifle's bolt (rack.cpp grab_point) no longer measure the drawn hand. On the simulator the F2's magazine took at
+  0.4 cm `[verified-live 2026-11-04, simulator, n=1]`. Then zone_sizes.py's sizes went in (LEMI magazine 5.9 / slide 7.0 /
+  slide-left 8.8, W870 pump 7.1 / port 8.1, M1897 pump 13.3 / port 9.4, F2 bolt 14 / grip 12.8); the LEMI / W870 shrinks
+  are not yet checked by a grab.
+- Tefa: the F2's LG on the magazine landed the hand *"on that grip handle"* (the right hand's trigger handle) instead, but
+  after taking the magazine out and putting it back, *"it lands on the right spot then"*. ⚠️ The magazine's anchor is NOT
+  on the magazine (Tefa saw "0 cm from the magazine" by my yardstick as the hand by the trigger handle), so the yardstick
+  for a magazine is the re-insert hold, not the anchor. tools/sim/mag_match.py: press (A), out, in with LG held (B), shift
+  dock spot 4 by B - A, press again. F2: A 13.9 cm, B 21.9, after the shift both 21.6 `[verified-live 2026-11-04,
+  simulator]`; in the headset Tefa: "hand is closest to the mag" `[verified-live 2026-11-05, headset, n=1]`. WCX / Dragoon /
+  SYG-12 NOT done: the gun went invisible while the test held / pulled the magazine (Tefa watching), became visible when
+  the virtual grip and trigger were let go. Suspect: the magazine-hiding (hide_mag_part / setPartsEnable with magazine part
+  -1) hides more than the magazine on those guns `[hypothesis]`.
+- Headset run 00:15-00:25 (Tefa), what was said: GOOD: the F2's magazine hold near the magazine. FAULTS: (1) at the shell
+  port with shells in hand the fingers did not move at all: Hand Poser (its "rounds from the pouch" pose) writes the held
+  fingers at LateUpdateBehavior and PrepareRendering over the clip; fixed: the plugin says in bridge slot 186 which hand a
+  clip plays on and hand_poser.lua lets go of that hand meanwhile (the clip itself turns the index 42 deg, the thumb 30, so
+  it is visible) `[compile-verified]`; (2) one LT put both shells in: now one shell per LT press (shells.cpp); (3) the hand
+  did not open at the magazine zone: fingers.cpp now opens in it too; (4) "a flickering rifle in my left hand while i'm
+  holding the pistol ... after i swapped from a rifle to handgun ... the rifle was turned backwards riding my left hand",
+  constant for a while: NOT FOUND in the log. Leads: right after the swap (00:16:07) the grip script logs "the ANIMATION
+  has moved the socket 155-162 deg under the held grip" while LG holds the pistol two-handed: the game's own put-away of
+  the rifle may be playing on the left hand (Village puts the old gun away with the left hand) and our hand placement and
+  the game's alternate frame by frame `[hypothesis]`; (5) the rifle's first shot came late after RT: not looked at yet.
+  The run's log is kept (logs/visceral-re8-vr/re2_framework_log-2026-11-05-0015-headset-flicker.txt in the work folder).
+- ⚠️ The BeG0nE rider died again at 22:46 on the same locked Ghost Hand file, so the headset run was NOT collected (no
+  report, no recording). Restarted 00:2x. The fix waits for the Lanes test to finish (lanes-next is frozen).
+- Two Hand Poser pose files are empty (the M1897 "@ slide from the left", the F2 "@ right hand on the bolt"): JSON errors
+  in the log; the shell port is spot 8, the same number as "slide from the left", so Hand Poser names the shell-port pose
+  "slide from the left" (pairs.cpp DOCKS shell port 8.0f) `[inferred-static]`.
