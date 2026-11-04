@@ -257,6 +257,13 @@ local function run(cmd)
         L("show: set_drawSuspend(false) ok=" .. tostring(a) .. "; onShow(true) ok=" .. tostring(b) .. " " .. tostring(err or ""))
         L("drawSuspend now " .. tostring(safe(function() return driver:call("get_drawSuspend") end)))
         write_back(cmd, "drawSuspend=" .. tostring(safe(function() return driver:call("get_drawSuspend") end)))
+    elseif cmd == "unsuspend" then
+        -- drawSuspend off only (no onShow: that crashed a dataless ShopBuy, 2026-11-04 17:34)
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        if driver == nil then L("no handle"); write_back(cmd, "no handle"); return end
+        local a = pcall(function() driver:call("set_drawSuspend", false) end)
+        L("unsuspend: ok=" .. tostring(a) .. " drawSuspend now " .. tostring(safe(function() return driver:call("get_drawSuspend") end)))
+        write_back(cmd, "drawSuspend=" .. tostring(safe(function() return driver:call("get_drawSuspend") end)))
     elseif cmd == "dumpnow" then
         local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
         local go = driver and safe(function() return driver:call("get_GameObject") end)
@@ -289,6 +296,17 @@ local function run(cmd)
         end
         visit(view, 0)
         write_back(cmd, hits .. " text control(s) set")
+    elseif cmd == "aliasscan" then
+        -- many likely screen names, ten a frame; only the ones that give a handle are logged (and left alone)
+        local heads = { "Shop", "Duke", "Emporium", "Merchant", "Store", "Trade", "Vendor", "GUIShop", "ShopMenu", "Menu" }
+        local tails = { "", "Menu", "Top", "Mode", "Select", "Main", "Title", "Entry", "Head", "Cover", "Card", "Cards",
+                        "Tab", "Tabs", "Category", "Index", "Root", "Base", "Frame", "Window", "Panel", "List", "Mode",
+                        "Selector", "Choice", "Home", "Front", "Start", "Lobby", "Hub", "Board", "Sign", "Modes", "Bg2" }
+        local names = {}
+        for _, h in ipairs(heads) do for _, t in ipairs(tails) do names[#names + 1] = h .. t end end
+        alias_queue = names
+        L("aliasscan: " .. #names .. " names queued")
+        write_back(cmd, #names .. " names queued; hits go to the log as 'ALIAS HIT'")
     elseif cmd == "handles" then
         -- what the shop handle points at: the GUIHandle's own methods, and the object it wraps
         list_methods("app.GUIHandle")
@@ -364,8 +382,24 @@ local function run(cmd)
     end
 end
 
+alias_queue = nil
+
 re.on_frame(function()
     frames = frames + 1
+    if alias_queue and #alias_queue > 0 then
+        local gm = sdk.get_managed_singleton("app.GUIManager")
+        for _ = 1, 10 do
+            local name = table.remove(alias_queue, 1)
+            if name == nil then break end
+            local h = murmur3_utf16(name)
+            local ok, r = pcall(function() return gm:call("createGUI(System.UInt32, System.Boolean)", h, true) end)
+            if ok and r ~= nil then
+                local driver = safe(function() return r:get_field("<driver>k__BackingField") end)
+                L(string.format("ALIAS HIT '%s' = %u -> driver %s", name, h, driver and type_name(driver) or "nil"))
+            end
+        end
+        if #alias_queue == 0 then L("aliasscan done") end
+    end
     if frames % CHECK_EVERY_FRAMES ~= 0 then return end
     local ok, data = pcall(json.load_file, CMD_FILE)
     if not ok or type(data) ~= "table" or type(data.cmd) ~= "string" then return end

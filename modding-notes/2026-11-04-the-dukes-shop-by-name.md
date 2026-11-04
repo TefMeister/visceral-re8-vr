@@ -64,3 +64,24 @@ next session.
 - State-o-matiC: a still, answering game is "still" (idle, or waiting for a key), not "frozen"; a poke tells them apart.
 - The always-on collector: a crash dump written in the game folder now counts as a crash.
 - Village KNOWN.md: the day's facts.
+
+## Second run, 18:01-18:08: the three-card screen is "ShopMenu", and the game takes our words
+
+- **A name scan of 340 likely names (10 a frame) found exactly two: `Shop` and `ShopMenu`** (`app.GUIShopMenu`). "ShopMenu"
+  had returned nothing in the first run, when no `Shop` had been made before it; made right after `Shop` it answers.
+- **GUIShopMenu's tree (132 controls) IS the three cards:** `View > main > c_layout > l_list` (a `via.gui.SimpleList`) with
+  `si_list0..2` (each: `HitArea_SelectItem`, `t_list_bg` texture, a `cursor` panel, `c_new` with two type panels, and the
+  texts **`m_name0`** and **`m_name1`**: the card's title and its motto), a hidden `l_list_add` with four more items
+  (si_list0..3, the extra modes), a `header` panel with **`m_header`** and **`m_header_desc`** (the shop's name and
+  motto), `c_ui2000` (subtitle / interact prompts), `c_ui2002 > c_mode` (a mode badge with `m_text`).
+- **`via.gui.Text.set_Message(string)` takes our words:** on ShopBuy, all 16 `m_name` controls set to "VISCERAL" read back
+  "VISCERAL" `[verified-live 2026-11-04, n=16]`. So the cards can say Comfort / Graphics / Settings with their mottos, and the
+  header "The Visceral Emporium".
+- **Drawing is the open problem:** `set_drawSuspend(false)` alone draws nothing (ShopBuy with our words, ShopMenu: both
+  invisible; the draw hook sees only the cursor and, after the failed show, a `GUIGuide`). `onShow(true)` on ShopMenu
+  threw an exception (no crash this time); the wall (`ShopBg`) is the only one that shows this way, because it is a mesh.
+  The 2D screens want the game's request flow: `app.GUIDriver.show(app.GUIRequest.Parameter)` / `execute(app.GUIRequest)`
+  with the request the game builds in `app.GUIShop.openShop` (and `GUIManager.exclusiveTarget` for input). That is the
+  next session's first job; the disassembler on `openShop` / `GUIShopMenu.onShow` is the way to read what they need.
+- `app.GUIManager` also holds `prefabHolders` (`app.GUIPrefabHolder`) and `guiHandles`: the full alias table, if ever
+  another screen name is wanted.

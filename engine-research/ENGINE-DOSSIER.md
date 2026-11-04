@@ -64,8 +64,11 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
   onShow / get_GameObject), `isManaged`, `aliasHash`, `isForceHide`.
 - Shop screens by name: Shop (top; menuHandle, bgHandle, initialMode), ShopBg (the wall: a `via.render.Mesh` with its own
   camera numbers, so a 3D object in front of the camera, VR-visible), ShopBuy (1302 controls), ShopSell, ShopCustomize,
-  ShopRecipe. `app.GUIShopMode`: Menu / Buy / Customize / Sell / Recipe (hashes of those words). The Menu (three cards)
-  screen's alias is not found yet.
+  ShopRecipe, and **ShopMenu** (app.GUIShopMenu: the three cards, found by a 340-name scan `[verified-live 2026-11-04]`; its
+  `l_list` holds si_list0..2 with texts m_name0 (title) / m_name1 (motto), the `header` m_header / m_header_desc). `app.GUIShopMode`:
+  Menu / Buy / Customize / Sell / Recipe (hashes of those words). `via.gui.Text.set_Message(string)` takes our words (16 of 16 on
+  ShopBuy). The 2D screens draw only through the game's request flow (show(Parameter) / execute(GUIRequest)); drawSuspend off
+  alone draws nothing, onShow(true) throws on ShopMenu and crashed on ShopBuy.
 - ShopBg shows in gameplay with `set_drawSuspend(false)` + `onShow(true)` on its driver `[verified-live 2026-11-04,
   n=1]`. ⛔ The same on a ShopBuy with no data crashes the game `[verified-live 2026-11-04, n=1]`.
 - GUI game objects are named "GUI" + alias (GUIShopBuy, GUIShopBg, GUIMouseCursor); `re.on_pre_gui_draw_element`
