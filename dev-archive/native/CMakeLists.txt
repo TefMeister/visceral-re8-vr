@@ -43,6 +43,7 @@ add_library(visceral_re8_native SHARED
     src/smooth.cpp
     src/exposure.cpp
     src/perfprobe.cpp
+    src/menukey.cpp
     src/shellclip.cpp
     src/shells.cpp)
 target_include_directories(visceral_re8_native PRIVATE include src)

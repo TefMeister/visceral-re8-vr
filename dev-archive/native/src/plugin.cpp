@@ -53,6 +53,7 @@
 #include "exposure.h"
 #include "perfprobe.h"
 #include "shellclip.h"
+#include "menukey.h"
 
 using namespace vn;
 
@@ -62,6 +63,7 @@ void on_frame() {
     static std::atomic<bool> installed{false};
     if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); ik::install(); body::install(); nodock::install(); equipguard::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
     bridge::frame_begin();
+    menukey::frame();                                  // 2026-11-04: the Emporium's kitchen card opens REFramework's menu (menukey.h)
     player::refresh();                                 // before any feature: the hooks later in the frame read this snapshot
     haptics::frame();
     weapons::watch();

@@ -27,6 +27,7 @@ local want_dump = false
 local seen, dumped = {}, {}
 local shop_handle = nil            -- what createGUIShopBuy() returned at the last "open"
 local hooks_on, block_decide, hook_last = false, false, {}
+local watch_on, live_drivers = false, {}
 
 -- the RE Engine name hash (murmur3_32 of the UTF-16LE name, seed 0xFFFFFFFF; the same as the item and sound ids,
 -- KNOWN.md 2026-10-24). createGUIShopBuy() makes the GUI whose alias hash is hash("ShopBuy") = 3474722425
@@ -471,6 +472,100 @@ local function run(cmd)
         end
         L("hooks: " .. n .. " method(s) hooked")
         write_back(cmd, n .. " hooked")
+    elseif cmd == "watchshop" then
+        -- a REAL Duke visit, recorded: every open* / setup* / collect* / create* call on the shop screens and the GUI
+        -- manager, with its arguments (type and fields, one level deep); each screen's driver kept for "dumpdrv"
+        if watch_on then write_back(cmd, "already on"); return end
+        watch_on = true
+        local function describe(v)
+            if v == nil then return "nil" end
+            local tn = type_name(v)
+            local parts = {}
+            local td = safe(function() return v:get_type_definition() end)
+            local k = 0
+            while td ~= nil and k < 3 do
+                for _, f in ipairs(td:get_fields()) do
+                    if not f:is_static() then
+                        local fv = safe(function() return v:get_field(f:get_name()) end)
+                        local shown = tostring(fv)
+                        if type(fv) == "userdata" then shown = type_name(fv) end
+                        parts[#parts + 1] = f:get_name():gsub("<(.-)>k__BackingField", "%1") .. "=" .. shown
+                    end
+                end
+                td = safe(function() return td:get_parent_type() end)
+                k = k + 1
+                if td and (td:get_full_name() == "System.Object" or td:get_full_name() == "via.Behavior") then break end
+            end
+            return tn .. " {" .. table.concat(parts, ", ") .. "}"
+        end
+        local wanted = { "app.GUIShop", "app.GUIShopMenu", "app.GUIShopBuy", "app.GUIShopCustomize", "app.GUIShopSell",
+                         "app.GUIShopRecipe", "app.GUIShopBg", "app.GUIManager" }
+        local n = 0
+        for _, tname in ipairs(wanted) do
+            local td = sdk.find_type_definition(tname)
+            for _, m in ipairs(td and td:get_methods() or {}) do
+                local mname = m:get_name()
+                if mname:match("^open") or mname:match("^setup") or mname:match("^collect") or
+                   (tname == "app.GUIManager" and (mname:match("^create") or mname:match("Shop"))) then
+                    local label = tname .. "." .. mname
+                    local np = safe(function() return m:get_num_params() end) or 0
+                    local ok = pcall(sdk.hook, m, function(args)
+                        local this = safe(function() return sdk.to_managed_object(args[2]) end)
+                        if this and tname ~= "app.GUIManager" then live_drivers[tname] = this end
+                        local shown = {}
+                        for i = 1, math.min(np, 4) do
+                            local raw = args[2 + i]
+                            local obj = safe(function() return sdk.to_managed_object(raw) end)
+                            if obj ~= nil then shown[#shown + 1] = describe(obj)
+                            else shown[#shown + 1] = tostring(safe(function() return sdk.to_int64(raw) end)) end
+                        end
+                        L("WATCH " .. label .. "(" .. table.concat(shown, " | ") .. ")")
+                    end, function(retval) return retval end)
+                    if ok then n = n + 1 end
+                end
+            end
+        end
+        L("watchshop: " .. n .. " method(s) watched; talk to the Duke now")
+        write_back(cmd, n .. " watched")
+    elseif cmd:sub(1, 8) == "dumpdrv " then
+        -- "dumpdrv <type>" : the live driver of that screen (kept by watchshop): its fields, and the first rows of its lists
+        local d = live_drivers[cmd:sub(9)]
+        if d == nil then L("no live driver for " .. cmd:sub(9)); write_back(cmd, "none"); return end
+        local td = d:get_type_definition()
+        for _, f in ipairs(td:get_fields()) do
+            if not f:is_static() then
+                local v = safe(function() return d:get_field(f:get_name()) end)
+                local line = f:get_name() .. " = " .. tostring(v)
+                if type(v) == "userdata" then
+                    local vt = type_name(v)
+                    line = line .. " (" .. vt .. ")"
+                    if vt:find("List`1") then
+                        local size = safe(function() return v:call("get_Count") end) or 0
+                        line = line .. " count=" .. tostring(size)
+                        local items = safe(function() return v:get_field("_items") end)
+                        for i = 0, math.min(size, 3) - 1 do
+                            local it = (items and safe(function() return items:get_element(i) end))
+                                       or safe(function() return v:call("get_Item", i) end)
+                            if it ~= nil and type(it) == "userdata" then
+                                local parts = {}
+                                local itd = safe(function() return it:get_type_definition() end)
+                                for _, ff in ipairs(itd and itd:get_fields() or {}) do
+                                    if not ff:is_static() then
+                                        local fv = safe(function() return it:get_field(ff:get_name()) end)
+                                        parts[#parts + 1] = ff:get_name() .. "=" .. (type(fv) == "userdata" and type_name(fv) or tostring(fv))
+                                    end
+                                end
+                                line = line .. "\n      [" .. i .. "] " .. type_name(it) .. " {" .. table.concat(parts, ", ") .. "}"
+                            else
+                                line = line .. "\n      [" .. i .. "] " .. tostring(it)
+                            end
+                        end
+                    end
+                end
+                L("  " .. line)
+            end
+        end
+        write_back(cmd, "see the log")
     elseif cmd == "block on" or cmd == "block off" then
         block_decide = cmd == "block on"
         L("block_decide = " .. tostring(block_decide))

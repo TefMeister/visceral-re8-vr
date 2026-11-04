@@ -71,7 +71,7 @@ put "$HERE/bindings/_interaction_profiles_oculus_touch_controller.json" _interac
 # (re8_vr_hand_gestures.lua; our copy stays in lua/ so the pack loop below skips the pack's too) and the test tools
 # (gun_survey, gun_cycle, bodyprobe); in is the Emporium options window, until now put in by hand
 for f in visceral_re8_bridge.lua visceral_re8_menu.lua visceral_re8_sounds.lua re8_vr.lua jitterlog.lua \
-         re8_vr_holster.lua re8_vr_holster_visuals.lua visceral_re8_holsters.lua visceral_re8_hud.lua visceral_re8_emporium.lua \
+         re8_vr_holster.lua re8_vr_holster_visuals.lua visceral_re8_holsters.lua visceral_re8_hud.lua visceral_re8_emporium.lua visceral_re8_emporium_shop.lua \
          re8_vrz_begone_grip.lua visceral_re8_origin.lua visceral_re8_zones.lua visceral_re8_whitepoint.lua \
          visceral_re8_hand_smooth.lua; do
     put "$HERE/lua/$f" "reframework/autorun/$f" code

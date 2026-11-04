@@ -158,3 +158,44 @@ So:
 What it takes: those three screens are filled by the game's real shop flow (ShopBuy needs buyUnits; it crashed with none).
 So the next step is to learn how the game fills them: watch one real Duke visit with the hooks on (openMenu passing through),
 read what each screen is given (assortment, units, specs), then feed our own rows the same way.
+
+## Evening, 19:10-20:05: the real Duke recorded, the walk bug found and fixed, the kitchen = REFramework's menu
+
+- **The real Duke, driven by a pretend Xbox pad** (right stick turns, A talks: "Open the shop."), with the probe's
+  `watchshop` hooks listening `[verified-live 2026-11-04, n=1 visit]`:
+  - in: `createGUI(hash("Shop"))`, then `app.GUIShop.openShop(app.GUIShopOrder.GUIRequestOpenShopParameter {mode = Menu,
+    cursorIndex 0, existMerchant true, result})`; the game then makes RemainMoney, ShopBg, ShopMenu itself and calls
+    `GUIShopMenu.openMenu(Menu)` once (V = 0) on the way in.
+  - a card: `openMenu(mode)` with V = 1 Buy, 2 Customize (Gunsmithy), 3 Sell (Duke's Purse), 4 Recipe (the Kitchen);
+    each screen is made with `createExclusiveModeGUI(hash("ShopBuy") ...)` and opened with its own request
+    (GUIRequestOpenShopBuyParameter, ...Customize..., ...Sell..., ...Recipe...).
+  - **Supplies (ShopBuy)**: `assortmentHash` 1481905281 (this Duke's stock), `collectBuyUnits` fills `buyUnits` (24 here),
+    `setupScrollGrid` lays the tiles. **Gunsmithy (ShopCustomize)**: `currentWeapons` (the player's 6 guns), the upgrade
+    rows from each gun's spec, `tuneupBy`. **Duke's Purse (ShopSell)**: `sellUnits` (32, the player's own items) from
+    `collectSellUnits`. **Kitchen (ShopRecipe)**: `materialUnits` (3), recipe rows with a tick box, a dish picture, an
+    ingredients table and a "Reward" line.
+  - out (B on the cards): hide on the TOP screen (app.GUIShop), then `GUIShop.onHide`, `GUIShop.onFinishedHide` (leaves
+    exclusive mode, brings the ammo HUD back).
+- **The walk bug's cause** `[verified-live 2026-11-04, n=4 boots]`: opening by calling the driver's openShop (or making
+  the wall and cards by hand) skipped the shop's ORDER bookkeeping, so the top screen never finished closing and kept
+  the player's controls. **Fix: open through the order object** (`driver:get_order()` is an `app.GUIShopOrder` with
+  `openShop(mode, cursorIndex, existMerchant, result)`), **close by hiding the TOP screen through its order**
+  (`order:hide(false, false, false, "")`). Walking after a full loop: picture change 21.9-26.6 (stuck runs read 0.0-0.05).
+- **Back on a page**: the game's B hides the top screen; it reaches us twice (the order's hide, then the driver's hide),
+  so the first is turned into Back and the second is swallowed for 0.6 s. **The card's identity** comes from openMenu's
+  mode (V), since the lit-card reading only knows the three-card list.
+- **The kitchen (Tefa: "the kitchen can be reframework full ui")**: the fourth card reads "Every Setting / REFramework's
+  full menu"; picking it closes the shop the game's way, then the native plugin presses REFramework's menu key
+  (new `src/menukey.cpp`, bridge slot 185 `S_MENU_KEY`; REFramework's Lua can only ASK whether its menu is open). Seen:
+  the shop closed, REFramework's menu opened, the player walks afterwards `[verified-live 2026-11-04, n=1]`.
+- The Emporium script now ships with the plugin's installer (`tools/build.sh`); the plugin build with menukey deployed
+  2026-11-04 19:51 (backup `_backup-2026-11-04-1951-before-visceral-re8-deploy`).
+
+## Next (the design Tefa gave, in order)
+
+1. Supplies as the ON/OFF screen: let the game open ShopBuy for a Comfort/Graphics/Settings group (pass openMenu
+   through with mode Buy), then after `collectBuyUnits` trim `buyUnits` to our count and, after `setupScrollGrid`,
+   write each tile: price text = On / Off, a red / green tint on the tile's corner, `itemNameText` / `itemDescriptionText`
+   = the setting's name and help; A on a tile flips it instead of buying (hook `buyItem` / `decideBuyItem`).
+2. Gunsmithy as the slider screen (upgrade rows and level bars), Duke's Purse as the graphics table.
+3. Custom pictures (together), the group names, then one headset look.
