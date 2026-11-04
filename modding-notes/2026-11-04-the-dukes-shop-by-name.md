@@ -217,3 +217,18 @@ read what each screen is given (assortment, units, specs), then feed our own row
   movement On, two more On), "Now: Off. Press to change." Rough edges left: the third tile's "On" text did not show; the
   game's own item pictures stay on the tiles (our pictures to come); the unused tiles stay as empty slots.
 - Graphics and Settings still open the game's own Gunsmithy and Duke's Purse unchanged (they are next).
+
+## 20:40-21:00: the Gunsmithy is the SLIDER screen
+
+- The second card opens the game's own Gunsmithy (ShopCustomize). The gun column picks the GROUP (first gun = Comfort,
+  second = Graphics, third = Settings, read from `currentWeaponIndex`); its upgrade rows (`c_list0..3`, in both the left list
+  and the right summary) become the group's sliders and choices first, then its switches: `m_name` = the setting,
+  `m_lv` = its value, the price hidden, the six-step bar (`bg_gauge0..5` shown up to the steps, `gauge0..5` filled) = where it
+  stands. The screen is caught on its own per-frame `onLateUpdate`; our words go back on every 6 frames (the game re-lays it).
+- A on a row asks `canTune` first (then `tuning` would upgrade and the "Upgrade weapon?" question would come): both skipped,
+  `canTune` answers no; the lit row comes from the screen's own `cursorIndex` (canTune's argument read one row too far).
+  Seen: "Comfort / Easy on the stomach!", "Recoil strength" with a 6-step bar, the switches as one-step bars; three A's took
+  Recoil strength 2.0 -> 2.5 -> 3.0 (bar full) and five more wrapped it back to 2.0 `[verified-live 2026-11-04, n=1]`.
+- Left: the slider row's "Lv. 2" text is still the game's (our value shows on the switch rows); the gun pictures and the gun
+  name ("LEMI / Handgun") stay; pressing A on the real Gunsmithy BEFORE our hook was in left a dead "Upgrade weapon?"
+  question on screen until the game restarted (nothing was bought).

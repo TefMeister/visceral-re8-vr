@@ -643,6 +643,143 @@ do
     end)
 end
 
+-- ===== THE GUNSMITHY AS THE SLIDER SCREEN (Tefa 2026-11-04: "the one for upgrades, we can use these for sliders like
+-- smoothing strenght, reloading style - immersive, semi immersive or automatic - , recoil strength and so on") =====
+-- The card opens the game's own Gunsmithy (ShopCustomize). The gun column on the left picks the GROUP (the first gun =
+-- Comfort, the second = Graphics, the third = Settings); its four upgrade rows (c_list0..3) are that group's sliders and
+-- choices: the row's name = the setting, "Lv." and the number = its value, the six-step level bar = where it stands.
+-- A on a row (the game asks canTune first) steps it on and wraps, never upgrades. [hypothesis] until seen.
+local cust_drv = nil
+local GAUGE_STEPS = 6                -- the level bar's segments (bg_gauge0..5 / gauge0..5)
+local function all_named(root, name)
+    local out = {}
+    local function visit(c, d)
+        if c == nil or d > 14 then return end
+        if safe(function() return c:call("get_Name") end) == name then out[#out + 1] = c end
+        local ch = safe(function() return c:call("get_Child") end)
+        while ch ~= nil do visit(ch, d + 1); ch = safe(function() return ch:call("get_Next") end) end
+    end
+    visit(root, 0)
+    return out
+end
+local function cust_group()
+    local wi = tonumber(cust_drv and safe(function() return cust_drv:get_field("<currentWeaponIndex>k__BackingField") end)) or 0
+    return math.min(#TABS, wi + 1), wi
+end
+local function rows_for_group(g)
+    local out = {}
+    for _, e in ipairs(entries_for(TABS[g].tab)) do
+        if e.kind == "slider" or e.kind == "choice" then out[#out + 1] = e end
+    end
+    for _, e in ipairs(entries_for(TABS[g].tab)) do      -- the switches after them, so no row stays empty
+        if e.kind == "check" then out[#out + 1] = e end
+    end
+    return out
+end
+local function fill_of(e)
+    local okg, cur = pcall(e.get or function() return nil end)
+    if not okg then cur = nil end
+    if e.kind == "slider" then
+        local lo, hi = e.min or 0.0, e.max or 1.0
+        local t = (hi > lo) and (((tonumber(cur) or lo) - lo) / (hi - lo)) or 0
+        return math.max(0, math.min(GAUGE_STEPS, math.floor(t * GAUGE_STEPS + 0.5))), GAUGE_STEPS
+    elseif e.kind == "choice" then
+        local n = math.min(GAUGE_STEPS, #(e.choices or {}))
+        return math.max(0, math.min(n, tonumber(cur) or 1)), n
+    end
+    return (cur == true) and 1 or 0, 1
+end
+local function render_cust()
+    if not (ui.open and ui.level == "real" and cust_drv) then return end
+    local go = safe(function() return cust_drv:call("get_GameObject") end)
+    local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
+    local view = gui and safe(function() return gui:call("get_View") end)
+    if view == nil then return end
+    local g, wi = cust_group()
+    local rows = wi < #TABS and rows_for_group(g) or {}
+    set_texts(view, "header", "m_header", wi < #TABS and TABS[g].name or "")
+    set_texts(view, "header", "m_header_desc", wi < #TABS and TABS[g].motto or "")
+    for r = 0, 4 do
+        local e = rows[r + 1]
+        for _, row in ipairs(all_named(view, "c_list" .. r)) do
+            set_visible(row, e ~= nil and r < 4)
+            if e then
+                local val = value_text(e)
+                for _, t in ipairs(all_named(row, "m_name")) do set_text(t, e.label or "?") end
+                for _, t in ipairs(all_named(row, "m_lv")) do set_text(t, val) end
+                for _, t in ipairs(all_named(row, "m_num")) do set_text(t, "") end
+                for _, t in ipairs(all_named(row, "m_num_up")) do set_text(t, "") end
+                for _, p in ipairs(all_named(row, "c_price")) do set_visible(p, false) end
+                for _, p in ipairs(all_named(row, "c_lv_up")) do set_visible(p, false) end
+                local fill, steps = fill_of(e)
+                for k = 0, GAUGE_STEPS - 1 do
+                    for _, b in ipairs(all_named(row, "bg_gauge" .. k)) do set_visible(b, k < steps) end
+                    for _, b in ipairs(all_named(row, "gauge" .. k)) do set_visible(b, k < fill) end
+                end
+            end
+        end
+    end
+end
+do
+    local ct = sdk.find_type_definition("app.GUIShopCustomize")
+    local function hook(name, pre, post)
+        local function wrap_pre(args) if ui.raw then return end if pre then return pre(args) end end
+        local function wrap_post(r) if ui.raw then return r end if post then return post(r) end return r end
+        for _, m in ipairs(ct and ct:get_methods() or {}) do
+            if m:get_name() == name then pcall(sdk.hook, m, wrap_pre, wrap_post) end
+        end
+    end
+    -- the screen itself, caught on its own per-frame call (lateUpdateSetTune runs only once a gun is chosen)
+    for _, name in ipairs({ "onLateUpdate", "lateUpdateSetTune", "setupScrollList" }) do
+        hook(name, function(args)
+            if ui.open and ui.level == "real" and ui.tab == 2 and cust_drv == nil then
+                cust_drv = safe(function() return sdk.to_managed_object(args[2]) end)
+                ui.render_cust_in = 1
+            end
+        end)
+    end
+    -- A on a row: canTune(row). Our step, and "no" back, so the game shows no "Upgrade weapon?" question
+    local stepping = false
+    hook("canTune", function(args)
+        if not (ui.open and ui.level == "real" and cust_drv) then return end
+        -- the lit row from the screen's own cursor (canTune's argument read one row too far, 2026-11-04 20:55)
+        local row = tonumber(safe(function() return cust_drv:get_field("<cursorIndex>k__BackingField") end)) or 0
+        local g, wi = cust_group()
+        local e = wi < #TABS and rows_for_group(g)[row + 1] or nil
+        if e and os.clock() > (ui.flip_quiet_until or 0) then
+            ui.flip_quiet_until = os.clock() + 0.3
+            local okg, cur = pcall(e.get or function() return nil end)
+            if not okg then cur = nil end
+            if e.kind == "check" and e.set then pcall(e.set, not (cur == true))
+            elseif e.kind == "choice" and e.set then
+                local n = #(e.choices or {})
+                if n > 0 then pcall(e.set, ((tonumber(cur) or 1) % n) + 1) end
+            elseif e.kind == "slider" and e.set then
+                local lo, hi = e.min or 0.0, e.max or 1.0
+                local step = (hi - lo) / GAUGE_STEPS
+                local v = (tonumber(cur) or lo) + step
+                if v > hi + step * 0.5 then v = lo end
+                pcall(e.set, math.min(hi, v))
+            end
+            L("stepped on the Gunsmithy: " .. tostring(e.label) .. " -> " .. value_text(e))
+            ui.render_cust_in = 1
+        end
+        stepping = true
+        return sdk.PreHookResult.SKIP_ORIGINAL
+    end, function(retval)
+        if stepping then stepping = false; return sdk.to_ptr(0) end
+        return retval
+    end)
+    hook("tuning", function(args)
+        if ui.open and ui.level == "real" then return sdk.PreHookResult.SKIP_ORIGINAL end
+    end)
+    -- leaving the Gunsmithy (B): back to our groups
+    hook("onHide", nil, function(retval)
+        if ui.open and ui.level == "real" then ui.level, cust_drv = "tabs", nil; ui.render_in = 6 end
+        return retval
+    end)
+end
+
 -- ===== the X + A hold (headset) =====
 local hold_since, hold_done = nil, false
 local function buttons_held()
@@ -729,6 +866,15 @@ re.on_frame(function()
         ui.want_back = false
         local ok, err = pcall(back)
         if not ok then L("back failed: " .. tostring(err)) end
+    end
+    -- the Gunsmithy is re-laid by the game on every move and gun change: our words go back on every few frames
+    if ui.open and ui.level == "real" and cust_drv then
+        ui.cust_tick = (ui.cust_tick or 0) + 1
+        if ui.cust_tick >= 6 or (ui.render_cust_in or 0) > 0 then
+            ui.cust_tick, ui.render_cust_in = 0, 0
+            local ok, err = pcall(render_cust)
+            if not ok then L("render_cust failed: " .. tostring(err)) end
+        end
     end
     if ui.render_buy_in and ui.render_buy_in > 0 then
         ui.render_buy_in = ui.render_buy_in - 1

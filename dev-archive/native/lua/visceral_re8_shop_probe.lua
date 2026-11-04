@@ -545,6 +545,16 @@ local function run(cmd)
         end
         L("hookall " .. tname .. ": " .. n .. " method(s)")
         write_back(cmd, n .. " hooked")
+    elseif cmd:sub(1, 9) == "treename " then
+        -- "treename <game object name>" : find a GUI object in the scene by its name (GUIShopCustomize ...) and dump it
+        local name = cmd:sub(10)
+        local sm = sdk.get_native_singleton("via.SceneManager")
+        local smt = sdk.find_type_definition("via.SceneManager")
+        local scene = sm and safe(function() return sdk.call_native_func(sm, smt, "get_CurrentScene") end)
+        local go = scene and safe(function() return scene:call("findGameObject(System.String)", name) end)
+        if go == nil then L("no game object called " .. name); write_back(cmd, "none"); return end
+        dump_game_object(go, name)
+        write_back(cmd, "see the log")
     elseif cmd:sub(1, 9) == "treelive " then
         -- "treelive <type>" : the view tree of that screen's live driver (kept by watchshop), texts included
         local d = live_drivers[cmd:sub(10)]
