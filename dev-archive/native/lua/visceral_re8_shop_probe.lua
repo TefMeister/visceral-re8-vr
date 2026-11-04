@@ -307,6 +307,98 @@ local function run(cmd)
         alias_queue = names
         L("aliasscan: " .. #names .. " names queued")
         write_back(cmd, #names .. " names queued; hits go to the log as 'ALIAS HIT'")
+    elseif cmd:sub(1, 10) == "exclusive " then
+        -- "exclusive <alias> <mode>" : app.GUIManager.createExclusiveModeGUI(hash(alias), hash(mode)), the way the
+        -- inventory and (likely) the shop are opened: a screen that takes the game's input
+        local alias, mode = cmd:sub(11):match("^(%S+)%s+(%S+)$")
+        local gm = sdk.get_managed_singleton("app.GUIManager")
+        if alias == nil or gm == nil then L("exclusive: bad form or no manager"); write_back(cmd, "bad form"); return end
+        local ok, r = pcall(function()
+            return gm:call("createExclusiveModeGUI(System.UInt32, System.UInt32)", murmur3_utf16(alias), murmur3_utf16(mode))
+        end)
+        local driver = (ok and r ~= nil) and safe(function() return r:get_field("<driver>k__BackingField") end) or nil
+        L(string.format("createExclusiveModeGUI('%s', '%s') -> ok=%s result=%s driver=%s exclusiveMode=%s", alias, mode,
+                        tostring(ok), tostring(r), driver and type_name(driver) or "nil",
+                        tostring(safe(function() return gm:call("isExclusiveMode") end))))
+        if ok and r ~= nil and driver ~= nil then shop_handle = r end
+        write_back(cmd, "driver=" .. (driver and type_name(driver) or "nil"))
+    elseif cmd == "enterex" then
+        -- app.GUIManager.enterExclusive(driver) on the current handle's driver
+        local gm = sdk.get_managed_singleton("app.GUIManager")
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        if driver == nil then L("no handle"); write_back(cmd, "no handle"); return end
+        local ok, err = pcall(function() gm:call("enterExclusive(app.IGUIDriver)", driver) end)
+        L("enterExclusive -> ok=" .. tostring(ok) .. " " .. tostring(err or "") .. "; exclusiveMode="
+          .. tostring(safe(function() return gm:call("isExclusiveMode") end)))
+        write_back(cmd, "ok=" .. tostring(ok))
+    elseif cmd == "orders" then
+        -- the order words a driver answers to: ExecuteDict's keys (hashes) matched against likely words
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        local dict = driver and safe(function() return driver:get_field("ExecuteDict") end)
+        if dict == nil then L("no ExecuteDict"); write_back(cmd, "no dict"); return end
+        local words = { "Show", "Hide", "SetSegment", "SetState", "Suicide", "SetAttachTarget", "EnterExclusive", "LeaveExclusive",
+                        "OpenShop", "Open", "Close", "OpenMenu", "OpenBuy", "OpenSell", "OpenCustomize", "OpenRecipe", "Shop",
+                        "ShopMenu", "Menu", "Buy", "Sell", "Customize", "Recipe", "Start", "Enter", "Leave", "Update", "Execute" }
+        local by = {}
+        for _, w in ipairs(words) do by[murmur3_utf16(w)] = w end
+        local entries = safe(function() return dict:get_field("_entries") end)
+        local count = safe(function() return dict:get_field("_count") end) or 0
+        L("ExecuteDict: " .. tostring(count) .. " order(s)")
+        if entries ~= nil then
+            for i = 0, count - 1 do
+                local e = safe(function() return entries:get_element(i) end)
+                local k = e and safe(function() return e:get_field("key") end)
+                if k ~= nil then L(string.format("  order hash %u = %s", k, by[k] or "?")) end
+            end
+        end
+        write_back(cmd, "see the log")
+    elseif cmd == "show2" or cmd == "exclusive2" or cmd:sub(1, 8) == "request " then
+        -- the base driver's own entry points with a fresh Parameter: show(param), enterExclusive(param), or
+        -- execute(GUIRequest{nameHash = hash(word), parameter}) for "request <word>"
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        if driver == nil then L("no handle"); write_back(cmd, "no handle"); return end
+        local param = sdk.create_instance("app.GUIRequest.Parameter"):add_ref()
+        local ok, r
+        if cmd == "show2" then
+            ok, r = pcall(function() return driver:call("show(app.GUIRequest.Parameter)", param) end)
+        elseif cmd == "exclusive2" then
+            ok, r = pcall(function() return driver:call("enterExclusive(app.GUIRequest.Parameter)", param) end)
+        else
+            local word = cmd:sub(9)
+            local req = sdk.create_instance("app.GUIRequest"):add_ref()
+            req:set_field("<nameHash>k__BackingField", murmur3_utf16(word))
+            req:set_field("<parameter>k__BackingField", param)
+            ok, r = pcall(function() return driver:call("execute(app.GUIRequest)", req) end)
+        end
+        L(cmd .. " -> ok=" .. tostring(ok) .. " result=" .. tostring(r) .. "; drawSuspend="
+          .. tostring(safe(function() return driver:call("get_drawSuspend") end)))
+        write_back(cmd, "ok=" .. tostring(ok) .. " result=" .. tostring(r))
+    elseif cmd:sub(1, 10) == "settextat " then
+        -- "settextat <item name>|<control name>|<text>" : the text control under one named item only (si_list1 ...)
+        local item, cname, text = cmd:sub(11):match("^(.-)|(.-)|(.*)$")
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        local go = driver and safe(function() return driver:call("get_GameObject") end)
+        local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
+        local view = gui and safe(function() return gui:call("get_View") end)
+        if view == nil or item == nil then L("settextat: no view, or bad form"); write_back(cmd, "no view"); return end
+        local hits = 0
+        local function visit(ctrl, depth, inside)
+            if ctrl == nil or depth > MAX_DEPTH then return end
+            local name = safe(function() return ctrl:call("get_Name") end)
+            local here = inside or (name == item)
+            if here and name == cname and type_name(ctrl):find("Text") then
+                local ok = pcall(function() ctrl:call("set_Message", text) end)
+                hits = hits + 1
+                L(string.format("settextat %s/%s #%d ok=%s", item, cname, hits, tostring(ok)))
+            end
+            local child = safe(function() return ctrl:call("get_Child") end)
+            while child ~= nil do
+                visit(child, depth + 1, here)
+                child = safe(function() return child:call("get_Next") end)
+            end
+        end
+        visit(view, 0, false)
+        write_back(cmd, hits .. " set")
     elseif cmd == "handles" then
         -- what the shop handle points at: the GUIHandle's own methods, and the object it wraps
         list_methods("app.GUIHandle")

@@ -85,3 +85,38 @@ next session.
   next session's first job; the disassembler on `openShop` / `GUIShopMenu.onShow` is the way to read what they need.
 - `app.GUIManager` also holds `prefabHolders` (`app.GUIPrefabHolder`) and `guiHandles`: the full alias table, if ever
   another screen name is wanted.
+
+## Third run, 18:10-18:20: THE VISCERAL EMPORIUM IS ON THE DUKE'S OWN CARDS, IN GAMEPLAY
+
+- **The order words a driver answers to** (its `ExecuteDict` keys are name hashes): Suicide, Show, Hide, SetSegment,
+  SetState, SetAttachTarget, EnterExclusive, LeaveExclusive, and one unmatched (4213754707) `[verified-live 2026-11-04]`.
+- ⭐ **`app.GUIDriver.show(app.GUIRequest.Parameter)` with a fresh empty Parameter SHOWS THE THREE-CARD SCREEN** (ShopMenu
+  made by `createGUI(hash("ShopMenu"), true)`): the call throws an exception after doing its work, and the screen comes up
+  over the village: "The Duke's Emporium" header, Supplies / Gunsmithy / The Duke's Purse with their pictures, the key
+  guide "Purchase items  F OK  Close" at the bottom `[verified-live 2026-11-04, n=1, screenshot]`.
+- ⭐ **Our words on it:** `set_Message` on `m_header` ("The Visceral Emporium"), `m_header_desc`, and per card
+  (`settextat si_list0|m_name0|Comfort` ...) gives **Comfort / Easy on the stomach!, Graphics / A feast for the eyes!,
+  Settings / Everything in its place!** in the game's own font and frames `[verified-live 2026-11-04, screenshot]`.
+  Each card name lives twice (`l_list` and the hidden `l_list_add`); set both.
+- **It takes the controls:** keyboard Right moved the selection (the guide line changed to the Gunsmithy's "Upgrade
+  weapons to make them stronger"). F (OK) was NOT pressed: it would open the Buy screen with no shop data (the crash).
+- `createExclusiveModeGUI(hash("Shop"), hash("Menu"))` gives the top `app.GUIShop` handle (not exclusive by itself);
+  `enterExclusive` and the proper GUIRequest are the clean way, still to be tried.
+- The probe: `visceral_re8_shop_probe.lua` v11 (commands: names, manager, type, open, create, createhash, exclusive,
+  enterex, show, show2, request <word>, unsuspend, orders, inspect, dumpnow, dump, settext, settextat, handles, modes,
+  aliasscan, call, close).
+
+## What the Visceral Emporium build needs (next session, Opus; the design is settled)
+
+1. Own script `visceral_re8_emporium.lua` reborn: X + A held 0.5 s -> createGUI(hash("ShopBg")) + show on its driver
+   (the wall) and createGUI(hash("ShopMenu")) + `show(Parameter)` (the cards); set the header and the three cards' words
+   with set_Message; swap the three pictures later (Texture0/1 under c_type0/1 of each card; our own textures or none).
+2. Selection: read `GUIShopMenu`'s `simpleList` cursor (hook `simpleListSelectionChanged`, or read `lastIndex`) and
+   swallow the decide: hook `openMenu(mode, bool, result)` / `mainStateFinished` to return without opening a mode, and
+   instead open OUR settings page: the ShopBuy list dressed with our settings (`m_name` = label, price text = value;
+   hook `canBuyItem` -> never; the detail panel's `itemDescriptionText` = the help line), or a plain list drawn with
+   set_Message on ShopBuy's rows. Back (Escape / B) -> Suicide order on both handles.
+3. Hide the game's own key guide line, or set its texts; keep the player frozen while open (the exclusive mode:
+   enterExclusive on the ShopMenu driver, LeaveExclusive on close).
+4. The headset look: the cards are the game's own 2D GUI, which REFramework already projects into the headset the way
+   it does the inventory `[reported]`; one VR run confirms.

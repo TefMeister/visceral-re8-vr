@@ -67,8 +67,10 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
   ShopRecipe, and **ShopMenu** (app.GUIShopMenu: the three cards, found by a 340-name scan `[verified-live 2026-11-04]`; its
   `l_list` holds si_list0..2 with texts m_name0 (title) / m_name1 (motto), the `header` m_header / m_header_desc). `app.GUIShopMode`:
   Menu / Buy / Customize / Sell / Recipe (hashes of those words). `via.gui.Text.set_Message(string)` takes our words (16 of 16 on
-  ShopBuy). The 2D screens draw only through the game's request flow (show(Parameter) / execute(GUIRequest)); drawSuspend off
-  alone draws nothing, onShow(true) throws on ShopMenu and crashed on ShopBuy.
+  ShopBuy). ⭐ `app.GUIDriver.show(app.GUIRequest.Parameter)` with a fresh empty Parameter SHOWS a 2D screen (ShopMenu: the three cards, over
+  the village, taking the controls; the call throws after doing its work) `[verified-live 2026-11-04, n=1]`; drawSuspend off alone
+  draws nothing; onShow(true) throws on ShopMenu and crashed on ShopBuy. A driver's order words (ExecuteDict keys = name hashes):
+  Suicide, Show, Hide, SetSegment, SetState, SetAttachTarget, EnterExclusive, LeaveExclusive, + one unknown (4213754707).
 - ShopBg shows in gameplay with `set_drawSuspend(false)` + `onShow(true)` on its driver `[verified-live 2026-11-04,
   n=1]`. ⛔ The same on a ShopBuy with no data crashes the game `[verified-live 2026-11-04, n=1]`.
 - GUI game objects are named "GUI" + alias (GUIShopBuy, GUIShopBg, GUIMouseCursor); `re.on_pre_gui_draw_element`
