@@ -1,15 +1,15 @@
-// shellclip.cpp -- see shellclip.h. (2026-11-02)
+// shellclip.cpp -- see shellclip.h. (2026-11-02; every gun, both hands, named events 2026-11-04)
 #include "shellclip.h"
 
 #include <windows.h>
 
-#include <array>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "common.h"
@@ -23,23 +23,24 @@ using namespace joints;
 using namespace vn::settings;
 
 namespace {
-constexpr int N = 15;
-const wchar_t* LEFT_FINGERS[N] = {
-    L"L_IndexF1", L"L_IndexF2", L"L_IndexF3", L"L_MiddleF1", L"L_MiddleF2", L"L_MiddleF3",
-    L"L_RingF1", L"L_RingF2", L"L_RingF3", L"L_PinkyF1", L"L_PinkyF2", L"L_PinkyF3",
-    L"L_Thumb1", L"L_Thumb2", L"L_Thumb3",
+struct Clip {
+    std::vector<std::wstring> names;          // the joints it moves, from the header (L_IndexF1 ... R_Thumb3)
+    std::vector<float> t;
+    std::vector<std::vector<Quat>> q;         // per frame, one per name
+    bool ok = false, left = false, right = false;
 };
+std::map<std::string, Clip> g_clips;          // "<gun>_<event>"; a missing file is remembered as not ok
 
-struct Clip { std::vector<float> t; std::vector<std::array<Quat, N>> q; bool ok = false; };
-std::map<std::string, Clip> g_clips;   // by short gun id; a missing file is remembered as not ok
-
-const Clip* g_clip = nullptr;
-float g_t0 = -1.0f;            // when the current play started (now_s)
+struct Play {
+    const Clip* clip = nullptr;
+    std::string what;                         // "<gun>_<event>", for the log
+    float t0 = 0.0f;                          // when it started (now_s)
+    std::vector<MO*> joint;
+    std::vector<Quat> found, target;          // the pose at the start (blended in from / out to), and what is written
+    bool have = false;
+};
+std::vector<Play> g_plays;                    // at most one per hand (a both-hands clip counts for both)
 MO* g_tf = nullptr;
-MO* g_joint[N] = {};
-Quat g_found[N] = {};          // the pose at the start, to blend in from
-Quat g_target[N] = {};
-bool g_have = false;
 
 std::filesystem::path data_dir() {
     wchar_t exe[MAX_PATH]{};
@@ -52,27 +53,44 @@ std::string short_id(const std::string& id) {
     return k == std::string::npos ? id : id.substr(0, k);
 }
 
-const Clip* load(const std::string& gun) {
-    auto it = g_clips.find(gun);
+const Clip* load(const std::string& gun, const std::string& event) {
+    const std::string key = gun + "_" + event;
+    auto it = g_clips.find(key);
     if (it != g_clips.end()) return it->second.ok ? &it->second : nullptr;
-    Clip& c = g_clips[gun];
-    std::ifstream f(data_dir() / (gun + "_round_in.csv"));
-    if (!f) { LOGI("%s shellclip: no clip for %s (clips/%s_round_in.csv): the fingers stay as they are", TAG, gun.c_str(), gun.c_str()); return nullptr; }
+    Clip& c = g_clips[key];
+    std::ifstream f(data_dir() / (key + ".csv"));
+    if (!f) { LOGI("%s shellclip: no clip %s (clips/%s.csv): the fingers stay as they are", TAG, key.c_str(), key.c_str()); return nullptr; }
     std::string line;
-    std::getline(f, line);   // header: t + 15 joints x 4, in LEFT_FINGERS order (make_finger_clip.py)
+    std::getline(f, line);   // header: t, then <joint>.x .y .z .w per joint (make_finger_book.py)
+    {
+        std::stringstream ss(line);
+        std::string cell;
+        int k = 0;
+        while (std::getline(ss, cell, ',')) {
+            const int col = k++;
+            if (col == 0 || (col - 1) % 4 != 0) continue;   // one name per four columns, from the .x one
+            const auto dot = cell.rfind('.');
+            const std::string name = dot == std::string::npos ? cell : cell.substr(0, dot);
+            c.names.push_back(widen(name.c_str()));
+            if (name.rfind("L_", 0) == 0) c.left = true;
+            if (name.rfind("R_", 0) == 0) c.right = true;
+        }
+    }
+    const size_t n = c.names.size();
     while (std::getline(f, line)) {
         std::stringstream ss(line);
         std::string cell;
         std::vector<float> v;
         while (std::getline(ss, cell, ',')) v.push_back(std::strtof(cell.c_str(), nullptr));
-        if (v.size() != 1 + N * 4) continue;
+        if (v.size() != 1 + n * 4) continue;
         c.t.push_back(v[0]);
-        std::array<Quat, N> q{};
-        for (int i = 0; i < N; ++i) q[i] = qnorm({v[1 + i * 4], v[2 + i * 4], v[3 + i * 4], v[4 + i * 4]});
-        c.q.push_back(q);
+        std::vector<Quat> q(n);
+        for (size_t i = 0; i < n; ++i) q[i] = qnorm({v[1 + i * 4], v[2 + i * 4], v[3 + i * 4], v[4 + i * 4]});
+        c.q.push_back(std::move(q));
     }
-    c.ok = c.t.size() >= 2;
-    LOGI("%s shellclip: %s clip %s: %d frames, %.2f s", TAG, gun.c_str(), c.ok ? "loaded" : "UNUSABLE", (int)c.t.size(), c.ok ? c.t.back() : 0.0f);
+    c.ok = n > 0 && c.t.size() >= 2 && (c.left || c.right);
+    LOGI("%s shellclip: clip %s %s: %d joints (%s%s), %d frames, %.2f s", TAG, key.c_str(), c.ok ? "loaded" : "UNUSABLE", (int)n,
+         c.left ? "left" : "", c.right ? (c.left ? " + right" : "right") : "", (int)c.t.size(), c.ok ? c.t.back() : 0.0f);
     return c.ok ? &c : nullptr;
 }
 
@@ -82,32 +100,47 @@ Quat nlerp(Quat a, Quat b, float u) {
 }
 
 // the clip's pose at time t (linear between recorded frames)
-void sample(const Clip& c, float t, Quat out[N]) {
+void sample(const Clip& c, float t, std::vector<Quat>& out) {
     size_t k = 0;
     while (k + 1 < c.t.size() && c.t[k + 1] <= t) ++k;
-    if (k + 1 >= c.t.size()) { for (int i = 0; i < N; ++i) out[i] = c.q.back()[i]; return; }
+    const size_t n = c.names.size();
+    out.resize(n);
+    if (k + 1 >= c.t.size()) { for (size_t i = 0; i < n; ++i) out[i] = c.q.back()[i]; return; }
     const float span = c.t[k + 1] - c.t[k];
     const float u = span > 0.0f ? (t - c.t[k]) / span : 0.0f;
-    for (int i = 0; i < N; ++i) out[i] = nlerp(c.q[k][i], c.q[k + 1][i], u);
+    for (size_t i = 0; i < n; ++i) out[i] = nlerp(c.q[k][i], c.q[k + 1][i], u);
 }
 
-void write_all() {
-    for (int i = 0; i < N; ++i)
-        if (g_joint[i] != nullptr) set_any(JOINT, g_joint[i], "set_LocalRotation", &g_target[i]);
+void write_all(const Play& p) {
+    for (size_t i = 0; i < p.joint.size(); ++i)
+        if (p.joint[i] != nullptr) set_any(JOINT, p.joint[i], "set_LocalRotation", &p.target[i]);
 }
 } // namespace
 
-void play(const std::string& gun_id) {
+void play(const std::string& gun_id, const char* event) {
     const auto gun = short_id(gun_id);
-    const Clip* c = load(gun);
+    const Clip* c = load(gun, event);
     if (c == nullptr) return;
-    g_clip = c;
-    g_t0 = now_s();
-    g_have = false;   // the starting pose is read at the next render point
-    LOGI("%s shellclip: %s round in: the game's finger movement plays (%.2f s)", TAG, gun.c_str(), c->t.back());
+    // a new clip on a hand replaces the one playing there (a both-hands clip replaces both)
+    for (size_t i = 0; i < g_plays.size();) {
+        const Clip* o = g_plays[i].clip;
+        if ((c->left && o->left) || (c->right && o->right)) g_plays.erase(g_plays.begin() + i); else ++i;
+    }
+    Play p;
+    p.clip = c;
+    p.what = gun + "_" + event;
+    p.t0 = now_s();
+    p.joint.assign(c->names.size(), nullptr);
+    p.found.assign(c->names.size(), Quat{0, 0, 0, 1});
+    p.target.assign(c->names.size(), Quat{0, 0, 0, 1});
+    g_plays.push_back(std::move(p));
+    LOGI("%s shellclip: %s %s: the game's finger movement plays on the %s hand (%.2f s)", TAG, gun.c_str(), event,
+         c->left && c->right ? "left and right" : c->left ? "left" : "right", c->t.back());
 }
 
-bool playing() { return g_clip != nullptr; }
+bool playing() { return !g_plays.empty(); }
+bool playing_left() { for (const auto& p : g_plays) if (p.clip->left) return true; return false; }
+bool playing_right() { for (const auto& p : g_plays) if (p.clip->right) return true; return false; }
 
 void frame() {
     static float last_check = -1.0f;
@@ -116,50 +149,57 @@ void frame() {
     last_check = t;
     const auto p = data_dir() / "play.txt";
     std::ifstream f(p);
-    std::string id;
-    if (f && std::getline(f, id) && !id.empty()) {
+    std::string line;
+    if (f && std::getline(f, line) && !line.empty()) {
         f.close();
         std::ofstream(p, std::ios::trunc).close();
-        LOGI("%s shellclip: test play asked for %s", TAG, id.c_str());
-        play(id);
+        std::stringstream ss(line);
+        std::string id, event;
+        ss >> id >> event;
+        if (event.empty()) event = "round_in";
+        LOGI("%s shellclip: test play asked for %s %s", TAG, id.c_str(), event.c_str());
+        play(id, event.c_str());
     }
 }
 
 void render_point() {
-    if (g_clip == nullptr) return;
+    if (g_plays.empty()) return;
     const auto& s = player::now();
-    if (s.tf == nullptr) { g_clip = nullptr; return; }
-    if (s.tf != g_tf) { g_tf = s.tf; for (auto& j : g_joint) j = nullptr; }
-    for (int i = 0; i < N; ++i) if (g_joint[i] == nullptr) g_joint[i] = joint_by_name(g_tf, LEFT_FINGERS[i]);
-    const float t = now_s() - g_t0;
-    const float len = g_clip->t.back();
-    if (!g_have) {   // the pose the hand had when the round went in: blended in from
-        for (int i = 0; i < N; ++i) {
-            Quat q{0, 0, 0, 1};
-            if (g_joint[i] != nullptr && get_q(JOINT, g_joint[i], "get_LocalRotation", q)) g_found[i] = qnorm(q);
-            else g_found[i] = q;
+    if (s.tf == nullptr) { g_plays.clear(); return; }
+    if (s.tf != g_tf) { g_tf = s.tf; for (auto& p : g_plays) for (auto& j : p.joint) j = nullptr; }
+    const float now = now_s();
+    for (size_t pi = 0; pi < g_plays.size();) {
+        Play& p = g_plays[pi];
+        const Clip& c = *p.clip;
+        const size_t n = c.names.size();
+        for (size_t i = 0; i < n; ++i) if (p.joint[i] == nullptr) p.joint[i] = joint_by_name(g_tf, c.names[i].c_str());
+        const float t = now - p.t0;
+        const float len = c.t.back();
+        if (!p.have) {   // the pose the hand had when the event happened: blended in from, and back out to
+            for (size_t i = 0; i < n; ++i) {
+                Quat q{0, 0, 0, 1};
+                if (p.joint[i] != nullptr && get_q(JOINT, p.joint[i], "get_LocalRotation", q)) p.found[i] = qnorm(q);
+                else p.found[i] = q;
+            }
+            p.have = true;
         }
-        g_have = true;
+        if (t >= len + SHELLCLIP_BLEND_S) {   // done: the other finger code takes the hand back from the next frame
+            LOGI("%s shellclip: %s finished", TAG, p.what.c_str());
+            g_plays.erase(g_plays.begin() + pi);
+            continue;
+        }
+        std::vector<Quat> pose;
+        sample(c, std::fmin(t, len), pose);
+        const float in = std::fmin(1.0f, t / SHELLCLIP_BLEND_S);
+        const float out = t > len ? std::fmax(0.0f, 1.0f - (t - len) / SHELLCLIP_BLEND_S) : 1.0f;
+        for (size_t i = 0; i < n; ++i) p.target[i] = nlerp(p.found[i], pose[i], ease(std::fmin(in, out)));
+        write_all(p);
+        ++pi;
     }
-    if (t >= len + SHELLCLIP_BLEND_S) {   // done: the other finger code takes the hand back from the next frame
-        g_clip = nullptr;
-        LOGI("%s shellclip: finished", TAG);
-        return;
-    }
-    Quat pose[N];
-    sample(*g_clip, std::fmin(t, len), pose);
-    const float in = std::fmin(1.0f, t / SHELLCLIP_BLEND_S);
-    const float out = t > len ? std::fmax(0.0f, 1.0f - (t - len) / SHELLCLIP_BLEND_S) : 1.0f;
-    for (int i = 0; i < N; ++i) {
-        // in: from the found pose to the clip; out: from the clip back toward the found pose (the others then take over)
-        g_target[i] = nlerp(g_found[i], pose[i], ease(std::fmin(in, out)));
-    }
-    write_all();
 }
 
 void begin_render() {
-    if (g_clip == nullptr || !g_have) return;
-    write_all();
+    for (const auto& p : g_plays) if (p.have) write_all(p);
 }
 
 } // namespace vn::shellclip

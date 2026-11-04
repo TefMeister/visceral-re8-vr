@@ -102,7 +102,7 @@ void render_point() {
     // 2026-11-01 23:3x (Tefa: "left hand is still animating while walking"): the left fingers the same, whenever the left hand
     // is free: not gripping or holding anything, no Hand Poser on it, and not opening toward a part (fingers.cpp)
     // (2026-11-02: the game's own "gripping" flag left out: it flickers while LG is up, the game docking the free hand)
-    const bool left_free = !bridge::held(bridge::S_LGRIP) && !rack::active() && !shellclip::playing() &&
+    const bool left_free = !bridge::held(bridge::S_LGRIP) && !rack::active() && !shellclip::playing_left() &&
                            !reload::mag_in_hand() && !reload::round_in_hand() && !gate::owns_left() &&
                            bridge::view(bridge::S_POSER_HELD) <= 0.5f;   // (2026-11-02: no longer stands aside for fingers.cpp: that
                            // opening is written AFTER this now, on top of the still pose, so the two no longer take turns: the twitch)

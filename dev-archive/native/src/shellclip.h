@@ -1,26 +1,34 @@
-// shellclip.h -- the game's own finger movement for a round going in, played on the hand that put it in (2026-11-02, Opus).
+// shellclip.h -- the game's own finger movements, played on the docked hands at the moment our code does the thing
+// (2026-11-02 the W870's shell-in on the left hand, Opus; 2026-11-04 every gun, both hands, named events, Fable).
 //
 // Tefa, 2026-11-02: "can you just try one gun in re8 with opus, to see if you can put the games original finger movements
 // into inserting a shell into w870 shotgun, so that in the activation zone, hand can still be moved, but the finger
-// animation of a shell being insetred plays when the shell goes in".
+// animation of a shell being insetred plays when the shell goes in"; and the wider ask the same day: "default hand
+// animations, just the hand and fingers, so wrists are not locked and hands can still be naturally moved in vr ... use
+// these hand grip poses when gripping weapons in VR".
 //
-// The clip is one cycle of the game's own shell-in motion (2512 on the W870), cut from a finger take by
-// tools/make_finger_clip.py into reframework/data/visceral_re8/clips/<gun>_round_in.csv (the game's animation data, so it
-// stays on the PC, never on GitHub). When reload.cpp puts a round in, the LEFT hand's 15 finger joints play it: blended in
-// from the pose they had, the clip at its own speed, blended back out to whatever the game and the other finger code want.
-// Only the finger joints' local rotations are written: where the hand is stays the controller's (reload.cpp / the IK).
-// Written last at both render points, so it wins over fingers.cpp, righthand.cpp and Hand Poser while it plays.
-// Test without a headset: write the gun's short id (e.g. "ri3021") into reframework/data/visceral_re8/clips/play.txt;
-// the clip plays once on whatever is in hand (the file is emptied). Log lines "[visceral-re8] shellclip: ...".
+// The clips are cut from the finger takes by tools/make_finger_book.py into reframework/data/visceral_re8/clips/
+// <gun>_<event>.csv (the game's animation data, so they stay on the PC, never on GitHub). Events: round_in (a round pushed
+// in: the left hand on the shotguns and the Rocket Pistol, the RIGHT hand on the revolvers, as the game does it), mag_out
+// (the magazine grasped and pulled), mag_in (the new one pushed home); rack and reload are written but not played yet.
+// A clip's header names the joints it moves (L_IndexF1 ... R_Thumb3), so a clip drives one hand or both; a new clip on a
+// hand replaces the one playing there. Blended in from the pose the hand had, played at its own speed, blended back out
+// to whatever the game and the other finger code want. Only finger joints' local rotations are written: where the hand
+// IS stays the controller's (reload.cpp / the IK). Written last at both render points, so it wins over fingers.cpp,
+// righthand.cpp and Hand Poser while it plays.
+// Test without a headset: write "<gun> [event]" (e.g. "ri3046 mag_out") into reframework/data/visceral_re8/clips/play.txt;
+// it plays once on whatever is in hand (the file is emptied). Log lines "[visceral-re8] shellclip: ...".
 #pragma once
 #include <string>
 
 namespace vn::shellclip {
 
-void play(const std::string& gun_id);   // reload.cpp: a round went in (gun_id like "ri3021_Inventory" or "ri3021")
+void play(const std::string& gun_id, const char* event = "round_in");   // gun_id like "ri3021_Inventory" or "ri3021"
 void frame();                           // UpdateBehavior pre: the test file
 void render_point();                    // PrepareRendering post, after every other finger writer
 void begin_render();                    // BeginRendering pre, after every other finger writer
-bool playing();                         // fingers.cpp / righthand.cpp stand aside meanwhile
+bool playing();                         // any hand
+bool playing_left();                    // fingers.cpp / righthand.cpp stand aside for the left hand meanwhile
+bool playing_right();
 
 } // namespace vn::shellclip

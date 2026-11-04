@@ -207,6 +207,7 @@ void fill_magazine() {
     g_mag_rounds = 0;
     g_drop_gun = nullptr;
     if (g_dry && total > 0 && g_w->rack) rack::need("a magazine into an empty gun");   // the trigger waits for the rack
+    shellclip::play(g_id, "mag_in");   // 2026-11-04: the game's own finger movement for the magazine going home (shellclip.h)
     tell_hud();
     LOGI("%s reload: %s new magazine: %d rounds (%d from the carried ammo, capacity %d)%s", TAG, g_id.c_str(), total, took, player::capacity(),
          g_stash > 0 ? ", waiting for a rack" : "");
@@ -390,6 +391,7 @@ void pull_out() {
     g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
     g_lt_to_seat = true;     // it goes back in only on a fresh LT press at the well (hand_checks)
     g_same_mag = true;
+    shellclip::play(g_id, "mag_out");   // 2026-11-04: the game's own finger movement for the magazine coming out (shellclip.h)
     set_state(St::IN_HAND, pistol_mag() ? "released (B) into the left hand" : "pulled out by hand (LT)");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
