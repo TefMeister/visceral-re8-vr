@@ -208,6 +208,87 @@ local function run(cmd)
                         tostring(valid), driver ~= nil and type_name(driver) or "nil"))
         if ok and r ~= nil and driver ~= nil then shop_handle = r end
         write_back(cmd, string.format("valid=%s driver=%s", tostring(valid), driver ~= nil and type_name(driver) or "nil"))
+    elseif cmd == "openshop" then
+        -- the game's own way in: app.GUIShop.openShop(app.GUIRequest.Parameter) on the top screen's driver
+        local gm = sdk.get_managed_singleton("app.GUIManager")
+        if shop_handle == nil or type_name(safe(function() return shop_handle:get_field("<driver>k__BackingField") end) or {}) ~= "app.GUIShop" then
+            local ok, r = pcall(function() return gm:call("createGUI(System.UInt32, System.Boolean)", murmur3_utf16("Shop"), true) end)
+            if ok and r ~= nil then shop_handle = r end
+        end
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        if driver == nil then L("no Shop driver"); write_back(cmd, "no Shop driver"); return end
+        local param = sdk.create_instance("app.GUIRequest.Parameter")
+        if param == nil then L("could not make app.GUIRequest.Parameter"); write_back(cmd, "no parameter"); return end
+        param = param:add_ref()
+        for _, f in ipairs(sdk.find_type_definition("app.GUIRequest.Parameter"):get_fields()) do
+            L("parameter field " .. f:get_name() .. " = " .. tostring(safe(function() return param:get_field(f:get_name()) end)))
+        end
+        local ok, r = pcall(function() return driver:call("openShop(app.GUIRequest.Parameter)", param) end)
+        L("openShop(param) -> ok=" .. tostring(ok) .. " result=" .. tostring(r))
+        L("isShowingGUIShop() -> " .. tostring(safe(function() return gm:call("isShowingGUIShop") end)))
+        write_back(cmd, "openShop ok=" .. tostring(ok) .. " result=" .. tostring(r))
+    elseif cmd == "modes" then
+        -- app.GUIShopMode's static hashes (Menu, Buy, Customize, Sell, Recipe): are they the GUI aliases?
+        local td = sdk.find_type_definition("app.GUIShopMode")
+        for _, n in ipairs({ "MenuHash", "BuyHash", "CustomizeHash", "SellHash", "RecipeHash", "CountOf" }) do
+            local f = td:get_field(n)
+            local v = f and safe(function() return f:get_data(nil) end)
+            local nm = v and safe(function() return sdk.call_native_func(nil, td, "getName", v) end)
+            L(string.format("%s = %s  (ShopBuy hash is %u; name by getName: %s)", n, tostring(v), murmur3_utf16("ShopBuy"), tostring(nm)))
+        end
+        write_back(cmd, "see the log")
+    elseif cmd:sub(1, 11) == "createhash " then
+        local h = tonumber(cmd:sub(12))
+        local gm = sdk.get_managed_singleton("app.GUIManager")
+        local ok, r = pcall(function() return gm:call("createGUI(System.UInt32, System.Boolean)", h, true) end)
+        local driver = (ok and r ~= nil) and safe(function() return r:get_field("<driver>k__BackingField") end) or nil
+        local go = driver and safe(function() return driver:call("get_GameObject") end)
+        L(string.format("createGUI(%u) -> ok=%s result=%s driver=%s object='%s'", h, tostring(ok), tostring(r),
+                        driver ~= nil and type_name(driver) or "nil",
+                        tostring(go and safe(function() return go:call("get_Name") end) or "?")))
+        if ok and r ~= nil and driver ~= nil then shop_handle = r end
+        write_back(cmd, "driver=" .. (driver ~= nil and type_name(driver) or "nil"))
+    elseif cmd == "show" then
+        -- make the current handle's screen draw: drawSuspend off, onShow(true)
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        if driver == nil then L("no handle"); write_back(cmd, "no handle"); return end
+        local a = pcall(function() driver:call("set_drawSuspend", false) end)
+        local b, err = pcall(function() driver:call("onShow", true) end)
+        L("show: set_drawSuspend(false) ok=" .. tostring(a) .. "; onShow(true) ok=" .. tostring(b) .. " " .. tostring(err or ""))
+        L("drawSuspend now " .. tostring(safe(function() return driver:call("get_drawSuspend") end)))
+        write_back(cmd, "drawSuspend=" .. tostring(safe(function() return driver:call("get_drawSuspend") end)))
+    elseif cmd == "dumpnow" then
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        local go = driver and safe(function() return driver:call("get_GameObject") end)
+        if go == nil then L("no object"); write_back(cmd, "no object"); return end
+        local name = tostring(safe(function() return go:call("get_Name") end) or "?")
+        dump_game_object(go, name)
+        write_back(cmd, "dumped " .. name)
+    elseif cmd:sub(1, 8) == "settext " then
+        -- "settext <control name>|<text>" : every via.gui.Text of that name in the current handle's view gets the text
+        local cname, text = cmd:sub(9):match("^(.-)|(.*)$")
+        local driver = shop_handle and safe(function() return shop_handle:get_field("<driver>k__BackingField") end)
+        local go = driver and safe(function() return driver:call("get_GameObject") end)
+        local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
+        local view = gui and safe(function() return gui:call("get_View") end)
+        if view == nil or cname == nil then L("settext: no view, or bad form"); write_back(cmd, "no view"); return end
+        local hits = 0
+        local function visit(ctrl, depth)
+            if ctrl == nil or depth > MAX_DEPTH then return end
+            if type_name(ctrl):find("Text") and safe(function() return ctrl:call("get_Name") end) == cname then
+                local ok, err = pcall(function() ctrl:call("set_Message", text) end)
+                hits = hits + 1
+                L(string.format("set_Message on '%s' #%d ok=%s %s; reads back: %s", cname, hits, tostring(ok), tostring(err or ""),
+                                tostring(safe(function() return ctrl:call("get_Message") end))))
+            end
+            local child = safe(function() return ctrl:call("get_Child") end)
+            while child ~= nil do
+                visit(child, depth + 1)
+                child = safe(function() return child:call("get_Next") end)
+            end
+        end
+        visit(view, 0)
+        write_back(cmd, hits .. " text control(s) set")
     elseif cmd == "handles" then
         -- what the shop handle points at: the GUIHandle's own methods, and the object it wraps
         list_methods("app.GUIHandle")

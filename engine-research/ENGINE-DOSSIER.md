@@ -55,6 +55,24 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
   `app.PlayerUpdater`; the `set_FontSize` access violations stopped after 10-31 (/gd).
 - /gs 2026-10-27: the board's OPEN block had not been re-dated after an entry (re-audited since).
 
+## §6 The GUI system and the Duke's shop (2026-11-04, flat, Lua probe)
+
+- A screen is made by `app.GUIManager.createGUI(UInt32 alias, Boolean)`; **the alias is the RE Engine name hash**
+  (murmur3_32 UTF-16LE, seed 0xFFFFFFFF) of the screen's short name: `createGUIShopBuy()`'s handle has alias
+  3474722425 = hash("ShopBuy") `[verified-live 2026-11-04, n=1]`. The handle (`app.GUIHandle`) holds the screen's
+  driver component (app.GUIShopBuy and kin, all `app.GUIDriver`s: show / hide / execute(GUIRequest) / set_drawSuspend /
+  onShow / get_GameObject), `isManaged`, `aliasHash`, `isForceHide`.
+- Shop screens by name: Shop (top; menuHandle, bgHandle, initialMode), ShopBg (the wall: a `via.render.Mesh` with its own
+  camera numbers, so a 3D object in front of the camera, VR-visible), ShopBuy (1302 controls), ShopSell, ShopCustomize,
+  ShopRecipe. `app.GUIShopMode`: Menu / Buy / Customize / Sell / Recipe (hashes of those words). The Menu (three cards)
+  screen's alias is not found yet.
+- ShopBg shows in gameplay with `set_drawSuspend(false)` + `onShow(true)` on its driver `[verified-live 2026-11-04,
+  n=1]`. ⛔ The same on a ShopBuy with no data crashes the game `[verified-live 2026-11-04, n=1]`.
+- GUI game objects are named "GUI" + alias (GUIShopBuy, GUIShopBg, GUIMouseCursor); `re.on_pre_gui_draw_element`
+  sees 2D GUI draws (the cursor) but not the mesh-based wall.
+- Story: `modding-notes/2026-11-04-the-dukes-shop-by-name.md`; probe: `dev-archive/native/lua/visceral_re8_shop_probe.lua`
+  (installed in the game's autorun, driven by `reframework/data/visceral_re8/shop_probe.json`).
+
 ## Dead ends
 
 - praydog's connector on the 76298bd build (§1). The game's held-trigger shot with only `readyShootByTimer` forced (§2).
