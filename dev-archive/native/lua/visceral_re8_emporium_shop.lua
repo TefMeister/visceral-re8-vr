@@ -51,6 +51,7 @@ local KITCHEN_MOTTO = "REFramework's full menu"
 local MENU_KEY_SLOT = 185          -- src/bridge.h S_MENU_KEY: the plugin presses REFramework's menu key (menukey.cpp)
 local MENU_KEY_AFTER_FRAMES = 45
 local SWALLOW_S = 0.6
+local EXIST_MERCHANT = false       -- see open()
 local DUKE_STOCK = 1481905281      -- the Duke's stock at the village (assortmentHash read at a real visit, 2026-11-04)              -- one B reaches the shop twice (its order, then the screen); the second is swallowed   -- after the shop has finished closing, so the menu opens over the game
 local EMPTY_TEXT = "Nothing here yet"
 
@@ -252,7 +253,9 @@ local function open()
     end
     ui.result = result
     local ok, err = pcall(function()
-        order:call("openShop(app.GUIShopMode.Value, System.Int32, System.Boolean, app.OperationResultBase)", menu_mode, 0, true, result)
+        -- existMerchant: false. With true (as a real Duke visit passes) a trip into a sub-screen left the player frozen after
+        -- closing, even with none of our changes (2026-11-04 20:15, n=2): the release then waits for a merchant that is not there
+        order:call("openShop(app.GUIShopMode.Value, System.Int32, System.Boolean, app.OperationResultBase)", menu_mode, 0, EXIST_MERCHANT, result)
     end)
     L("order.openShop -> ok=" .. tostring(ok) .. " " .. tostring(err or "") .. (result and "" or " (no result object)"))
     ui.open, ui.level, ui.tab, ui.page = true, "tabs", 1, 1
@@ -580,8 +583,10 @@ end
 do
     local bt = sdk.find_type_definition("app.GUIShopBuy")
     local function hook(name, pre, post)
+        local function wrap_pre(args) if ui.raw then return end if pre then return pre(args) end end
+        local function wrap_post(r) if ui.raw then return r end if post then return post(r) end return r end
         for _, m in ipairs(bt and bt:get_methods() or {}) do
-            if m:get_name() == name then pcall(sdk.hook, m, pre, post or function(r) return r end) end
+            if m:get_name() == name then pcall(sdk.hook, m, wrap_pre, wrap_post) end
         end
     end
     -- the unit list cut to our settings (after the game built it from the Duke's stock)
@@ -781,7 +786,8 @@ re.on_frame(function()
                 end
                 ui.open, ui.menu, ui.top, ui.closing, ui.game_closing = false, nil, nil, false, false
                 L("kill: shop off, exclusive now " .. (m and exclusive_state(m) or "?"))
-            elseif line == "realbuy" then ui.real_screens = true; L("experiment: the cards open the game's real screens")
+            elseif line == "realbuy" then ui.real_screens = true; ui.raw = false; L("experiment: the cards open the game's real screens")
+            elseif line == "realraw" then ui.real_screens = true; ui.raw = true; L("experiment: the real screens, none of our changes")
             elseif line == "ownpages" then ui.real_screens = false; L("the cards open our own pages again")
             elseif line == "open" then pcall(open) elseif line == "close" then pcall(close)
             elseif line == "back" then pcall(back) elseif line:sub(1, 5) == "pick " then pcall(pick, tonumber(line:sub(6)) or 0) end
