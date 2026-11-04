@@ -89,7 +89,7 @@ end
 _G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
 
 -- ===== state =====
-local ui = { open = false, level = "tabs", tab = 1, page = 1, cards = {}, menu = nil, top = nil, render_in = 0, closing = false, game_closing = false, wait_menu = 0,
+local ui = { real_screens = true, open = false, level = "tabs", tab = 1, page = 1, cards = {}, menu = nil, top = nil, render_in = 0, closing = false, game_closing = false, wait_menu = 0,
              want_back = false, want_pick = nil }
 
 local function entries_for(tab)
@@ -780,6 +780,140 @@ do
     end)
 end
 
+-- ===== THE DUKE'S PURSE AS THE GRAPHICS TABLE (Tefa 2026-11-04: "the one for selling stuff can be graphics options like
+-- supersampling, dlss, eye fix for single frame multipass, adaptive lighting ... and so on") =====
+-- The third card opens the game's own sell table (ShopSell). Its list is cut to the group's settings; each row: the name
+-- = the setting, "On Hand" = its value, the "No." column's arrows = change it (Left / Right call changeSellCountBy, which
+-- we turn into a step down / up), the price and the total hidden; the description panel = what the setting does.
+-- A (canSellItem / sellItem) steps it up as well, never sells. [hypothesis] until seen.
+local sell_drv = nil
+local function sell_rows()
+    local g = math.min(#TABS, ui.tab or 3)
+    return entries_for(TABS[g].tab)
+end
+local function step_setting(e, dir)
+    local okg, cur = pcall(e.get or function() return nil end)
+    if not okg then cur = nil end
+    if e.kind == "check" and e.set then pcall(e.set, not (cur == true))
+    elseif e.kind == "choice" and e.set then
+        local n = #(e.choices or {})
+        if n > 0 then pcall(e.set, (((tonumber(cur) or 1) - 1 + dir) % n) + 1) end
+    elseif e.kind == "slider" and e.set then
+        local lo, hi = e.min or 0.0, e.max or 1.0
+        local step = (hi - lo) / SLIDER_STEPS
+        local v = math.max(lo, math.min(hi, (tonumber(cur) or lo) + dir * step))
+        pcall(e.set, v)
+    elseif e.kind == "button" and e.press and dir > 0 then pcall(e.press) end
+end
+local function render_sell()
+    if not (ui.open and ui.level == "real" and sell_drv) then return end
+    local go = safe(function() return sell_drv:call("get_GameObject") end)
+    local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
+    local view = gui and safe(function() return gui:call("get_View") end)
+    if view == nil then return end
+    local rows = sell_rows()
+    local g = math.min(#TABS, ui.tab or 3)
+    set_texts(view, "header", "m_header", TABS[g].name)
+    set_texts(view, "header", "m_header_desc", TABS[g].motto)
+    local list = nil
+    for _, c in ipairs(all_named(view, "sl_list")) do
+        if control_named(c, "c_count") then list = c end
+    end
+    if list then
+        for k = 1, 7 do
+            local row = control_named(list, k == 1 and "si_list" or ("item" .. (k - 1)))
+            local e = rows[k]
+            if row and e then
+                for _, c in ipairs(all_named(row, "m_name")) do set_text(c, e.label or "?") end
+                -- two c_num panels per row: the first is inside c_count (the "No." column), the last is "On Hand"
+                local nums = all_named(row, "c_num")
+                local on_hand = nums[#nums]
+                if on_hand then set_text(control_named(on_hand, "m_num"), value_text(e)) end
+                local count = control_named(row, "c_count")
+                if count then set_text(control_named(count, "m_num"), "") end
+                set_visible(control_named(row, "c_price"), false)
+                set_visible(control_named(row, "icon_parts"), false)
+            end
+        end
+    end
+    set_visible(control_named(view, "c_list_total"), false)
+    local idx = (tonumber(safe(function() return sell_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
+    local e = rows[idx]
+    if e then
+        set_text(safe(function() return sell_drv:get_field("<itemNameText>k__BackingField") end), e.label or "?")
+        set_text(safe(function() return sell_drv:get_field("<itemCategoryText>k__BackingField") end), TABS[g].name)
+        set_text(safe(function() return sell_drv:get_field("<itemDescriptionText>k__BackingField") end),
+                 ((e.help and e.help ~= "") and (e.help .. " ") or "") .. "Now: " .. value_text(e) .. ". Left / right to change.")
+        set_text(safe(function() return sell_drv:get_field("<stockText>k__BackingField") end), value_text(e))
+    end
+end
+do
+    local st = sdk.find_type_definition("app.GUIShopSell")
+    local function hook(name, pre, post)
+        local function wrap_pre(args) if ui.raw then return end if pre then return pre(args) end end
+        local function wrap_post(r) if ui.raw then return r end if post then return post(r) end return r end
+        for _, m in ipairs(st and st:get_methods() or {}) do
+            if m:get_name() == name then pcall(sdk.hook, m, wrap_pre, wrap_post) end
+        end
+    end
+    hook("collectSellUnits", function(args)
+        if ui.open and ui.level == "real" then sell_drv = safe(function() return sdk.to_managed_object(args[2]) end) end
+    end, function(retval)
+        if ui.open and ui.level == "real" and sell_drv then
+            local units = safe(function() return sell_drv:get_field("<sellUnits>k__BackingField") end)
+            local n = units and safe(function() return units:call("get_Count") end) or 0
+            local want = math.max(1, #sell_rows())
+            if n > want then pcall(function() units:call("RemoveRange", want, n - want) end) end
+            L(string.format("Purse list cut: %d -> %s (want %d)", n, tostring(units and safe(function() return units:call("get_Count") end)), want))
+        end
+        return retval
+    end)
+    hook("onLateUpdate", function(args)
+        if ui.open and ui.level == "real" and sell_drv == nil and ui.tab == 3 then
+            sell_drv = safe(function() return sdk.to_managed_object(args[2]) end)
+        end
+    end)
+    -- Left / Right on a row: changeSellCountBy(delta, bool) -> our step down / up
+    hook("changeSellCountBy", function(args)
+        if not (ui.open and ui.level == "real" and sell_drv) then return end
+        local delta = tonumber(safe(function() return sdk.to_int64(args[3]) end)) or 1
+        delta = (delta & 0xFFFFFFFF)
+        if delta >= 0x80000000 then delta = delta - 0x100000000 end
+        local idx = (tonumber(safe(function() return sell_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
+        local e = sell_rows()[idx]
+        if e and os.clock() > (ui.flip_quiet_until or 0) then
+            ui.flip_quiet_until = os.clock() + 0.15
+            step_setting(e, delta < 0 and -1 or 1)
+            L("changed on the Duke's Purse: " .. tostring(e.label) .. " -> " .. value_text(e))
+        end
+        return sdk.PreHookResult.SKIP_ORIGINAL
+    end)
+    for _, name in ipairs({ "canSellItem", "sellItem", "onSellDecideDialog" }) do
+        local stepping = false
+        hook(name, function(args)
+            if not (ui.open and ui.level == "real" and sell_drv) then return end
+            if name == "canSellItem" then
+                local idx = (tonumber(safe(function() return sell_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
+                local e = sell_rows()[idx]
+                if e and os.clock() > (ui.flip_quiet_until or 0) then
+                    ui.flip_quiet_until = os.clock() + 0.3
+                    step_setting(e, 1)
+                    L("changed on the Duke's Purse (A): " .. tostring(e.label) .. " -> " .. value_text(e))
+                end
+            end
+            stepping = true
+            return sdk.PreHookResult.SKIP_ORIGINAL
+        end, function(retval)
+            if stepping then stepping = false; return sdk.to_ptr(0) end
+            return retval
+        end)
+    end
+    hook("onHide", nil, function(retval)
+        if ui.open and ui.level == "real" then ui.level, sell_drv = "tabs", nil; ui.render_in = 6 end
+        return retval
+    end)
+end
+
 -- ===== the X + A hold (headset) =====
 local hold_since, hold_done = nil, false
 local function buttons_held()
@@ -874,6 +1008,14 @@ re.on_frame(function()
             ui.cust_tick, ui.render_cust_in = 0, 0
             local ok, err = pcall(render_cust)
             if not ok then L("render_cust failed: " .. tostring(err)) end
+        end
+    end
+    if ui.open and ui.level == "real" and sell_drv then
+        ui.sell_tick = (ui.sell_tick or 0) + 1
+        if ui.sell_tick >= 6 then
+            ui.sell_tick = 0
+            local ok, err = pcall(render_sell)
+            if not ok then L("render_sell failed: " .. tostring(err)) end
         end
     end
     if ui.render_buy_in and ui.render_buy_in > 0 then

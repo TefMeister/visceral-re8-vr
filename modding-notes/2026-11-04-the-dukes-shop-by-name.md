@@ -232,3 +232,19 @@ read what each screen is given (assortment, units, specs), then feed our own row
 - Left: the slider row's "Lv. 2" text is still the game's (our value shows on the switch rows); the gun pictures and the gun
   name ("LEMI / Handgun") stay; pressing A on the real Gunsmithy BEFORE our hook was in left a dead "Upgrade weapon?"
   question on screen until the game restarted (nothing was bought).
+
+## 21:00-21:15: the Duke's Purse is the GRAPHICS TABLE; the real screens are the default
+
+- The third card opens the game's own sell table (ShopSell). `collectSellUnits` -> cut to the group's settings (40 -> 9);
+  each row (`si_list`, `item1` ..., in the `sl_list` that holds `c_count`): `m_name` = the setting, the row's last `c_num`
+  ("On Hand") = its value, the "No." count emptied, the price and the total hidden; header = the group, the description
+  panel = the help line + "Now: <value>. Left / right to change."
+- Left / Right on a row call `changeSellCountBy(delta, bool)` -> our step down / up (skipped); A (`canSellItem`, `sellItem`,
+  `onSellDecideDialog`) steps up, never sells. Seen: the Settings group as a table (Holsters, Hip holster, Shoulder holster,
+  Left chest (knife), Right chest (healing), Flashlight, ...), Right turned Hip holster Off, Left back On `[verified-live
+  2026-11-04, n=1]`.
+- `real_screens` is now ON by default: Comfort -> the Supplies grid (switches), Graphics -> the Gunsmithy (sliders), Settings
+  -> the Duke's Purse (the table), the Kitchen -> REFramework's menu. All three in and out, then close: the player walks
+  (picture change 23.2) `[verified-live 2026-11-04]`.
+- Open questions for Tefa: which settings belong in which group (today each card shows its group's settings in that
+  screen's style); the group names; our pictures; the slider row's "Lv." text; then one headset look.
