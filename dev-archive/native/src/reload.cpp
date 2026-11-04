@@ -407,7 +407,10 @@ void grab_frame() {
         const auto& s = player::now();
         Vec3 mp, cp;
         Quat mq, cq;
-        if (!mag_world(mp, mq) || s.ik_left == nullptr || !player::get_pose(field_obj(s.ik_left, "Target"), cp, cq)) return;
+        // 2026-11-04 (Tefa: "real hand please"): the real hand (the controller) again, like every other grab, so the sphere and
+        // the grab agree; the 03:06 switch to the drawn hand made a hand inside the sphere miss the magazine
+        (void)s; (void)cq;
+        if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return;
         const float d = dist(zones::center(zones::MAG, mp), cp), need = zones::radius(zones::MAG);   // the zone (zones.json) over MAG_GRAB_M
         LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, need);
         if (d > need) return;
@@ -625,7 +628,8 @@ bool hand_near_mag() {
     const auto& s = player::now();
     Vec3 mp, cp;
     Quat mq, cq;
-    if (!mag_world(mp, mq) || s.ik_left == nullptr || !player::get_pose(field_obj(s.ik_left, "Target"), cp, cq)) return false;
+    (void)s; (void)cq;
+    if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return false;   // the real hand (2026-11-04)
     return dist(zones::center(zones::MAG, mp), cp) <= zones::radius(zones::MAG);
 }
 // the zones the menu draws (zones.h): the magazine grab and the well, every frame; the well is measured while the magazine

@@ -205,14 +205,10 @@ float along_gun() {   // the working hand against the other one, along the barre
 // the bolt (2026-10-25): measured from the drawn left hand (its IK target, where it was drawn last frame), the same point the
 // magazine grab uses (reload.cpp grab_frame), with its own, tighter radius. The slide and the pump keep the controller and
 // RACK_JOINT_GRAB_M: Tefa 2026-10-25 "shotgun is fine now!", so they are left as they are
-bool grab_point(Vec3& lp) {
-    if (bolt()) {
-        const auto& s = player::now();
-        Quat q;
-        if (s.ik_left != nullptr && player::get_pose(field_obj(s.ik_left, "Target"), lp, q)) return true;
-    }
-    return bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp);
-}
+// 2026-11-04 (Tefa: "real hand please"): EVERY grab measures the real hand (the left controller), the bolt included. The drawn
+// hand can sit 10-15 cm from the controller (docked on the gun, or offset), so a sphere showed the hand inside it while the
+// grab, measuring the drawn hand, said no.
+bool grab_point(Vec3& lp) { return bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp); }
 float joint_grab_m() { return zones::radius(zones::PART, part()); }   // zones.json over RACK_BOLT_GRAB_M / RACK_JOINT_GRAB_M
 bool pistol_slide() { return g_w != nullptr && !g_w->pump && !g_w->bolt && g_w->shape == weapons::Shape::PISTOL; }
 bool near_joint(float& d) {   // the left hand near the slide / pump / bolt zone (the joint, moved by the zone's offset)
@@ -545,7 +541,7 @@ void frame() {
                 const Vec3 f = controller_fwd(), v = bridge::hand_pos(bridge::LEFT) - bridge::hand_pos(bridge::RIGHT);
                 if (g_joint != nullptr)
                     LOGI("%s rack: left hand %.3f m from the %s joint (need %.2f, %s): %s", TAG, off, part(), joint_grab_m(),
-                         bolt() ? "the drawn hand" : "the controller", is_near ? "HAND ON" : "too far");
+                         "the controller", is_near ? "HAND ON" : "too far");
                 else
                     LOGI("%s rack: left hand %.3f m off the gun line (need %.2f): %s; gun line %.2f %.2f %.2f, left - right %.2f %.2f %.2f", TAG, off,
                          RACK_GRAB_M, is_near ? "HAND ON" : "too far", f.x, f.y, f.z, v.x, v.y, v.z);
