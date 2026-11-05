@@ -55,6 +55,8 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
   `app.PlayerUpdater`; the `set_FontSize` access violations stopped after 10-31 (/gd).
 - /gs 2026-10-27: the board's OPEN block had not been re-dated after an entry (re-audited since).
 
+- 2026-11-05, Gold Digger (dev PC) from the collector's shelves: **the Emporium's `via.gui.Text.set_Message` calls fail in storms of up to 1000 a minute while a shop screen is open, and those minutes are the worst stutter the perf recorder saw** (38 fps, 240 stutters a minute; processor and graphics clocks halve while the main thread sits in exception handling) `[measured 2026-11-05]`. A second stutter stretch at 21:06 on 11-04 had no storm (a script reload / Sell: `[hypothesis]`). Board row on `status/visceral-re8-vr.md`. Drained from `inbox/2026-11-05-gd-emporium-text-crash-storms-are-the-stutter.md`.
+
 ## §6 The GUI system and the Duke's shop (2026-11-04, flat, Lua probe)
 
 - A screen is made by `app.GUIManager.createGUI(UInt32 alias, Boolean)`; **the alias is the RE Engine name hash**
@@ -77,6 +79,12 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
   sees 2D GUI draws (the cursor) but not the mesh-based wall.
 - Story: `modding-notes/2026-11-04-the-dukes-shop-by-name.md`; probe: `dev-archive/native/lua/visceral_re8_shop_probe.lua`
   (installed in the game's autorun, driven by `reframework/data/visceral_re8/shop_probe.json`).
+
+## §7 Finger joints: the engine's Euler angles (2026-11-05, flat, probe)
+
+`via.Joint.get_LocalEulerAngle` / `set_LocalEulerAngle` use the order **YXZ**: the quaternion is qY(y) * qX(x) * qZ(z), the Z
+turn applied first `[measured 2026-11-05, 12000 samples on 30 finger joints, 0.0000 deg error]`. Hand Poser writes these
+angles; `dev-archive/native/tools/make_rest_poses.py` turns the takes' quaternions into them. Probe: `lua/archive/zz_euler_probe.lua`.
 
 ## Dead ends
 
