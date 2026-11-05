@@ -47,6 +47,10 @@ local TEST_FILE = "visceral_re8/magthrow_test.json"
 local test = { float = false, whole = false, nofolder = false, lift = 0.0, front = false }
 local test_t = 0
 local function read_test()
+    -- 2026-11-05: look before loading: json.load_file logs an error every second when the test file is missing
+    local okf, fh = pcall(io.open, TEST_FILE, "r")
+    if not okf or not fh then return end
+    fh:close()
     local ok, d = pcall(json.load_file, TEST_FILE)
     if ok and type(d) == "table" then
         local f, w, nf, lf, fr = d.float == true, d.whole == true, d.nofolder == true, tonumber(d.lift) or 0.0, d.front == true

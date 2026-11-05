@@ -2,7 +2,7 @@
 that zone. The right controller stays at RIGHT. Reads zones_state.json hand_cm (the game writes it 4x a second).
 Prints the best room position and distance; leaves the left hand there. Also: walk.py squeeze <0|1> keeps the pose."""
 import sys, os, json, time
-sys.path.insert(0, os.path.expanduser("~/.claude/plugins/cache/lanes-plugin/lanes/0.95.0/tools/vrbench"))
+sys.path.insert(0, os.path.expanduser("~/github-backups/_lanes-next-wt/plugins/lanes/tools/vrbench"))
 import vb_input as I, vb_settings as S
 STATE = r"C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\reframework\data\visceral_re8\zones_state.json"
 POSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pose_now.json")
@@ -17,6 +17,7 @@ def put(p):
     l = I.pose_from_ypr(p["left"][0:3], p["left"][3], p["left"][4])
     inp.hand(S.HAND_LEFT, grip=l, aim=l, squeeze=p.get("squeeze", 0.0), trigger=p.get("trigger", 0.0))
     if p.get("rsqueeze") is not None: inp.hand(S.HAND_RIGHT, squeeze=p["rsqueeze"])
+    if p.get("rb"): inp.hand(S.HAND_RIGHT, b=True)   # right B held, without letting go of LG (vb.py press resets the hands)
     I.write(inp); save(p)
 def hand_cm(key):
     t0 = time.time()
@@ -33,7 +34,7 @@ def hand_cm(key):
     return None
 if __name__ == "__main__":
     p = load()
-    if sys.argv[1] in ("squeeze", "trigger", "rsqueeze"):
+    if sys.argv[1] in ("squeeze", "trigger", "rsqueeze", "rb"):
         p[sys.argv[1]] = float(sys.argv[2]); put(p); print(sys.argv[1], sys.argv[2]); sys.exit()
     if sys.argv[1] == "set":   # set left x y z yaw pitch
         p["left"] = [float(v) for v in sys.argv[2:7]]; put(p); print("left at", p["left"]); sys.exit()

@@ -1,6 +1,6 @@
 """hands.py rx ry rz ryaw rpitch [lx ly lz lyaw lpitch] -- hold both controllers at fixed poses (room metres, degrees)."""
 import sys, os
-sys.path.insert(0, os.path.expanduser("~/.claude/plugins/cache/lanes-plugin/lanes/0.95.0/tools/vrbench"))
+sys.path.insert(0, os.path.expanduser("~/github-backups/_lanes-next-wt/plugins/lanes/tools/vrbench"))
 import vb_input as I, vb_settings as S
 a = [float(v) for v in sys.argv[1:]]
 inp = I.Input().mode(poses="set", buttons="set")

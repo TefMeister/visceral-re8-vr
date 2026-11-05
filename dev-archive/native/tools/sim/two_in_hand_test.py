@@ -59,8 +59,9 @@ if __name__ == "__main__":
         if docked:
             here = P((0.20 + docked[0], 1.40 + docked[1], -0.35 + docked[2]), 0, 0)
             step("hold", here, 0.5, lg=1.0)
-            step("LT", here, 0.3, lg=1.0, lt=1.0)
-            step("after LT", here, 2.0, lg=1.0)
+            for k in range(int(os.environ.get("LTS", "1"))):   # 2026-11-05: b062 puts in ONE shell per LT press
+                step(f"LT {k + 1}", here, 0.3, lg=1.0, lt=1.0)
+                step(f"after LT {k + 1}", here, 1.2, lg=1.0)
             step("LG off", here, 1.0)
     vb.write()
 
