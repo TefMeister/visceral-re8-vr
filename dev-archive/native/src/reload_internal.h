@@ -32,6 +32,8 @@ extern Quat g_shell_rest_rot;
 extern Vec3 g_shell_scale;       // 2026-10-31: the shell joint's own scale (reload_pose.cpp)
 extern bool g_shell_scale_ok;
 extern bool g_shell_have_rest;
+extern int g_mag_rounds;          // 2026-11-05: rounds that left with the magazine (reload.cpp)
+extern bool g_same_mag;           // the magazine in the hand is the one pulled from this gun
 
 // ---- the pose helpers reload.cpp calls (defined in reload_pose.cpp) -------------------------------------------------
 Vec3 mag_out_pos();

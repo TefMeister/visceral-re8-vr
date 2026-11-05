@@ -9,6 +9,7 @@
 // it has the copy (S_MAGTHROW_ACK), the joint's fall is cut short (reload.cpp) so the two are never seen together.
 // The ammo is untouched here: the dropped magazine's rounds already stay counted (reload.cpp, 2026-10-25).
 #include "reload_internal.h"
+#include "reload.h"
 #include "bridge.h"
 #include "joints.h"
 #include "settings.h"
@@ -64,6 +65,9 @@ void throw_hand_over(Vec3 mag_pos, Quat mag_rot, bool from_hand) {
     put(S_MAGTHROW_PIVOT, mag_pos.x); put(static_cast<Slot>(S_MAGTHROW_PIVOT + 1), mag_pos.y); put(static_cast<Slot>(S_MAGTHROW_PIVOT + 2), mag_pos.z);
     put(S_MAGTHROW_VEL, v.x); put(static_cast<Slot>(S_MAGTHROW_VEL + 1), v.y); put(static_cast<Slot>(S_MAGTHROW_VEL + 2), v.z);
     put(S_MAGTHROW_PART, static_cast<float>(part));
+    // 2026-11-05 (magdisp.cpp): the copy shows its rounds parts only when the magazine holds any (its OWN count, not the gun's)
+    const int rounds = reload::mag_rounds_out();
+    put(S_MAGTHROW_ROUNDS, static_cast<float>(rounds >= 0 ? rounds : g_mag_rounds));
     g_seq += 1.0f;
     put(S_MAGTHROW_SEQ, g_seq);   // last: the Lua reads the numbers above once this changes
     LOGI("%s reload: magazine handed to the throw copy #%.0f (%s, part %d, speed %.2f m/s)", TAG, g_seq,

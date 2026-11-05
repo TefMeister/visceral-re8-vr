@@ -53,6 +53,8 @@ Quat g_shell_rest_rot{0, 0, 0, 1};
 bool g_shell_have_rest = false;
 int g_pocket = 0;                 // 2026-10-27: rounds taken out of the gun by hand (the GM 79), loaded again before the carried ammo
 int g_rounds_n = 0;               // 2026-10-27: a revolver's rounds in the left hand (one grab = the free chambers); 1 for other guns
+int g_mag_rounds = 0;             // rounds that left with the magazine   // (moved into detail 2026-11-05: magdisp reads them)
+bool g_same_mag = false;          // 2026-10-31: the magazine in the hand is the one pulled from this gun: it goes back with its own rounds
 } // namespace detail
 
 namespace {
@@ -69,8 +71,6 @@ bool g_hand_on_mag = false;       // seated with LG still held since the insert 
 float g_last_grab = -10.0f, g_last_dock = -10.0f;
 bool g_pouch_ours = false;        // inside our own pouch spot (used when Andyalpa's ammo spot never reports)
 
-int g_mag_rounds = 0;             // rounds that left with the magazine
-bool g_same_mag = false;          // 2026-10-31: the magazine in the hand is the one pulled from this gun: it goes back with its own rounds
 int g_chamber = 0;                // 2026-10-31: the round kept in the chamber while the magazine is out (CHAMBER_ROUND)
 bool g_lt_to_seat = false;        // a magazine pulled out by hand: it goes back in only on a fresh LT press at the well (Tefa 2026-10-25)
 bool g_dry = false;               // the gun was empty when its magazine came out

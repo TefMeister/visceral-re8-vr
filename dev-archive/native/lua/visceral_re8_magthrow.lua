@@ -21,6 +21,9 @@ local function once(key, s) if not told[key] then told[key] = true; L(s) end end
 -- ===== settings (one table; saved to reframework/data/visceral_re8/magthrow.json) =====
 local FILE = "visceral_re8/magthrow.json"
 local S_SEQ, S_ROOT_POS, S_ROOT_ROT, S_PIVOT, S_VEL, S_PART, S_ACK = 187, 188, 191, 195, 198, 201, 202
+-- 2026-11-05 (magdisp.cpp): the magazine's own rounds, the gun's second magazine part (+1000 vanishes when empty, +2000 when not
+-- empty), and up to eight parts that vanish when the magazine is empty (the rounds); the copy looks as full as its rounds say
+local S_ROUNDS, S_SECOND, S_VANISH, N_VANISH = 203, 204, 205, 8
 local GRAVITY = 9.81           -- m/s2
 local MAX_DT = 0.05            -- s, one step at most this long (a hitch never tunnels it through the floor)
 local REST_SPEED = 0.6         -- m/s, landing slower than this = it stays down (no bounce)
@@ -228,7 +231,20 @@ local function make_copy(b)
     if mat then pcall(function() mc:call("set_Material", mat) end) end
     local part = math.floor(b.r(S_PART) + 0.5)
     if not test.whole then
-        for i = 0, PARTS_MAX - 1 do pcall(function() mc:call("setPartsEnable", i, i == part) end) end
+        local show = { [part] = true }
+        local rounds = math.floor(b.r(S_ROUNDS) + 0.5)
+        local second = math.floor(b.r(S_SECOND) + 0.5)
+        if second >= 2000 then show[second - 2000] = rounds <= 0          -- the empty look's own part
+        elseif second >= 1000 then show[second - 1000] = rounds > 0       -- a part that goes with the rounds
+        elseif second >= 0 then show[second] = true end
+        if rounds > 0 then
+            for i = 0, N_VANISH - 1 do
+                local v = math.floor(b.r(S_VANISH + i) + 0.5)
+                if v >= 0 then show[v] = true end
+            end
+        end
+        for i = 0, PARTS_MAX - 1 do pcall(function() mc:call("setPartsEnable", i, show[i] == true) end) end
+        L(string.format("the copy shows the magazine part %d with %d round(s) in it%s", part, rounds, rounds > 0 and " (rounds parts on)" or " (empty look)"))
     end
     pcall(function() mc:call("set_Enabled", true) end)
     pcall(function() go:call("set_DrawSelf", true) end)

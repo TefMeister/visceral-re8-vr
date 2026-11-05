@@ -284,3 +284,20 @@ void log_joints() {
 }
 
 } // namespace vn::reload::detail
+
+// 2026-11-05 (Tefa 2026-10-31: "the mag that goes in full from the pouch when the gun is empty ... the mag in hand changes to the
+// empty model when that one last round is fired"): the rounds the OUT magazine holds, for its look (magdisp.cpp). The one
+// pulled out keeps what it left with; a fresh one from the pouch is as full as the carried ammo (plus the dropped one's
+// rounds, which fill_magazine gives back) allows
+namespace vn::reload {
+int mag_rounds_out() {
+    using namespace detail;
+    if (!mag_out()) return -1;
+    const bool fresh = (g_st == St::IN_HAND || g_st == St::INSERT) && !g_same_mag;
+    if (!fresh) return std::max(0, g_mag_rounds);
+    const int cap = player::capacity();
+    if (player::unlimited()) return cap > 0 ? cap : 1;
+    const int have = std::max(0, player::reserve()) + std::max(0, g_mag_rounds);
+    return cap > 0 ? std::min(cap, have) : have;
+}
+} // namespace vn::reload
