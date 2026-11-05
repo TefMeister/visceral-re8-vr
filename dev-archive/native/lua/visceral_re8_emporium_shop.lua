@@ -689,32 +689,64 @@ local function fill_of(e)
     end
     return (cur == true) and 1 or 0, 1
 end
+-- The Gunsmithy's controls, found ONCE per screen and kept: walking the whole tree was fine every sixth frame but too
+-- slow for every frame, and every frame is what stops the jump (Tefa 2026-11-05: "going from one option, example recoil
+-- strength, to another produces a little jump or jutter in between the selections"). [hypothesis] the jump was the
+-- game re-laying the rows with its own gun-upgrade words and bars on each move, and ours going back up to six frames
+-- later; now ours go back in the same frame, right after the game's own per-frame call.
+local cust_cache = nil
+local function cust_controls(view)
+    local key = safe(function() return view:get_address() end)
+    if cust_cache and cust_cache.key == key then return cust_cache end
+    local c = { key = key, hdr = {}, hdr_desc = {}, rows = {} }
+    for _, h in ipairs(all_named(view, "header")) do
+        for _, t in ipairs(all_named(h, "m_header")) do c.hdr[#c.hdr + 1] = t end
+        for _, t in ipairs(all_named(h, "m_header_desc")) do c.hdr_desc[#c.hdr_desc + 1] = t end
+    end
+    for r = 0, 4 do
+        local list = {}
+        for _, row in ipairs(all_named(view, "c_list" .. r)) do
+            local x = { row = row, name = all_named(row, "m_name"), lv = all_named(row, "m_lv"),
+                        num = all_named(row, "m_num"), num_up = all_named(row, "m_num_up"),
+                        price = all_named(row, "c_price"), lv_up = all_named(row, "c_lv_up"), bg = {}, gauge = {} }
+            for k = 0, GAUGE_STEPS - 1 do
+                x.bg[k] = all_named(row, "bg_gauge" .. k)
+                x.gauge[k] = all_named(row, "gauge" .. k)
+            end
+            list[#list + 1] = x
+        end
+        c.rows[r] = list
+    end
+    cust_cache = c
+    return c
+end
 local function render_cust()
     if not (ui.open and ui.level == "real" and cust_drv) then return end
     local go = safe(function() return cust_drv:call("get_GameObject") end)
     local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
     local view = gui and safe(function() return gui:call("get_View") end)
     if view == nil then return end
+    local c = cust_controls(view)
     local g, wi = cust_group()
     local rows = wi < #TABS and rows_for_group(g) or {}
-    set_texts(view, "header", "m_header", wi < #TABS and TABS[g].name or "")
-    set_texts(view, "header", "m_header_desc", wi < #TABS and TABS[g].motto or "")
+    for _, t in ipairs(c.hdr) do set_text(t, wi < #TABS and TABS[g].name or "") end
+    for _, t in ipairs(c.hdr_desc) do set_text(t, wi < #TABS and TABS[g].motto or "") end
     for r = 0, 4 do
         local e = rows[r + 1]
-        for _, row in ipairs(all_named(view, "c_list" .. r)) do
-            set_visible(row, e ~= nil and r < 4)
+        for _, x in ipairs(c.rows[r]) do
+            set_visible(x.row, e ~= nil and r < 4)
             if e then
                 local val = value_text(e)
-                for _, t in ipairs(all_named(row, "m_name")) do set_text(t, e.label or "?") end
-                for _, t in ipairs(all_named(row, "m_lv")) do set_text(t, val) end
-                for _, t in ipairs(all_named(row, "m_num")) do set_text(t, "") end
-                for _, t in ipairs(all_named(row, "m_num_up")) do set_text(t, "") end
-                for _, p in ipairs(all_named(row, "c_price")) do set_visible(p, false) end
-                for _, p in ipairs(all_named(row, "c_lv_up")) do set_visible(p, false) end
+                for _, t in ipairs(x.name) do set_text(t, e.label or "?") end
+                for _, t in ipairs(x.lv) do set_text(t, val) end
+                for _, t in ipairs(x.num) do set_text(t, "") end
+                for _, t in ipairs(x.num_up) do set_text(t, "") end
+                for _, p in ipairs(x.price) do set_visible(p, false) end
+                for _, p in ipairs(x.lv_up) do set_visible(p, false) end
                 local fill, steps = fill_of(e)
                 for k = 0, GAUGE_STEPS - 1 do
-                    for _, b in ipairs(all_named(row, "bg_gauge" .. k)) do set_visible(b, k < steps) end
-                    for _, b in ipairs(all_named(row, "gauge" .. k)) do set_visible(b, k < fill) end
+                    for _, b in ipairs(x.bg[k]) do set_visible(b, k < steps) end
+                    for _, b in ipairs(x.gauge[k]) do set_visible(b, k < fill) end
                 end
             end
         end
@@ -736,6 +768,13 @@ do
                 cust_drv = safe(function() return sdk.to_managed_object(args[2]) end)
                 ui.render_cust_in = 1
             end
+        end, function(retval)
+            -- our words straight back on, the same frame the game laid its own (the jump fix, see cust_controls)
+            if ui.open and ui.level == "real" and cust_drv then
+                local ok, err = pcall(render_cust)
+                if not ok and not ui.cust_err_said then ui.cust_err_said = true; L("render_cust (per frame) failed: " .. tostring(err)) end
+            end
+            return retval
         end)
     end
     -- A on a row: canTune(row). Our step, and "no" back, so the game shows no "Upgrade weapon?" question
@@ -775,7 +814,7 @@ do
     end)
     -- leaving the Gunsmithy (B): back to our groups
     hook("onHide", nil, function(retval)
-        if ui.open and ui.level == "real" then ui.level, cust_drv = "tabs", nil; ui.render_in = 6 end
+        if ui.open and ui.level == "real" then ui.level, cust_drv, cust_cache = "tabs", nil, nil; ui.render_in = 6 end
         return retval
     end)
 end
