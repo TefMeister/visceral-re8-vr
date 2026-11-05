@@ -97,6 +97,15 @@ enum Slot : int {
     S_SHELL_HOLD = 175,       // 175-181, WRITTEN BY THE LUA MENU: move 1-3 (cm, the hold's own axes), turn 1-3 (deg), size (percent, 0 = unset = 100)
     S_RIGHT_SPOT = 184,       // 2026-11-02, WRITTEN BY THE PLUGIN: where the right hand is docked, for Hand Poser: 1 the Wolfsbane's cover, 2 the rifle's bolt (pairs.cpp)
     S_GATE_HOLD = 183,        // 2026-11-01, WRITTEN BY THE PLUGIN: 1 = the Wolfsbane is held by the left hand while the right hand loads it (gate.cpp): no holster grab
+    // 2026-11-05 (Tefa: "throwing away a used mag ... that sound would also play from where it lands"), reload.cpp ->
+    // visceral_re8_magthrow.lua: a magazine let go of (or out of the magwell) is handed to the Lua, which flies a copy of it
+    S_MAGTHROW_SEQ = 187,     // WRITTEN BY THE PLUGIN: +1 per magazine handed over (written LAST, after the numbers below)
+    S_MAGTHROW_ROOT_POS = 188,  // 188-190: where the gun's root would be so its seated magazine sits where the magazine is now (world)
+    S_MAGTHROW_ROOT_ROT = 191,  // 191-194: that root's rotation (x, y, z, w)
+    S_MAGTHROW_PIVOT = 195,   // 195-197: the magazine's own point (world), the copy turns about it
+    S_MAGTHROW_VEL = 198,     // 198-200: its speed when let go (m/s, world)
+    S_MAGTHROW_PART = 201,    // the gun mesh's magazine part number (the copy shows only that part)
+    S_MAGTHROW_ACK = 202,     // WRITTEN BY THE LUA: the SEQ it made a copy for; the plugin then hides the gun's own falling magazine
     S_CLIP_PLAYING = 186,     // 2026-11-05, WRITTEN BY THE PLUGIN: a finger clip plays (shellclip.cpp): +1 the left hand, +2 the right; Hand Poser stands aside for that hand
     S_MENU_KEY = 185,         // 2026-11-04, WRITTEN BY THE EMPORIUM SCRIPT: 1 = press REFramework's menu key once (menukey.cpp), the plugin clears it
     S_GAME_SFX_SEQ = 182,     // 2026-11-01, WRITTEN BY THE SOUNDS SCRIPT: +1 on every gun sound the game itself plays (not ours, not footsteps)

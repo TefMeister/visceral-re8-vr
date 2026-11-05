@@ -41,6 +41,12 @@ bool held_pose(Vec3& pos, Quat& rot);
 void magazine_shown(bool show);
 void mag_part_shown(bool show);
 void hide_mag_part();
+int mag_part();
+
+// ---- the thrown magazine (defined in reload_throw.cpp) --------------------------------------------------------------
+void throw_sample(Vec3 p);                                  // every frame the magazine is in the hand
+void throw_hand_over(Vec3 mag_pos, Quat mag_rot, bool from_hand);   // it left: hand it to the Lua's copy
+bool throw_taken();                                         // the Lua has its copy: the joint's fall can stop
 void write_scale(Vec3 s);
 void capture_second();
 void pose_shell();

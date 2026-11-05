@@ -11,6 +11,7 @@ add_library(visceral_re8_native SHARED
     src/equipguard.cpp
     src/common.cpp
     src/bridge.cpp
+    src/reload_throw.cpp
     src/haptics.cpp
     src/player.cpp
     src/recoil.cpp

@@ -75,6 +75,10 @@ constexpr bool EJECT_BY_HAND = true;
 constexpr float RELOAD_SLIDE_SEC = 0.19f;        // the magazine slides out of the magwell (when its joint is known)
 constexpr float RELOAD_FALL_SEC = 0.5f;          // then falls this long
 constexpr float RELOAD_FALL_M = 1.2f;            // this far
+// the thrown magazine (reload_throw.cpp, 2026-11-05): its speed is the hand's over the last THROW_WINDOW_SEC
+constexpr int THROW_SAMPLES = 12;                // frames of the magazine's place kept while it is in the hand
+constexpr float THROW_WINDOW_SEC = 0.08f;        // the speed is measured over this long, up to the moment of letting go
+constexpr float THROW_MAX_SPEED = 12.0f;         // m/s, a cap so one tracking jump cannot fire it across the map
 constexpr float RELOAD_INSERT_SEC = 0.19f;       // a new one slides in
 constexpr float RELOAD_TARGET_REACH_M = 0.02f;   // the drawn wrist this close to its IK target = the arm reached it (measure then)
 constexpr float RELOAD_MAG_DROP_M = 0.09f;       // how far below its seat the magazine slides out (gun's local -Y, a guess)

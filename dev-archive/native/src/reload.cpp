@@ -236,6 +236,7 @@ void hand_checks() {
     if (pose_lock() || g_w == nullptr) return;
     const bool mag = g_w->reload == Reload::MAG && g_st == St::IN_HAND;
     if (!mag && !g_round_in_hand) return;
+    if (mag) { Vec3 sp; Quat sq; if (held_pose(sp, sq)) throw_sample(sp); }   // the throw's speed (reload_throw.cpp)
     if (!bridge::held(bridge::S_LGRIP)) {
         LOGI("%s reload: let go; it came within %.3f m of where it goes in (needs %.2f)", TAG, g_closest, dock_need());
         ghosthand::value(g_round_in_hand ? "shell_closest_m" : "mag_closest_m", g_closest);
@@ -245,6 +246,7 @@ void hand_checks() {
         Quat wr;
         if (!held_pose(g_fall_from, wr)) g_fall_from = Vec3{0, 0, 0};
         g_fall_rot = wr;
+        if (g_joint != nullptr) throw_hand_over(g_fall_from, g_fall_rot, true);
         set_state(g_joint != nullptr ? St::HAND_FALL : St::OUT, "left grip let go");
         return;
     }
@@ -739,12 +741,14 @@ void frame() {
         case St::SLIDE_OUT:
             if (t >= RELOAD_SLIDE_SEC) {
                 if (!from_weapon_local(mag_out_pos(), g_rest_rot, g_fall_from, g_fall_rot)) g_fall_from = Vec3{0, 0, 0};
+                throw_hand_over(g_fall_from, g_fall_rot, false);
                 set_state(St::FALL, "out of the magwell");
             }
             break;
         case St::FALL:
         case St::HAND_FALL:
-            if (t >= RELOAD_FALL_SEC) set_state(St::OUT, "on the floor");
+            if (throw_taken()) set_state(St::OUT, "the thrown copy took over");
+            else if (t >= RELOAD_FALL_SEC) set_state(St::OUT, "on the floor");
             break;
         case St::INSERT:
             if (t >= RELOAD_INSERT_SEC) {
