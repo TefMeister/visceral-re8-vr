@@ -6,6 +6,7 @@
 #include "reload.h"
 #include "reload_internal.h"
 #include "settings.h"
+#include "joints.h"
 
 #include <algorithm>
 #include <vector>
@@ -55,7 +56,6 @@ void read_facts() {
          g_f.second_vanish_empty ? "empty" : g_f.second_vanish_noempty ? "not empty" : "never", reload::detail::mag_part());
     // the thrown copy's share of the facts (visceral_re8_magthrow.lua reads them with the hand-over)
     using namespace bridge;
-    put(S_MAGTHROW_SECOND, g_f.second < 0 ? -1.0f : (float)(g_f.second + (g_f.second_vanish_empty ? 1000 : g_f.second_vanish_noempty ? 2000 : 0)));
     for (int i = 0; i < VANISH_SLOTS; ++i)
         put(static_cast<Slot>(S_MAGTHROW_VANISH + i), (g_f.vanish_on && i < (int)g_f.vanish.size()) ? (float)g_f.vanish[i] : -1.0f);
 }
@@ -78,13 +78,14 @@ std::string pattern(MO* mesh) {   // the parts' on/off as the game has them now,
     return s;
 }
 
-// the look for `rounds` in the magazine: the rounds parts on when it holds any; the second part by the gun's own rule
+// the look for the rounds in the magazine: the rounds parts on when it holds any. The second magazine part is left to the
+// game: live on the LEMI (2026-11-05, simulator) the game kept it ON at 0 loaded (only the rounds part 50 went off), so its
+// "vanishes when empty" flag means something else than this switch
 void write_look(MO* mesh, API::Method* m, bool full) {
     if (g_f.vanish_on) for (int p : g_f.vanish) set_part(mesh, m, p, full);
-    if (g_f.second >= 0) {
-        if (g_f.second_vanish_empty) set_part(mesh, m, g_f.second, full);
-        else if (g_f.second_vanish_noempty) set_part(mesh, m, g_f.second, !full);
-    }
+}
+bool rounds_shown(MO* mesh) {   // the first rounds part as the mesh has it now
+    return g_f.vanish.empty() || call_direct<bool>(mesh, "getPartsEnable", false, (uint64_t)g_f.vanish[0]);
 }
 } // namespace
 
@@ -96,6 +97,9 @@ void point() {
     MO* mesh = gun_mesh();
     if (mesh == nullptr) return;
     auto* m = player::overload(mesh, "setPartsEnable", 2);
+    // the thrown copy's second magazine part: shown when the gun shows it now (+1000), whatever the flags mean
+    bridge::put(bridge::S_MAGTHROW_SECOND, g_f.second < 0 ? -1.0f :
+                (float)(g_f.second + (call_direct<bool>(mesh, "getPartsEnable", false, (uint64_t)g_f.second) ? 1000 : 0)));
     const int rounds = reload::mag_rounds_out();
     if (rounds < 0) {   // seated: the game's own look. Once, on the way back in, its own switch is run so the parts match the gun again
         if (g_applied >= 0) {
@@ -117,7 +121,14 @@ void point() {
              want ? "FULL" : "EMPTY", pattern(mesh).c_str());
         g_applied = want;
     }
-    write_look(mesh, m, want == 1);   // every point: the game's own switch may run between them
+    // every point: the game's own switch may run between them (a shot with the magazine in the hand); say when it did
+    static float last_fight = -10.0f;
+    if (want == 1 && !rounds_shown(mesh) && joints::now_s() - last_fight > 1.0f) {
+        last_fight = joints::now_s();
+        LOGI("%s magdisp: %s the game switched the rounds off (%s): written on again, the magazine in the hand keeps its %d", TAG,
+             reload::detail::g_id.c_str(), pattern(mesh).c_str(), rounds);
+    }
+    write_look(mesh, m, want == 1);
 }
 
 } // namespace vn::magdisp

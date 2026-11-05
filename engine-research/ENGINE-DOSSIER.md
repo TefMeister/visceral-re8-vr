@@ -86,6 +86,15 @@ Started 2026-11-02 (the durable facts; the dated story is in `modding-notes/`). 
 turn applied first `[measured 2026-11-05, 12000 samples on 30 finger joints, 0.0000 deg error]`. Hand Poser writes these
 angles; `dev-archive/native/tools/make_rest_poses.py` turns the takes' quaternions into them. Probe: `lua/archive/zz_euler_probe.lua`.
 
+## §8 How a magazine shows its rounds (2026-11-05, simulator, LEMI)
+
+`app.WeaponGunCore.switchVanishEmptyPartsDisp` lists the gun-mesh parts that vanish when the magazine is empty (the LEMI: part
+50, the rounds; `IsEnableVanishEmptyPartsDisp` on); `execSwitchVanishEmptyPartsDisp()` switches them from the gun's own round
+count (on at 2 and 1 loaded, off at 0) `[measured 2026-11-05]`. `NormalMagazinePartsNo` is the magazine itself (LEMI 1);
+`SecondMagazinePartsNo` (LEMI 11, flag "vanishes when empty") stayed ON at 0 loaded, so that flag is not this switch
+`[measured 2026-11-05, n=1 gun]`. The magazine held in the left hand is the gun's own mesh, so these parts rule its look too;
+`src/magdisp.cpp` overrides them while it is out. Type list: `type_probe.txt`.
+
 ## Dead ends
 
 - praydog's connector on the 76298bd build (§1). The game's held-trigger shot with only `readyShootByTimer` forced (§2).

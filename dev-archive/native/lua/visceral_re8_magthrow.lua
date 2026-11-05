@@ -21,8 +21,8 @@ local function once(key, s) if not told[key] then told[key] = true; L(s) end end
 -- ===== settings (one table; saved to reframework/data/visceral_re8/magthrow.json) =====
 local FILE = "visceral_re8/magthrow.json"
 local S_SEQ, S_ROOT_POS, S_ROOT_ROT, S_PIVOT, S_VEL, S_PART, S_ACK = 187, 188, 191, 195, 198, 201, 202
--- 2026-11-05 (magdisp.cpp): the magazine's own rounds, the gun's second magazine part (+1000 vanishes when empty, +2000 when not
--- empty), and up to eight parts that vanish when the magazine is empty (the rounds); the copy looks as full as its rounds say
+-- 2026-11-05 (magdisp.cpp): the magazine's own rounds, the gun's second magazine part (+1000 = the gun shows it now), and up to
+-- eight parts that vanish when the magazine is empty (the rounds); the copy looks as full as its rounds say
 local S_ROUNDS, S_SECOND, S_VANISH, N_VANISH = 203, 204, 205, 8
 local GRAVITY = 9.81           -- m/s2
 local MAX_DT = 0.05            -- s, one step at most this long (a hitch never tunnels it through the floor)
@@ -234,9 +234,7 @@ local function make_copy(b)
         local show = { [part] = true }
         local rounds = math.floor(b.r(S_ROUNDS) + 0.5)
         local second = math.floor(b.r(S_SECOND) + 0.5)
-        if second >= 2000 then show[second - 2000] = rounds <= 0          -- the empty look's own part
-        elseif second >= 1000 then show[second - 1000] = rounds > 0       -- a part that goes with the rounds
-        elseif second >= 0 then show[second] = true end
+        if second >= 1000 then show[second - 1000] = true end              -- the gun shows its second magazine part now: so does the copy
         if rounds > 0 then
             for i = 0, N_VANISH - 1 do
                 local v = math.floor(b.r(S_VANISH + i) + 0.5)

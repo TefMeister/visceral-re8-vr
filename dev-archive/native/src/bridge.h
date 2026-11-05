@@ -106,7 +106,7 @@ enum Slot : int {
     S_MAGTHROW_VEL = 198,     // 198-200: its speed when let go (m/s, world)
     S_MAGTHROW_PART = 201,    // the gun mesh's magazine part number (the copy shows only that part)
     S_MAGTHROW_ROUNDS = 203,  // 2026-11-05: rounds in the magazine handed over (its own count; the copy shows its rounds parts only when > 0)
-    S_MAGTHROW_SECOND = 204,  // the gun's second magazine part (-1 none) + 1000 if it vanishes when EMPTY, + 2000 if it vanishes when NOT empty
+    S_MAGTHROW_SECOND = 204,  // the gun's second magazine part (-1 none), + 1000 when the gun shows it right now (the copy shows it too)
     S_MAGTHROW_VANISH = 205,  // 205-212: the parts that vanish when the magazine is empty (the rounds), -1 = unused (magdisp.cpp)
     S_MAGTHROW_ACK = 202,     // WRITTEN BY THE LUA: the SEQ it made a copy for; the plugin then hides the gun's own falling magazine
     S_CLIP_PLAYING = 186,     // 2026-11-05, WRITTEN BY THE PLUGIN: a finger clip plays (shellclip.cpp): +1 the left hand, +2 the right; Hand Poser stands aside for that hand
