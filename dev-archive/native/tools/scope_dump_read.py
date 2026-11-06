@@ -14,7 +14,8 @@ result shown as a picture, so a recipe is judged on the very frame Tefa froze, w
       --exposure-gt 10846.8  --ev 6.4  --wb -1.5  --trim 0.86,1.0,1.3  --contrast 1.0
       --exposure-scale 1.0   (x on the exposure: 0.6 = the measured 1.7x too bright undone)
       --trim-before          (the trim applied in the raw light, before the curve, so it can never clip)
-      --curve perchannel|lum (lum = one curve on the brightness, hue kept: what a desaturating shoulder would do)
+      --curve perchannel|lum|linear (lum = one curve on the brightness, hue kept; linear = no curve of ours at all,
+                             the plugin's tone_mode 2 since 2026-11-06: the texture the glass gets, clipped at 1.0)
       --out NAME             (the PNG's name)
 All numbers are printed; the previews go to the dumps folder (local, never git).
 """
@@ -133,7 +134,11 @@ def run_recipe(raw, a):
     wp = CURVE["wp_min"] / CURVE["wp_ref"]
     x = col * (expo / wp)
     k = dict(a=CURVE["a"], m=CURVE["m"], l=CURVE["l"], c=CURVE["c"])
-    if a.curve == "perchannel":
+    if a.curve == "linear":
+        # 2026-11-06, the plugin's tone_mode 2: one gain, no curve of ours; the game's own curve tone-maps the glass
+        # afterwards (not modelled here), so this picture is what the glass TEXTURE holds, clipped at 1.0 like it.
+        y = x
+    elif a.curve == "perchannel":
         y = gt_tonemap(x, **k)
     else:  # one curve on the brightness, the colour ratios kept, then the clip
         L = lum(x)[..., None]
@@ -152,7 +157,7 @@ def add_recipe_args(p):
     p.add_argument("--contrast", type=float, default=1.0)
     p.add_argument("--exposure-scale", type=float, default=1.0)
     p.add_argument("--trim-before", action="store_true")
-    p.add_argument("--curve", choices=["perchannel", "lum"], default="perchannel")
+    p.add_argument("--curve", choices=["perchannel", "lum", "linear"], default="perchannel")
 
 
 def find_set(n):
