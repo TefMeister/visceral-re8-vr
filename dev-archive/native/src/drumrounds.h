@@ -26,6 +26,7 @@ void inserted();             // gate.cpp, a round went in from the right hand: t
 void eject(float delay);     // gate.cpp: a spent case comes out of the chamber at the cover after delay s (the cover opening, the
                              // drum's turn); that chamber then looks EMPTY (its round joint hidden) until a round goes into it
 void reset(const char* why); // gate.cpp, the gun changed / the hold ended: every joint home, every part as the game had it
-void tune(float yaw, float pitch, float roll);   // lid_swing.json "round_ypr" (breech.cpp): the round's turn in the hand
+void tune(float yaw, float pitch, float roll);
+void tune_hole(int step);   // lid_swing.json "hole_step": which chamber is the hole, counted from the one nearest the lid's hinge   // lid_swing.json "round_ypr" (breech.cpp): the round's turn in the hand
 
 } // namespace vn::drumrounds

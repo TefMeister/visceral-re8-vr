@@ -226,6 +226,7 @@ constexpr bool  DRUM_OWN_FALL = true;          // our falling case (a drum round
 constexpr bool  DRUM_TRY_GAME_THROW = true;    // the game's own case throw too, when the gun has a cartridgeJoint (log says)
 // 2026-11-06 (Tefa: the case must come out at the end of the drum's turn, the round must travel into the chamber visibly)
 constexpr float DRUM_CASE_AFTER_TURN_S = 0.05f;  // the case starts out this long after the drum's turn has ended
+constexpr int   DRUM_HOLE_STEP = -1;             // 2026-11-07: the hole = the chamber nearest the lid hinge, this many on (Tefa: "the previous one")
 constexpr float DRUM_CASE_AT_OPEN_S = 0.15f;     // the case at the cover comes out this long after the cover starts opening
 constexpr float DRUM_CASE_SLIDE_S = 0.15f;       // its slide out of the chamber, back through the cover
 constexpr float DRUM_CASE_OUT_M = 0.035f;        // how far behind the cover the slide ends (m), then it drops

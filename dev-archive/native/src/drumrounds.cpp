@@ -220,6 +220,7 @@ Quat nlerp(Quat a, Quat b, float u) {
 bool busy(int i);
 // the cover as the gun is now: its place, the barrel's forward, and a round's turn lined up with the barrel (a resting chamber's)
 int g_hole = -1;   // the chamber at the cover, from the last cover_now()
+int g_hole_step = DRUM_HOLE_STEP;
 bool cover_now(Vec3& lid, Vec3& fwd, Quat& rq) {
     MO* lj = joint_by_name(g_wtf, L"Lid");
     MO* cj = joint_by_name(g_wtf, L"Cylinder");
@@ -246,6 +247,13 @@ bool cover_now(Vec3& lid, Vec3& fwd, Quat& rq) {
             const Vec3 w = drum + rotate(cq, c.p);
             const float d = dist(w, lid);
             if (d < best) { best = d; hole = w; g_hole = k; }
+        }
+        // 2026-11-07 (Tefa: "rounds go into the one below the chamber guard, so has to be the previous one"): the chamber nearest the
+        // lid's hinge is one below the hole: the hole is g_hole_step chambers on (lid_swing.json "hole_step", default -1)
+        if (g_hole >= 0 && !g_ch.empty()) {
+            const int n = (int)g_ch.size();
+            g_hole = ((g_hole + g_hole_step) % n + n) % n;
+            if (g_ch[g_hole].rest) hole = drum + rotate(cq, g_ch[g_hole].p);
         }
         lid = hole;
     }
@@ -381,6 +389,7 @@ void eject(float delay) {
 }
 
 void tune(float yaw, float pitch, float roll) { g_ypr[0] = yaw; g_ypr[1] = pitch; g_ypr[2] = roll; }
+void tune_hole(int step) { g_hole_step = step; }
 
 void reset(const char* why) {
     if (g_carry < 0 && g_falls.empty()) return;

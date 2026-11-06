@@ -83,6 +83,8 @@ void load_lid_tune() {   // re-read each time the cover opens, so the swing can 
         gate::tune_hammer(v3("hammer_axis", GATE_HAMMER_AXIS), hd != nullptr && hd->kind == json::Value::NUM ? (float)hd->n : GATE_HAMMER_DOWN_DEG);
         const Vec3 ry = v3("round_ypr", Vec3{DRUM_ROUND_HAND_YPR[0], DRUM_ROUND_HAND_YPR[1], DRUM_ROUND_HAND_YPR[2]});
         drumrounds::tune(ry.x, ry.y, ry.z);
+        const auto* hs = v.get("hole_step");
+        drumrounds::tune_hole(hs != nullptr && hs->kind == json::Value::NUM ? (int)hs->n : DRUM_HOLE_STEP);
         const auto* ld = v.get("lift_deg");
         gate::tune_lift(v3("lift_off", GATE_LIFT_OFF), v3("lift_axis", GATE_LIFT_AXIS), ld != nullptr && ld->kind == json::Value::NUM ? (float)ld->n : GATE_LIFT_DEG);
         const auto* fd = v.get("flick_deg");
