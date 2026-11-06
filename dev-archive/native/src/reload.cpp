@@ -405,7 +405,9 @@ void pull_out() {
 // the zone (6 cm); the log had the hand 11 cm off at the press, so B dropped it. Now right B with LG held (not on the front grip,
 // no rack) catches it when the hand is within RELOAD_B_CATCH_SCALE of the zone
 bool b_catch_near() {
-    if (!pistol_mag() || !bridge::held(bridge::S_LGRIP) || bridge::flag(bridge::S_GRIPPING_WEAPON) || rack::active()) return false;
+    // (b078 also refused while the game's two-handed grip held the left hand: on a handgun that IS the hand by the magazine, so it
+    // never caught; Tefa 00:1x: "lemi still drops the mag with just LG held")
+    if (!pistol_mag() || !bridge::held(bridge::S_LGRIP) || rack::active()) return false;
     Vec3 mp, cp;
     Quat mq;
     if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return false;

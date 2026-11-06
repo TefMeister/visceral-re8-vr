@@ -299,6 +299,12 @@ void point(bool carrying) {
         Vec3 p; Quat q;
         if (carry_pose(p, q)) { draw_at(g_carry, p, q, carry_size()); g_carry_p = p; g_carry_q = q; }
     }
+    // 2026-11-07 (Tefa: "they get filled again before i actually put the bullet in"): the game's animation writes the drum's joints every
+    // frame, so an emptied chamber is drawn empty at every point, not once
+    {
+        const Vec3 zero{0, 0, 0};
+        for (int k = 0; k < (int)g_ch.size(); ++k) if (g_ch[k].hidden && !busy(k)) set_any(JOINT, g_ch[k].j, "set_LocalScale", &zero);
+    }
     // the moves: ejects and inserts
     const float now = now_s();
     Vec3 lid{}, fwd{};
