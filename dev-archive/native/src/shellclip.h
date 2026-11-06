@@ -33,7 +33,12 @@ void play(const std::string& gun_id, const char* event = "round_in", int hands =
 // turn about their own local axis by deg and back (a half sine) over sec, on top of whatever pose they have; written last, as
 // the clips are. right = it belongs to the right hand (playing_right() while it runs)
 void pulse(const std::vector<std::wstring>& joints, float ax, float ay, float az, float deg, float sec, bool right);
-void frame();                           // UpdateBehavior pre: the test file
+// 2026-11-06 (Tefa: "might still be able to use the game's animations, if i can change the docking pose and then you somehow work
+// your magic to fill the gaps from my hand tuned pose to smoothly travel to the game's original animation"): RELATIVE mode plays
+// a clip as a CHANGE on top of the pose the hand had (Tefa's tuned pose): each joint = found * (clip's first frame)^-1 * clip(t),
+// so the hand starts exactly in the tuned pose and moves the way the game's fingers move. Switched on by the file
+// reframework/data/visceral_re8/clips/relative.txt existing (checked 4 times a second; delete it for the plain blend).
+void frame();                           // UpdateBehavior pre: the test file, the relative switch
 void render_point();                    // PrepareRendering post, after every other finger writer
 void begin_render();                    // BeginRendering pre, after every other finger writer
 bool playing();                         // any hand

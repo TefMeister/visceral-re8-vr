@@ -1,6 +1,7 @@
 // breech.cpp -- see breech.h.
 #include "breech.h"
 #include "bridge.h"
+#include "drumrounds.h"
 #include "gate.h"
 #include "ghosthand.h"
 #include "joints.h"
@@ -80,6 +81,8 @@ void load_lid_tune() {   // re-read each time the cover opens, so the swing can 
     {
         const auto* hd = v.get("hammer_deg");
         gate::tune_hammer(v3("hammer_axis", GATE_HAMMER_AXIS), hd != nullptr && hd->kind == json::Value::NUM ? (float)hd->n : GATE_HAMMER_DOWN_DEG);
+        const Vec3 ry = v3("round_ypr", Vec3{DRUM_ROUND_HAND_YPR[0], DRUM_ROUND_HAND_YPR[1], DRUM_ROUND_HAND_YPR[2]});
+        drumrounds::tune(ry.x, ry.y, ry.z);
         const auto* fd = v.get("flick_deg");
         gate::tune_flick(v3("flick_axis", GATE_FLICK_AXIS), fd != nullptr && fd->kind == json::Value::NUM ? (float)fd->n : GATE_FLICK_DEG);
     }

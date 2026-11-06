@@ -449,6 +449,7 @@ void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis, const Vec3&
 void tune_hammer(const Vec3& axis, float deg) { g_hammer_axis = axis; g_hammer_deg = deg; }
 void tune_flick(const Vec3& axis, float deg) { g_flick_axis = axis; g_flick_deg = deg; }
 bool hammer_down() { return g_phase == Phase::HAMMER && !g_cocked; }
+bool on_hammer() { return g_phase == Phase::HAMMER; }
 int left_spot() { return g_phase == Phase::HAMMER ? 10 : g_phase == Phase::STAY ? 0 : owns_left() ? 6 : 0; }   // STAY: the gun's own hold (2026-11-06)
 bool right_at_cover() { return g_phase == Phase::HELD && g_rdock; }
 bool gun_rot(Quat& q) {
@@ -485,6 +486,9 @@ void frame() {
         if (GATE_FLICK_SEC > 0.0f && g_flick_deg != 0.0f)
             shellclip::pulse({L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"}, g_flick_axis.x, g_flick_axis.y, g_flick_axis.z, g_flick_deg, GATE_FLICK_SEC, true);
     }
+    // 2026-11-06 (Tefa: "thumb flicks it the right way, nice! please use the same flick when closing too")
+    if (!open && g_was_open && GATE_FLICK_SEC > 0.0f && g_flick_deg != 0.0f)
+        shellclip::pulse({L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"}, g_flick_axis.x, g_flick_axis.y, g_flick_axis.z, g_flick_deg, GATE_FLICK_SEC, true);
     g_was_open = open;
     if (g_phase == Phase::OFF && bridge::flag(bridge::S_GRIPPING_WEAPON)) {   // remember how the left hand sits on the gun
         Pose g{}, l{};

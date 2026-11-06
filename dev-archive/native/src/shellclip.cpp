@@ -40,11 +40,13 @@ struct Play {
     std::vector<Quat> found, target;          // the pose at the start (blended in from / out to), and what is written
     bool have = false;
     bool left = false, right = false;         // the hands this play moves (the clip's, limited by play()'s hands)
+    bool relative = false;                    // played on top of the found pose (g_relative at the start)
     bool pulse = false;                       // a pulse (pulse()): found * turn(axis, deg * sin), no clip frames
     Vec3 axis{0, 0, 1};
     float deg = 0.0f;
 };
-std::vector<Play> g_plays;                    // at most one per hand (a both-hands clip counts for both)
+std::vector<Play> g_plays;
+bool g_relative = false;                      // relative.txt exists: clips play on top of the hand's own pose (shellclip.h)                    // at most one per hand (a both-hands clip counts for both)
 MO* g_tf = nullptr;
 
 std::filesystem::path data_dir() {
@@ -139,12 +141,13 @@ void play(const std::string& gun_id, const char* event, int hands) {
     p.t0 = now_s();
     p.left = use_l;
     p.right = use_r;
+    p.relative = g_relative;
     p.joint.assign(c->names.size(), nullptr);
     p.found.assign(c->names.size(), Quat{0, 0, 0, 1});
     p.target.assign(c->names.size(), Quat{0, 0, 0, 1});
     g_plays.push_back(std::move(p));
-    LOGI("%s shellclip: %s %s: the game's finger movement plays on the %s hand (%.2f s)", TAG, gun.c_str(), event,
-         use_l && use_r ? "left and right" : use_l ? "left" : "right", c->t.back());
+    LOGI("%s shellclip: %s %s: the game's finger movement plays on the %s hand (%.2f s, %s)", TAG, gun.c_str(), event,
+         use_l && use_r ? "left and right" : use_l ? "left" : "right", c->t.back(), g_relative ? "on top of the hand's own pose" : "blended from the hand's pose");
 }
 
 void pulse(const std::vector<std::wstring>& joints, float ax, float ay, float az, float deg, float sec, bool right) {
@@ -188,6 +191,11 @@ void frame() {
     const float t = now_s();
     if (t - last_check < 0.25f) return;
     last_check = t;
+    {
+        std::error_code ec;
+        const bool rel = std::filesystem::exists(data_dir() / "relative.txt", ec);
+        if (rel != g_relative) { g_relative = rel; LOGI("%s shellclip: clips now play %s", TAG, rel ? "ON TOP of the hand's own pose (relative.txt)" : "blended from the hand's pose (no relative.txt)"); }
+    }
     const auto p = data_dir() / "play.txt";
     std::ifstream f(p);
     std::string line;
@@ -245,6 +253,8 @@ void render_point() {
         }
         std::vector<Quat> pose;
         sample(c, std::fmin(t, len), pose);
+        if (p.relative)   // the clip's change since its first frame, on top of the pose the hand had (shellclip.h)
+            for (size_t i = 0; i < n; ++i) pose[i] = qnorm(qmul(p.found[i], qmul(qinv(c.q[0][i]), pose[i])));
         const float in = std::fmin(1.0f, t / SHELLCLIP_BLEND_S);
         const float out = t > len ? std::fmax(0.0f, 1.0f - (t - len) / SHELLCLIP_BLEND_S) : 1.0f;
         for (size_t i = 0; i < n; ++i) p.target[i] = nlerp(p.found[i], pose[i], ease(std::fmin(in, out)));

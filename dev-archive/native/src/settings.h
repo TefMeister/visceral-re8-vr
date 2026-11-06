@@ -216,12 +216,21 @@ constexpr bool  GATE_FAN_OPEN_LOCKS = true;   // 2026-11-02: palm on the hammer,
 // 2026-11-06 (Tefa: "bullets must be visible in Ethans right hand when inserting them" / "the empty shells must eject visibly when
 // rotating the drum"): drumrounds.cpp. First guesses, tuned with the menu's "round in the hand" sliders and the next wear
 constexpr Vec3  DRUM_ROUND_HAND_OFF{0.0f, 0.0f, 0.0f};    // the round from the midpoint of the right thumb and index tips (index-base axes, m)
-constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, 0.0f, 0.0f};   // its turn there (deg), before the sliders' turn
+constexpr float DRUM_ROUND_HAND_YPR[3] = {90.0f, 0.0f, 0.0f};  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
+                                                               // (screenshot: "pointing up and it needs to point forward"): 90 about Z; lid_swing.json "round_ypr"
 constexpr float DRUM_CASE_FALL_SEC = 0.6f;     // a spent case's fall out of the cover, then it is gone
 constexpr float DRUM_CASE_OUT_MS = 0.4f;       // its push out of the cover, away from the drum's middle (m/s)
 constexpr float DRUM_CASE_SPIN_DEG_S = 540.0f; // its tumble while it falls
 constexpr bool  DRUM_OWN_FALL = true;          // our falling case (a drum round joint drawn falling)
 constexpr bool  DRUM_TRY_GAME_THROW = true;    // the game's own case throw too, when the gun has a cartridgeJoint (log says)
+// 2026-11-06 (Tefa: the case must come out at the end of the drum's turn, the round must travel into the chamber visibly)
+constexpr float DRUM_CASE_AFTER_TURN_S = 0.05f;  // the case starts out this long after the drum's turn has ended
+constexpr float DRUM_CASE_SLIDE_S = 0.15f;       // its slide out of the chamber, back through the cover
+constexpr float DRUM_CASE_OUT_M = 0.035f;        // how far behind the cover the slide ends (m), then it drops
+constexpr float DRUM_INSERT_REACH_S = 0.10f;     // the round from the hand to just behind the cover, lining up with the barrel
+constexpr float DRUM_INSERT_PUSH_S = 0.12f;      // then pushed in
+constexpr float DRUM_ENTRY_BACK_M = 0.03f;       // "just behind the cover" (m, along the barrel)
+constexpr float DRUM_PUSH_IN_M = 0.03f;          // how deep in front of the cover the round goes before it is home (m)
 constexpr float GATE_HELD_FOLLOW_SEC = 0.03f;  // 2026-11-06 (Tefa: not frozen): the Wolfsbane in the left hand follows it with this light smoothing (0 = raw)
 constexpr Vec3  GATE_STAY_HOLD_OFF{0.0f, -0.06f, -0.04f};   // 2026-11-06: no two-handed grip seen yet: the support place from the drum place (gun axes, m), a guess
 constexpr float GATE_STAY_GLIDE_SEC = 0.25f;   // the left hand from the drum to its hold after loading

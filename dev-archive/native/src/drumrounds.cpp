@@ -27,7 +27,21 @@ struct Chamber {
     int forced_part = -1;       // the mesh part we switched on for it, -1 none
     bool part_was = false;      // that part's state before we switched it on
 };
-struct Fall { int i = -1; float t0 = 0.0f; Vec3 p0{}, v0{}; Quat q0{0, 0, 0, 1}; };
+// 2026-11-06 (Tefa: "the old shell does not come out at the end of the drum turn automatically and the bullet doesn't travel into
+// the chamber visibly"): two moves drawn with a chamber's round joint, both measured against the cover as the gun is NOW (so
+// they ride along with the gun in the hand):
+//   EJECT   waits for the drum's turn to end, slides out of the chamber backwards through the cover, then drops and tumbles
+//   INSERT  from where the right hand held it to just behind the cover, lined up with the barrel, then pushed in, then home
+struct Move {
+    bool insert = false;
+    int i = -1;
+    float t0 = 0.0f;            // the move's start (an eject's lies in the future while the drum still turns)
+    Vec3 p0{};                  // INSERT: the hand's place at RT; EJECT: where the fall starts (set when the slide ends)
+    Quat q0{0, 0, 0, 1};
+    bool falling = false;
+    float fall_t0 = 0.0f;
+    Vec3 v0{};
+};
 
 MO* g_wtf = nullptr;
 MO* g_mesh = nullptr;
@@ -39,8 +53,11 @@ std::map<int, int> g_learned;   // chamber -> the part the game switched on when
 std::string g_pattern;
 int g_last_loaded = -99;
 int g_carry = -1;               // the chamber whose round is in the right hand
-std::vector<Fall> g_falls;
+std::vector<Move> g_falls;   // the moves under way (ejects and inserts)
+Vec3 g_carry_p{};               // where the carried round was last drawn (an insert starts there)
+Quat g_carry_q{0, 0, 0, 1};
 int g_lines = 0;
+float g_ypr[3] = {DRUM_ROUND_HAND_YPR[0], DRUM_ROUND_HAND_YPR[1], DRUM_ROUND_HAND_YPR[2]};
 
 Quat ypr(float yaw, float pitch, float roll) {   // reload_pose.cpp's convention: about Z, then Y, then X (degrees)
     const float d = 3.14159265f / 360.0f;
@@ -186,11 +203,33 @@ bool carry_pose(Vec3& p, Quat& q) {   // between the right thumb and index tips,
     // the menu's "round in the hand" sliders, as for the other guns: move (cm, the finger's axes), turn (deg), size (%)
     const auto sv = [](int i) { const float v = bridge::view((bridge::Slot)(bridge::S_SHELL_HOLD + i)); return bridge::has(v) ? v : 0.0f; };
     p = p + rotate(q, Vec3{sv(0), sv(1), sv(2)} * 0.01f);
-    q = qnorm(qmul(qmul(q, ypr(DRUM_ROUND_HAND_YPR[0], DRUM_ROUND_HAND_YPR[1], DRUM_ROUND_HAND_YPR[2])), ypr(sv(3), sv(4), sv(5))));
+    q = qnorm(qmul(qmul(q, ypr(g_ypr[0], g_ypr[1], g_ypr[2])), ypr(sv(3), sv(4), sv(5))));
     return true;
 }
 float carry_size() { const float pct = bridge::has(bridge::view((bridge::Slot)(bridge::S_SHELL_HOLD + 6))) ? bridge::view((bridge::Slot)(bridge::S_SHELL_HOLD + 6)) : 0.0f; return (pct >= 10.0f && pct <= 400.0f) ? pct / 100.0f : 1.0f; }
 
+Quat nlerp(Quat a, Quat b, float u) {
+    if (a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w < 0.0f) b = {-b.x, -b.y, -b.z, -b.w};
+    return qnorm({a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, a.z + (b.z - a.z) * u, a.w + (b.w - a.w) * u});
+}
+bool busy(int i);
+// the cover as the gun is now: its place, the barrel's forward, and a round's turn lined up with the barrel (a resting chamber's)
+bool cover_now(Vec3& lid, Vec3& fwd, Quat& rq) {
+    MO* lj = joint_by_name(g_wtf, L"Lid");
+    MO* cj = joint_by_name(g_wtf, L"Cylinder");
+    MO* mj = joint_by_name(g_wtf, L"vfx_muzzle");
+    Vec3 drum{}, muz{};
+    if (lj == nullptr || cj == nullptr || mj == nullptr || !get_v3(JOINT, lj, "get_Position", lid) || !get_v3(JOINT, cj, "get_Position", drum) ||
+        !get_v3(JOINT, mj, "get_Position", muz)) return false;
+    fwd = muz - drum;
+    const float n = std::sqrt(fwd.x * fwd.x + fwd.y * fwd.y + fwd.z * fwd.z);
+    if (n < 1e-4f) return false;
+    fwd = fwd * (1.0f / n);
+    rq = Quat{0, 0, 0, 1};
+    for (int k = 0; k < (int)g_ch.size(); ++k)
+        if (!busy(k) && get_q(JOINT, g_ch[k].j, "get_Rotation", rq)) { rq = qnorm(rq); break; }
+    return true;
+}
 bool busy(int i) {
     if (i == g_carry) return true;
     for (const auto& f : g_falls) if (f.i == i) return true;
@@ -203,7 +242,9 @@ void point(bool carrying) {
     learn();
     // the round in the right hand: the chamber that fills next
     const int ld = player::loaded();
-    const int want = carrying && ld >= 0 && ld < (int)g_ch.size() ? ld : -1;
+    bool inserting = false;
+    for (const auto& m : g_falls) inserting = inserting || m.insert;
+    const int want = carrying && !inserting && ld >= 0 && ld < (int)g_ch.size() && !busy(ld) ? ld : -1;
     if (want != g_carry) {
         if (g_carry >= 0) let_go(g_carry, false);
         g_carry = want;
@@ -212,25 +253,55 @@ void point(bool carrying) {
     }
     if (g_carry >= 0) {
         Vec3 p; Quat q;
-        if (carry_pose(p, q)) draw_at(g_carry, p, q, carry_size());
+        if (carry_pose(p, q)) { draw_at(g_carry, p, q, carry_size()); g_carry_p = p; g_carry_q = q; }
     }
-    // the falling cases
+    // the moves: ejects and inserts
     const float now = now_s();
+    Vec3 lid{}, fwd{};
+    Quat rq{};
+    const bool cover = cover_now(lid, fwd, rq);
     for (size_t k = 0; k < g_falls.size();) {
-        Fall& f = g_falls[k];
-        const float t = now - f.t0;
-        if (t >= DRUM_CASE_FALL_SEC) { let_go(f.i, false); g_falls.erase(g_falls.begin() + k); continue; }
-        const Vec3 p = f.p0 + f.v0 * t + Vec3{0.0f, -4.9f * t * t, 0.0f};
-        const Quat q = qnorm(qmul(f.q0, axis_turn(Vec3{1, 0, 0}, DRUM_CASE_SPIN_DEG_S * t)));
-        draw_at(f.i, p, q, 1.0f);
+        Move& m = g_falls[k];
+        const float t = now - m.t0;
+        if (t < 0.0f) { ++k; continue; }   // an eject waiting for the drum's turn to end
+        if (m.insert) {
+            const float a = DRUM_INSERT_REACH_S, b = DRUM_INSERT_PUSH_S;
+            if (t >= a + b || !cover) { let_go(m.i, true); LOGI("%s drumrounds: chamber %d's round pushed in through the cover", TAG, m.i); g_falls.erase(g_falls.begin() + k); continue; }
+            const Vec3 entry = lid - fwd * DRUM_ENTRY_BACK_M, inside = lid + fwd * DRUM_PUSH_IN_M;
+            Vec3 p; Quat q;
+            if (t < a) { const float u = ease(t / a); p = lerp(m.p0, entry, u); q = nlerp(m.q0, rq, u); }
+            else { p = lerp(entry, inside, ease((t - a) / b)); q = rq; }
+            draw_at(m.i, p, q, 1.0f);
+            ++k;
+            continue;
+        }
+        if (!m.falling) {   // the case slides out of its chamber, back through the cover
+            const float u = DRUM_CASE_SLIDE_S > 0.0f ? t / DRUM_CASE_SLIDE_S : 1.0f;
+            if (!cover) { let_go(m.i, false); g_falls.erase(g_falls.begin() + k); continue; }
+            const Vec3 p = lerp(lid + fwd * DRUM_PUSH_IN_M, lid - fwd * DRUM_CASE_OUT_M, ease(std::fmin(1.0f, u)));
+            draw_at(m.i, p, rq, 1.0f);
+            if (u >= 1.0f) { m.falling = true; m.fall_t0 = now; m.p0 = p; m.q0 = rq; m.v0 = fwd * -DRUM_CASE_OUT_MS; }
+            ++k;
+            continue;
+        }
+        const float tf = now - m.fall_t0;
+        if (tf >= DRUM_CASE_FALL_SEC) { let_go(m.i, false); g_falls.erase(g_falls.begin() + k); continue; }
+        const Vec3 p = m.p0 + m.v0 * tf + Vec3{0.0f, -4.9f * tf * tf, 0.0f};
+        const Quat q = qnorm(qmul(m.q0, axis_turn(Vec3{1, 0, 0}, DRUM_CASE_SPIN_DEG_S * tf)));
+        draw_at(m.i, p, q, 1.0f);
         ++k;
     }
 }
 
 void inserted() {
     if (g_carry < 0) return;
-    let_go(g_carry, true);   // home in its chamber; the game's count draws it from here
-    LOGI("%s drumrounds: chamber %d's round went home", TAG, g_carry);
+    Move m;   // it travels from the hand into the cover, then home in its chamber (the game's count draws it from there)
+    m.insert = true;
+    m.i = g_carry;
+    m.t0 = now_s();
+    m.p0 = g_carry_p;
+    m.q0 = g_carry_q;
+    g_falls.push_back(m);
     g_carry = -1;
 }
 
@@ -253,23 +324,14 @@ void eject() {
     int i = -1;
     for (int k = (int)g_ch.size() - 1; k >= 0; --k) if (!busy(k)) { i = k; break; }
     if (i < 0) { LOGI("%s drumrounds: no free chamber joint to draw the falling case with", TAG); return; }
-    Fall f;
-    f.i = i;
-    f.t0 = now_s();
-    Vec3 drum{}, lid{};
-    MO* lj = joint_by_name(g_wtf, L"Lid");
-    MO* cj = joint_by_name(g_wtf, L"Cylinder");
-    const bool have_lid = lj != nullptr && get_v3(JOINT, lj, "get_Position", lid);
-    const bool have_drum = cj != nullptr && get_v3(JOINT, cj, "get_Position", drum);
-    if (!get_v3(JOINT, g_ch[i].j, "get_Position", f.p0)) return;
-    if (!get_q(JOINT, g_ch[i].j, "get_Rotation", f.q0)) f.q0 = Quat{0, 0, 0, 1};
-    if (have_lid) f.p0 = lid;
-    Vec3 out = have_lid && have_drum ? lid - drum : Vec3{0, 0, 0};
-    const float len = std::sqrt(out.x * out.x + out.y * out.y + out.z * out.z);
-    f.v0 = len > 1e-4f ? out * (DRUM_CASE_OUT_MS / len) : Vec3{0, 0, 0};
-    g_falls.push_back(f);
-    LOGI("%s drumrounds: a spent case falls out of the %s (chamber %d's joint drawn as it)", TAG, have_lid ? "cover" : "drum", i);
+    Move m;   // waits for the drum's turn to end, then slides out of the cover and drops (drawn in point())
+    m.i = i;
+    m.t0 = now_s() + GATE_CYL_TURN_SEC + DRUM_CASE_AFTER_TURN_S;
+    g_falls.push_back(m);
+    LOGI("%s drumrounds: a spent case comes out of the cover after the drum's turn (chamber %d's joint drawn as it)", TAG, i);
 }
+
+void tune(float yaw, float pitch, float roll) { g_ypr[0] = yaw; g_ypr[1] = pitch; g_ypr[2] = roll; }
 
 void reset(const char* why) {
     if (g_carry < 0 && g_falls.empty()) return;
