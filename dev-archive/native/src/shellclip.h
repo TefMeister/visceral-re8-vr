@@ -23,7 +23,11 @@
 
 namespace vn::shellclip {
 
-void play(const std::string& gun_id, const char* event = "round_in");   // gun_id like "ri3021_Inventory" or "ri3021"
+// 2026-11-06 (Tefa: "when adding bullets, both hands animate at the same time, adding bullets and rotating the drum when pressing
+// RT"): the Wolfsbane's round_in clip moves BOTH hands (the game's 2512 cycle: right thumb pushes the round, left thumb turns the
+// drum). A play can now be limited to one hand: RT at the cover plays its right half, LT (the drum's turn) its left half.
+constexpr int LEFT = 1, RIGHT = 2, BOTH = 3;
+void play(const std::string& gun_id, const char* event = "round_in", int hands = BOTH);   // gun_id like "ri3021_Inventory" or "ri3021"
 void frame();                           // UpdateBehavior pre: the test file
 void render_point();                    // PrepareRendering post, after every other finger writer
 void begin_render();                    // BeginRendering pre, after every other finger writer

@@ -213,6 +213,15 @@ constexpr float GATE_HAMMER_DOWN_DEG = -35.0f;
 constexpr float GATE_FAN_FIRE_WINDOW_S = 0.15f;   // 2026-11-02: RT held + LT: the trigger lock opened this long for the one shot
 constexpr float GATE_FAN_ASK_BEFORE_S = 0.05f;    // ... and the game asked for the shot itself this long before the window ends, if none went off
 constexpr bool  GATE_FAN_OPEN_LOCKS = true;   // 2026-11-02: palm on the hammer, cocked: the game's two locks on the next shot opened (fanning)
+// 2026-11-06 (Tefa: "bullets must be visible in Ethans right hand when inserting them" / "the empty shells must eject visibly when
+// rotating the drum"): drumrounds.cpp. First guesses, tuned with the menu's "round in the hand" sliders and the next wear
+constexpr Vec3  DRUM_ROUND_HAND_OFF{0.0f, 0.0f, 0.0f};    // the round from the midpoint of the right thumb and index tips (index-base axes, m)
+constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, 0.0f, 0.0f};   // its turn there (deg), before the sliders' turn
+constexpr float DRUM_CASE_FALL_SEC = 0.6f;     // a spent case's fall out of the cover, then it is gone
+constexpr float DRUM_CASE_OUT_MS = 0.4f;       // its push out of the cover, away from the drum's middle (m/s)
+constexpr float DRUM_CASE_SPIN_DEG_S = 540.0f; // its tumble while it falls
+constexpr bool  DRUM_OWN_FALL = true;          // our falling case (a drum round joint drawn falling)
+constexpr bool  DRUM_TRY_GAME_THROW = true;    // the game's own case throw too, when the gun has a cartridgeJoint (log says)
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

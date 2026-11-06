@@ -214,7 +214,7 @@ void fill_magazine() {
     g_dry = false;
 }
 
-bool insert_round() {
+bool insert_round(int clip_hands = shellclip::BOTH) {
     const int cap = player::capacity(), have = player::loaded() + g_stash;
     if (cap > 0 && have >= cap) { LOGI("%s reload: %s is full (%d)", TAG, g_id.c_str(), have); return false; }
     const bool empty = player::loaded() == 0 || g_stash > 0;
@@ -222,7 +222,7 @@ bool insert_round() {
         --g_pocket;   // one taken out by hand goes back first (it never left the carried ammo's count)
     } else if (player::game_reload(1) < 1) { LOGI("%s reload: no round went in (none carried?)", TAG); return false; }
     bridge::sfx(bridge::SFX_SHELL_IN);
-    shellclip::play(g_id);   // 2026-11-02: the game's own finger movement for a round going in (shellclip.h)
+    shellclip::play(g_id, "round_in", clip_hands);   // 2026-11-02: the game's own finger movement for a round going in (shellclip.h)
     if (g_w->pump && empty) rack::need("shells into an empty pump gun");   // the trigger waits for the pump
     tell_hud();
     LOGI("%s reload: %s round in: loaded %d, waiting for the pump %d, carried %d", TAG, g_id.c_str(), player::loaded(), g_stash, player::reserve());
@@ -798,9 +798,9 @@ bool insert_from_hand() {
     return true;
 }
 bool insert_direct_possible() { return !g_round_in_hand && managed_now() && player::reserve() != 0 && supply(); }
-bool insert_direct() {
+bool insert_direct() {   // gate.cpp, RT at the cover: the right hand pushes it in, so only the clip's right half plays (2026-11-06)
     if (g_round_in_hand || !managed_now() || !supply()) return false;
-    return insert_round();
+    return insert_round(shellclip::RIGHT);
 }
 void grab_from_pouch() { g_last_grab = -10.0f; pouch_grab(); }   // 2026-11-02: breech.cpp, LG held into the pouch
 bool port_center(Vec3& out) { return port_world(out); }       // 2026-11-02: pairs.cpp, the shell port dock

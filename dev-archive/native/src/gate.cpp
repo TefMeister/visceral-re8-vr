@@ -2,11 +2,13 @@
 #include "gate.h"
 #include "breech.h"
 #include "bridge.h"
+#include "drumrounds.h"
 #include "joints.h"
 #include "json_mini.h"
 #include "player.h"
 #include "reload.h"
 #include "settings.h"
+#include "shellclip.h"
 #include "weapons.h"
 
 #include <windows.h>
@@ -74,6 +76,16 @@ float g_t0 = 0.0f, g_ho_sec = 0.3f;
 Pose g_ret_from{}, g_ho_right{}, g_ho_gun{}, g_last_right{}, g_praydog{};
 bool g_ho_left = false;
 float g_praydog_frame = -1.0f;
+// 2026-11-06 (Tefa: "after reloading has finished and right hand is aiming the gun again, left hand is loosely riding along, not
+// firmly docked on the weapon as it was during reloading"): in STAY (and on the hammer) the left hand was placed from the gun's
+// place read at UpdateBehavior, before this frame's right-arm solve moved it: one frame behind, so it trailed the gun. Now it is
+// pinned to the right hand's IK target at the left solve, as rack.cpp holds the pump hand. The gun's place against that target
+// is measured every frame from matching numbers (the target at last frame's right solve, the gun where that solve put it).
+Pose g_rt_ik{};              // the right hand's target as its last solve had it
+bool g_rt_ik_ok = false;
+Pose g_gun_in_rt{};          // the gun against that target (OFF / STAY / HAMMER: the gun on the right hand)
+bool g_gun_in_rt_ok = false;
+int g_pin_lines = 0;
 
 Vec3 g_left_off = GATE_LEFT_OFF, g_right_off = GATE_RIGHT_OFF, g_cyl_axis = GATE_CYL_AXIS, g_hammer_off = GATE_HAMMER_OFF;
 bool g_cocked = true;      // 2026-11-01: the palm on the hammer: a shot leaves it down until LT pushes it back
@@ -268,6 +280,7 @@ bool take_hammer() {
     g_cocked = true;
     g_fan_lines = 0; g_fan_last = -1;
     g_hammer_cap = false;   // the thumb and the hammer read at the next render point, before any shot
+    g_pin_lines = 0;
     g_last_loaded = player::loaded();
     LOGI("%s gate: LG at the hammer (%.3f m): the left palm on it; after each shot LT pushes it back down, B sends the hand to the drum", TAG, d);
     return true;
@@ -311,6 +324,8 @@ void right_hand() {   // HELD: the right hand's jobs, the drum's turn
             ++g_turns;
             const bool casing = breech::drop_casing();
             bridge::sfx(casing ? bridge::SFX_MAG_OUT : bridge::SFX_SLIDE_FORWARD);
+            if (casing) drumrounds::eject();   // 2026-11-06: the case is seen falling out (drumrounds.h)
+            shellclip::play(g_id, "round_in", shellclip::LEFT);   // 2026-11-06: the left thumb's half of the game's cycle turns the drum
             bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s gate: LT: the drum turned one chamber%s (%d spent left)", TAG, casing ? ", a spent casing falls out" : "", breech::spent_casings());
         } else {
@@ -354,6 +369,7 @@ void right_hand() {   // HELD: the right hand's jobs, the drum's turn
     if (!reload::insert_direct()) { LOGI("%s gate: RT at the cover: no round went in", TAG); return; }
     --g_rounds;
     g_need_turn = true;
+    drumrounds::inserted();
     bridge::rumble(bridge::RIGHT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
     LOGI("%s gate: a round in (loaded %d, %d left in the right hand)", TAG, player::loaded(), g_rounds);
     if (g_rounds <= 0 || breech::free_chambers() <= 0) to_return(breech::free_chambers() <= 0 ? "the drum is full" : "the right hand is empty");
@@ -445,6 +461,12 @@ void frame() {
         Pose g{}, l{};
         if (tf_pose(s.weapon_tf, g) && s.ik_left != nullptr && tf_pose(target_of(s.ik_left), l)) { g_grip_left_turn = qnorm(qmul(qinv(g.q), l.q)); g_have_left_turn = true; }
     }
+    {   // the gun against the right hand's target, from matching numbers (see g_rt_ik)
+        Pose g{};
+        const bool on_right = g_phase == Phase::OFF || g_phase == Phase::STAY || g_phase == Phase::HAMMER;
+        if (on_right && g_rt_ik_ok && tf_pose(s.weapon_tf, g)) { g_gun_in_rt = mul(inverse(g_rt_ik), g); g_gun_in_rt_ok = true; }
+        else if (!on_right) g_gun_in_rt_ok = false;
+    }
     const float now = now_s();
     switch (g_phase) {
     case Phase::OFF:
@@ -500,6 +522,7 @@ void frame() {
             put_local_back("handed back");
             if (g_ho_left && lg && play && !breech::is_open()) {
                 g_phase = Phase::STAY;
+                g_pin_lines = 0;
                 LOGI("%s gate: the cover shut: the right hand steers, the left hand stays on the drum until LG is let go", TAG);
             } else {
                 g_phase = Phase::OFF;
@@ -513,8 +536,9 @@ void frame() {
 }
 
 void on_ik(MO* ik) {
-    if (g_phase == Phase::OFF || !g_now_ok) return;
     const auto& s = player::now();
+    if (ik == s.ik_right) g_rt_ik_ok = tf_pose(target_of(ik), g_rt_ik);   // every phase: the gun's place against it (frame())
+    if (g_phase == Phase::OFF || !g_now_ok) return;
     const float now = now_s();
     if (ik == s.ik_right) {
         if (g_phase == Phase::STAY || g_phase == Phase::HAMMER) return;   // the game's grip: the right hand steers
@@ -536,7 +560,15 @@ void on_ik(MO* ik) {
         g_last_right = want;
     } else if (ik == s.ik_left) {
         if (g_phase == Phase::HANDOVER && !g_ho_left) return;
-        Pose want = mul(g_gun_now, g_left_in_gun);
+        Pose gun = g_gun_now;
+        if (g_phase == Phase::STAY || g_phase == Phase::HAMMER) {   // pinned to the right hand's target now (see g_rt_ik)
+            Pose rt{};
+            if (g_gun_in_rt_ok && tf_pose(target_of(s.ik_right), rt)) {
+                gun = mul(rt, g_gun_in_rt);
+                if (g_pin_lines < 3) { ++g_pin_lines; LOGI("%s gate: the left hand pinned to the right hand's aim (%s): %.3f m from the frame-start place", TAG, phase_name(g_phase), dist(gun.p, g_gun_now.p)); }
+            }
+        }
+        Pose want = mul(gun, g_left_in_gun);
         const float k = (now - g_left_t0) / GATE_GLIDE_SEC;
         if ((g_phase == Phase::HELD || g_phase == Phase::HAMMER) && k < 1.0f) want = blend(g_left_from, want, ease(k));
         player::set_pose(target_of(ik), want.p, want.q);
@@ -565,6 +597,12 @@ void hold_hammer() {   // the palm on the hammer: the right thumb kept still, th
     }
 }
 
-void late_point() { write_gun(); turn_drum(); hold_hammer(); }
+void late_point() {
+    write_gun();
+    turn_drum();
+    hold_hammer();
+    if (here()) drumrounds::point(g_phase == Phase::HELD && g_rounds > 0);   // 2026-11-06: the round in the right hand, the falling cases
+    else drumrounds::reset("not the cover gun");
+}
 
 } // namespace vn::gate

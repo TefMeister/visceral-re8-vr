@@ -39,6 +39,7 @@ struct Play {
     std::vector<MO*> joint;
     std::vector<Quat> found, target;          // the pose at the start (blended in from / out to), and what is written
     bool have = false;
+    bool left = false, right = false;         // the hands this play moves (the clip's, limited by play()'s hands)
 };
 std::vector<Play> g_plays;                    // at most one per hand (a both-hands clip counts for both)
 MO* g_tf = nullptr;
@@ -118,30 +119,34 @@ void write_all(const Play& p) {
 }
 } // namespace
 
-void play(const std::string& gun_id, const char* event) {
+void play(const std::string& gun_id, const char* event, int hands) {
     const auto gun = short_id(gun_id);
     const Clip* c = load(gun, event);
     if (c == nullptr) return;
-    // a new clip on a hand replaces the one playing there (a both-hands clip replaces both)
+    const bool use_l = c->left && (hands & LEFT) != 0, use_r = c->right && (hands & RIGHT) != 0;
+    if (!use_l && !use_r) { LOGI("%s shellclip: %s %s moves no hand that was asked for: not played", TAG, gun.c_str(), event); return; }
+    // a new clip on a hand replaces the one playing there (a both-hands play replaces both)
     for (size_t i = 0; i < g_plays.size();) {
-        const Clip* o = g_plays[i].clip;
-        if ((c->left && o->left) || (c->right && o->right)) g_plays.erase(g_plays.begin() + i); else ++i;
+        const Play& o = g_plays[i];
+        if ((use_l && o.left) || (use_r && o.right)) g_plays.erase(g_plays.begin() + i); else ++i;
     }
     Play p;
     p.clip = c;
-    p.what = gun + "_" + event;
+    p.what = gun + "_" + event + (use_l && use_r ? "" : use_l ? " (left half)" : " (right half)");
     p.t0 = now_s();
+    p.left = use_l;
+    p.right = use_r;
     p.joint.assign(c->names.size(), nullptr);
     p.found.assign(c->names.size(), Quat{0, 0, 0, 1});
     p.target.assign(c->names.size(), Quat{0, 0, 0, 1});
     g_plays.push_back(std::move(p));
     LOGI("%s shellclip: %s %s: the game's finger movement plays on the %s hand (%.2f s)", TAG, gun.c_str(), event,
-         c->left && c->right ? "left and right" : c->left ? "left" : "right", c->t.back());
+         use_l && use_r ? "left and right" : use_l ? "left" : "right", c->t.back());
 }
 
 bool playing() { return !g_plays.empty(); }
-bool playing_left() { for (const auto& p : g_plays) if (p.clip->left) return true; return false; }
-bool playing_right() { for (const auto& p : g_plays) if (p.clip->right) return true; return false; }
+bool playing_left() { for (const auto& p : g_plays) if (p.left) return true; return false; }
+bool playing_right() { for (const auto& p : g_plays) if (p.right) return true; return false; }
 
 void frame() {
     // 2026-11-05 (Tefa: "the fingers don't move at all, not even a little"): Hand Poser held the docked hand's saved pose over the
@@ -176,7 +181,12 @@ void render_point() {
         Play& p = g_plays[pi];
         const Clip& c = *p.clip;
         const size_t n = c.names.size();
-        for (size_t i = 0; i < n; ++i) if (p.joint[i] == nullptr) p.joint[i] = joint_by_name(g_tf, c.names[i].c_str());
+        for (size_t i = 0; i < n; ++i) {
+            if (p.joint[i] != nullptr) continue;
+            const bool l = c.names[i].rfind(L"L_", 0) == 0, r = c.names[i].rfind(L"R_", 0) == 0;
+            if ((l && !p.left) || (r && !p.right)) continue;   // the other hand's joints stay untouched
+            p.joint[i] = joint_by_name(g_tf, c.names[i].c_str());
+        }
         const float t = now - p.t0;
         const float len = c.t.back();
         if (!p.have) {   // the pose the hand had when the event happened: blended in from, and back out to
