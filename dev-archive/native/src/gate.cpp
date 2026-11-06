@@ -391,8 +391,9 @@ void right_hand() {   // HELD: the right hand's jobs, the drum's turn
             g_need_turn = false;
             ++g_turns;
             const bool casing = breech::drop_casing();
-            bridge::sfx(casing ? bridge::SFX_MAG_OUT : bridge::SFX_SLIDE_FORWARD);
-            if (casing) drumrounds::eject();   // 2026-11-06: the case is seen falling out (drumrounds.h)
+            // 2026-11-06 (Tefa: "chamber turning sound is still not playing"): MAG_OUT has no sound on this gun; the game's own drum roll
+            bridge::sfx(bridge::SFX_DRUM_TURN);
+            if (casing) drumrounds::eject(GATE_CYL_TURN_SEC + DRUM_CASE_AFTER_TURN_S);   // the case out once the turn has ended (drumrounds.h)
             shellclip::play(g_id, "round_in", shellclip::LEFT);   // 2026-11-06: the left thumb's half of the game's cycle turns the drum
             bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s gate: LT: the drum turned one chamber%s (%d spent left)", TAG, casing ? ", a spent casing falls out" : "", breech::spent_casings());
@@ -576,6 +577,9 @@ void frame() {
     const bool open = breech::is_open();
     if (open && !g_was_open) {
         g_need_turn = false; g_turns = 0; g_cyl_draw = 0.0f; g_cyl_t = -1.0f;
+        // 2026-11-06 (Tefa: "the bullet chamber, when opening the guard, must automatically throw out one casing, so the chamber looks
+        // empty, then RG docked and RT puts a bullet in there"): the chamber at the cover gives up its case as the cover swings open
+        if (breech::drop_casing()) drumrounds::eject(DRUM_CASE_AT_OPEN_S);
         // 2026-11-06 (Tefa: "right thumb needs to flick the bullet guard open"): a short flick of our own (the game's cover clip
         // moves the other fingers, not the thumb); axis and size from lid_swing.json "flick_axis" / "flick_deg"
         if (GATE_FLICK_SEC > 0.0f && g_flick_deg != 0.0f)

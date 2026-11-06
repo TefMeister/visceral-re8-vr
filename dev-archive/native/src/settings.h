@@ -216,7 +216,7 @@ constexpr bool  GATE_FAN_OPEN_LOCKS = true;   // 2026-11-02: palm on the hammer,
 // 2026-11-06 (Tefa: "bullets must be visible in Ethans right hand when inserting them" / "the empty shells must eject visibly when
 // rotating the drum"): drumrounds.cpp. First guesses, tuned with the menu's "round in the hand" sliders and the next wear
 constexpr Vec3  DRUM_ROUND_HAND_OFF{0.0f, 0.0f, 0.0f};    // the round from the midpoint of the right thumb and index tips (index-base axes, m)
-constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, 90.0f, 0.0f};   // b074 (90 about X) faced LEFT (Tefa): so X ~ forward, Z = the long axis (up), Y = left-right: 90 about Y; -90 if it faces back  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
+constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, -90.0f, 0.0f};   // b075 (+90 about Y) faced Tefa: turned 180   // b074 (90 about X) faced LEFT (Tefa): so X ~ forward, Z = the long axis (up), Y = left-right: 90 about Y; -90 if it faces back  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
                                                                // (screenshot: "pointing up and it needs to point forward"): b073's 90 about Z did nothing (Z is most likely the round's own
 // long axis, as the drum's), so 90 about X; lid_swing.json "round_ypr" (yaw Z, pitch Y, roll X), read at every cover opening
 constexpr float DRUM_CASE_FALL_SEC = 0.6f;     // a spent case's fall out of the cover, then it is gone
@@ -226,6 +226,7 @@ constexpr bool  DRUM_OWN_FALL = true;          // our falling case (a drum round
 constexpr bool  DRUM_TRY_GAME_THROW = true;    // the game's own case throw too, when the gun has a cartridgeJoint (log says)
 // 2026-11-06 (Tefa: the case must come out at the end of the drum's turn, the round must travel into the chamber visibly)
 constexpr float DRUM_CASE_AFTER_TURN_S = 0.05f;  // the case starts out this long after the drum's turn has ended
+constexpr float DRUM_CASE_AT_OPEN_S = 0.15f;     // the case at the cover comes out this long after the cover starts opening
 constexpr float DRUM_CASE_SLIDE_S = 0.15f;       // its slide out of the chamber, back through the cover
 constexpr float DRUM_CASE_OUT_M = 0.035f;        // how far behind the cover the slide ends (m), then it drops
 constexpr float DRUM_INSERT_REACH_S = 0.10f;     // the round from the hand to just behind the cover, lining up with the barrel

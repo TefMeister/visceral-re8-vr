@@ -25,6 +25,7 @@ struct Chamber {
     bool rest = false;          // its rest numbers were read
     bool used = false;          // we draw it this frame (carried or falling)
     int forced_part = -1;       // the mesh part we switched on for it, -1 none
+    bool hidden = false;        // 2026-11-06: its case came out: drawn as an empty chamber (size 0) until a round goes in
     bool part_was = false;      // that part's state before we switched it on
 };
 // 2026-11-06 (Tefa: "the old shell does not come out at the end of the drum turn automatically and the bullet doesn't travel into
@@ -102,6 +103,7 @@ void let_go(int i, bool keep_part) {   // our hold on chamber i ends; keep_part:
     if (i < 0 || i >= (int)g_ch.size()) return;
     Chamber& c = g_ch[i];
     home(c);
+    c.hidden = false;
     if (c.forced_part >= 0 && !keep_part) set_part(c.forced_part, c.part_was);
     c.forced_part = -1;
     c.used = false;
@@ -146,7 +148,10 @@ bool setup() {
             found[i].rest = get_v3(JOINT, found[i].j, "get_LocalPosition", found[i].p) && get_q(JOINT, found[i].j, "get_LocalRotation", found[i].q) &&
                             get_v3(JOINT, found[i].j, "get_LocalScale", found[i].s);
         }
-        if (all) { g_ch = std::move(found); g_set = set; break; }
+        if (all) {
+            for (auto& c : found) if (c.rest && c.s.x < 0.01f) { c.hidden = true; c.s = Vec3{1, 1, 1}; }   // emptied earlier by us
+            g_ch = std::move(found); g_set = set; break;
+        }
     }
     g_mesh = component(call_ptr(g_wtf, "get_GameObject"), "via.render.Mesh");
     if (g_mesh != nullptr) g_parts_n = (int)call_direct<uint64_t>(g_mesh, "getPartsEnableCount", 0ull);
@@ -214,6 +219,7 @@ Quat nlerp(Quat a, Quat b, float u) {
 }
 bool busy(int i);
 // the cover as the gun is now: its place, the barrel's forward, and a round's turn lined up with the barrel (a resting chamber's)
+int g_hole = -1;   // the chamber at the cover, from the last cover_now()
 bool cover_now(Vec3& lid, Vec3& fwd, Quat& rq) {
     MO* lj = joint_by_name(g_wtf, L"Lid");
     MO* cj = joint_by_name(g_wtf, L"Cylinder");
@@ -233,11 +239,13 @@ bool cover_now(Vec3& lid, Vec3& fwd, Quat& rq) {
         cq = qnorm(cq);
         float best = 1e9f;
         Vec3 hole = lid;
-        for (const auto& c : g_ch) {
+        g_hole = -1;
+        for (int k = 0; k < (int)g_ch.size(); ++k) {
+            const auto& c = g_ch[k];
             if (!c.rest) continue;
             const Vec3 w = drum + rotate(cq, c.p);
             const float d = dist(w, lid);
-            if (d < best) { best = d; hole = w; }
+            if (d < best) { best = d; hole = w; g_hole = k; }
         }
         lid = hole;
     }
@@ -260,7 +268,19 @@ void point(bool carrying) {
     const int ld = player::loaded();
     bool inserting = false;
     for (const auto& m : g_falls) inserting = inserting || m.insert;
-    const int want = carrying && !inserting && ld >= 0 && ld < (int)g_ch.size() && (ld == g_carry || !busy(ld)) ? ld : -1;   // (b073 tested busy(ld) alone, which counts the carried one: it flickered)
+    // 2026-11-06: the round in the hand is the one that goes into the EMPTIED chamber at the cover (its case came out), so after
+    // it goes in, that very chamber shows it; kept for the whole carry
+    int want = -1;
+    if (carrying && !inserting) {
+        if (g_carry >= 0) want = g_carry;
+        else {
+            Vec3 l0{}, f0{}; Quat r0{};
+            cover_now(l0, f0, r0);
+            if (g_hole >= 0 && g_ch[g_hole].hidden && !busy(g_hole)) want = g_hole;
+            for (int k = 0; want < 0 && k < (int)g_ch.size(); ++k) if (g_ch[k].hidden && !busy(k)) want = k;
+            if (want < 0 && ld >= 0 && ld < (int)g_ch.size() && !busy(ld)) want = ld;
+        }
+    }   // (b073 tested busy(ld) alone, which counts the carried one: it flickered)
     if (want != g_carry) {
         if (g_carry >= 0) let_go(g_carry, false);
         g_carry = want;
@@ -301,7 +321,15 @@ void point(bool carrying) {
             continue;
         }
         const float tf = now - m.fall_t0;
-        if (tf >= DRUM_CASE_FALL_SEC) { let_go(m.i, false); g_falls.erase(g_falls.begin() + k); continue; }
+        if (tf >= DRUM_CASE_FALL_SEC) {   // gone: its chamber is drawn empty until a round goes in
+            const int ci = m.i;
+            let_go(ci, false);
+            const Vec3 zero{0, 0, 0};
+            set_any(JOINT, g_ch[ci].j, "set_LocalScale", &zero);
+            g_ch[ci].hidden = true;
+            g_falls.erase(g_falls.begin() + k);
+            continue;
+        }
         const Vec3 p = m.p0 + m.v0 * tf + Vec3{0.0f, -4.9f * tf * tf, 0.0f};
         const Quat q = qnorm(qmul(m.q0, axis_turn(Vec3{1, 0, 0}, DRUM_CASE_SPIN_DEG_S * tf)));
         draw_at(m.i, p, q, 1.0f);
@@ -321,7 +349,7 @@ void inserted() {
     g_carry = -1;
 }
 
-void eject() {
+void eject(float delay) {
     if (!setup()) return;
     const auto& s = player::now();
     // the game's own case throw, where the gun has a place to throw it from
@@ -336,13 +364,18 @@ void eject() {
         }
     }
     if (!DRUM_OWN_FALL || g_ch.empty()) return;
-    // a chamber not carried and not already falling, from the last one back
+    // 2026-11-06: the chamber at the cover gives up its case (a not-yet-emptied one); else any that is free, from the last one back
     int i = -1;
-    for (int k = (int)g_ch.size() - 1; k >= 0; --k) if (!busy(k)) { i = k; break; }
+    {
+        Vec3 l0{}, f0{}; Quat r0{};
+        cover_now(l0, f0, r0);
+        if (g_hole >= 0 && !busy(g_hole) && !g_ch[g_hole].hidden) i = g_hole;
+    }
+    for (int k = (int)g_ch.size() - 1; i < 0 && k >= 0; --k) if (!busy(k) && !g_ch[k].hidden) i = k;
     if (i < 0) { LOGI("%s drumrounds: no free chamber joint to draw the falling case with", TAG); return; }
     Move m;   // waits for the drum's turn to end, then slides out of the cover and drops (drawn in point())
     m.i = i;
-    m.t0 = now_s() + GATE_CYL_TURN_SEC + DRUM_CASE_AFTER_TURN_S;
+    m.t0 = now_s() + delay;
     g_falls.push_back(m);
     LOGI("%s drumrounds: a spent case comes out of the cover after the drum's turn (chamber %d's joint drawn as it)", TAG, i);
 }

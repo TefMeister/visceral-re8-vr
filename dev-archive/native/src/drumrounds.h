@@ -23,7 +23,8 @@ namespace vn::drumrounds {
 
 void point(bool carrying);   // gate.cpp late_point, after the drum's turn: carrying = the right hand holds rounds (HELD)
 void inserted();             // gate.cpp, a round went in from the right hand: the carried one is home
-void eject();                // gate.cpp, LT turned the drum and a spent case came out
+void eject(float delay);     // gate.cpp: a spent case comes out of the chamber at the cover after delay s (the cover opening, the
+                             // drum's turn); that chamber then looks EMPTY (its round joint hidden) until a round goes into it
 void reset(const char* why); // gate.cpp, the gun changed / the hold ended: every joint home, every part as the game had it
 void tune(float yaw, float pitch, float roll);   // lid_swing.json "round_ypr" (breech.cpp): the round's turn in the hand
 

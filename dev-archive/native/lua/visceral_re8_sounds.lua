@@ -37,6 +37,7 @@ local JOBS = {
     { code = 7, name = "bolt forward (click)" }, { code = 8, name = "bolt turned down" },
     { code = 9, name = "magazine out" }, { code = 10, name = "magazine in" }, { code = 11, name = "shell in" },
     { code = 12, name = "empty click" },   -- 2026-10-31 (Tefa): the game's own dry-fire click, given this job from the heard list
+    { code = 13, name = "drum turned" },   -- 2026-11-06 (Tefa: "chamber turning sound is still not playing"): the Wolfsbane's LT turn
 }
 
 local function safe(f) local ok, v = pcall(f); if ok then return v end; return nil end
@@ -515,8 +516,8 @@ GUN_SOUNDS = {
     -- 3008 M1851 Wolfsbane (also the Handcannon PZ: its reload plays these same names)
     ["3008"] = {
                  [11] = { "wwise:315834017" },   -- RI3008_SE_RELOAD_BULLET: each round in
-                 [12] = { "wwise:719712247" },   -- RI3008_SE_EJECT_BULLET: cylinder open, cases out (code 12 not wired yet)
-                 [13] = { "wwise:372434422" } },   -- RI3008_SE_MVT_CYLINDER_ROLL: cylinder shut (code 13 not wired yet)
+                 [12] = { "wwise:719712247" },   -- RI3008_SE_EJECT_BULLET: cylinder open, cases out (2026-11-06: a case out, gate.cpp)
+                 [13] = { "wwise:372434422" } },   -- RI3008_SE_MVT_CYLINDER_ROLL: 2026-11-06: the drum turned by LT (gate.cpp)
 }
 -- 2026-10-24 /pd (Tefa: "can you do all the other guns in the game as well"): the Mercenaries and Shadows of Rose copies
 -- are the same guns, so they use their base gun's sounds; the W870 TAC borrows the M1897's, which are the shared shotgun
@@ -578,7 +579,7 @@ re.on_pre_application_entry("UpdateHID", function()
     local b = rawget(_G, "visceral_re8_bridge")
     if not b or not b.ready() then return end
     local mask = 0
-    for code = 1, 12 do if job_key(code) then mask = mask | (1 << code) end end
+    for code = 1, 13 do if job_key(code) then mask = mask | (1 << code) end end
     b.w(S_SFX_LUA_HAS, mask)
     if run ~= nil and os.clock() - run.last > RUN_QUIET_SEC then finish_run() end
     local seq = b.r(S_SFX_SEQ)

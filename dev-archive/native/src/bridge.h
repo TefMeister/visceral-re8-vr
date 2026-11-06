@@ -118,7 +118,9 @@ enum Sfx : int {               // S_SFX_CODE values
     SFX_SLIDE_BACK = 1, SFX_SLIDE_FORWARD = 2, SFX_PUMP_BACK = 3, SFX_PUMP_FORWARD = 4,
     SFX_BOLT_UP = 5, SFX_BOLT_BACK = 6, SFX_BOLT_FORWARD = 7, SFX_BOLT_DOWN = 8,
     SFX_MAG_OUT = 9, SFX_MAG_IN = 10, SFX_SHELL_IN = 11,
-    SFX_DRY_FIRE = 12,   // 2026-10-31 (Tefa: the game's own empty click, not our beep)   // 2026-10-24 (Tefa: "not the mag being inserted")
+    SFX_DRY_FIRE = 12,   // (on the Wolfsbane the sounds script plays its EJECT_BULLET for 12: a spent case out, gate.cpp)
+    SFX_DRUM_TURN = 13,  // 2026-11-06: the Wolfsbane's drum turned by LT (its MVT_CYLINDER_ROLL)
+   // 2026-10-31 (Tefa: the game's own empty click, not our beep)   // 2026-10-24 (Tefa: "not the mag being inserted")
 };
 enum Experiment : int {        // S_EXPERIMENT bits (menu "Visceral RE8 reload" -> "Experiments")
     EX_MAG_HIDE_AT_DROP = 1,   // the old way: the gun's own magazine display switched off the moment the magazine drops
