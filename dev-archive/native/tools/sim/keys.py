@@ -2,7 +2,10 @@
 import ctypes, ctypes.wintypes as w, sys, time
 u = ctypes.windll.user32
 SC = {"up": (0x48, True), "down": (0x50, True), "left": (0x4B, True), "right": (0x4D, True), "enter": (0x1C, False),
-      "f": (0x21, False), "esc": (0x01, False), "insert": (0x52, True), "space": (0x39, False), "x": (0x2D, False), "1": (0x02, False), "2": (0x03, False), "3": (0x04, False), "4": (0x05, False), "5": (0x06, False), "6": (0x07, False)}
+      "f": (0x21, False), "esc": (0x01, False), "insert": (0x52, True), "space": (0x39, False), "x": (0x2D, False), "1": (0x02, False), "2": (0x03, False), "3": (0x04, False), "4": (0x05, False), "5": (0x06, False), "6": (0x07, False),
+      # the numpad (2026-11-06): the scope plugin's hotkeys; without the extended flag these scancodes are the NUMPAD keys, not the arrows
+      "num+": (0x4E, False), "num-": (0x4A, False), "num*": (0x37, False), "num/": (0x35, True), "num.": (0x53, False),
+      "num0": (0x52, False), "num2": (0x50, False), "num4": (0x4B, False), "num5": (0x4C, False), "num6": (0x4D, False), "num8": (0x48, False), "num9": (0x49, False)}
 class KI(ctypes.Structure): _fields_ = [("wVk", w.WORD), ("wScan", w.WORD), ("dwFlags", w.DWORD), ("time", w.DWORD), ("dwExtraInfo", ctypes.c_size_t)]
 class MI(ctypes.Structure): _fields_ = [("dx", w.LONG), ("dy", w.LONG), ("mouseData", w.DWORD), ("dwFlags", w.DWORD), ("time", w.DWORD), ("dwExtraInfo", ctypes.c_size_t)]
 class U(ctypes.Union): _fields_ = [("ki", KI), ("mi", MI)]

@@ -20,7 +20,15 @@ curve of ours", which that model predicts. Tonight the plugin does exactly that.
   `scope_dump_read.py` reads `-now.ppm` unchanged; only a raw SOURCE is stored as x/(1+x). The reader learned
   `--curve linear` to preview the new recipe on last night's frames.
 - Checked: all five shader entry points compile with fxc (`tools/check-shader.sh`); Release build with the VS 2022
-  Build Tools; `[compile-verified 2026-11-06]`. Not run in the game yet.
+  Build Tools; `[compile-verified 2026-11-06]`.
+- **Simulator pre-check, 18:43-18:47 (Tefa: "sim")** `[verified-live 2026-11-06, simulator, n=1]`: boot by
+  `village_sim_boot.py`, F2 out by key 4, the level rifle pose. The log: `grading=LINEAR`, `RT 480x360 fmt=10`
+  (float16), pipeline built, no error line; raw source fmt=26 and glass target fmt=29 latched as before; the glass
+  draws a clean magnified picture (snow on rocks, warm light, the reticle; no black, no bands). A frozen frame
+  (numpad + by scancode 0x4E) reads raw 0.041 / 0.034 / 0.032 at the centre and the finished picture 11 / 8 / 7 of
+  255 = raw x0.926 and nothing else, which is the whole design. Closed with the game's own close. The ring
+  measurement there compares the 4x aim point with the surroundings, so it gives no colour number; the headset
+  wall pair stands.
 
 ## What is installed (visceral-re8-vr build b070 "Scope linear hand-over")
 
