@@ -127,6 +127,7 @@ enum Experiment : int {        // S_EXPERIMENT bits (menu "Visceral RE8 reload" 
     EX_GAME_RELOAD = 8,        // the game's own reload is let through (its motion plays the gun's handling sounds, learned by the Lua)
 };
 void sfx(Sfx code);
+float last_sfx_s();   // 2026-11-06: when sfx() last asked (now_s), so foley.cpp lets our own replays through
 bool lua_has_sfx(Sfx code);   // the sounds script has a game sound for this code            // ask the Lua for a handling sound (plays the plugin's wav itself when the Lua has none)
 bool experiment(Experiment e);
 

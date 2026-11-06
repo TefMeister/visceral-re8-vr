@@ -207,7 +207,7 @@ constexpr float GATE_GLIDE_SEC = 0.15f;        // a hand gliding onto its place
 constexpr float GATE_RETURN_SEC = 0.25f;       // the right hand back onto the grip before the thumb shuts the cover
 constexpr float GATE_CYL_TURN_SEC = 0.08f;     // the drum's one-chamber turn
 constexpr float GATE_BUZZ_AMP = 0.3f, GATE_BUZZ_SEC = 0.04f;
-constexpr Vec3  GATE_HAMMER_OFF{0.0f, 0.02f, -0.02f};   // the palm from the Hammer joint, gun axes (m); "hammer" in lid_swing.json
+constexpr Vec3  GATE_HAMMER_OFF{0.0f, 0.035f, -0.02f};   // 2026-11-06: 1.5 cm higher (Tefa: "hand must be above the hammer")   // the palm from the Hammer joint, gun axes (m); "hammer" in lid_swing.json
 constexpr Vec3  GATE_HAMMER_AXIS{1.0f, 0.0f, 0.0f};    // the hammer's turn from cocked to down: a first guess, "hammer_axis" / "hammer_deg"
 constexpr float GATE_HAMMER_DOWN_DEG = -35.0f;
 constexpr float GATE_FAN_FIRE_WINDOW_S = 0.15f;   // 2026-11-02: RT held + LT: the trigger lock opened this long for the one shot
@@ -216,7 +216,7 @@ constexpr bool  GATE_FAN_OPEN_LOCKS = true;   // 2026-11-02: palm on the hammer,
 // 2026-11-06 (Tefa: "bullets must be visible in Ethans right hand when inserting them" / "the empty shells must eject visibly when
 // rotating the drum"): drumrounds.cpp. First guesses, tuned with the menu's "round in the hand" sliders and the next wear
 constexpr Vec3  DRUM_ROUND_HAND_OFF{0.0f, 0.0f, 0.0f};    // the round from the midpoint of the right thumb and index tips (index-base axes, m)
-constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, 0.0f, 90.0f};  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
+constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, 90.0f, 0.0f};   // b074 (90 about X) faced LEFT (Tefa): so X ~ forward, Z = the long axis (up), Y = left-right: 90 about Y; -90 if it faces back  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
                                                                // (screenshot: "pointing up and it needs to point forward"): b073's 90 about Z did nothing (Z is most likely the round's own
 // long axis, as the drum's), so 90 about X; lid_swing.json "round_ypr" (yaw Z, pitch Y, roll X), read at every cover opening
 constexpr float DRUM_CASE_FALL_SEC = 0.6f;     // a spent case's fall out of the cover, then it is gone
@@ -244,6 +244,10 @@ constexpr float GATE_LIFT_SEC = 0.35f;              // the lift up (and back dow
 constexpr Vec3  GATE_LIFT_OFF{0.0f, 0.025f, -0.01f};  // the hand's move on the gun when lifted (m)
 constexpr Vec3  GATE_LIFT_AXIS{0.0f, 0.0f, 1.0f};     // and its turn (about the barrel: a roll that takes the thumb over)
 constexpr float GATE_LIFT_DEG = 15.0f;
+constexpr float GATE_PRESS_SEC = 0.25f;   // 2026-11-06: LT's press on the hammer, down and back up
+constexpr float GATE_PRESS_M = 0.02f;     // how far the palm goes down (m, the gun's up)
+constexpr float GATE_FAN_SHOOTABLE_S = 0.05f;   // the gun's ShootableTime while the palm is on the hammer (the game's own shot fires)
+constexpr float FOLEY_OWN_SOUND_S = 0.5f;       // a handling sound right after the plugin asked for one is ours: not silenced
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

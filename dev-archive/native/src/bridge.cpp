@@ -7,6 +7,7 @@
 // hand-over. The original method never runs with our array (SKIP_ORIGINAL); every other call passes straight through.
 // `[hypothesis]` until the first flat launch logs "BRIDGE ATTACHED".
 #include "bridge.h"
+#include "joints.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -175,8 +176,11 @@ bool room_dir_to_world(Vec3 dir, Vec3& world_dir) {
 
 // a handling sound: the Lua plays the game's own when it has one for the code (lua/visceral_re8_sounds.lua); the bolt
 // falls back to Andyalpa's chamber click (RE7 VR Reloaded), the only wav we carry
+static float g_last_sfx_s = -100.0f;
+float last_sfx_s() { return g_last_sfx_s; }
 void sfx(Sfx code) {
     if (g_arr == nullptr) return;
+    g_last_sfx_s = joints::now_s();
     float* e = elems();
     e[S_SFX_CODE] = (float)code;
     e[S_SFX_SEQ] += 1.0f;

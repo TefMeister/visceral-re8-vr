@@ -1,7 +1,10 @@
 // foley.cpp -- see foley.h
 #include "foley.h"
 #include "common.h"
+#include "bridge.h"
 #include "gate.h"
+#include "joints.h"
+#include "settings.h"
 
 namespace vn::foley {
 
@@ -17,6 +20,10 @@ bool shot_motion(uint32_t id) { return id >= 2400 && id <= 2499; }
 
 int pre(int argc, void** argv, int layer_at) {
     const bool held = gate::holding(), hammer = gate::on_hammer();
+    // 2026-11-06 (Tefa: "rotating the drum doesn't produce the sound anymore"): our own handling sounds are the game's, replayed
+    // by visceral_re8_sounds.lua through these same triggers with the motion they were heard on: they pass for a moment after
+    // the plugin asked for one
+    if (joints::now_s() - bridge::last_sfx_s() < settings::FOLEY_OWN_SOUND_S) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     if ((!held && !hammer) || argc <= layer_at || argv[layer_at] == nullptr) return REFRAMEWORK_HOOK_CALL_ORIGINAL;
     auto* layer = (MO*)argv[layer_at];
     if (!is_managed(layer)) return REFRAMEWORK_HOOK_CALL_ORIGINAL;

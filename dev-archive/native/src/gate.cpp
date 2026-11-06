@@ -132,6 +132,29 @@ float g_hammer_deg = GATE_HAMMER_DOWN_DEG;
 Vec3 g_flick_axis = GATE_FLICK_AXIS;
 float g_flick_deg = GATE_FLICK_DEG;
 int g_last_loaded = -1;
+// 2026-11-06 (Tefa: "when LG is held with a live round ready to shoot, LT does nothing. when the drum needs rotating, LT must be the
+// button that brings the hammer down, right now it happens automatically. also hand must be above the hammer and press down on
+// it with LT, so it visibly goes down and up"): a shot no longer draws the hammer down; LT (only when it needs cocking) starts a
+// PRESS: the palm goes down GATE_PRESS_M and back, the hammer down and back with it, over GATE_PRESS_SEC; at the bottom the
+// hammer is cocked, the drum turns one chamber, and with RT held the shot goes off
+float g_press_t0 = -1.0f;
+bool g_press_cocked = false;   // this press has cocked (at its bottom)
+// 2026-11-06 (Tefa: "muzzle flash after every shot"): the fan shots fell back to requestShootForProcess (no flash) because the
+// game's own timer lock (ShootableTime 1.5 s) re-shut every frame; with the palm on the hammer ShootableTime is made short
+// (GATE_FAN_SHOOTABLE_S) so the game's own shot, with its flash, goes off; the gun's own value is put back after
+float g_st_orig = -1.0f;
+MO* g_st_gun = nullptr;
+float press_curve(float now) {   // 0 -> 1 -> 0 over the press
+    if (g_press_t0 < 0.0f || GATE_PRESS_SEC <= 0.0f) return 0.0f;
+    const float u = (now - g_press_t0) / GATE_PRESS_SEC;
+    return u <= 0.0f || u >= 1.0f ? 0.0f : std::sin(3.14159265f * u);
+}
+void st_restore() {
+    if (g_st_orig < 0.0f) return;
+    if (g_st_gun != nullptr && g_st_gun == player::now().gun) if (float* st = field_ptr<float>(g_st_gun, "ShootableTime")) *st = g_st_orig;
+    LOGI("%s gate: the gun's own ShootableTime %.3f put back", TAG, g_st_orig);
+    g_st_orig = -1.0f; g_st_gun = nullptr;
+}
 
 void cock_sound() {   // the hammer being cocked (the same recording as the empty click: SND_MOT_RI3008_SE_MVT_PRE_SHOT)
     wchar_t exe[MAX_PATH]{};
@@ -276,6 +299,10 @@ void fan_frame() {
     bool* tim = field_ptr<bool>(gun, "readyShootByTimer");
     bool* back = field_ptr<bool>(gun, "readyShootByTriggerBack");
     float* st = field_ptr<float>(gun, "ShootableTime");
+    if (st != nullptr && GATE_FAN_SHOOTABLE_S > 0.0f) {
+        if (g_st_orig < 0.0f || g_st_gun != gun) { g_st_orig = *st; g_st_gun = gun; LOGI("%s gate: palm on the hammer: ShootableTime %.3f -> %.3f (the game's own shot, with its flash)", TAG, *st, GATE_FAN_SHOOTABLE_S); }
+        *st = GATE_FAN_SHOOTABLE_S;
+    }
     const int now = (seq && *seq ? 1 : 0) | (tim && *tim ? 2 : 0) | (back && *back ? 4 : 0) | (g_cocked ? 8 : 0);
     if (now != g_fan_last && g_fan_lines < 80) {
         ++g_fan_lines;
@@ -320,6 +347,7 @@ bool take_hammer() {
     g_fan_lines = 0; g_fan_last = -1;
     g_hammer_cap = false;   // the thumb and the hammer read at the next render point, before any shot
     g_ham_cyl = nullptr; g_ham_turns = 0; g_ham_draw = 0.0f; g_ham_t = -1.0f;
+    g_press_t0 = -1.0f;
     g_pin_lines = 0;
     g_last_loaded = player::loaded();
     LOGI("%s gate: LG at the hammer (%.3f m): the left palm on it; after each shot LT pushes it back down, B sends the hand to the drum", TAG, d);
@@ -576,8 +604,11 @@ void frame() {
     case Phase::OFF:
     case Phase::STAY:
     case Phase::HAMMER: {
+        if (g_phase != Phase::HAMMER) st_restore();
         if (g_phase != Phase::OFF && (!lg || !play)) {
             LOGI("%s gate: LG let go: the left hand leaves the %s", TAG, g_phase == Phase::HAMMER ? "hammer" : "drum");
+            st_restore();
+            g_press_t0 = -1.0f;
             g_phase = Phase::OFF; g_weapon_tf = nullptr; break;
         }
         if (g_phase == Phase::HAMMER && !open) {   // a shot leaves the hammer down; LT pushes it back
@@ -585,14 +616,21 @@ void frame() {
             if (g_last_loaded > 0 && ld >= 0 && ld < g_last_loaded) { g_cocked = false; LOGI("%s gate: shot: the hammer is down (LT cocks it)", TAG); }
             g_last_loaded = ld;
             if (bridge::pressed(bridge::S_LTRIG)) {
-                if (!g_cocked) {
+                if (g_cocked) LOGI("%s gate: LT: the hammer is already cocked (a live round ready): nothing to do", TAG);
+                else if (g_press_t0 < 0.0f) { g_press_t0 = now; g_press_cocked = false; LOGI("%s gate: LT: the palm presses the hammer down", TAG); }
+            }
+            if (g_press_t0 >= 0.0f) {
+                const float u = GATE_PRESS_SEC > 0.0f ? (now - g_press_t0) / GATE_PRESS_SEC : 1.0f;
+                if (!g_press_cocked && u >= 0.5f) {   // the bottom of the press: cocked, the drum turns, RT held fires
+                    g_press_cocked = true;
                     g_cocked = true;
-                    ++g_ham_turns;   // the drum turns with the cocking, only here (2026-11-06)
+                    ++g_ham_turns;
                     cock_sound();
                     bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
-                    LOGI("%s gate: LT: the palm cocks the hammer", TAG);
+                    LOGI("%s gate: the hammer is cocked, the drum turned one chamber", TAG);
+                    if (bridge::held(bridge::S_RTRIG) && player::loaded() > 0) fan_fire("the press with RT held");
                 }
-                if (bridge::held(bridge::S_RTRIG) && player::loaded() > 0) fan_fire("LT with RT held");
+                if (u >= 1.0f) g_press_t0 = -1.0f;
             }
             fan_frame();
             break;
@@ -690,7 +728,9 @@ void on_ik(MO* ik) {
                 if (g_pin_lines < 3) { ++g_pin_lines; LOGI("%s gate: the left hand pinned to the right hand's aim (%s): %.3f m from the frame-start place", TAG, phase_name(g_phase), dist(gun.p, g_gun_now.p)); }
             }
         }
-        Pose want = mul(gun, g_phase == Phase::STAY ? blend(g_stay_from, g_stay_to, ease((now - g_stay_t0) / GATE_STAY_GLIDE_SEC)) : g_left_in_gun);
+        Pose in_gun = g_phase == Phase::STAY ? blend(g_stay_from, g_stay_to, ease((now - g_stay_t0) / GATE_STAY_GLIDE_SEC)) : g_left_in_gun;
+        if (g_phase == Phase::HAMMER) in_gun.p = in_gun.p + Vec3{0.0f, -GATE_PRESS_M * press_curve(now), 0.0f};   // the palm's press (gun's up = +y)
+        Pose want = mul(gun, in_gun);
         const float k = (now - g_left_t0) / GATE_GLIDE_SEC;
         if ((g_phase == Phase::HELD || g_phase == Phase::HAMMER) && k < 1.0f) want = blend(g_left_from, want, ease(k));
         player::set_pose(target_of(ik), want.p, want.q);
@@ -726,7 +766,7 @@ void hold_hammer() {   // the palm on the hammer: the right thumb kept still, th
         set_any(JOINT, g_ham_cyl, "set_LocalRotation", &q);
     }
     if (g_hammer != nullptr) {
-        Quat q = g_cocked ? g_hammer_cocked : qnorm(qmul(g_hammer_cocked, axis_turn(g_hammer_axis, g_hammer_deg)));
+        Quat q = qnorm(qmul(g_hammer_cocked, axis_turn(g_hammer_axis, g_hammer_deg * press_curve(now_s()))));   // down and up with the press only
         set_any(JOINT, g_hammer, "set_LocalRotation", &q);
     }
 }

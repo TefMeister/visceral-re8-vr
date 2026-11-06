@@ -225,6 +225,22 @@ bool cover_now(Vec3& lid, Vec3& fwd, Quat& rq) {
     const float n = std::sqrt(fwd.x * fwd.x + fwd.y * fwd.y + fwd.z * fwd.z);
     if (n < 1e-4f) return false;
     fwd = fwd * (1.0f / n);
+    // 2026-11-06 (Tefa: "spent casings coming out of the wrong hole, they have to come out of the previous one, the same one they
+    // go in from"): the cover joint is the lid's hinge, not the hole. The hole is the chamber nearest the cover: the drum's own
+    // place and turn times each chamber's resting local place; both the case and the round use it
+    Quat cq{};
+    if (get_q(JOINT, cj, "get_Rotation", cq)) {
+        cq = qnorm(cq);
+        float best = 1e9f;
+        Vec3 hole = lid;
+        for (const auto& c : g_ch) {
+            if (!c.rest) continue;
+            const Vec3 w = drum + rotate(cq, c.p);
+            const float d = dist(w, lid);
+            if (d < best) { best = d; hole = w; }
+        }
+        lid = hole;
+    }
     rq = Quat{0, 0, 0, 1};
     for (int k = 0; k < (int)g_ch.size(); ++k)
         if (!busy(k) && get_q(JOINT, g_ch[k].j, "get_Rotation", rq)) { rq = qnorm(rq); break; }
