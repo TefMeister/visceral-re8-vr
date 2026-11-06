@@ -400,6 +400,19 @@ void pull_out() {
     log_parts();
     LOGI("%s reload: %s magazine pulled out by hand with %d rounds in it, %d carried", TAG, g_id.c_str(), g_mag_rounds, player::reserve());
 }
+// 2026-11-07 (Tefa: "when ejecting the mag on Lemi, holding LG and pressing B to eject, clip falls on the ground. only when i was
+// holding LG and pressed LT once, after that LG + B landed the mag in my hand"): the grab was decided only at the LG press, within
+// the zone (6 cm); the log had the hand 11 cm off at the press, so B dropped it. Now right B with LG held (not on the front grip,
+// no rack) catches it when the hand is within RELOAD_B_CATCH_SCALE of the zone
+bool b_catch_near() {
+    if (!pistol_mag() || !bridge::held(bridge::S_LGRIP) || bridge::flag(bridge::S_GRIPPING_WEAPON) || rack::active()) return false;
+    Vec3 mp, cp;
+    Quat mq;
+    if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return false;
+    const float d = dist(zones::center(zones::MAG, mp), cp), need = zones::radius(zones::MAG) * RELOAD_B_CATCH_SCALE;
+    LOGI("%s reload: right B with LG held: the hand %.3f m from the magazine (catches within %.2f)", TAG, d, need);
+    return d <= need;
+}
 void grab_frame() {
     if (!in_play() || g_st != St::SEATED || g_joint == nullptr || rack::active() || pose_lock()) return;
     if (!g_hand_on_mag) {
@@ -766,7 +779,10 @@ void frame() {
         grab_frame();
         // B ejects only on pistols (Tefa 2026-10-25); a gun whose magazine joint is unknown keeps B, having no hand path. With the
         // left hand on the magazine B releases it into the hand instead (grab_frame, 2026-10-30)
-        if (in_play() && bridge::pressed(bridge::S_RB) && g_st == St::SEATED && !rack::active() && !g_hand_on_mag && (g_w->shape == weapons::Shape::PISTOL || g_joint == nullptr)) begin_drop();
+        if (in_play() && bridge::pressed(bridge::S_RB) && g_st == St::SEATED && !rack::active() && !g_hand_on_mag && (g_w->shape == weapons::Shape::PISTOL || g_joint == nullptr)) {
+            if (g_joint != nullptr && b_catch_near()) { g_hand_on_mag = true; pull_out(); }   // 2026-11-07: into the held hand
+            else begin_drop();
+        }
     }
     if (in_pouch() && bridge::pressed(bridge::S_LGRIP)) pouch_grab();
 }
