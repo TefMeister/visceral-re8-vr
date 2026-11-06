@@ -238,6 +238,12 @@ constexpr float GATE_STAY_GLIDE_SEC = 0.25f;   // the left hand from the drum to
 constexpr Vec3  GATE_FLICK_AXIS{0.0f, 0.0f, 1.0f};   // 2026-11-06: the right thumb's flick at the cover's opening: each thumb bone about its own
 constexpr float GATE_FLICK_DEG = -35.0f;             // local axis, out and back (a guess: Village's finger bones bend about Z); lid_swing.json tunes
 constexpr float GATE_FLICK_SEC = 0.25f;
+// 2026-11-06 (Tefa: the thumb over the hammer before the cover opens): the right hand's lift on the gun, first guesses (gun axes: y up,
+// z along the barrel); lid_swing.json "lift_off", "lift_axis", "lift_deg" tune them, read at every cover opening
+constexpr float GATE_LIFT_SEC = 0.35f;              // the lift up (and back down); the cover opens when it ends (0 = no lift)
+constexpr Vec3  GATE_LIFT_OFF{0.0f, 0.025f, -0.01f};  // the hand's move on the gun when lifted (m)
+constexpr Vec3  GATE_LIFT_AXIS{0.0f, 0.0f, 1.0f};     // and its turn (about the barrel: a roll that takes the thumb over)
+constexpr float GATE_LIFT_DEG = 15.0f;
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

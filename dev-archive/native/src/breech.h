@@ -42,7 +42,8 @@ bool spent_in_hand();
 bool hold_round();         // pairs.cpp keeps the left hand docked at the insert point while this says so
 // 2026-11-01 22:5x (Tefa's Wolfsbane plan, gate.h): the M1851 opens its loading cover with right B; gate.cpp does the rest
 bool cover_gun();                        // the gun in hand is the M1851 (a cover, not a swing-out drum)
-void close_cover(const char* why);       // gate.cpp: the thumb shuts it once the rounds are in
+void close_cover(const char* why);
+void open_cover(const char* why);        // gate.cpp (2026-11-06): the cover opens once the right thumb is over the hammer       // gate.cpp: the thumb shuts it once the rounds are in
 bool drop_casing();                      // gate.cpp: the drum turned: one spent casing falls out (false = none left)
 void pose_point();         // 2026-11-01: LateUpdateBehavior post / PrepareRendering post / BeginRendering pre: the GM 79's barrel
                            // swung open or shut (written after the animation, the way rack.cpp writes the slide)

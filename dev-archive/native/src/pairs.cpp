@@ -232,7 +232,7 @@ void frame() {
     }
     bridge::put(bridge::S_LEFT_SPOT, spot);
     // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
-    bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? 2.0f : 0.0f);
+    bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? 2.0f : gate::right_lifted() ? 3.0f : 0.0f);   // 3: over the hammer (2026-11-06)
 
     // 2026-10-30 (Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it"): the gun's
     // pair whose activation sphere the left hand is nearest (measured in its own radii) is handed to the zones script, which

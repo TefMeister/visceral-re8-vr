@@ -99,6 +99,19 @@ MO* g_ham_cyl = nullptr;
 Quat g_ham_cyl_q0{0, 0, 0, 1};
 int g_ham_turns = 0;
 float g_ham_draw = 0.0f, g_ham_t = -1.0f;
+// the right hand's lift over the hammer (gate.h, 2026-11-06)
+enum class Lift { NONE, UP, HOLD, DOWN };
+Lift g_lift = Lift::NONE;
+float g_lift_t0 = 0.0f, g_lift_u = 0.0f;
+Pose g_lift_gun_in_rt{};     // the gun against the right hand's (unlifted) target, at the lift's start
+Pose g_lift_gun{};           // the gun as the controller holds it, this frame (written at the late points)
+bool g_lift_gun_ok = false;
+MO* g_lift_tf = nullptr;
+Vec3 g_lift_local_p{};
+Quat g_lift_local_q{0, 0, 0, 1};
+bool g_lift_parented = false;
+Vec3 g_lift_off = GATE_LIFT_OFF, g_lift_axis = GATE_LIFT_AXIS;
+float g_lift_deg = GATE_LIFT_DEG;
 Pose g_gun_in_rt{};          // the gun against that target (OFF / STAY / HAMMER: the gun on the right hand)
 bool g_gun_in_rt_ok = false;
 int g_pin_lines = 0;
@@ -204,6 +217,14 @@ bool take() {
     g_weapon_tf = s.weapon_tf;
     g_parented = call_ptr(s.weapon_tf, "get_Parent") != nullptr;
     if (!get_v3(XFORM, s.weapon_tf, "get_LocalPosition", g_local_p) || !get_q(XFORM, s.weapon_tf, "get_LocalRotation", g_local_q)) g_parented = false;
+    if (g_lift != Lift::NONE && g_lift_tf == s.weapon_tf) {   // taken while the right hand is lifted: the grip as it was before the lift
+        g_gun_in_right = g_lift_gun_in_rt;
+        g_right_in_gun = inverse(g_lift_gun_in_rt);
+        g_right_dock_in_gun.q = g_right_in_gun.q;
+        g_local_p = g_lift_local_p; g_local_q = g_lift_local_q; g_parented = g_lift_parented;
+        g_lift = Lift::NONE; g_lift_u = 0.0f; g_lift_tf = nullptr;
+        LOGI("%s gate: LG took the gun while the right hand was lifted: the right hand is free, its grip kept from before the lift", TAG);
+    }
     g_rounds = 0;
     g_rdock = false;
     g_ru = g_ru0 = 0.0f;
@@ -439,6 +460,30 @@ void turn_drum() {   // the drum drawn turning one chamber per LT, while the cov
     Quat q = qnorm(qmul(g_cyl_rest, axis_turn(g_cyl_axis, 360.0f / (float)cap * g_cyl_draw)));
     set_any(JOINT, g_cyl, "set_LocalRotation", &q);
 }
+
+void lift_end(const char* why) {   // the gun back on its hand's own place (its local), the lift over
+    if (g_lift_tf != nullptr && g_lift_parented && player::now().weapon_tf == g_lift_tf) {
+        set_any(XFORM, g_lift_tf, "set_LocalPosition", &g_lift_local_p);
+        set_any(XFORM, g_lift_tf, "set_LocalRotation", &g_lift_local_q);
+    }
+    g_lift = Lift::NONE; g_lift_u = 0.0f; g_lift_tf = nullptr; g_lift_gun_ok = false;
+    LOGI("%s gate: the right hand is back on the grip (%s)", TAG, why);
+}
+void lift_frame(float now) {
+    if (g_lift == Lift::NONE) return;
+    if (player::now().weapon_tf != g_lift_tf) { g_lift = Lift::NONE; g_lift_u = 0.0f; g_lift_tf = nullptr; g_lift_gun_ok = false; return; }   // another gun: nothing written
+    const float k = GATE_LIFT_SEC > 0.0f ? (now - g_lift_t0) / GATE_LIFT_SEC : 1.0f;
+    if (g_lift == Lift::UP) {
+        g_lift_u = std::fmin(1.0f, k);
+        if (k >= 1.0f) { g_lift = Lift::HOLD; breech::open_cover("the right thumb over the hammer"); }
+    } else if (g_lift == Lift::HOLD) {
+        g_lift_u = 1.0f;
+        if (!breech::is_open()) lift_down("the cover shut");
+    } else {   // DOWN
+        g_lift_u = std::fmax(0.0f, 1.0f - k);
+        if (k >= 1.0f) lift_end("lift done");
+    }
+}
 } // namespace
 
 bool here() { return breech::cover_gun(); }
@@ -459,6 +504,28 @@ bool gun_rot(Quat& q) {
 }
 
 void close_request(const char* why) { if (g_phase == Phase::HELD) to_return(why); }
+
+void open_request(const char* why) {
+    const auto& s = player::now();
+    if (g_lift != Lift::NONE) return;
+    if (GATE_LIFT_SEC <= 0.0f || !g_gun_in_rt_ok || s.weapon_tf == nullptr) { breech::open_cover(why); return; }
+    g_lift_gun_in_rt = g_gun_in_rt;
+    g_lift_tf = s.weapon_tf;
+    g_lift_parented = call_ptr(s.weapon_tf, "get_Parent") != nullptr;
+    if (!get_v3(XFORM, s.weapon_tf, "get_LocalPosition", g_lift_local_p) || !get_q(XFORM, s.weapon_tf, "get_LocalRotation", g_lift_local_q)) g_lift_parented = false;
+    g_lift_gun_ok = false;
+    g_lift = Lift::UP;
+    g_lift_t0 = now_s();
+    LOGI("%s gate: %s: the right thumb lifts over the hammer (%.2f s), then the cover opens", TAG, why, GATE_LIFT_SEC);
+}
+void lift_down(const char* why) {
+    if (g_lift == Lift::NONE || g_lift == Lift::DOWN) return;
+    g_lift = Lift::DOWN;
+    g_lift_t0 = now_s() - (1.0f - g_lift_u) * GATE_LIFT_SEC;   // from wherever it is now
+    LOGI("%s gate: %s: the cover shut, the right hand glides back onto the grip", TAG, why);
+}
+bool right_lifted() { return g_lift_u > 0.5f; }
+void tune_lift(const Vec3& off, const Vec3& axis, float deg) { g_lift_off = off; g_lift_axis = axis; g_lift_deg = deg; }
 
 void abort(const char* why) {
     if (g_phase == Phase::OFF) return;
@@ -504,6 +571,7 @@ void frame() {
         else if (!on_right) g_gun_in_rt_ok = false;
     }
     const float now = now_s();
+    lift_frame(now);
     switch (g_phase) {
     case Phase::OFF:
     case Phase::STAY:
@@ -579,6 +647,18 @@ void frame() {
 void on_ik(MO* ik) {
     const auto& s = player::now();
     if (ik == s.ik_right) g_rt_ik_ok = tf_pose(target_of(ik), g_rt_ik);   // every phase: the gun's place against it (frame())
+    if (ik == s.ik_right && g_lift_u > 0.0f && g_lift_tf == s.weapon_tf && (g_phase == Phase::OFF || g_phase == Phase::STAY || g_phase == Phase::HAMMER)) {
+        Pose rt{};
+        if (tf_pose(target_of(ik), rt)) {   // the gun stays as the controller holds it; the hand moves on it
+            g_lift_gun = mul(rt, g_lift_gun_in_rt);
+            g_lift_gun_ok = true;
+            const Pose rt_in_gun = inverse(g_lift_gun_in_rt);
+            const Pose lifted{rt_in_gun.p + g_lift_off, qnorm(qmul(axis_turn(g_lift_axis, g_lift_deg), rt_in_gun.q))};
+            const Pose want = mul(g_lift_gun, blend(rt_in_gun, lifted, ease(g_lift_u)));
+            player::set_pose(target_of(ik), want.p, want.q);
+        }
+        return;
+    }
     if (g_phase == Phase::OFF || !g_now_ok) return;
     const float now = now_s();
     if (ik == s.ik_right) {
@@ -604,7 +684,8 @@ void on_ik(MO* ik) {
         Pose gun = g_gun_now;
         if (g_phase == Phase::STAY || g_phase == Phase::HAMMER) {   // pinned to the right hand's target now (see g_rt_ik)
             Pose rt{};
-            if (g_gun_in_rt_ok && tf_pose(target_of(s.ik_right), rt)) {
+            if (g_lift_u > 0.0f && g_lift_gun_ok && g_lift_tf == s.weapon_tf) gun = g_lift_gun;   // the right hand is lifted: the gun as held
+            else if (g_gun_in_rt_ok && tf_pose(target_of(s.ik_right), rt)) {
                 gun = mul(rt, g_gun_in_rt);
                 if (g_pin_lines < 3) { ++g_pin_lines; LOGI("%s gate: the left hand pinned to the right hand's aim (%s): %.3f m from the frame-start place", TAG, phase_name(g_phase), dist(gun.p, g_gun_now.p)); }
             }
@@ -652,6 +733,9 @@ void hold_hammer() {   // the palm on the hammer: the right thumb kept still, th
 
 void late_point() {
     write_gun();
+    if (g_lift_u > 0.0f && g_lift_gun_ok && g_lift_tf != nullptr && player::now().weapon_tf == g_lift_tf &&
+        g_phase != Phase::HELD && g_phase != Phase::RETURN && g_phase != Phase::HANDOVER)
+        player::set_pose(g_lift_tf, g_lift_gun.p, g_lift_gun.q);
     turn_drum();
     hold_hammer();
     if (here()) drumrounds::point(g_phase == Phase::HELD && g_rounds > 0);   // 2026-11-06: the round in the right hand, the falling cases

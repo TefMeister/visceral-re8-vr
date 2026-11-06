@@ -31,7 +31,18 @@ void late_point();          // LateUpdateBehavior post / PrepareRendering post /
 bool here();                // the gun in hand is the cover gun
 bool holding();             // HELD or RETURN: the gun is in the left hand (no shot, no holster, no pouch for the left hand)
 bool owns_left();           // the left hand is drawn by us (HELD to STAY): the grip script keeps off it
-void close_request(const char* why);   // right B while held: the right hand back to the grip, then the cover shuts
+void close_request(const char* why);
+// 2026-11-06 (Tefa: "the thumb going over the cover ... that would mean slowing down the opening of the guard, otherwise it would
+// look unnaturaly quick hand pose change"; the ask: "animating the right hand to move in a way that the thumb gets lifted over the
+// hammer, the whole hand and fingers animate with it and then the guard flicks open. the hand stays in that position for the
+// duration of as long as the guard is open and then when closing the thumb flicks it closed and hand travels back to the grip
+// properly"): right B LIFTS the right hand on the gun (the gun stays where the controller holds it) over GATE_LIFT_SEC, then the
+// cover opens with the flick; the hand stays lifted while it is open; closing flicks, then the hand glides back down.
+// lid_swing.json "lift_off" (m, gun axes), "lift_axis", "lift_deg" (the hand's turn, gun axes) tune the lifted place.
+void open_request(const char* why);   // breech.cpp: right B with the cover shut
+void lift_down(const char* why);      // breech.cpp: the cover closed by right B: the hand glides back to the grip
+bool right_lifted();                  // pairs.cpp: Hand Poser's right spot 3 ("over the hammer")
+void tune_lift(const Vec3& off, const Vec3& axis, float deg);   // right B while held: the right hand back to the grip, then the cover shuts
 void abort(const char* why);
 void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis, const Vec3& hammer);   // from lid_swing.json (breech.cpp)
 // 2026-11-01 23:4x: HAMMER, the cover shut: LG at the hammer docks the left palm there; a shot leaves the hammer down (no next

@@ -83,6 +83,8 @@ void load_lid_tune() {   // re-read each time the cover opens, so the swing can 
         gate::tune_hammer(v3("hammer_axis", GATE_HAMMER_AXIS), hd != nullptr && hd->kind == json::Value::NUM ? (float)hd->n : GATE_HAMMER_DOWN_DEG);
         const Vec3 ry = v3("round_ypr", Vec3{DRUM_ROUND_HAND_YPR[0], DRUM_ROUND_HAND_YPR[1], DRUM_ROUND_HAND_YPR[2]});
         drumrounds::tune(ry.x, ry.y, ry.z);
+        const auto* ld = v.get("lift_deg");
+        gate::tune_lift(v3("lift_off", GATE_LIFT_OFF), v3("lift_axis", GATE_LIFT_AXIS), ld != nullptr && ld->kind == json::Value::NUM ? (float)ld->n : GATE_LIFT_DEG);
         const auto* fd = v.get("flick_deg");
         gate::tune_flick(v3("flick_axis", GATE_FLICK_AXIS), fd != nullptr && fd->kind == json::Value::NUM ? (float)fd->n : GATE_FLICK_DEG);
     }
@@ -284,6 +286,7 @@ int free_chambers() {
 }
 int spent_casings() { return cylinder() ? g_spent_n : 0; }
 bool cover_gun() { return here() && gate_gun(); }
+void open_cover(const char* why) { if (cover_gun()) set_open(true, why); }
 void close_cover(const char* why) { if (cover_gun()) { set_open(false, why); g_spent_n = 0; } }
 bool drop_casing() { if (!cover_gun() || g_spent_n <= 0) return false; --g_spent_n; return true; }
 
@@ -379,7 +382,8 @@ void frame() {
     if (gate_gun()) {   // 2026-11-01 22:4x: right B opens the M1851's cover; gate.cpp loads it and shuts it (Tefa's plan, 22:5x)
         if (bridge::pressed(bridge::S_RB)) {
             if (gate::holding()) gate::close_request("right B");   // the right hand back to the grip first, then the thumb shuts it
-            else set_open(!g_open, "right B");
+            else if (!g_open) gate::open_request("right B");   // 2026-11-06: the thumb lifts over the hammer first (gate.cpp)
+            else { set_open(false, "right B"); gate::lift_down("right B"); }
         }
         return;
     }
