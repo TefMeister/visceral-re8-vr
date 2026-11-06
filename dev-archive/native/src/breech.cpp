@@ -101,6 +101,12 @@ void set_open(bool open, const char* why) {
     if (open == g_open) return;
     g_open = open;
     if (open && gate_gun()) load_lid_tune();
+    // 2026-11-06 (Tefa: "old spent rounds are not coming out at all"): only shots seen while the mod watched were counted, and a
+    // round only leaves a revolver by being fired, so at the opening every empty chamber holds a spent case
+    if (open && cover_gun() && player::capacity() > 0 && player::loaded() >= 0) {
+        const int empty = std::max(0, player::capacity() - player::loaded());
+        if (empty > g_spent_n) { LOGI("%s breech: %d empty chamber(s) at the opening: each holds a spent case (%d were counted)", TAG, empty, g_spent_n); g_spent_n = empty; }
+    }
     g_last_flip = now_s();
     click();
     bridge::rumble(bridge::RIGHT, BREECH_BUZZ_AMP, BREECH_BUZZ_SEC, RELOAD_BUZZ_HZ);

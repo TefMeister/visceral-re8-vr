@@ -244,7 +244,7 @@ void point(bool carrying) {
     const int ld = player::loaded();
     bool inserting = false;
     for (const auto& m : g_falls) inserting = inserting || m.insert;
-    const int want = carrying && !inserting && ld >= 0 && ld < (int)g_ch.size() && !busy(ld) ? ld : -1;
+    const int want = carrying && !inserting && ld >= 0 && ld < (int)g_ch.size() && (ld == g_carry || !busy(ld)) ? ld : -1;   // (b073 tested busy(ld) alone, which counts the carried one: it flickered)
     if (want != g_carry) {
         if (g_carry >= 0) let_go(g_carry, false);
         g_carry = want;

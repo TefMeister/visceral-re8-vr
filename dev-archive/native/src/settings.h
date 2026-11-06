@@ -216,8 +216,9 @@ constexpr bool  GATE_FAN_OPEN_LOCKS = true;   // 2026-11-02: palm on the hammer,
 // 2026-11-06 (Tefa: "bullets must be visible in Ethans right hand when inserting them" / "the empty shells must eject visibly when
 // rotating the drum"): drumrounds.cpp. First guesses, tuned with the menu's "round in the hand" sliders and the next wear
 constexpr Vec3  DRUM_ROUND_HAND_OFF{0.0f, 0.0f, 0.0f};    // the round from the midpoint of the right thumb and index tips (index-base axes, m)
-constexpr float DRUM_ROUND_HAND_YPR[3] = {90.0f, 0.0f, 0.0f};  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
-                                                               // (screenshot: "pointing up and it needs to point forward"): 90 about Z; lid_swing.json "round_ypr"
+constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, 0.0f, 90.0f};  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
+                                                               // (screenshot: "pointing up and it needs to point forward"): b073's 90 about Z did nothing (Z is most likely the round's own
+// long axis, as the drum's), so 90 about X; lid_swing.json "round_ypr" (yaw Z, pitch Y, roll X), read at every cover opening
 constexpr float DRUM_CASE_FALL_SEC = 0.6f;     // a spent case's fall out of the cover, then it is gone
 constexpr float DRUM_CASE_OUT_MS = 0.4f;       // its push out of the cover, away from the drum's middle (m/s)
 constexpr float DRUM_CASE_SPIN_DEG_S = 540.0f; // its tumble while it falls
