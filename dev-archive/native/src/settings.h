@@ -222,6 +222,12 @@ constexpr float DRUM_CASE_OUT_MS = 0.4f;       // its push out of the cover, awa
 constexpr float DRUM_CASE_SPIN_DEG_S = 540.0f; // its tumble while it falls
 constexpr bool  DRUM_OWN_FALL = true;          // our falling case (a drum round joint drawn falling)
 constexpr bool  DRUM_TRY_GAME_THROW = true;    // the game's own case throw too, when the gun has a cartridgeJoint (log says)
+constexpr float GATE_HELD_FOLLOW_SEC = 0.03f;  // 2026-11-06 (Tefa: not frozen): the Wolfsbane in the left hand follows it with this light smoothing (0 = raw)
+constexpr Vec3  GATE_STAY_HOLD_OFF{0.0f, -0.06f, -0.04f};   // 2026-11-06: no two-handed grip seen yet: the support place from the drum place (gun axes, m), a guess
+constexpr float GATE_STAY_GLIDE_SEC = 0.25f;   // the left hand from the drum to its hold after loading
+constexpr Vec3  GATE_FLICK_AXIS{0.0f, 0.0f, 1.0f};   // 2026-11-06: the right thumb's flick at the cover's opening: each thumb bone about its own
+constexpr float GATE_FLICK_DEG = -35.0f;             // local axis, out and back (a guess: Village's finger bones bend about Z); lid_swing.json tunes
+constexpr float GATE_FLICK_SEC = 0.25f;
 constexpr float PAIR_ACT_R_DEFAULT_M = 0.06f;      // a pair's activation sphere when pairs.json gives no size
 constexpr float PAIR_FILE_CHECK_S = 1.0f;
 // 2026-10-28 (Tefa: the slide's left side as its own pair): the left-side slide sphere starts this far left of the slide joint

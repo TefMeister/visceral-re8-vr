@@ -40,6 +40,9 @@ struct Play {
     std::vector<Quat> found, target;          // the pose at the start (blended in from / out to), and what is written
     bool have = false;
     bool left = false, right = false;         // the hands this play moves (the clip's, limited by play()'s hands)
+    bool pulse = false;                       // a pulse (pulse()): found * turn(axis, deg * sin), no clip frames
+    Vec3 axis{0, 0, 1};
+    float deg = 0.0f;
 };
 std::vector<Play> g_plays;                    // at most one per hand (a both-hands clip counts for both)
 MO* g_tf = nullptr;
@@ -144,6 +147,35 @@ void play(const std::string& gun_id, const char* event, int hands) {
          use_l && use_r ? "left and right" : use_l ? "left" : "right", c->t.back());
 }
 
+void pulse(const std::vector<std::wstring>& joints, float ax, float ay, float az, float deg, float sec, bool right) {
+    static std::map<std::string, Clip> pulses;   // a frameless clip per joint set: names, length, hand
+    std::string key;
+    for (const auto& j : joints) key += std::string(j.begin(), j.end()) + ",";
+    Clip& c = pulses[key];
+    c.names = joints;
+    c.t = {0.0f, sec > 0.01f ? sec : 0.01f};
+    c.q.assign(2, std::vector<Quat>(joints.size(), Quat{0, 0, 0, 1}));
+    c.left = !right; c.right = right; c.ok = true;
+    for (size_t i = 0; i < g_plays.size();) {
+        const Play& o = g_plays[i];
+        if ((right && o.right) || (!right && o.left)) g_plays.erase(g_plays.begin() + i); else ++i;
+    }
+    Play p;
+    p.clip = &c;
+    p.what = "pulse " + key;
+    p.t0 = now_s();
+    p.left = !right; p.right = right;
+    p.pulse = true;
+    const float n = std::sqrt(ax * ax + ay * ay + az * az);
+    p.axis = n > 1e-4f ? Vec3{ax / n, ay / n, az / n} : Vec3{0, 0, 1};
+    p.deg = deg;
+    p.joint.assign(joints.size(), nullptr);
+    p.found.assign(joints.size(), Quat{0, 0, 0, 1});
+    p.target.assign(joints.size(), Quat{0, 0, 0, 1});
+    g_plays.push_back(std::move(p));
+    LOGI("%s shellclip: %s: %.0f deg about (%.2f %.2f %.2f) and back over %.2f s", TAG, g_plays.back().what.c_str(), deg, ax, ay, az, c.t.back());
+}
+
 bool playing() { return !g_plays.empty(); }
 bool playing_left() { for (const auto& p : g_plays) if (p.left) return true; return false; }
 bool playing_right() { for (const auto& p : g_plays) if (p.right) return true; return false; }
@@ -196,6 +228,15 @@ void render_point() {
                 else p.found[i] = q;
             }
             p.have = true;
+        }
+        if (p.pulse) {   // a pulse: no blend, the half sine starts and ends at the found pose
+            if (t >= len) { LOGI("%s shellclip: %s finished", TAG, p.what.c_str()); for (size_t i = 0; i < n; ++i) p.target[i] = p.found[i]; write_all(p); g_plays.erase(g_plays.begin() + pi); continue; }
+            const float h = p.deg * std::sin(3.14159265f * t / len) * 3.14159265f / 360.0f, sn = std::sin(h);
+            const Quat turn = qnorm({p.axis.x * sn, p.axis.y * sn, p.axis.z * sn, std::cos(h)});
+            for (size_t i = 0; i < n; ++i) p.target[i] = qnorm(qmul(p.found[i], turn));
+            write_all(p);
+            ++pi;
+            continue;
         }
         if (t >= len + SHELLCLIP_BLEND_S) {   // done: the other finger code takes the hand back from the next frame
             LOGI("%s shellclip: %s finished", TAG, p.what.c_str());

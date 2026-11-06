@@ -34,6 +34,7 @@
 #include "lookup.h"
 #include "dryfire.h"
 #include "eject.h"
+#include "foley.h"
 #include "bridge.h"
 #include "common.h"
 #include "haptics.h"
@@ -63,7 +64,7 @@ namespace {
 void on_frame() {
     perfprobe::frame();                                // 2026-11-02: the performance recorder counts every game frame (perfprobe.h)
     static std::atomic<bool> installed{false};
-    if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); ik::install(); body::install(); nodock::install(); equipguard::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
+    if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); eject::install(); foley::install(); ik::install(); body::install(); nodock::install(); equipguard::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
     bridge::frame_begin();
     menukey::frame();                                  // 2026-11-04: the Emporium's kitchen card opens REFramework's menu (menukey.h)
     player::refresh();                                 // before any feature: the hooks later in the frame read this snapshot

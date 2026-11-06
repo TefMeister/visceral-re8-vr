@@ -45,6 +45,7 @@ bool right_at_cover();
 // the rotation of my right hand"): the gun's turn as WE place it while the left hand holds it (the game's own transform
 // still hangs off the right hand when the arms are solved); false = not held by us
 bool gun_rot(Quat& q);
-void tune_hammer(const Vec3& axis, float deg);   // lid_swing.json "hammer_axis", "hammer_deg": the hammer's turn from cocked to down
+void tune_hammer(const Vec3& axis, float deg);
+void tune_flick(const Vec3& axis, float deg);    // lid_swing.json "flick_axis", "flick_deg": the right thumb's flick at the cover's opening (2026-11-06)   // lid_swing.json "hammer_axis", "hammer_deg": the hammer's turn from cocked to down
 
 } // namespace vn::gate

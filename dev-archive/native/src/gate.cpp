@@ -83,6 +83,22 @@ float g_praydog_frame = -1.0f;
 // is measured every frame from matching numbers (the target at last frame's right solve, the gun where that solve put it).
 Pose g_rt_ik{};              // the right hand's target as its last solve had it
 bool g_rt_ik_ok = false;
+// 2026-11-06 (Tefa: "After the reload is done and right hand has control, left hand must stay docked still but the hand pose
+// must change to just hold it so that fingers are not on the drum anymore, otherwise the drum rotation animation plays with
+// fingers standing still on it"): in STAY the left hand glides from the drum to the place the game's own two-handed grip last
+// held it (kept while that grip held it), or, never seen, a guessed support place below the drum (GATE_STAY_HOLD_OFF), and
+// tells Hand Poser spot 0 (the gun's own hold) instead of the drum (6)
+Pose g_grip_left_in_gun{};
+bool g_have_left_hold = false;
+Pose g_stay_from{}, g_stay_to{};
+float g_stay_t0 = 0.0f;
+// 2026-11-06 (Tefa: "when having left hand on the hammer and pressing RT once, the drum still rotates on it's own after that. with
+// LG on the hammer, only LT should rotate the drum"): with the palm on the hammer the drum is held as it was at the dock and
+// turns one chamber per LT cock, drawn over GATE_CYL_TURN_SEC, whatever the game's shot animation does
+MO* g_ham_cyl = nullptr;
+Quat g_ham_cyl_q0{0, 0, 0, 1};
+int g_ham_turns = 0;
+float g_ham_draw = 0.0f, g_ham_t = -1.0f;
 Pose g_gun_in_rt{};          // the gun against that target (OFF / STAY / HAMMER: the gun on the right hand)
 bool g_gun_in_rt_ok = false;
 int g_pin_lines = 0;
@@ -100,6 +116,8 @@ Quat g_hammer_cocked{0, 0, 0, 1};
 bool g_hammer_cap = false;
 Vec3 g_hammer_axis = GATE_HAMMER_AXIS;
 float g_hammer_deg = GATE_HAMMER_DOWN_DEG;
+Vec3 g_flick_axis = GATE_FLICK_AXIS;
+float g_flick_deg = GATE_FLICK_DEG;
 int g_last_loaded = -1;
 
 void cock_sound() {   // the hammer being cocked (the same recording as the empty click: SND_MOT_RI3008_SE_MVT_PRE_SHOT)
@@ -280,6 +298,7 @@ bool take_hammer() {
     g_cocked = true;
     g_fan_lines = 0; g_fan_last = -1;
     g_hammer_cap = false;   // the thumb and the hammer read at the next render point, before any shot
+    g_ham_cyl = nullptr; g_ham_turns = 0; g_ham_draw = 0.0f; g_ham_t = -1.0f;
     g_pin_lines = 0;
     g_last_loaded = player::loaded();
     LOGI("%s gate: LG at the hammer (%.3f m): the left palm on it; after each shot LT pushes it back down, B sends the hand to the drum", TAG, d);
@@ -389,7 +408,10 @@ void poses() {   // this frame's gun and hands, from the left controller read on
     if (g_phase == Phase::HANDOVER) {
         g_gun_now = blend(g_ho_gun, mul(g_praydog, g_gun_in_right), ease((now - g_t0) / g_ho_sec));
     } else {
-        g_gun_s = blend(g_gun_s, mul(lc, g_gun_k), 1.0f - std::exp(-dt / RIGHT_RACK_LOCK_FOLLOW_SEC));
+        // 2026-11-06 (Tefa: "left hand when holding the weapon must not be frozen but move normally, frozen works with rifle but
+        // it's weird when handling a single hand weapon"): the rifle's slow trail (RIGHT_RACK_LOCK_FOLLOW_SEC 0.40 s) became a
+        // light smoothing of its own
+        g_gun_s = GATE_HELD_FOLLOW_SEC > 0.0f ? blend(g_gun_s, mul(lc, g_gun_k), 1.0f - std::exp(-dt / GATE_HELD_FOLLOW_SEC)) : mul(lc, g_gun_k);
         g_gun_now = g_gun_s;
     }
     g_now_ok = true;
@@ -425,8 +447,9 @@ bool owns_left() { return g_phase == Phase::HELD || g_phase == Phase::RETURN || 
 
 void tune(const Vec3& left, const Vec3& right, const Vec3& cyl_axis, const Vec3& hammer) { g_left_off = left; g_right_off = right; g_cyl_axis = cyl_axis; g_hammer_off = hammer; }
 void tune_hammer(const Vec3& axis, float deg) { g_hammer_axis = axis; g_hammer_deg = deg; }
+void tune_flick(const Vec3& axis, float deg) { g_flick_axis = axis; g_flick_deg = deg; }
 bool hammer_down() { return g_phase == Phase::HAMMER && !g_cocked; }
-int left_spot() { return g_phase == Phase::HAMMER ? 10 : owns_left() ? 6 : 0; }
+int left_spot() { return g_phase == Phase::HAMMER ? 10 : g_phase == Phase::STAY ? 0 : owns_left() ? 6 : 0; }   // STAY: the gun's own hold (2026-11-06)
 bool right_at_cover() { return g_phase == Phase::HELD && g_rdock; }
 bool gun_rot(Quat& q) {
     if (!g_now_ok || (g_phase != Phase::HELD && g_phase != Phase::RETURN && g_phase != Phase::HANDOVER)) return false;
@@ -455,11 +478,20 @@ void frame() {
     const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     const bool lg = bridge::held(bridge::S_LGRIP);
     const bool open = breech::is_open();
-    if (open && !g_was_open) { g_need_turn = false; g_turns = 0; g_cyl_draw = 0.0f; g_cyl_t = -1.0f; }
+    if (open && !g_was_open) {
+        g_need_turn = false; g_turns = 0; g_cyl_draw = 0.0f; g_cyl_t = -1.0f;
+        // 2026-11-06 (Tefa: "right thumb needs to flick the bullet guard open"): a short flick of our own (the game's cover clip
+        // moves the other fingers, not the thumb); axis and size from lid_swing.json "flick_axis" / "flick_deg"
+        if (GATE_FLICK_SEC > 0.0f && g_flick_deg != 0.0f)
+            shellclip::pulse({L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"}, g_flick_axis.x, g_flick_axis.y, g_flick_axis.z, g_flick_deg, GATE_FLICK_SEC, true);
+    }
     g_was_open = open;
     if (g_phase == Phase::OFF && bridge::flag(bridge::S_GRIPPING_WEAPON)) {   // remember how the left hand sits on the gun
         Pose g{}, l{};
-        if (tf_pose(s.weapon_tf, g) && s.ik_left != nullptr && tf_pose(target_of(s.ik_left), l)) { g_grip_left_turn = qnorm(qmul(qinv(g.q), l.q)); g_have_left_turn = true; }
+        if (tf_pose(s.weapon_tf, g) && s.ik_left != nullptr && tf_pose(target_of(s.ik_left), l)) {
+            g_grip_left_turn = qnorm(qmul(qinv(g.q), l.q)); g_have_left_turn = true;
+            g_grip_left_in_gun = mul(inverse(g), l); g_have_left_hold = true;
+        }
     }
     {   // the gun against the right hand's target, from matching numbers (see g_rt_ik)
         Pose g{};
@@ -483,6 +515,7 @@ void frame() {
             if (bridge::pressed(bridge::S_LTRIG)) {
                 if (!g_cocked) {
                     g_cocked = true;
+                    ++g_ham_turns;   // the drum turns with the cocking, only here (2026-11-06)
                     cock_sound();
                     bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
                     LOGI("%s gate: LT: the palm cocks the hammer", TAG);
@@ -523,6 +556,10 @@ void frame() {
             if (g_ho_left && lg && play && !breech::is_open()) {
                 g_phase = Phase::STAY;
                 g_pin_lines = 0;
+                g_stay_from = g_left_in_gun;
+                g_stay_to = g_have_left_hold ? g_grip_left_in_gun : Pose{g_left_in_gun.p + GATE_STAY_HOLD_OFF, g_left_in_gun.q};
+                g_stay_t0 = now_s();
+                LOGI("%s gate: the left hand leaves the drum for %s", TAG, g_have_left_hold ? "the game's own two-handed hold (as last held)" : "a guessed support place below the drum (no two-handed grip seen yet)");
                 LOGI("%s gate: the cover shut: the right hand steers, the left hand stays on the drum until LG is let go", TAG);
             } else {
                 g_phase = Phase::OFF;
@@ -568,7 +605,7 @@ void on_ik(MO* ik) {
                 if (g_pin_lines < 3) { ++g_pin_lines; LOGI("%s gate: the left hand pinned to the right hand's aim (%s): %.3f m from the frame-start place", TAG, phase_name(g_phase), dist(gun.p, g_gun_now.p)); }
             }
         }
-        Pose want = mul(gun, g_left_in_gun);
+        Pose want = mul(gun, g_phase == Phase::STAY ? blend(g_stay_from, g_stay_to, ease((now - g_stay_t0) / GATE_STAY_GLIDE_SEC)) : g_left_in_gun);
         const float k = (now - g_left_t0) / GATE_GLIDE_SEC;
         if ((g_phase == Phase::HELD || g_phase == Phase::HAMMER) && k < 1.0f) want = blend(g_left_from, want, ease(k));
         player::set_pose(target_of(ik), want.p, want.q);
@@ -583,6 +620,9 @@ void hold_hammer() {   // the palm on the hammer: the right thumb kept still, th
         bool ok = true;
         for (int i = 0; i < 3; ++i) { g_thumb[i] = joint_by_name(s.tf, THUMB[i]); ok = ok && g_thumb[i] != nullptr && get_q(JOINT, g_thumb[i], "get_LocalRotation", g_thumb_q[i]); }
         g_hammer = joint_by_name(s.weapon_tf, L"Hammer");
+        g_ham_cyl = joint_by_name(s.weapon_tf, L"Cylinder");
+        if (g_ham_cyl != nullptr && !get_q(JOINT, g_ham_cyl, "get_LocalRotation", g_ham_cyl_q0)) g_ham_cyl = nullptr;
+        LOGI("%s gate: palm on the hammer: the drum %s", TAG, g_ham_cyl ? "held by us, turned only by LT" : "NOT found: the game turns it");
         const bool hok = g_hammer != nullptr && get_q(JOINT, g_hammer, "get_LocalRotation", g_hammer_cocked);
         if (!hok) g_hammer = nullptr;
         if (!ok) for (auto& t : g_thumb) t = nullptr;
@@ -591,6 +631,15 @@ void hold_hammer() {   // the palm on the hammer: the right thumb kept still, th
              hok ? "held by us" : "NOT found", g_hammer_deg, g_hammer_axis.x, g_hammer_axis.y, g_hammer_axis.z);
     }
     for (int i = 0; i < 3; ++i) if (g_thumb[i] != nullptr) set_any(JOINT, g_thumb[i], "set_LocalRotation", &g_thumb_q[i]);
+    if (g_ham_cyl != nullptr) {
+        const float now = now_s(), dt = g_ham_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_ham_t);
+        g_ham_t = now;
+        const float want = (float)g_ham_turns, step = GATE_CYL_TURN_SEC > 0.0f ? dt / GATE_CYL_TURN_SEC : 1.0f;
+        g_ham_draw = want > g_ham_draw ? std::fmin(want, g_ham_draw + step) : want;
+        const int cap = player::capacity() > 0 ? player::capacity() : 5;
+        Quat q = qnorm(qmul(g_ham_cyl_q0, axis_turn(g_cyl_axis, 360.0f / (float)cap * g_ham_draw)));
+        set_any(JOINT, g_ham_cyl, "set_LocalRotation", &q);
+    }
     if (g_hammer != nullptr) {
         Quat q = g_cocked ? g_hammer_cocked : qnorm(qmul(g_hammer_cocked, axis_turn(g_hammer_axis, g_hammer_deg)));
         set_any(JOINT, g_hammer, "set_LocalRotation", &q);

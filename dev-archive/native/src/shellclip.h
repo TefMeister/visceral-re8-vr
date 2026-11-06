@@ -20,6 +20,7 @@
 // it plays once on whatever is in hand (the file is emptied). Log lines "[visceral-re8] shellclip: ...".
 #pragma once
 #include <string>
+#include <vector>
 
 namespace vn::shellclip {
 
@@ -28,6 +29,10 @@ namespace vn::shellclip {
 // drum). A play can now be limited to one hand: RT at the cover plays its right half, LT (the drum's turn) its left half.
 constexpr int LEFT = 1, RIGHT = 2, BOTH = 3;
 void play(const std::string& gun_id, const char* event = "round_in", int hands = BOTH);   // gun_id like "ri3021_Inventory" or "ri3021"
+// 2026-11-06 (Tefa: "right thumb needs to flick the bullet guard open"): a movement of our own, not the game's: the named joints
+// turn about their own local axis by deg and back (a half sine) over sec, on top of whatever pose they have; written last, as
+// the clips are. right = it belongs to the right hand (playing_right() while it runs)
+void pulse(const std::vector<std::wstring>& joints, float ax, float ay, float az, float deg, float sec, bool right);
 void frame();                           // UpdateBehavior pre: the test file
 void render_point();                    // PrepareRendering post, after every other finger writer
 void begin_render();                    // BeginRendering pre, after every other finger writer
