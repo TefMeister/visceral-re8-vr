@@ -1,0 +1,77 @@
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 *./MANIFEST.sha256
+72be49a15d8cda53b4260334c2f2a19f0ab99f207bf95b21b3bc5aaf8376af52 *./dock_poses.json
+fbbccd7c9d74049f2cdffdbc0e15e07dd099ef4498acc7bf69c6f0af025a8787 *./gate_turns.json
+2dc67cf1e282a2285900d39c55c97d8a623f7fc9c148467488b2eb5548988f55 *./guns/no gun.json
+931e4cb8585adc10e1a33fe542a9a2fe551b431618fcaccbf5c70f50c34f61c6 *./guns/ri3008_Inventory @ drum + right hand on the cover.json
+ba6c1c7ab6818219448441e922715503b7232267ab0a5c5aebd3e8b4ceda5321 *./guns/ri3008_Inventory @ drum.json
+ccec8d1db7697295e334912b4e83c4d943cb4e8a387bca5c84b6de4de6944db7 *./guns/ri3008_Inventory @ hammer.json
+14ece1fc9a9f65abb73d7952cf697167a9df86e2520dd6d36ea1b26bbb83b6c9 *./guns/ri3008_Inventory @ handle.json
+ace22737a24eb4a4e57510c2ed7df7fedb89d7d50c66becb8f80922093308c5b *./guns/ri3008_Inventory @ right hand on the cover.json
+ad15a4dc2b00a1a4050f986ab0d93b0cba9502c41e580a92ba7f1f1d8d08cb19 *./guns/ri3008_Inventory @ rounds from the pouch.json
+14ece1fc9a9f65abb73d7952cf697167a9df86e2520dd6d36ea1b26bbb83b6c9 *./guns/ri3008_Inventory.json
+4174ba5ddeca7b0293ac0b0080ad3a954d73214b8ffbbebf9ee94bde5c4be571 *./guns/ri3021_Inventory @ rounds from the pouch.json
+4174ba5ddeca7b0293ac0b0080ad3a954d73214b8ffbbebf9ee94bde5c4be571 *./guns/ri3021_Inventory @ slide from the left.json
+3a8183db4cdf87abeb341ba469f5ea74df2334b05fa3ccfbb84c8f3db28cb89c *./guns/ri3021_Inventory @ slide.json
+7deb5113ef07505efd39c35e1e6aaded65090ced3ebc079f6bd3d83ab00017f2 *./guns/ri3021_Inventory.json
+cf5612faee8f80e2d4fe0ee0a38dfda2b09bdcfaeb90902817eb11b62a30f80b *./guns/ri3023_Inventory @ insert point.json
+e2cb2401418be6e98f31e2f8a1fbb2c1d449428858026eb56b49d71d479cb489 *./guns/ri3023_Inventory @ rounds from the pouch.json
+12e1c6df7be9914b243cc1e3a9893d42e8fdc5ca7ddd51849ba01f1b4eb5f411 *./guns/ri3023_Inventory.json
+53c904fe95c51350126ac737fbde64d38d60ff811975925b9b222ca5b4b3660f *./guns/ri3036_Inventory @ rounds from the pouch.json
+2f1a2011b7607d7ccf3dc28c83f2bf97d7ae5eed793e877e0bcfe825ab35af46 *./guns/ri3036_Inventory @ slide from the left.json
+918c66128e7c40923b2cf6960de1380a28c6dc040d47dd6968d9389839035f65 *./guns/ri3036_Inventory @ slide.json
+efba171618c94c3261164fcc70932875941546e00b014ede9b794096ea80ea5c *./guns/ri3036_Inventory.json
+28ca14304c14f5aab507829247cee907ec51fd36223f05688b0c094f4a960ccd *./guns/ri3040_Inventory @ handle.json
+f599956b697ee7fb2f94f200c10d3068ea89d049e387f0164f9b9c1ecec32ecc *./guns/ri3040_Inventory @ magazine.json
+3394045a071ac96a5d423082124d11aba2cfe81b609685c2db300ee1b572f29f *./guns/ri3040_Inventory @ slide from the left.json
+fbe2280d51659a65a077472b2f325d95f7635334391d23b9c5c62a19e25c62be *./guns/ri3040_Inventory @ slide.json
+edee7642c9bf8c4ddc25f551683c2d1e6498c3cf58e998f2f8ba509d9e341941 *./guns/ri3040_Inventory.json
+16d270fa320376d0652d7032735ca1fa5d3864ca3bff2c0f12ba728571f11f81 *./guns/ri3042_Inventory @ magazine.json
+e35f1d8b9dddbcd73d3dc5b6e3d4c080d279af5acfd55805f112b875aade84a2 *./guns/ri3042_Inventory @ right hand on the bolt.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3042_Inventory @ slide.json
+79f4861adc2ab1833ceba72d770b0e5db84d2d964e94487aa42e5082a6fbec58 *./guns/ri3042_Inventory.json
+63f33db33c4f0bb29e6ae8709f7ff8b7fa13d85ccc2d740a50acc37c3fc4b43a *./guns/ri3046_Inventory @ handle.json
+b207dfe11dcf17ba02ee084bc46bf65535f217871a432f823be4ebd8e6c15eca *./guns/ri3046_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3046_Inventory @ slide from the left.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3046_Inventory @ slide.json
+63f33db33c4f0bb29e6ae8709f7ff8b7fa13d85ccc2d740a50acc37c3fc4b43a *./guns/ri3046_Inventory.json
+6d7ac76d8e9354808b525e03d5be2e4f64c933fd6fd3e4c9236f5c6fbd345287 *./guns/ri3047_Inventory @ handle.json
+c9dda161e4e29691aef06d158aed4f445563c428ddb2b46973174dc9b70423ef *./guns/ri3047_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3047_Inventory @ slide from the left.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3047_Inventory @ slide.json
+6d7ac76d8e9354808b525e03d5be2e4f64c933fd6fd3e4c9236f5c6fbd345287 *./guns/ri3047_Inventory.json
+7a5e2eb01cae3f92bed4745e99b2aab7c7e7aee4045c9932432cb511121e9f95 *./guns/ri3048_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3048_Inventory @ slide.json
+d91bab6420f86980c75330ed96a4227191050599de4919400598d6882ce6efe5 *./guns/ri3048_Inventory.json
+42fe7a58b65f844803bcd25c3e28f8f2f119815436c669739c3e5afbe435f7f5 *./guns/ri3049_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3049_Inventory @ slide.json
+7df3cbf93739086a53153a6e82677e2aec8d089a210d0254149f0c28919c4b21 *./guns/ri3049_Inventory.json
+f5293d9790642b4eeb757bb839347ec2db830912e2340879f9f4ca816b0fda3e *./guns/ri3050_Inventory @ handle.json
+5727f0f37b9bb3768f7e7003e21670e24dd2514babff1cdc6de0d167673ea416 *./guns/ri3050_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3050_Inventory @ slide from the left.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3050_Inventory @ slide.json
+f5293d9790642b4eeb757bb839347ec2db830912e2340879f9f4ca816b0fda3e *./guns/ri3050_Inventory.json
+e27ebc88c9f2936e2358f8f10ad9b2c1a42f36ba2679b8352e0459d75cb3744d *./guns/ri3115_Inventory @ handle.json
+09525663a21084378d6f80c63c877f3aac36d9396a755ce34217385894cfd825 *./guns/ri3115_Inventory @ rounds from the pouch.json
+09525663a21084378d6f80c63c877f3aac36d9396a755ce34217385894cfd825 *./guns/ri3115_Inventory @ slide from the left.json
+259c0fe0178fc0a3d9cbb42fbd24d104143b006fa00f12e39e3d6792fe9f0761 *./guns/ri3115_Inventory @ slide.json
+e27ebc88c9f2936e2358f8f10ad9b2c1a42f36ba2679b8352e0459d75cb3744d *./guns/ri3115_Inventory.json
+237d8afe05d24bb2882c5a34b580f9fbeaa2a4642c16484e8851ad008027951d *./guns/ri3116_Inventory @ drum + right hand on the cover.json
+61c278461d9b224f135590ee9e804936d6cb169cdc9a454ba346ccbce0548f91 *./guns/ri3116_Inventory @ drum.json
+68111872c0ddb2ef4d60c6250033c7d927d3d28ee7bf0363cb78a8ea7e5180d4 *./guns/ri3116_Inventory @ handle.json
+5947c664cad3c2dc32bb878d51694627177231d39d3097f22d007477343f6ade *./guns/ri3116_Inventory @ right hand on the cover.json
+ad15a4dc2b00a1a4050f986ab0d93b0cba9502c41e580a92ba7f1f1d8d08cb19 *./guns/ri3116_Inventory @ rounds from the pouch.json
+68111872c0ddb2ef4d60c6250033c7d927d3d28ee7bf0363cb78a8ea7e5180d4 *./guns/ri3116_Inventory.json
+cc107f9aac9e6798737b1bde0d4ecb61efd32e0bc2c54326b1a8036e4290158e *./guns/ri3122_Inventory @ handle.json
+8db602759c3be3f144cbe6ac2b35383777115645766a6c75b77ea30a186917a4 *./guns/ri3122_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3122_Inventory @ slide from the left.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3122_Inventory @ slide.json
+cc107f9aac9e6798737b1bde0d4ecb61efd32e0bc2c54326b1a8036e4290158e *./guns/ri3122_Inventory.json
+e544c29cf3cf8d98d0f0ed83b78f13ce4e2fc2b6e0a0cc503580f7cd9b85f591 *./guns/ri3124_Inventory @ handle.json
+75eb5f13c4df73bd555c820c533b8da38b0c1661e173ab4158a2845601cde4e3 *./guns/ri3124_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3124_Inventory @ slide from the left.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3124_Inventory @ slide.json
+e544c29cf3cf8d98d0f0ed83b78f13ce4e2fc2b6e0a0cc503580f7cd9b85f591 *./guns/ri3124_Inventory.json
+95d9a072a983fe5b4a24f8c37b55d60868c5770d8f10d09e68e7c5673725cfe8 *./guns/ri3125_Inventory @ magazine.json
+d09ba995578540b8b323e65a222b8b9c49702747a098f441e1fdd19ee9766a2d *./guns/ri3125_Inventory @ slide.json
+612f19421aee6c147fde49d6d1ade53de2157466b5799d35020b1fb444142ab1 *./guns/ri3125_Inventory.json
+2dc67cf1e282a2285900d39c55c97d8a623f7fc9c148467488b2eb5548988f55 *./window/autosave.json
