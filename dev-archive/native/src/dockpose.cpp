@@ -7,6 +7,7 @@
 #include "json_mini.h"
 #include "player.h"
 #include "settings.h"
+#include "shellclip.h"
 #include "zones.h"
 
 #include <windows.h>
@@ -95,18 +96,27 @@ void on_ik(MO* ik) {
     const float k = DOCK_POSE_EASE;   // per arm solve: a short ease, so a change of spot (or of a slider) never snaps
     cur.x += (want.x - cur.x) * k; cur.y += (want.y - cur.y) * k; cur.z += (want.z - cur.z) * k;
     cur.rx += (want.rx - cur.rx) * k; cur.ry += (want.ry - cur.ry) * k; cur.rz += (want.rz - cur.rz) * k;
-    if (zero(cur)) return;
+    // 2026-11-07 (Animation & Timing): the whole-hand move keyed into the finger clip playing on this hand (shellclip.h), on top
+    Pose tot = cur;
+    float hn[6]{};
+    if (shellclip::hand_nudge(left, hn)) { tot.x += hn[0]; tot.y += hn[1]; tot.z += hn[2]; tot.rx += hn[3]; tot.ry += hn[4]; tot.rz += hn[5]; }
+    if (zero(tot)) return;
     MO* target = field_obj(ik, "Target");
     Vec3 lp;
     Quat lq, gq;
-    // the gun's turn: as WE place it while the left hand holds it (2026-11-02: the game's transform follows the right hand then)
-    if (target == nullptr || !player::get_pose(target, lp, lq) || !(gate::gun_rot(gq) || rack_right::gun_rot(gq) || zones::gun_rot(gq))) return;
+    // the gun's turn: as WE place it while the left hand holds it (2026-11-02: the game's transform follows the right hand then);
+    // 2026-11-07: else the gun's own transform (the right hand holds it: the hammer, STAY, a plain dock)
+    if (target == nullptr || !player::get_pose(target, lp, lq)) return;
+    if (!(gate::gun_rot(gq) || rack_right::gun_rot(gq) || zones::gun_rot(gq))) {
+        Vec3 gp;
+        if (s.weapon_tf == nullptr || !player::get_pose(s.weapon_tf, gp, gq)) return;
+    }
     gq = qnorm(gq);
     const float d = 3.14159265f / 360.0f;   // half a degree in radians: quaternion halves
-    const Quat local = qnorm(qmul(qmul(Quat{0, std::sin(cur.ry * d), 0, std::cos(cur.ry * d)}, Quat{std::sin(cur.rx * d), 0, 0, std::cos(cur.rx * d)}),
-                                  Quat{0, 0, std::sin(cur.rz * d), std::cos(cur.rz * d)}));
+    const Quat local = qnorm(qmul(qmul(Quat{0, std::sin(tot.ry * d), 0, std::cos(tot.ry * d)}, Quat{std::sin(tot.rx * d), 0, 0, std::cos(tot.rx * d)}),
+                                  Quat{0, 0, std::sin(tot.rz * d), std::cos(tot.rz * d)}));
     const Quat turn = qnorm(qmul(qmul(gq, local), qinv(gq)));   // about the gun's own axes, at the wrist
-    player::set_pose(target, lp + rotate(gq, Vec3{cur.x, cur.y, cur.z}), qnorm(qmul(turn, qnorm(lq))));
+    player::set_pose(target, lp + rotate(gq, Vec3{tot.x, tot.y, tot.z}), qnorm(qmul(turn, qnorm(lq))));
 }
 
 } // namespace vn::dockpose

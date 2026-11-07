@@ -38,7 +38,15 @@ void pulse(const std::vector<std::wstring>& joints, float ax, float ay, float az
 // a clip as a CHANGE on top of the pose the hand had (Tefa's tuned pose): each joint = found * (clip's first frame)^-1 * clip(t),
 // so the hand starts exactly in the tuned pose and moves the way the game's fingers move. Switched on by the file
 // reframework/data/visceral_re8/clips/relative.txt existing (checked 4 times a second; delete it for the plain blend).
-void frame();                           // UpdateBehavior pre: the test file, the relative switch
+// 2026-11-07 (Tefa: "fine tune that original hand movement and placement frame by frame"): the Animation & Timing window
+// (animation-timing-vr) edits a clip without touching the game's CSV: clips/<gun>_<event>.edit.json holds frame ops (remove a
+// frame, hold one longer, retime a range) and nudges keyed by the CSV row (a turn per finger joint, a move of the WHOLE hand on
+// the gun: x y z cm, rx ry rz deg in the gun's axes), interpolated between keyed frames. clips/scrub.json holds a clip on one
+// edited frame (or plays it once); clips/clips_state.json (twice a second) tells the window the gun's clips and what plays.
+// The whole-hand move of the clip playing on a hand right now (metres, degrees, already scaled by the blend); false = none.
+// dockpose.cpp (the last writer on the IK target) adds it on top of whoever placed the hand.
+bool hand_nudge(bool left, float out[6]);
+void frame();                           // UpdateBehavior pre: the test file, the relative switch, scrub.json, clips_state.json
 void render_point();                    // PrepareRendering post, after every other finger writer
 void begin_render();                    // BeginRendering pre, after every other finger writer
 bool playing();                         // any hand

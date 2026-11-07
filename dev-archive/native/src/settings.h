@@ -371,6 +371,7 @@ constexpr unsigned PERF_HITCH_MS = 25;           // a gap between two frames (or
 
 // shellclip.cpp (2026-11-02): the game's finger movement for a round going in
 constexpr float SHELLCLIP_BLEND_S = 0.06f;
+constexpr float SHELLCLIP_SCRUB_POLL_S = 0.1f;   // 2026-11-07: how often the Animation & Timing window's scrub.json is read
 constexpr bool  MAGDISP_ON = true;              // 2026-11-05 magdisp.cpp: a magazine out of the gun looks as full or empty as ITS rounds say, not the gun's      // blended in from the hand's pose, and back out, over this long
 
 // shells.cpp (2026-11-02): pump shotguns, two shells per pouch grab

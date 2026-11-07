@@ -9,6 +9,7 @@
 #include "reload.h"
 #include "settings.h"
 #include "shellclip.h"
+#include "timings.h"
 #include "weapons.h"
 
 #include <windows.h>
@@ -94,7 +95,7 @@ Pose g_stay_from{}, g_stay_to{};
 float g_stay_t0 = 0.0f;
 // 2026-11-06 (Tefa: "when having left hand on the hammer and pressing RT once, the drum still rotates on it's own after that. with
 // LG on the hammer, only LT should rotate the drum"): with the palm on the hammer the drum is held as it was at the dock and
-// turns one chamber per LT cock, drawn over GATE_CYL_TURN_SEC, whatever the game's shot animation does
+// turns one chamber per LT cock, drawn over timings::v(timings::CYL_TURN_S), whatever the game's shot animation does
 MO* g_ham_cyl = nullptr;
 Quat g_ham_cyl_q0{0, 0, 0, 1};
 int g_ham_turns = 0;
@@ -135,7 +136,7 @@ int g_last_loaded = -1;
 // 2026-11-06 (Tefa: "when LG is held with a live round ready to shoot, LT does nothing. when the drum needs rotating, LT must be the
 // button that brings the hammer down, right now it happens automatically. also hand must be above the hammer and press down on
 // it with LT, so it visibly goes down and up"): a shot no longer draws the hammer down; LT (only when it needs cocking) starts a
-// PRESS: the palm goes down GATE_PRESS_M and back, the hammer down and back with it, over GATE_PRESS_SEC; at the bottom the
+// PRESS: the palm goes down GATE_PRESS_M and back, the hammer down and back with it, over timings::v(timings::PRESS_S); at the bottom the
 // hammer is cocked, the drum turns one chamber, and with RT held the shot goes off
 float g_press_t0 = -1.0f;
 bool g_press_cocked = false;   // this press has cocked (at its bottom)
@@ -145,8 +146,8 @@ bool g_press_cocked = false;   // this press has cocked (at its bottom)
 float g_st_orig = -1.0f;
 MO* g_st_gun = nullptr;
 float press_curve(float now) {   // 0 -> 1 -> 0 over the press
-    if (g_press_t0 < 0.0f || GATE_PRESS_SEC <= 0.0f) return 0.0f;
-    const float u = (now - g_press_t0) / GATE_PRESS_SEC;
+    if (g_press_t0 < 0.0f || timings::v(timings::PRESS_S) <= 0.0f) return 0.0f;
+    const float u = (now - g_press_t0) / timings::v(timings::PRESS_S);
     return u <= 0.0f || u >= 1.0f ? 0.0f : std::sin(3.14159265f * u);
 }
 void st_restore() {
@@ -393,7 +394,7 @@ void right_hand() {   // HELD: the right hand's jobs, the drum's turn
             const bool casing = breech::drop_casing();
             // 2026-11-06 (Tefa: "chamber turning sound is still not playing"): MAG_OUT has no sound on this gun; the game's own drum roll
             bridge::sfx(bridge::SFX_DRUM_TURN);
-            if (casing) drumrounds::eject(GATE_CYL_TURN_SEC + DRUM_CASE_AFTER_TURN_S);   // the case out once the turn has ended (drumrounds.h)
+            if (casing) drumrounds::eject(timings::v(timings::CYL_TURN_S) + timings::v(timings::CASE_AFTER_TURN_S));   // the case out once the turn has ended (drumrounds.h)
             shellclip::play(g_id, "round_in", shellclip::LEFT);   // 2026-11-06: the left thumb's half of the game's cycle turns the drum
             bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s gate: LT: the drum turned one chamber%s (%d spent left)", TAG, casing ? ", a spent casing falls out" : "", breech::spent_casings());
@@ -427,7 +428,7 @@ void right_hand() {   // HELD: the right hand's jobs, the drum's turn
             LOGI("%s gate: the right hand docks at the cover (%.3f m): RT puts a round in%s", TAG, d, g_need_turn ? " once LT has turned the drum" : "");
         }
     }
-    const float k = std::fmin(1.0f, (now_s() - g_rt0) / GATE_GLIDE_SEC);
+    const float k = std::fmin(1.0f, (now_s() - g_rt0) / timings::v(timings::GLIDE_S));
     g_ru = g_rdock ? g_ru0 + (1.0f - g_ru0) * ease(k) : g_ru0 * (1.0f - ease(k));
     if (!g_rdock || !bridge::pressed(bridge::S_RTRIG)) return;
     if (g_need_turn) {
@@ -461,7 +462,7 @@ void poses() {   // this frame's gun and hands, from the left controller read on
         // 2026-11-06 (Tefa: "left hand when holding the weapon must not be frozen but move normally, frozen works with rifle but
         // it's weird when handling a single hand weapon"): the rifle's slow trail (RIGHT_RACK_LOCK_FOLLOW_SEC 0.40 s) became a
         // light smoothing of its own
-        g_gun_s = GATE_HELD_FOLLOW_SEC > 0.0f ? blend(g_gun_s, mul(lc, g_gun_k), 1.0f - std::exp(-dt / GATE_HELD_FOLLOW_SEC)) : mul(lc, g_gun_k);
+        g_gun_s = timings::v(timings::HELD_FOLLOW_S) > 0.0f ? blend(g_gun_s, mul(lc, g_gun_k), 1.0f - std::exp(-dt / timings::v(timings::HELD_FOLLOW_S))) : mul(lc, g_gun_k);
         g_gun_now = g_gun_s;
     }
     g_now_ok = true;
@@ -483,7 +484,7 @@ void turn_drum() {   // the drum drawn turning one chamber per LT, while the cov
     if (!g_cyl_ok) return;
     const float now = now_s(), dt = g_cyl_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_cyl_t);
     g_cyl_t = now;
-    const float want = (float)g_turns, step = GATE_CYL_TURN_SEC > 0.0f ? dt / GATE_CYL_TURN_SEC : 1.0f;
+    const float want = (float)g_turns, step = timings::v(timings::CYL_TURN_S) > 0.0f ? dt / timings::v(timings::CYL_TURN_S) : 1.0f;
     g_cyl_draw = want > g_cyl_draw ? std::fmin(want, g_cyl_draw + step) : want;
     const int cap = player::capacity() > 0 ? player::capacity() : 6;
     Quat q = qnorm(qmul(g_cyl_rest, axis_turn(g_cyl_axis, 360.0f / (float)cap * g_cyl_draw)));
@@ -501,7 +502,7 @@ void lift_end(const char* why) {   // the gun back on its hand's own place (its 
 void lift_frame(float now) {
     if (g_lift == Lift::NONE) return;
     if (player::now().weapon_tf != g_lift_tf) { g_lift = Lift::NONE; g_lift_u = 0.0f; g_lift_tf = nullptr; g_lift_gun_ok = false; return; }   // another gun: nothing written
-    const float k = GATE_LIFT_SEC > 0.0f ? (now - g_lift_t0) / GATE_LIFT_SEC : 1.0f;
+    const float k = timings::v(timings::LIFT_S) > 0.0f ? (now - g_lift_t0) / timings::v(timings::LIFT_S) : 1.0f;
     if (g_lift == Lift::UP) {
         g_lift_u = std::fmin(1.0f, k);
         if (k >= 1.0f) { g_lift = Lift::HOLD; breech::open_cover("the right thumb over the hammer"); }
@@ -537,7 +538,7 @@ void close_request(const char* why) { if (g_phase == Phase::HELD) to_return(why)
 void open_request(const char* why) {
     const auto& s = player::now();
     if (g_lift != Lift::NONE) return;
-    if (GATE_LIFT_SEC <= 0.0f || !g_gun_in_rt_ok || s.weapon_tf == nullptr) { breech::open_cover(why); return; }
+    if (timings::v(timings::LIFT_S) <= 0.0f || !g_gun_in_rt_ok || s.weapon_tf == nullptr) { breech::open_cover(why); return; }
     g_lift_gun_in_rt = g_gun_in_rt;
     g_lift_tf = s.weapon_tf;
     g_lift_parented = call_ptr(s.weapon_tf, "get_Parent") != nullptr;
@@ -545,12 +546,12 @@ void open_request(const char* why) {
     g_lift_gun_ok = false;
     g_lift = Lift::UP;
     g_lift_t0 = now_s();
-    LOGI("%s gate: %s: the right thumb lifts over the hammer (%.2f s), then the cover opens", TAG, why, GATE_LIFT_SEC);
+    LOGI("%s gate: %s: the right thumb lifts over the hammer (%.2f s), then the cover opens", TAG, why, timings::v(timings::LIFT_S));
 }
 void lift_down(const char* why) {
     if (g_lift == Lift::NONE || g_lift == Lift::DOWN) return;
     g_lift = Lift::DOWN;
-    g_lift_t0 = now_s() - (1.0f - g_lift_u) * GATE_LIFT_SEC;   // from wherever it is now
+    g_lift_t0 = now_s() - (1.0f - g_lift_u) * timings::v(timings::LIFT_S);   // from wherever it is now
     LOGI("%s gate: %s: the cover shut, the right hand glides back onto the grip", TAG, why);
 }
 bool right_lifted() { return g_lift_u > 0.5f; }
@@ -579,15 +580,15 @@ void frame() {
         g_need_turn = false; g_turns = 0; g_cyl_draw = 0.0f; g_cyl_t = -1.0f;
         // 2026-11-06 (Tefa: "the bullet chamber, when opening the guard, must automatically throw out one casing, so the chamber looks
         // empty, then RG docked and RT puts a bullet in there"): the chamber at the cover gives up its case as the cover swings open
-        if (breech::drop_casing()) drumrounds::eject(DRUM_CASE_AT_OPEN_S);
+        if (breech::drop_casing()) drumrounds::eject(timings::v(timings::CASE_AT_OPEN_S));
         // 2026-11-06 (Tefa: "right thumb needs to flick the bullet guard open"): a short flick of our own (the game's cover clip
         // moves the other fingers, not the thumb); axis and size from lid_swing.json "flick_axis" / "flick_deg"
-        if (GATE_FLICK_SEC > 0.0f && g_flick_deg != 0.0f)
-            shellclip::pulse({L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"}, g_flick_axis.x, g_flick_axis.y, g_flick_axis.z, g_flick_deg, GATE_FLICK_SEC, true);
+        if (timings::v(timings::FLICK_S) > 0.0f && g_flick_deg != 0.0f)
+            shellclip::pulse({L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"}, g_flick_axis.x, g_flick_axis.y, g_flick_axis.z, g_flick_deg, timings::v(timings::FLICK_S), true);
     }
     // 2026-11-06 (Tefa: "thumb flicks it the right way, nice! please use the same flick when closing too")
-    if (!open && g_was_open && GATE_FLICK_SEC > 0.0f && g_flick_deg != 0.0f)
-        shellclip::pulse({L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"}, g_flick_axis.x, g_flick_axis.y, g_flick_axis.z, g_flick_deg, GATE_FLICK_SEC, true);
+    if (!open && g_was_open && timings::v(timings::FLICK_S) > 0.0f && g_flick_deg != 0.0f)
+        shellclip::pulse({L"R_Thumb1", L"R_Thumb2", L"R_Thumb3"}, g_flick_axis.x, g_flick_axis.y, g_flick_axis.z, g_flick_deg, timings::v(timings::FLICK_S), true);
     g_was_open = open;
     if (g_phase == Phase::OFF && bridge::flag(bridge::S_GRIPPING_WEAPON)) {   // remember how the left hand sits on the gun
         Pose g{}, l{};
@@ -624,7 +625,7 @@ void frame() {
                 else if (g_press_t0 < 0.0f) { g_press_t0 = now; g_press_cocked = false; LOGI("%s gate: LT: the palm presses the hammer down", TAG); }
             }
             if (g_press_t0 >= 0.0f) {
-                const float u = GATE_PRESS_SEC > 0.0f ? (now - g_press_t0) / GATE_PRESS_SEC : 1.0f;
+                const float u = timings::v(timings::PRESS_S) > 0.0f ? (now - g_press_t0) / timings::v(timings::PRESS_S) : 1.0f;
                 if (!g_press_cocked && u >= 0.5f) {   // the bottom of the press: cocked, the drum turns, RT held fires
                     g_press_cocked = true;
                     g_cocked = true;
@@ -654,14 +655,14 @@ void frame() {
         break;
     }
     case Phase::HELD:
-        if (!lg || !play) to_handover(RIGHT_RACK_DROP_SEC, false, "LG let go: the cover stays open");
-        else if (!open) to_handover(RIGHT_RACK_HANDOVER_SEC, true, "the cover shut");
+        if (!lg || !play) to_handover(timings::v(timings::DROP_S), false, "LG let go: the cover stays open");
+        else if (!open) to_handover(timings::v(timings::HANDOVER_S), true, "the cover shut");
         else right_hand();
         break;
     case Phase::RETURN:
-        if (now - g_t0 >= GATE_RETURN_SEC) {
+        if (now - g_t0 >= timings::v(timings::RETURN_S)) {
             breech::close_cover("the thumb shuts the cover");
-            to_handover(RIGHT_RACK_HANDOVER_SEC, lg && play, "the right hand on the grip");
+            to_handover(timings::v(timings::HANDOVER_S), lg && play, "the right hand on the grip");
         }
         break;
     case Phase::HANDOVER:
@@ -715,7 +716,7 @@ void on_ik(MO* ik) {
             if (g_ru <= 0.0f) { g_last_right = cur; return; }   // free: the right hand follows its controller
             want = blend(g_praydog, mul(g_gun_now, g_right_dock_in_gun), g_ru);
         } else if (g_phase == Phase::RETURN) {
-            want = blend(g_ret_from, mul(g_gun_now, g_right_in_gun), ease((now - g_t0) / GATE_RETURN_SEC));
+            want = blend(g_ret_from, mul(g_gun_now, g_right_in_gun), ease((now - g_t0) / timings::v(timings::RETURN_S)));
         } else if (g_phase == Phase::HANDOVER) {
             want = blend(g_ho_right, g_praydog, ease((now - g_t0) / g_ho_sec));
         }
@@ -732,10 +733,10 @@ void on_ik(MO* ik) {
                 if (g_pin_lines < 3) { ++g_pin_lines; LOGI("%s gate: the left hand pinned to the right hand's aim (%s): %.3f m from the frame-start place", TAG, phase_name(g_phase), dist(gun.p, g_gun_now.p)); }
             }
         }
-        Pose in_gun = g_phase == Phase::STAY ? blend(g_stay_from, g_stay_to, ease((now - g_stay_t0) / GATE_STAY_GLIDE_SEC)) : g_left_in_gun;
-        if (g_phase == Phase::HAMMER) in_gun.p = in_gun.p + Vec3{0.0f, -GATE_PRESS_M * press_curve(now), 0.0f};   // the palm's press (gun's up = +y)
+        Pose in_gun = g_phase == Phase::STAY ? blend(g_stay_from, g_stay_to, ease((now - g_stay_t0) / timings::v(timings::STAY_GLIDE_S))) : g_left_in_gun;
+        if (g_phase == Phase::HAMMER) in_gun.p = in_gun.p + Vec3{0.0f, -(timings::v(timings::PRESS_CM) * 0.01f) * press_curve(now), 0.0f};   // the palm's press (gun's up = +y)
         Pose want = mul(gun, in_gun);
-        const float k = (now - g_left_t0) / GATE_GLIDE_SEC;
+        const float k = (now - g_left_t0) / timings::v(timings::GLIDE_S);
         if ((g_phase == Phase::HELD || g_phase == Phase::HAMMER) && k < 1.0f) want = blend(g_left_from, want, ease(k));
         player::set_pose(target_of(ik), want.p, want.q);
     }
@@ -763,7 +764,7 @@ void hold_hammer() {   // the palm on the hammer: the right thumb kept still, th
     if (g_ham_cyl != nullptr) {
         const float now = now_s(), dt = g_ham_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_ham_t);
         g_ham_t = now;
-        const float want = (float)g_ham_turns, step = GATE_CYL_TURN_SEC > 0.0f ? dt / GATE_CYL_TURN_SEC : 1.0f;
+        const float want = (float)g_ham_turns, step = timings::v(timings::CYL_TURN_S) > 0.0f ? dt / timings::v(timings::CYL_TURN_S) : 1.0f;
         g_ham_draw = want > g_ham_draw ? std::fmin(want, g_ham_draw + step) : want;
         const int cap = player::capacity() > 0 ? player::capacity() : 5;
         Quat q = qnorm(qmul(g_ham_cyl_q0, axis_turn(g_cyl_axis, 360.0f / (float)cap * g_ham_draw)));

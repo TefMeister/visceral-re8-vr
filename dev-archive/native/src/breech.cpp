@@ -9,6 +9,7 @@
 #include "player.h"
 #include "reload.h"
 #include "settings.h"
+#include "timings.h"
 #include "weapons.h"
 
 #include <windows.h>
@@ -231,7 +232,7 @@ void drum_dock_frame(bool lt_pressed, bool lt_held) {
     {   // ease the hand between the drum and the loading place
         const float now = now_s(), dt = g_load_t < 0 ? 0.0f : std::fmin(0.1f, now - g_load_t);
         g_load_t = now;
-        const float step = dt / DRUM_LOAD_EASE_SEC, want = (g_open && g_loading) ? 1.0f : 0.0f;
+        const float step = dt / std::fmax(0.01f, timings::v(timings::LOAD_EASE_S)), want = (g_open && g_loading) ? 1.0f : 0.0f;
         g_load_blend = want > g_load_blend ? std::fmin(want, g_load_blend + step) : std::fmax(want, g_load_blend - step);
     }
     const float x = across();
@@ -411,7 +412,7 @@ void pose_point() {
     const float dt = g_swing_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_swing_t);
     g_swing_t = now;
     const float want = g_open ? 1.0f : 0.0f;
-    const float sec = lid ? g_lid_sec : BREAK_SWING_SEC;
+    const float sec = lid ? (timings::has(timings::COVER_SWING_S) ? timings::v(timings::COVER_SWING_S) : g_lid_sec) : BREAK_SWING_SEC;   // 2026-11-07: timings.json wins over lid_swing.json when set
     const float step = sec > 0.0f ? dt / sec : 1.0f;
     g_swing = want > g_swing ? std::fmin(want, g_swing + step) : std::fmax(want, g_swing - step);
     if (g_swing <= 0.0f) return;   // shut: the animation's own pose stands

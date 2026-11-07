@@ -4,6 +4,7 @@
 #include "joints.h"
 #include "player.h"
 #include "settings.h"
+#include "timings.h"
 
 #include <algorithm>
 #include <cmath>
@@ -315,7 +316,7 @@ void point(bool carrying) {
         const float t = now - m.t0;
         if (t < 0.0f) { ++k; continue; }   // an eject waiting for the drum's turn to end
         if (m.insert) {
-            const float a = DRUM_INSERT_REACH_S, b = DRUM_INSERT_PUSH_S;
+            const float a = timings::v(timings::INSERT_REACH_S), b = timings::v(timings::INSERT_PUSH_S);
             if (t >= a + b || !cover) { let_go(m.i, true); LOGI("%s drumrounds: chamber %d's round pushed in through the cover", TAG, m.i); g_falls.erase(g_falls.begin() + k); continue; }
             const Vec3 entry = lid - fwd * DRUM_ENTRY_BACK_M, inside = lid + fwd * DRUM_PUSH_IN_M;
             Vec3 p; Quat q;
@@ -326,7 +327,7 @@ void point(bool carrying) {
             continue;
         }
         if (!m.falling) {   // the case slides out of its chamber, back through the cover
-            const float u = DRUM_CASE_SLIDE_S > 0.0f ? t / DRUM_CASE_SLIDE_S : 1.0f;
+            const float u = timings::v(timings::CASE_SLIDE_S) > 0.0f ? t / timings::v(timings::CASE_SLIDE_S) : 1.0f;
             if (!cover) { let_go(m.i, false); g_falls.erase(g_falls.begin() + k); continue; }
             const Vec3 p = lerp(lid + fwd * DRUM_PUSH_IN_M, lid - fwd * DRUM_CASE_OUT_M, ease(std::fmin(1.0f, u)));
             draw_at(m.i, p, rq, 1.0f);
@@ -335,7 +336,7 @@ void point(bool carrying) {
             continue;
         }
         const float tf = now - m.fall_t0;
-        if (tf >= DRUM_CASE_FALL_SEC) {   // gone: its chamber is drawn empty until a round goes in
+        if (tf >= timings::v(timings::CASE_FALL_S)) {   // gone: its chamber is drawn empty until a round goes in
             const int ci = m.i;
             let_go(ci, false);
             const Vec3 zero{0, 0, 0};

@@ -55,6 +55,7 @@
 #include "exposure.h"
 #include "perfprobe.h"
 #include "shellclip.h"
+#include "timings.h"
 #include "dockreport.h"
 #include "menukey.h"
 
@@ -88,6 +89,7 @@ void on_frame() {
     fingers::frame();
     nodock::frame();
     shellclip::frame();      // 2026-11-02: the test file for the shell-in finger clip (shellclip.h)
+    timings::frame();        // 2026-11-07: the named seconds, re-read when timings.json changes (timings.h)
 }
 } // namespace
 

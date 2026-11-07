@@ -49,6 +49,7 @@ add_library(visceral_re8_native SHARED
     src/perfprobe.cpp
     src/menukey.cpp
     src/shellclip.cpp
+    src/timings.cpp
     src/dockreport.cpp
     src/shells.cpp)
 target_include_directories(visceral_re8_native PRIVATE include src)
