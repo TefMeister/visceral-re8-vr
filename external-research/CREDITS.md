@@ -26,3 +26,7 @@ Our own sibling projects this research links to: [re-village-scope-vr](https://g
 
 If you, or someone whose work you know, contributed to or inspired anything here and is not credited, please open a
 GitHub issue on this repo and we will correct it as soon as possible.
+
+## Sources (2026-11-07)
+
+- **praydog**, REFramework: master commits and nightlies 01434 to 01438, incl. PR #1885 by **wdre9** (HookManager error paths and thread safety) — https://github.com/praydog/REFramework

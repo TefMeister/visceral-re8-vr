@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-11-01 (estate sweep) — CHECK-IN.** REFramework check: master fixed hooks on methods with out/ref float arguments (#1853, 2026-11-01) and made Lua json.dump_file atomic (#1795); the pd-upscaler branch has neither. Library inbox has the hook note.
+**Last `/gr` pass: 2026-11-07 (estate sweep) — CHECK-IN.** REFramework master since 11-01: HookManager error paths and thread safety (#1885, nightly 01438: Lua errors in hook callbacks caught, the first float argument's register kept, hook add/remove serialised) and an ARM64EC skip; nothing touches OpenXR, `json.load_file` or the `fs` calls, nothing names RE8; pd-upscaler unchanged since 2026-10-11. No new public Village VR gameplay mod found (one web and one GitHub search). Nothing new.
+
+_Previous: **Last `/gr` pass: 2026-11-01 (estate sweep) — CHECK-IN.** REFramework check: master fixed hooks on methods with out/ref float arguments (#1853, 2026-11-01) and made Lua json.dump_file atomic (#1795); the pd-upscaler branch has neither. Library inbox has the hook note._
 
 _Previous: **Last `/gr` pass: 2026-10-26 (estate sweep) — FULL.** Folder created this pass. REFramework retakes the standing origin from the head at VR start and on every runtime recenter (the gun-height lead, from source); the accuracy dial already exists in the sibling scope project; public mods size spawned meshes with `set_LocalScale`; from our own files, `ri5052` is the knife Andyalpa's profile remembers. No public Village VR gameplay pack with hand reloads found; REFramework nightly-01433 (2026-10-21) is a Dragon's Dogma 2 fix only._
 
