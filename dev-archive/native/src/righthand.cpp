@@ -51,7 +51,7 @@ struct Still {
     float since = 0.0f;
     float phase = 0.0f;      // the sway's offset for this hand, so the two hands never move together
 
-    void render(MO* skel, bool want, const char* why) {
+    void render(MO* skel, bool want, const char* why, bool sway_on = true) {
         for (auto& h : have) h = false;
         if (skel != tf) { tf = skel; for (int i = 0; i < N; ++i) { joint[i] = nullptr; rest_ok[i] = false; } }
         const float t = now_s(), dt = last_t < 0.0f ? 0.0f : std::fmin(0.1f, t - last_t);
@@ -77,7 +77,9 @@ struct Still {
             // movement"): a slow drift of each finger's curl about the rest pose, two slow waves per finger, phased apart
             const int f = i / 3;
             const float w = (i % 3 == 0) ? 0.6f : (i % 3 == 1) ? 1.0f : 0.8f;   // base, middle, tip
-            const float a = FINGER_SWAY_DEG * w * (0.6f * std::sin(t * FINGER_SWAY_W1 + f * 1.3f + phase) + 0.4f * std::sin(t * FINGER_SWAY_W2 + f * 2.1f + phase * 0.7f));
+            // 2026-11-09 (Tefa: "while a gun is in hand and no button is pressed, hand must still not move slightly and subtly, that is
+            // only when there is nothing in hand at all"): the sway only with nothing in hand; with a gun out the free hand is still
+            const float a = !sway_on ? 0.0f : FINGER_SWAY_DEG * w * (0.6f * std::sin(t * FINGER_SWAY_W1 + f * 1.3f + phase) + 0.4f * std::sin(t * FINGER_SWAY_W2 + f * 2.1f + phase * 0.7f));
             const float h = a * 3.14159265f / 360.0f;
             const Quat sway = qnorm(qmul(rest[i], Quat{0, 0, std::sin(h), std::cos(h)}));
             target[i] = nlerp(qnorm(cur), sway, u);
@@ -106,7 +108,7 @@ void render_point() {
                            !reload::mag_in_hand() && !reload::round_in_hand() && !gate::owns_left() &&
                            bridge::view(bridge::S_POSER_HELD) <= 0.5f;   // (2026-11-02: no longer stands aside for fingers.cpp: that
                            // opening is written AFTER this now, on top of the still pose, so the two no longer take turns: the twitch)
-    g_left.render(s.tf, LEFT_STILL_ON && play && left_free, "held still: the left hand is free (the relaxed rest pose)");
+    g_left.render(s.tf, LEFT_STILL_ON && play && left_free, "held still: the left hand is free (the relaxed rest pose)", s.weapon == nullptr);
 }
 
 void begin_render() { g_right.again(); g_left.again(); }

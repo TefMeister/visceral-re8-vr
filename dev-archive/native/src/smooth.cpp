@@ -289,6 +289,9 @@ void on_ik(MO* ik) {
             const bool rack_end = ((owner == RACK || g_owner == RACK) && rack::bolt_gun()) || owner == PAIR || g_owner == PAIR;   // (the pairs arc too; slides and pumps go straight, 2026-11-08)
             g_arc_m = (rack_end && bridge::has(a) && a > 0.0f) ? std::fmin(a * 0.01f, SMOOTH_ARC_MAX_M) : 0.0f;
             g_ease_sec = g_arc_m > 0.0f ? SMOOTH_ARC_SEC : SMOOTH_DOCK_SEC;
+            // 2026-11-09 (Tefa: after the slide rack "hand must smoothly move to where my motion controller is, not teleport"): off a
+            // part back to the controller goes slower than a dock, so the way back reads as a move
+            if (g_arc_m <= 0.0f && g_owner == RACK && owner == CONTROLLER) g_ease_sec = SMOOTH_RELEASE_SEC;
         }
         LOGI("%s smooth: left hand %s -> %s, eased over %.2f s (gap %.3f m, arc %.0f cm)", TAG, owner_name(g_owner), owner_name(owner), g_ease_sec,
              dist(g_final_p, rel), g_arc_m * 100.0f);
