@@ -370,6 +370,7 @@ void* slide_joint() { return g_joint; }
 const char* part_name() { return part(); }
 bool active() { return g_hand_on; }
 bool slide_from_left() { return g_hand_on && g_from_left; }
+bool at_back() { return g_pulled; }   // set at the click at the back (slide, pump: travel 0.97; bolt: step 2), cleared once home
 bool pump_gun() { return pump(); }
 float left_gun_closeness() {   // 2026-10-25 (the open hand snapped at the zone's edge): a ramp, not a step
     const auto& s = player::now();

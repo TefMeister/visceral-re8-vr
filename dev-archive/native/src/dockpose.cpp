@@ -63,13 +63,23 @@ void refresh() {   // at most once a second: re-read dock_poses.json when the wi
 
 // the docked spots (dockpose.h); 2000+N (inside a pair's start sphere, not taken) and 0 are not docked
 // (10: the Wolfsbane's hammer; 101 / 102: the RIGHT hand at the Wolfsbane's cover / on the rifle's bolt, 2026-11-02)
-bool docked(int spot) { return (spot >= 3 && spot <= 10) || spot == 101 || spot == 102 || (spot >= 1000 && spot < 2000); }
+// 2026-11-08: 11 / 12 the slide / pump / bolt at the back (12: a pistol's slide from the left), 13 a magazine in the left hand,
+// 104 the RIGHT hand on the bolt at the back (pairs.cpp)
+bool docked(int spot) { return (spot >= 3 && spot <= 13) || spot == 101 || spot == 102 || spot == 104 || (spot >= 1000 && spot < 2000); }
+
+// 2026-11-08: an "at the back" spot with nothing saved for it keeps the spot it came from (so a tuned bolt hand does not drift off
+// at the click); the magazine in hand has none: the hand is the controller's, as before
+int base_spot(int spot) { return spot == 11 ? 3 : spot == 12 ? 8 : spot == 104 ? 102 : -1; }
 
 Pose wanted(int gun, int spot) {
     if (!docked(spot)) return Pose{};
     auto g = g_poses.find(std::to_string(gun));
     if (g == g_poses.end()) return Pose{};
     auto s = g->second.find(std::to_string(spot));
+    if (s != g->second.end()) return s->second;
+    const int b = base_spot(spot);
+    if (b < 0) return Pose{};
+    s = g->second.find(std::to_string(b));
     return s == g->second.end() ? Pose{} : s->second;
 }
 

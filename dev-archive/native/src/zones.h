@@ -33,5 +33,9 @@ Vec3 center(Key k, const Vec3& anchor, const char* part = nullptr);
 bool gun_rot(Quat& q);                                     // the gun transform's world turn (false = no gun)
 void publish(Key k, const Vec3& center, float r, float on = 1.0f);   // for the menu's spheres, this frame
 void clear(Key k);                                         // not shown this frame
+// 2026-11-08 (fingers.cpp, Tefa's idea 37): of the grab zones shown now (the magazine, the slide / pump / bolt, the front grip,
+// the grip handle), the one whose middle p is nearest, measured in that zone's own radii (0 = the middle, 1 = its edge);
+// false = none shown
+bool nearest_grab(const Vec3& p, Key& key, float& radii);
 
 } // namespace vn::zones

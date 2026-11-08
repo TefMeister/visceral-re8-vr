@@ -180,4 +180,18 @@ void publish(Key k, const Vec3& c, float r, float on) {
 }
 void clear(Key k) { bridge::put((bridge::Slot)(first_slot(k) + 4), 0.0f); }
 
+bool nearest_grab(const Vec3& p, Key& key, float& radii) {
+    static const Key GRABS[] = {MAG, PART, GRIP, HANDLE};
+    bool any = false;
+    for (Key k : GRABS) {
+        const int s = first_slot(k);
+        const float r = bridge::view((bridge::Slot)(s + 3));
+        if (bridge::view((bridge::Slot)(s + 4)) <= 0.5f || r <= 0.001f) continue;
+        const Vec3 c{bridge::view((bridge::Slot)(s + 0)), bridge::view((bridge::Slot)(s + 1)), bridge::view((bridge::Slot)(s + 2))};
+        const float q = dist(c, p) / r;
+        if (!any || q < radii) { radii = q; key = k; any = true; }
+    }
+    return any;
+}
+
 } // namespace vn::zones

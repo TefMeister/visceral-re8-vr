@@ -221,8 +221,16 @@ void frame() {
     if (gate::left_spot() > 0) spot = (float)gate::left_spot();   // 2026-11-02: the Wolfsbane's hammer (10) / drum hold (6), gate.cpp
     else if (g_dock >= 0) spot = DOCKS[g_dock].spot;
     else if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
-    else if (rack::active()) spot = rack::slide_from_left() ? 8.0f : 3.0f;   // 2026-10-28: a pistol's slide from the left
-    else if (reload::hand_on_mag()) spot = 4.0f;
+    // 2026-11-08 (Tefa: "i would like to have a point on the guns when something happens, then the hand pose changes. for exapmle,
+    // the rifle bolt, when pulled back with left hand then after the click that means it's at the very back, then the hand changes
+    // pose automatically"): from the click at the back until the part is home, the slide / pump / bolt is its own spot, 11 (12 for a
+    // pistol's slide taken from the left); a gun with no pose saved there keeps the one it had (Hand Poser; Dock Poser falls back)
+    else if (rack::active()) spot = rack::at_back() ? (rack::slide_from_left() ? 12.0f : 11.0f) : (rack::slide_from_left() ? 8.0f : 3.0f);
+    else if (reload::hand_on_mag()) spot = 4.0f;   // on the seated magazine (the grip look), and again while LT pushes one in
+    // 2026-11-08 (Tefa: "holding LG to grip the mag, so it looks like holding the grip in game, then pressing B makes the hand actually
+    // move under the mag, pressing it in with LT changes the hand to go back on the grip"): a magazine carried in the left hand (after
+    // B / LT took it out, or fresh from the pouch) is its own spot, 13, until LT starts it in (then 4 again)
+    else if (reload::mag_in_hand()) spot = 13.0f;
     else if (reload::round_in_hand() || reload::rounds_in_hand() > 0) spot = 9.0f;   // 2026-10-28: rounds from the pouch (Dock Poser)
     else if (ok && play) {
         Vec3 lp;
@@ -232,7 +240,8 @@ void frame() {
     }
     bridge::put(bridge::S_LEFT_SPOT, spot);
     // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
-    bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? 2.0f : gate::right_lifted() ? 3.0f : 0.0f);   // 3: over the hammer (2026-11-06)
+    // (2026-11-08: 4 = the right hand on the bolt from the click at the back until it is home, as the left's 11)
+    bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? (rack::right_on() && rack::at_back() ? 4.0f : 2.0f) : gate::right_lifted() ? 3.0f : 0.0f);   // 3: over the hammer (2026-11-06)
 
     // 2026-10-30 (Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it"): the gun's
     // pair whose activation sphere the left hand is nearest (measured in its own radii) is handed to the zones script, which

@@ -85,6 +85,8 @@ enum Slot : int {
     S_PAIR_ACTIVE = 152,      // WRITTEN BY THE PLUGIN: the number of the pair holding the left hand now, 0 = none
     S_LEFT_SPOT = 153,        // WRITTEN BY THE PLUGIN: where the left hand is, for Hand Poser's pose per spot (pairs.cpp):
                               // 1000+N on pair N's landing spot, 2000+N inside pair N's activation sphere, 3 slide/pump/bolt, 4 magazine, 0 none
+                              // 2026-11-08: 11 slide/pump/bolt at the back (after its click, until home), 12 the same for a slide from the left,
+                              // 13 a magazine carried in the left hand
     S_ZONES2 = 154,           // 154-168, WRITTEN BY THE PLUGIN: three more zones x {x, y, z, r, on}: the HANDLE, the DRUM, the INSERT
                               // point (zones.h, 2026-10-27); the left hand's spot (153) gains 5 handle, 6 drum, 7 insert;
                               // 2026-10-28: 8 a pistol's slide taken from the gun hand's left (3 stays the right side)
@@ -95,7 +97,7 @@ enum Slot : int {
     // 2026-10-31 (Tefa: "the shotgun shell size and positioning in re8, how do i change that"): the round in the left hand,
     // per gun, from the menu "Visceral RE8 reload" (visceral_re8_bridge.lua, saved in visceral_re8/shell_hold.json):
     S_SHELL_HOLD = 175,       // 175-181, WRITTEN BY THE LUA MENU: move 1-3 (cm, the hold's own axes), turn 1-3 (deg), size (percent, 0 = unset = 100)
-    S_RIGHT_SPOT = 184,       // 2026-11-02, WRITTEN BY THE PLUGIN: where the right hand is docked, for Hand Poser: 1 the Wolfsbane's cover, 2 the rifle's bolt (pairs.cpp)
+    S_RIGHT_SPOT = 184,       // 2026-11-02, WRITTEN BY THE PLUGIN: where the right hand is docked, for Hand Poser: 1 the Wolfsbane's cover, 2 the rifle's bolt (pairs.cpp); 3 over the hammer; 4 the bolt at the back (2026-11-08)
     S_GATE_HOLD = 183,        // 2026-11-01, WRITTEN BY THE PLUGIN: 1 = the Wolfsbane is held by the left hand while the right hand loads it (gate.cpp): no holster grab
     // 2026-11-05 (Tefa: "throwing away a used mag ... that sound would also play from where it lands"), reload.cpp ->
     // visceral_re8_magthrow.lua: a magazine let go of (or out of the magwell) is handed to the Lua, which flies a copy of it

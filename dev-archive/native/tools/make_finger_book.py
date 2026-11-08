@@ -12,6 +12,11 @@ Events, from what the motion layers say (player layer 1):
   mag_out    the first half of the magazine reload 2500: the hand on the magazine, pulling it out, letting go
   mag_in     the second half: the new magazine in; split at the deepest finger opening after the fullest grasp
   reload     the whole 2500 on a gun without a magazine (the GM 79); written, not yet played
+  grip       (2026-11-08, from the draw_idle takes) the left hand's settled hold on the gun in the game's idle, one frame: the
+             pose fingers.cpp eases the free left hand into as it nears the middle of a grab zone (Tefa's idea 37). Written
+             only for the guns whose idle actually holds the gun with the left hand (curl over GRIP_MIN_CURL); the rest
+             let the left hand hang in the idle, so there is no game grip to take
+  grip_mag   (2026-11-08) the left hand's fullest grasp in the mag_out part: the same, for the magazine zone
 The clips are the game's own animation data: written to the game's data folder only, never to GitHub.
 
     python make_finger_book.py [--takes DIR] [--out DIR] [--gun ri3046 ...] [--dry]
@@ -31,6 +36,8 @@ MOVE_DEG = 10.0    # a hand is in a clip when one of its finger joints turns at 
 SPLIT_SKIP = {"ri3042"}   # the F2 Rifle: the bolt (right hand) comes first and the fore-end hold curls more than the magazine grasp,
                           # so the grasp / open rule cannot find the split; written whole as "reload" until cut by hand
 LAYER = "player.1"
+GRIP_MIN_CURL = 36.0   # degrees, the left fingers' mean turn: the idle's relaxed hanging hand is 30-32 (measured 2026-11-08, 17 takes)
+GRIP_TAIL = 0.4        # the last part of the draw_idle take, where the draw has settled into the idle hold
 
 
 def layers(cell):
@@ -100,6 +107,26 @@ class Take:
                 w.writerow([f"{float(r[0]) - t0:.4f}"] + [r[i] for c4 in cols for i in c4])
         return float(self.rows[b - 1][0]) - t0
 
+    def write_pose(self, out, frames, side):
+        """one pose: the mean of these frames' quaternions (each turned to the first one's side), written as two equal rows"""
+        names = [f"{side}{f}" for f in FINGERS]
+        vals = []
+        for c4 in self.cols[side]:
+            ref = [float(self.rows[frames[0]][k]) for k in c4]
+            acc = [0.0, 0.0, 0.0, 0.0]
+            for i in frames:
+                q = [float(self.rows[i][k]) for k in c4]
+                if sum(x * y for x, y in zip(q, ref)) < 0:
+                    q = [-x for x in q]
+                acc = [x + y for x, y in zip(acc, q)]
+            n = math.sqrt(sum(x * x for x in acc)) or 1.0
+            vals += [f"{x / n:.6f}" for x in acc]
+        with open(out, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["t"] + [f"{n}.{c}" for n in names for c in "xyzw"])
+            w.writerow(["0.0000"] + vals)
+            w.writerow(["0.1000"] + vals)
+
     def split_mag(self, a, b):
         """the frame between the magazine coming out and the new one going in: the deepest left-hand opening after the
         fullest grasp (the LEMI: grasp 70 deg at 1.66 s, open 15 deg at 1.99 s, the new magazine 24-38 deg after)"""
@@ -155,6 +182,13 @@ def main():
                     plan.append(("reload", s, e, "no split found"))
             else:
                 plan.append(("reload", s, e, "no magazine"))
+        # 2026-11-08: the magazine grasp as one pose (the fullest left-hand curl inside mag_out)
+        for ev, s, e, note in plan:
+            if ev == "mag_out":
+                k = max(range(s, e), key=lambda i: T.curl(i, "L_"))
+                if not a.dry:
+                    T.write_pose(os.path.join(a.out, f"{gun}_grip_mag.csv"), [k], "L_")
+                print(f"{gun} grip_mag: frame {k - s} of mag_out, left curl {T.curl(k, 'L_'):.0f} deg")
         for ev, s, e, note in plan:
             sides = T.hands(s, e)
             if not sides:
@@ -165,6 +199,22 @@ def main():
             if not a.dry:
                 secs = T.write(out, s, e, sides)
             print(f"{gun} {ev}: {e - s} frames, {secs:.2f} s, hands {'+'.join(x[0] for x in sides)}  {note}")
+
+    # 2026-11-08: the game's own left-hand hold in the idle (draw_idle takes), for the free hand nearing a grab zone
+    for take in sorted(glob.glob(os.path.join(a.takes, "draw_idle__*.csv"))):
+        gun = os.path.basename(take).split("__")[1].split("_")[0]
+        if a.gun and gun not in a.gun:
+            continue
+        T = Take(take)
+        n = len(T.rows)
+        tail = list(range(int(n * (1.0 - GRIP_TAIL)), n))
+        curl = sum(T.curl(i, "L_") for i in tail) / len(tail)
+        if curl < GRIP_MIN_CURL:
+            print(f"{gun} grip: the idle's left hand hangs (curl {curl:.0f} deg): not written")
+            continue
+        if not a.dry:
+            T.write_pose(os.path.join(a.out, f"{gun}_grip.csv"), tail, "L_")
+        print(f"{gun} grip: {len(tail)} idle frames, left curl {curl:.0f} deg")
 
 
 if __name__ == "__main__":

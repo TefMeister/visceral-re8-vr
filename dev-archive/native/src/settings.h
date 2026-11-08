@@ -177,6 +177,12 @@ constexpr float DRUM_TILT_DEG = 30.0f;
 constexpr float BREAK_OPEN_DEG = 40.0f;
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;
+// armstretch.cpp (2026-11-08, Tefa: "hands need to stretch to keep the left hand on the weapon handle at all times, even if they
+// look rubber hands"): with the left hand held on the gun and its target past the arm's reach, the arm from the elbow down grows
+constexpr bool  ARM_STRETCH_ON = true;
+constexpr float ARM_STRETCH_FROM = 1.0f;       // the target this many arm lengths from the shoulder starts the stretch
+constexpr float ARM_STRETCH_MAX = 1.8f;        // the longest the arm may grow (1.8 = 80 % longer); past it the hand falls short again
+constexpr float ARM_STRETCH_EASE = 0.35f;      // per frame: the stretch eases toward what is needed (in, and back out)
 constexpr bool  PUMP_BOLT_ON = true;           // pumpbolt.cpp (2026-11-01): the M1897's bolt slides with its pump
 constexpr int   PUMP_BOLT_SETTLE_FRAMES = 30;  // frames after a draw before the rests are taken
 constexpr bool  RIGHT_STILL_ON = true;         // righthand.cpp (2026-11-01): the right fingers held still with no weapon out
@@ -344,6 +350,13 @@ constexpr int   BODY_MAX_JOINTS = 256;
 constexpr bool  FINGER_OPEN_ON = true;
 constexpr float FINGER_OPEN_AMOUNT = 0.45f;       // how far toward the straight rest pose (0 = as animated, 1 = fully open)
 constexpr float FINGER_OPEN_SEC = 0.25f;          // the time to open, and to close again
+// fingers.cpp (2026-11-08, Tefa's idea 37): the free left hand eases into the game's own hold as it nears a grab zone's middle;
+// per gun in reframework/data/visceral_re8/grip_blend.json (these are its defaults)
+constexpr bool  GRIP_BLEND_ON = true;
+constexpr float GRIP_BLEND_START = 1.6f;         // zone radii from the middle: the hold starts coming in
+constexpr float GRIP_BLEND_FULL = 0.35f;         // zone radii from the middle: all of it
+constexpr float GRIP_BLEND_AMOUNT = 1.0f;        // how much of the game's hold at the most (0 = off for that gun)
+constexpr float GRIP_BLEND_SEC = 0.15f;          // the fastest a full change may go (it follows the hand's distance)
 constexpr bool  NODOCK_ON = true;                 // nodock.cpp: the game's own left-hand dock is off while LG is up
 constexpr int   NODOCK_FAKE_JOINT = 0;            // the joint index answered instead of the left wrist: 0 = the root, at the feet
 constexpr float FINGER_OPEN_RAMP_M = 0.14f;       // the hand starts opening this far outside the grab zone, fully open at its edge
