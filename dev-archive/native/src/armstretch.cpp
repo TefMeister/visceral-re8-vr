@@ -24,6 +24,7 @@ Vec3 g_wrote[MAXJ] = {};           // what we wrote last (a game that leaves the
 bool g_have_rest[MAXJ] = {};
 float g_k = 1.0f;                  // the stretch applied now (1 = the game's own arm)
 int g_logged = 0;
+bool g_stretching = false;
 
 float len(Vec3 v) { return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
 
@@ -77,13 +78,23 @@ void render_point() {
     if (left_on_gun() && arm > 0.05f && get_v3(JOINT, g_upper, "get_Position", sp) && player::get_pose(field_obj(s.ik_left, "Target"), tp, tq)) {
         const float d = len(tp - sp);
         if (d > arm * ARM_STRETCH_FROM) want = std::fmin(ARM_STRETCH_MAX, d / arm);
+        // 2026-11-08 (first simulator run: its one-time line never printed, see below): what it measures, every 5 s while it stretches
+        static float last_t = -10.0f;
+        Vec3 hp;
+        if (want > 1.0f && now_s() - last_t > 5.0f && get_v3(JOINT, g_chain[0], "get_Position", hp)) {   // only while stretching
+            last_t = now_s();
+            LOGI("%s armstretch: on the gun: shoulder to target %.3f m, to the hand %.3f m, the arm %.3f m -> x%.2f (now x%.2f)", TAG, d, len(hp - sp), arm, want, g_k);
+        }
     }
     g_k += (want - g_k) * ARM_STRETCH_EASE;
+    if (want <= 1.0f) g_stretching = false;   // (before the early return below, so the next stretch logs again)
     if (std::fabs(g_k - 1.0f) < 0.002f && want == 1.0f) {
         if (g_k != 1.0f) { g_k = 1.0f; write(1.0f); }
         return;
     }
-    if (g_logged < 20 && want > 1.0f && g_k < 1.01f) { ++g_logged; LOGI("%s armstretch: the left hand is past the arm's reach: the arm stretches (x%.2f)", TAG, want); }
+    // (the first version logged here only while g_k < 1.01, which the first ease step already passes: it never printed)
+    if (g_logged < 20 && want > 1.0f && !g_stretching) { ++g_logged; LOGI("%s armstretch: the left hand is past the arm's reach: the arm stretches (x%.2f)", TAG, want); }
+    g_stretching = want > 1.0f;
     write(g_k);
 }
 

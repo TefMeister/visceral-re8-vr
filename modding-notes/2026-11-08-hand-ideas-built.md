@@ -2,8 +2,9 @@
 
 Tefa, going through Village's ideas list: *"build it now, please, and actually the rest on the Hands list you can do with
 Opus, except 26, 30, 32 as we are already fine tuning this idea, 36 needs to change ... 38 we are already doing"*.
-Built and installed as **b084** (builds repo `visceral-re8-vr/hands/`); nothing below has run in the game yet
-`[compile-verified 2026-11-08]` (the plugin builds, Hand Poser builds with its self-test ALL PASS, the Lua parses).
+Built and installed as **b084**, then **b085** (the rubber arm's log line fixed) (builds repo `visceral-re8-vr/hands/`). Tried on the
+OpenXR Simulator with VR Bench the same evening (Tefa: *"pleaase shut the pc down after finishing and testing as much as you can"*);
+results in "Simulator run" at the end.
 
 ## Idea 6: hand poses that change at set points on the gun
 
@@ -77,3 +78,29 @@ few items (copy it into autorun, look at the "[item-probe]" lines, take it out) 
 - The builds repo had 362 finger-clip CSVs (the game's own animation data) pushed in earlier Village builds; `shellclip.h`
   says they never go to GitHub. From b084 on `PROJECT.conf` has `local_only = reframework/data/visceral_re8/clips`. The old
   copies are still in the repo's history (private repo): FAULTS.md row.
+
+## Simulator run (2026-11-08 17:13-17:27, OpenXR Simulator + VR Bench, no headset)
+
+Log kept: `D:/claude video game stuff/logs/village/re2_framework_log-2026-11-08-1725-hands-ideas-sim.txt`.
+`[verified-live 2026-11-08, simulator, n=1 each]`:
+- Idea 6: the M1897's pump pulled back by hand: the left spot went 3 -> 11 at the back -> 3 once home (zones_state.json read
+  4 times a second). The LEMI: LG on the seated magazine = 4, right B = 13 and Hand Poser's spot read "magazine in hand".
+  NOT seen: LT pushing it home back to 4 (my drive's LT did not start the insert; the magazine dropped when LG let go).
+- Idea 10: RT held 1 s with the M1897 out: Hand Poser's state.json spot "trigger pulled"; let go: "" again. The finger
+  blend itself not seen (no "trigger pulled" pose saved yet, and no joint reader running).
+- Idea 37: hand free (LG let go) inside the M1897's pump zone: "ri3036_grip: the game's own left-hand hold read (15
+  joints)", then "easing into the game's own hold (near the zone's middle)". The look not judged.
+- Idea 15: "the left arm's 2 joints from the elbow to the hand found" (L_Hand's parent is L_Forearm, its parent
+  L_UpperArm). Docked on the pump: shoulder to target 0.868 m, the hand 0.549 m, the arm 0.549 m -> x1.58. One picture:
+  the left sleeve reaches along the gun; the forearm itself hidden by the sleeve. The first version's one-time line never
+  printed (it waited for a stretch under x1.01, which the first ease step passes): fixed in b085. NOTE: in the simulator's
+  fixed hand places the pump sits 0.87 m from the shoulder, so the arm stretches there all the time; in the headset it
+  only should when the hands are wider than Ethan's arms.
+- Idea 36, the probe: items lying in the world carry `app.InteractItemGet` (261 in the opening area, nearest 11.6 m);
+  4 `app.InteractItemGetCustomParts`; no `app.ItemGetInteract`, `app.InteractObject`, `app.DropItem`, `app.ItemPickup`.
+  `InteractItemGet` (57 methods, 27 fields) has `AddInventory/1`, `InsertInventory/1`, `InsertInventoryInternal/0`,
+  `InventoryInsertFinishItem/1`, `RequestItemCore/1`, `SetForceInteract/1`, `SetInteractEnable/1`, and the fields
+  `ItemCore`, `ItemSetGameObject`, `ItemGetRequest`, `RequestItemGetInteract`, `Interact`, `IsHighLightNow`.
+  `app.ItemCore` has `onPickUpReserve/0`, `onSucceededGet/0`, `callGetSE/0`. Next: near an item, find which call stores it
+  the game's way (InsertInventory's one argument first), then build the grab (LG pulls `ItemSetGameObject` to the hand,
+  LT with LG held stores it). The probe is archived at `D:/claude video game stuff/archive/village-probes/`.
