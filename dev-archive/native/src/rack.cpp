@@ -76,6 +76,27 @@ int g_palm_logs = 0, g_palm_misses = 0;
 float g_palm_closest = 99.0f;
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
+
+// 2026-11-08 (Tefa, the LEMI: "gun click sound plays when my hand enters the sphere"): a free left hand coming into a pistol
+// slide's sphere (either side) clicks once; it has to be out for SLIDE_SPHERE_CLICK_REARM_S before the next one
+bool g_in_sphere = false;
+float g_out_since = -1.0f;
+void sphere_click(bool inside) {
+    const float now = now_s();
+    if (!inside) { if (g_in_sphere) g_out_since = now; g_in_sphere = false; return; }
+    if (g_in_sphere) return;
+    g_in_sphere = true;
+    if (g_out_since >= 0.0f && now - g_out_since < SLIDE_SPHERE_CLICK_REARM_S) return;
+    static std::wstring wav;
+    if (wav.empty()) {
+        wchar_t exe[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, exe, MAX_PATH);
+        wav = (std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "sfx" / SLIDE_SPHERE_CLICK_WAV).wstring();
+    }
+    PlaySoundW(wav.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
+    static int n = 0;
+    if (++n <= 5 || n % 50 == 0) LOGI("%s rack: the left hand came into the slide's sphere: click (#%d)", TAG, n);
+}
 bridge::Hand working_hand() { return g_right ? bridge::RIGHT : bridge::LEFT; }   // the buzz goes to the hand on the part
 
 // ---- ONE HOLD PER GUN AND PART (2026-10-24, Tefa in the headset: "hand doesn't just grab on to the gun in one certain pose, it
@@ -385,6 +406,8 @@ float left_gun_closeness() {   // 2026-10-25 (the open hand snapped at the zone'
 }
 bool left_near_gun() { float off = 99.0f; if (g_joint != nullptr && near_joint(off)) return true; return on_gun_line(off); }
 bool on_pump() { return g_hand_on && pump(); }
+bool palm_offset(Vec3& t) { t = g_palm_t; return PALM_ON_SLIDE && g_palm_ok; }
+bool bolt_gun() { return bolt(); }
 float travel() { return g_travel; }
 
 // ---- the right hand on the bolt (2026-11-01, rack_right.cpp decides when; the bolt itself is the same one) -----------
@@ -510,6 +533,8 @@ void frame() {
         bolt_step(g_armed);
         return;
     }
+    if (pistol_slide() && g_joint != nullptr && play) { float d = 0.0f; sphere_click(!g_hand_on && near_joint(d)); }
+    else sphere_click(false);
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
         // Tefa 2026-10-18: "suppress weapon docking on the handle when the slide needs racking": with a rack due, the left
         // grip held near the gun always takes the slide (our IK target wins over the VR layer's grip dock); with none due
@@ -604,9 +629,16 @@ void frame() {
                 complete();
                 g_spent = true;
                 LOGI("%s rack: LT let go at the back: the slide went home", TAG);
-            } else {
-                LOGI("%s rack: LT let go: the %s %s", TAG, part(), pump() ? "stays where it is" : "springs back");
+                // 2026-11-08 (Tefa, the LEMI: "when releasing LT when the slide is fully at the back, the whole hand must come off
+                // and if LG is still being held after it comes off, it must not do anything until released and pressed again")
+                hand_off("LT let go at the back");
+                bridge::swallow_lgrip("the slide was let go at the back");
+                return;
             }
+            // 2026-11-08 (Tefa: "If LT is released half way ... LG held must leave the hand on the slide, until LT is held again
+            // to continue racking, or LG is released to release the hand"): the slide stays where it is, the hand on it
+            LOGI("%s rack: LT let go at %.0f%%: the %s stays where it is, the hand on it (LT carries on, LG let go lets go)", TAG,
+                 g_travel * 100.0f, part());
         }
         if (!play) hand_off("cutscene / hands not free");
         else if (lock) { /* "hold this pose": the hand stays on, whatever the buttons do */ }
@@ -642,7 +674,7 @@ void frame() {
             complete();
             LOGI("%s rack: pumped back up by hand: the hand stays on the pump", TAG);
         }
-    } else if (!g_pulled && g_travel > 0.0f && !(pump() && g_hand_on)) {   // a pump only springs back once the hand is off it
+    } else if (!g_pulled && g_travel > 0.0f && !g_hand_on) {   // springs back only once the hand is off it (the slide too since 2026-11-08)
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }
 }

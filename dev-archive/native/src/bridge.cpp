@@ -24,6 +24,7 @@ namespace {
 MO* g_arr = nullptr;
 uint32_t g_elem_off = 0;          // measured from the sentinel
 float g_now[S_COUNT]{}, g_prev[S_COUNT]{};
+bool g_swallow_lg = false;        // swallow_lgrip(): LG reads as up until it really is
 
 float* elems() { return (float*)((char*)g_arr + g_elem_off); }
 
@@ -109,7 +110,18 @@ void frame_begin() {
     for (int i = 0; i < S_COUNT; ++i) g_prev[i] = g_now[i];
     if (live()) for (int i = 0; i < S_COUNT; ++i) g_now[i] = elems()[i];
     else for (float& v : g_now) v = 0.0f;
+    if (g_swallow_lg) {
+        if (g_now[S_LGRIP] <= 0.5f) { g_swallow_lg = false; LOGI("%s bridge: LG let go: it works again from the next press", TAG); }
+        else g_now[S_LGRIP] = 0.0f;
+    }
 }
+
+void swallow_lgrip(const char* why) {
+    if (!g_swallow_lg) LOGI("%s bridge: LG ignored until it is let go (%s)", TAG, why);
+    g_swallow_lg = true;
+    g_now[S_LGRIP] = 0.0f;   // the features after this one, this frame, already see it up
+}
+bool lgrip_swallowed() { return g_swallow_lg; }
 
 bool held(Slot s) { return g_now[s] > 0.5f; }
 bool pressed(Slot s) { return g_now[s] > 0.5f && g_prev[s] <= 0.5f; }

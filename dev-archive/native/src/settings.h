@@ -301,6 +301,10 @@ constexpr float RIGHT_RACK_LOG_SEC = 1.0f;        // how often the "gun held by 
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
 constexpr float SMOOTH_ARC_SEC = 0.30f;           // the same ease when the hand ARCS over the gun onto / off the slide / pump / bolt (slower, so the arc is a path, not a blink)
 constexpr float SMOOTH_ARC_MAX_M = 0.30f;         // the arc's height is clamped to this
+// 2026-11-08 (Tefa, the LEMI: "a gun click sound plays when my hand enters the sphere"): the click and how long the hand must be
+// out of the sphere before the next one (so a hand on the sphere's edge does not rattle)
+constexpr const wchar_t* SLIDE_SPHERE_CLICK_WAV = L"dry_click.wav";
+constexpr float SLIDE_SPHERE_CLICK_REARM_S = 0.25f;
 constexpr float SMOOTH_TOWARD_M = 0.01f;          // a later solve asking this much closer to the left controller = an undo (drawn)
 constexpr float FREE_TURN_DEVIATION_RAD = 0.35f;  // smooth.cpp: the free hand's target turned this far (20 deg) from its controller prediction = a dock
 constexpr float FREE_DEVIATION_M = 0.04f;         // smooth.cpp: the free hand's target this far from its controller prediction = a dock (put back)

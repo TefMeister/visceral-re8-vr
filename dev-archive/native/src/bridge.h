@@ -154,6 +154,11 @@ bool live();                       // array attached and the headset + controlle
 bool held(Slot s);                 // button held this frame
 bool pressed(Slot s);              // went down this frame (edge)
 void frame_begin();                // snapshot buttons for edge detection; once per frame, before any feature
+// 2026-11-08 (Tefa, the LEMI slide: "if LG is still being held after it comes off, it must not do anything until released and
+// pressed again"): from now until LG is let go, held(S_LGRIP) and pressed(S_LGRIP) say "up" to every feature of the plugin, and
+// the grip script is told to keep off (handstate.cpp's S_GRIP_VETO). Cleared by itself the first frame LG is up.
+void swallow_lgrip(const char* why);
+bool lgrip_swallowed();
 // a rumble for the Lua to fire on its next pass; two requests in one pass keep the stronger and the longer
 void rumble(Hand h, float amplitude, float seconds, float hz);
 float view(Slot s);                // read a slot NOW (not the frame-start snapshot); NO_VALUE if not attached

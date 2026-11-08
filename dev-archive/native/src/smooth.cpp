@@ -46,6 +46,11 @@ Quat g_grip_q{0, 0, 0, 1};
 // up to the arc height (Grab Zones' HAND ON THE BOLT box, bridge S_ARC_CM) at the middle of the ease, and takes SMOOTH_ARC_SEC
 float g_arc_m = 0.0f;
 float g_ease_sec = SMOOTH_DOCK_SEC;
+// 2026-11-08 (Tefa: "docking on the slide, Ethan's hand does like an arching movement with his hand, before landing on the slide
+// and we need the hand to travel the shortest way to the docking point"): the arc is for the BOLT only now (where it was asked
+// for, 2026-10-25), and the ease moves the PALM in a straight line: the target is the wrist, so easing the wrist straight while
+// the hand turns swept the palm round in a curve. With no palm offset measured yet it is the wrist, as before.
+Vec3 g_off_palm{};
 
 Quat slerp_from_identity(Quat q, float k) {   // identity -> q by k (0..1), the short way
     if (q.w < 0.0f) q = Quat{-q.x, -q.y, -q.z, -q.w};
@@ -273,10 +278,15 @@ void on_ik(MO* ik) {
     if (owner != g_owner) {
         g_off_p = g_final_p - rel;
         g_off_q = qnorm(qmul(g_final_q, qinv(qrel)));
+        {
+            Vec3 t{};
+            if (!rack::palm_offset(t)) t = Vec3{0, 0, 0};
+            g_off_palm = (g_final_p + rotate(g_final_q, t)) - (rel + rotate(qrel, t));
+        }
         g_t0 = now_s();
         {
             const float a = bridge::view(bridge::S_ARC_CM);
-            const bool rack_end = owner == RACK || g_owner == RACK || owner == PAIR || g_owner == PAIR;   // (the pairs arc too)
+            const bool rack_end = ((owner == RACK || g_owner == RACK) && rack::bolt_gun()) || owner == PAIR || g_owner == PAIR;   // (the pairs arc too; slides and pumps go straight, 2026-11-08)
             g_arc_m = (rack_end && bridge::has(a) && a > 0.0f) ? std::fmin(a * 0.01f, SMOOTH_ARC_MAX_M) : 0.0f;
             g_ease_sec = g_arc_m > 0.0f ? SMOOTH_ARC_SEC : SMOOTH_DOCK_SEC;
         }
@@ -310,8 +320,12 @@ void on_ik(MO* ik) {
         Quat gq;
         if (zones::gun_rot(gq)) lift = rotate(qinv(qnorm(rq)), rotate(qnorm(gq), Vec3{0, 1, 0})) * (g_arc_m * 4.0f * k * (1.0f - k));
     }
-    g_final_p = rel + g_off_p * k + lift;
     g_final_q = qnorm(qmul(slerp_from_identity(g_off_q, k), qrel));
+    {   // the palm on a straight line from where it was to where it goes; the wrist placed behind it at this frame's turn
+        Vec3 t{};
+        if (!rack::palm_offset(t)) t = Vec3{0, 0, 0};
+        g_final_p = (rel + rotate(qrel, t)) + g_off_palm * k + lift - rotate(g_final_q, t);
+    }
     player::set_pose(target_of(ik), rp + rotate(rq, g_final_p), qnorm(qmul(rq, g_final_q)));
 }
 
