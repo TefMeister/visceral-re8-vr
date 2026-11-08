@@ -47,3 +47,18 @@ edit while the hand is held (it should, within a quarter second); does the timin
   (none known) would be missed.
 - The 20 timing defaults are the `settings.h` constants, so nothing changes until a key is set; `timings.json` absent
   = exactly b079's behaviour.
+
+## 2026-11-08 (home PC, Opus): the drum follows the hand clip, frame by frame
+
+Tefa: *"rotating the drum is what i needed this app for, but it's only half of the solution if the drum doesn't travel
+frame by frame as well after i press LT when the bullet guard is open"*. Before this, LT started two separate things: the
+left half of `round_in` on the hand, and the drum's turn on its own clock (`CYL_TURN_S`, 0.40 s). A frame held in the
+window froze the hand while the drum finished by itself, and SLOWER / ADD ONE HERE never reached the drum `[inferred-static]`.
+
+Now (`shellclip` `declare_part` / `part` / `part_at`, `gate.cpp` `turn_drum`): while LT's `round_in` plays (tagged
+"drum"; RT's own `round_in` from `reload.cpp` is not) or the window holds a frame of it, the drum stands where the clip's
+edited time says: 0 = where this turn started, 1 = one chamber on, straight along the edited time unless keyed
+(`"parts":{"drum":u}` on a nudge key in the edit file; 0 / 1 anchor the first / last frame where they carry no key). No
+play = the old clock finishes the turn. The window shows a DRUM slider on that clip (`clips_state.json` `"parts"`).
+Same rule as the window's `ClipMath.PartAt` (7 self-test checks there). Compiled, dll `353ddf59` `[compile-verified]`;
+not run in the game yet. To check in the drum-hand run: hold frames of the drum turn, the drum should stand part way.

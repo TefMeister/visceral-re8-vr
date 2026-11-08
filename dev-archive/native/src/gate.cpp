@@ -395,7 +395,7 @@ void right_hand() {   // HELD: the right hand's jobs, the drum's turn
             // 2026-11-06 (Tefa: "chamber turning sound is still not playing"): MAG_OUT has no sound on this gun; the game's own drum roll
             bridge::sfx(bridge::SFX_DRUM_TURN);
             if (casing) drumrounds::eject(timings::v(timings::CYL_TURN_S) + timings::v(timings::CASE_AFTER_TURN_S));   // the case out once the turn has ended (drumrounds.h)
-            shellclip::play(g_id, "round_in", shellclip::LEFT);   // 2026-11-06: the left thumb's half of the game's cycle turns the drum
+            shellclip::play(g_id, "round_in", shellclip::LEFT, "drum");   // 2026-11-06: the left thumb's half of the game's cycle turns the drum (2026-11-08: and the drum follows its frames)
             bridge::rumble(bridge::LEFT, GATE_BUZZ_AMP, GATE_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s gate: LT: the drum turned one chamber%s (%d spent left)", TAG, casing ? ", a spent casing falls out" : "", breech::spent_casings());
         } else {
@@ -482,10 +482,19 @@ void turn_drum() {   // the drum drawn turning one chamber per LT, while the cov
         LOGI("%s gate: drum joint %s", TAG, g_cyl_ok ? "Cylinder found: it turns with LT" : "NOT found: no visible turn");
     }
     if (!g_cyl_ok) return;
+    shellclip::declare_part(g_id, "round_in", "drum");   // the window shows a DRUM slider on this clip
     const float now = now_s(), dt = g_cyl_t < 0.0f ? 0.0f : std::fmin(0.1f, now - g_cyl_t);
     g_cyl_t = now;
-    const float want = (float)g_turns, step = timings::v(timings::CYL_TURN_S) > 0.0f ? dt / timings::v(timings::CYL_TURN_S) : 1.0f;
-    g_cyl_draw = want > g_cyl_draw ? std::fmin(want, g_cyl_draw + step) : want;
+    // 2026-11-08 (Tefa: "only half of the solution if the drum doesn't travel frame by frame as well"): while LT's round_in plays on
+    // the left hand, or the Animation & Timing window holds a frame of it, the drum stands where the clip's frame says (0 = where
+    // this turn started, 1 = one chamber on; shellclip.h part()); otherwise the old clock (CYL_TURN_S) finishes the turn
+    float u = 0.0f;
+    if (shellclip::part(g_id, "round_in", "drum", "drum", u)) {
+        g_cyl_draw = std::fmax(0.0f, (float)g_turns - 1.0f) + std::clamp(u, -1.0f, 2.0f);
+    } else {
+        const float want = (float)g_turns, step = timings::v(timings::CYL_TURN_S) > 0.0f ? dt / timings::v(timings::CYL_TURN_S) : 1.0f;
+        g_cyl_draw = want > g_cyl_draw ? std::fmin(want, g_cyl_draw + step) : want;
+    }
     const int cap = player::capacity() > 0 ? player::capacity() : 6;
     Quat q = qnorm(qmul(g_cyl_rest, axis_turn(g_cyl_axis, 360.0f / (float)cap * g_cyl_draw)));
     set_any(JOINT, g_cyl, "set_LocalRotation", &q);

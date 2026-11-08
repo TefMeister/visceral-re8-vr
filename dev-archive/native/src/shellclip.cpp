@@ -44,6 +44,7 @@ struct Clip {
     std::vector<std::vector<Vec3>> nd;        // per edited frame, per name: the nudge in degrees (0 = none)
     std::vector<std::array<float, 6>> hand;   // per edited frame: the whole-hand move (m, deg), 0 = none
     bool any_nudge = false, any_hand = false;
+    std::map<std::string, std::map<int, float>> part_keys;   // 2026-11-08: part name -> source row -> progress (shellclip.h part())
     bool ok = false, left = false, right = false;
     std::string key;
     std::filesystem::file_time_type csv_mt{}, edit_mt{};
@@ -72,8 +73,11 @@ struct Play {
     float blend = 0.0f;                       // how much of the clip is on the hand right now (0..1), for hand_nudge()
     std::array<float, 6> hand_now{};          // this frame's whole-hand move, scaled by blend
     float frame_now = 0.0f;                   // the edited frame being shown (fractional while playing)
+    float time_now = 0.0f;                    // 2026-11-08: the edited time being shown (for part())
+    std::string tag;                          // 2026-11-08: who started it (play()'s tag), for part()
 };
 std::vector<Play> g_plays;
+std::map<std::string, std::vector<std::string>> g_declared;   // 2026-11-08: "<gun>_<event>" -> the parts that move with it
 bool g_relative = false;                      // relative.txt exists: clips play on top of the hand's own pose (shellclip.h)
 MO* g_tf = nullptr;
 int g_scrub_seq = -1;
@@ -171,6 +175,7 @@ void apply_edits(Clip& c, const json::Value* edit) {
     struct KeyN { bool has = false; std::vector<Vec3> j; bool has_hand = false; std::array<float, 6> hand{}; };
     std::map<int, KeyN> keys;
     int nkeys = 0;
+    c.part_keys.clear();
     if (const auto* nd = edit ? edit->get("nudges") : nullptr; nd != nullptr && nd->kind == json::Value::ARR) {
         for (const auto& e : nd->arr) {
             const auto* sv = e.get("src");
@@ -188,6 +193,8 @@ void apply_edits(Clip& c, const json::Value* edit) {
                 k.has_hand = true;
                 for (int i = 0; i < 6; ++i) k.hand[i] = (float)h->arr[i].n * (i < 3 ? 0.01f : 1.0f);   // cm -> m
             }
+            if (const auto* ps = e.get("parts"); ps != nullptr && ps->kind == json::Value::OBJ)
+                for (const auto& [name, x] : ps->obj) if (x.kind == json::Value::NUM) c.part_keys[name][(int)sv->n] = (float)x.n;
         }
     }
     const size_t f = c.frames.size();
@@ -217,8 +224,34 @@ void apply_edits(Clip& c, const json::Value* edit) {
             if (!zero6(c.hand[k])) c.any_hand = true;
         }
     }
-    LOGI("%s shellclip: clip %s: %d CSV frames -> %d edited (%d op(s)), %d nudge key(s)%s%s, %.2f s", TAG, c.key.c_str(), (int)m, (int)f, nops, nkeys,
-         c.any_nudge ? ", finger nudges" : "", c.any_hand ? ", whole-hand moves" : "", f > 0 ? c.t.back() : 0.0f);
+    std::string parts;
+    for (const auto& [name, ks] : c.part_keys) parts += ", " + name + " keyed on " + std::to_string(ks.size()) + " row(s)";
+    LOGI("%s shellclip: clip %s: %d CSV frames -> %d edited (%d op(s)), %d nudge key(s)%s%s%s, %.2f s", TAG, c.key.c_str(), (int)m, (int)f, nops, nkeys,
+         c.any_nudge ? ", finger nudges" : "", c.any_hand ? ", whole-hand moves" : "", parts.c_str(), f > 0 ? c.t.back() : 0.0f);
+}
+
+// 2026-11-08: a part's progress at edited time `time` (shellclip.h part(); the same rule as the window's ClipMath.PartAt): the
+// keyed frames' values along the edited time, 0 at the first frame and 1 at the last where those carry no key, straight between
+float part_at(const Clip& c, const std::string& part, float time) {
+    const size_t f = c.frames.size();
+    if (f == 0) return 0.0f;
+    std::vector<std::pair<float, float>> pts;   // (time, value), in frame order
+    const auto it = c.part_keys.find(part);
+    const std::map<int, float>* kv = it == c.part_keys.end() ? nullptr : &it->second;
+    for (size_t k = 0; k < f; ++k) {
+        const auto hit = kv != nullptr ? kv->find(c.frames[k].src) : std::map<int, float>::const_iterator{};
+        if (kv != nullptr && hit != kv->end()) pts.push_back({c.t[k], hit->second});
+        else if (k == 0) pts.push_back({c.t[0], 0.0f});
+        else if (k == f - 1) pts.push_back({c.t[k], 1.0f});
+    }
+    if (time <= pts.front().first) return pts.front().second;
+    for (size_t i = 1; i < pts.size(); ++i) {
+        if (time > pts[i].first) continue;
+        const float span = pts[i].first - pts[i - 1].first;
+        const float u = span > 0.0f ? (time - pts[i - 1].first) / span : 1.0f;
+        return pts[i - 1].second + (pts[i].second - pts[i - 1].second) * u;
+    }
+    return pts.back().second;
 }
 
 // (re)load the CSV and its edit file when either changed; false = no usable clip
@@ -308,7 +341,7 @@ void drop_hands(bool use_l, bool use_r) {   // a new clip on a hand replaces the
     }
 }
 
-bool start(const std::string& gun, const char* event, int hands, bool held, int frame, const char* why) {
+bool start(const std::string& gun, const char* event, int hands, bool held, int frame, const char* why, const char* tag = nullptr) {
     const Clip* c = load(gun, event);
     if (c == nullptr) return false;
     const bool use_l = c->left && (hands & LEFT) != 0, use_r = c->right && (hands & RIGHT) != 0;
@@ -323,6 +356,7 @@ bool start(const std::string& gun, const char* event, int hands, bool held, int 
     p.right = use_r;
     p.relative = g_relative;
     p.held = held;
+    p.tag = tag != nullptr ? tag : "";
     p.held_frame = std::clamp(frame, 0, (int)c->frames.size() - 1);
     p.joint.assign(c->names.size(), nullptr);
     p.found.assign(c->names.size(), Quat{0, 0, 0, 1});
@@ -395,6 +429,11 @@ void write_state() {
             for (size_t k = 0; k < c->frames.size(); ++k) std::fprintf(f, "%s%d", k == 0 ? "" : ",", c->frames[k].src);
             std::fputs("],\"t\":[", f);
             for (size_t k = 0; k < c->t.size(); ++k) std::fprintf(f, "%s%.4f", k == 0 ? "" : ",", c->t[k]);
+            std::fputs("],\"parts\":[", f);   // 2026-11-08: the gun parts that move with it (declare_part, or keyed in its edit file)
+            std::vector<std::string> parts;
+            if (const auto d = g_declared.find(c->key); d != g_declared.end()) parts = d->second;
+            for (const auto& [pn, ks] : c->part_keys) if (std::find(parts.begin(), parts.end(), pn) == parts.end()) parts.push_back(pn);
+            for (size_t i = 0; i < parts.size(); ++i) std::fprintf(f, "%s\"%s\"", i == 0 ? "" : ",", parts[i].c_str());
             std::fputs("]}", f);
         }
     std::fputs("],\"playing\":[", f);
@@ -410,7 +449,24 @@ void write_state() {
 }
 } // namespace
 
-void play(const std::string& gun_id, const char* event, int hands) { start(short_id(gun_id), event, hands, false, 0, "the mod"); }
+void play(const std::string& gun_id, const char* event, int hands, const char* tag) { start(short_id(gun_id), event, hands, false, 0, "the mod", tag); }
+
+void declare_part(const std::string& gun_id, const char* event, const char* part) {
+    auto& v = g_declared[short_id(gun_id) + "_" + event];
+    if (std::find(v.begin(), v.end(), part) == v.end()) { v.push_back(part); LOGI("%s shellclip: %s %s moves the %s with it (its progress comes from the clip's frames)", TAG, short_id(gun_id).c_str(), event, part); }
+}
+
+bool part(const std::string& gun_id, const char* event, const char* part, const char* tag, float& u) {
+    const std::string key = short_id(gun_id) + "_" + event;
+    for (const auto& p : g_plays) {
+        if (p.pulse || p.key != key || p.clip == nullptr || !p.have) continue;
+        const bool window_hold = p.held && p.release_t < 0.0f;
+        if (!window_hold && (p.held || tag == nullptr || p.tag != tag)) continue;   // a let-go hold, or someone else's play (RT's round)
+        u = part_at(*p.clip, part, p.time_now);
+        return true;
+    }
+    return false;
+}
 
 void pulse(const std::vector<std::wstring>& joints, float ax, float ay, float az, float deg, float sec, bool right) {
     static std::map<std::string, Clip> pulses;   // a frameless clip per joint set: names, length, hand
@@ -528,6 +584,7 @@ void render_point() {
             const size_t k = std::clamp((size_t)p.held_frame, (size_t)0, c.frames.size() - 1);
             pose_at(c, k, 0.0f, pose, hand);
             p.frame_now = (float)k;
+            p.time_now = c.t[k];
             in = std::fmin(1.0f, t / bl);
             out = p.release_t < 0.0f ? 1.0f : std::fmax(0.0f, 1.0f - (now - p.release_t) / bl);
             if (p.release_t >= 0.0f && out <= 0.0f) { LOGI("%s shellclip: %s: hold over", TAG, p.what.c_str()); g_plays.erase(g_plays.begin() + pi); continue; }
@@ -538,6 +595,7 @@ void render_point() {
                 continue;
             }
             sample(c, std::fmin(t, len), pose, hand, p.frame_now);
+            p.time_now = std::fmin(t, len);
             in = std::fmin(1.0f, t / bl);
             out = t > len ? std::fmax(0.0f, 1.0f - (t - len) / bl) : 1.0f;
         }

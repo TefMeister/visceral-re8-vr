@@ -28,7 +28,17 @@ namespace vn::shellclip {
 // RT"): the Wolfsbane's round_in clip moves BOTH hands (the game's 2512 cycle: right thumb pushes the round, left thumb turns the
 // drum). A play can now be limited to one hand: RT at the cover plays its right half, LT (the drum's turn) its left half.
 constexpr int LEFT = 1, RIGHT = 2, BOTH = 3;
-void play(const std::string& gun_id, const char* event = "round_in", int hands = BOTH);   // gun_id like "ri3021_Inventory" or "ri3021"
+// tag: who started it, for part() below ("drum" = gate.cpp's LT turn); nullptr = nobody in particular
+void play(const std::string& gun_id, const char* event = "round_in", int hands = BOTH, const char* tag = nullptr);   // gun_id like "ri3021_Inventory" or "ri3021"
+// 2026-11-08 (Tefa: "it's only half of the solution if the drum doesn't travel frame by frame as well"): a gun PART that moves
+// with a clip (the Wolfsbane's drum with round_in) takes its progress from the clip's own frames, not from a clock of its own:
+// 0 at the clip's first frame, 1 at its last, straight along the edited time unless the window keyed it ("parts":{"drum":u} on
+// a nudge key: then it runs through those keyed values, with 0 / 1 at the ends where those frames carry no key). So a held
+// frame holds the part, and SLOWER / ADD ONE HERE retime it with the hand. declare_part() tells the window the clip has that
+// part (a slider appears); part() = the progress of the play of that clip started with `tag` or held by the window, false when
+// none plays (the caller goes back to its own clock).
+void declare_part(const std::string& gun_id, const char* event, const char* part);
+bool part(const std::string& gun_id, const char* event, const char* part, const char* tag, float& u);
 // 2026-11-06 (Tefa: "right thumb needs to flick the bullet guard open"): a movement of our own, not the game's: the named joints
 // turn about their own local axis by deg and back (a half sine) over sec, on top of whatever pose they have; written last, as
 // the clips are. right = it belongs to the right hand (playing_right() while it runs)
