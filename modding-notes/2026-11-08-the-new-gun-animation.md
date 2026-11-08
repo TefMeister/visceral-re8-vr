@@ -18,6 +18,13 @@ the game takes over hands and plays the games original animations in front of th
   `app.PlayerUpdaterFPS.get_playerMovement`; accepted, nothing played: it is probably the game's own request after a
   real pickup), `requestActionExternal("Gun.GetWeapon", 0, 0)`, and `MotionFsm2.setCurrentNode("Gun.GetWeapon", layer,
   nil)` (accepted, the layers stayed on `Gun.ReadyIdle`).
+- **The gun plays its own half** (Tefa watched the first pass: *"i did see the animations play, but no weapon parts moved at
+  all"*; the takes agreed, not one gun joint moved). The weapon's GameObject has its own `via.motion.Motion` (one layer)
+  and `via.motion.MotionFsm2` whose step `GetWeapon` plays the gun's own motion: **Wolfsbane 0, SYG-12 2, every other gun
+  3** (`it02_<nnn>_<Gun>_010_GetWep`, the same length as the arms' half; the knife has no gun half). Started on the gun's
+  layer 0 in the same frame as the arms, the two run frame for frame. Parts that move: the Wolfsbane's loading gate (Lid
+  62 deg), the W870's pump (Slide 10 cm), the GM 79's carrier, the M1897's bolt, carrier and hammer, the pistols' slide,
+  hammer and magazine (out about 20 cm), the F2's bolt (80 deg) and magazine, the SYG-12's magazine and slide `[measured]`.
 - The first-time flag is very likely `GameRecord_ItemGetOnce` (a name in the program) `[hypothesis]`; not needed to
   play the motion.
 
@@ -29,18 +36,20 @@ and every gun joint (local). Frames at about 90 a second:
 
 | weapon | id | frames |
 | --- | --- | --- |
-| M1851 Wolfsbane | ri3008 | 236 |
-| W870 TAC | ri3021 | 171 |
-| knife (melee, motion 2006) | ri3022 | 290 |
-| GM 79 | ri3023 | 183 |
-| M1897 | ri3036 | 265 |
-| M1911 | ri3040 | 255 |
-| F2 Rifle | ri3042 | 314 |
-| LEMI | ri3046 | 258 |
-| V61 Custom | ri3047 | 321 |
+| M1851 Wolfsbane | ri3008 | 245 |
+| W870 TAC | ri3021 | 169 |
+| knife (melee, motion 2006, no gun half) | ri3022 | 308 |
+| GM 79 | ri3023 | 179 |
+| M1897 | ri3036 | 260 |
+| M1911 | ri3040 | 254 |
+| F2 Rifle | ri3042 | 313 |
+| LEMI | ri3046 | 252 |
+| V61 Custom | ri3047 | 317 |
 | SYG-12 | ri3048 | 272 |
-| S.T.A.K.E | ri3050 | 255 |
-| Samurai Edge AW-01 | ri3122 | 254 |
+| S.T.A.K.E | ri3050 | 249 |
+| Samurai Edge AW-01 | ri3122 | 250 |
+
+Both halves in every take (the arms-only first pass is kept in `arms-only-first-pass/`).
 
 Not recorded: `ri3051` (the equip guard refuses it: not a gun). The W870 take's hands relative to the camera: the left
 hand travels up to 44 cm, the right 22 cm `[measured]`.
@@ -58,6 +67,7 @@ hand travels up to 44 cm, the right 22 cm `[measured]`.
 
 ## For the VR mod (Tefa's idea, not built)
 
-When a new gun is picked up, let go of the hands (IK and docking off), play 2007 on the arm layers so the game's own
-move shows in front of the player, then hand the controllers back when the layers return. Board row in
+When a new gun is picked up, let go of the hands (IK and docking off), play 2007 on the arm layers AND the gun's own
+GetWeapon motion on the gun, so the game's own move shows in front of the player with the parts working, then hand the
+controllers back when the layers return. Board row in
 `status/visceral-re8-vr.md`.
