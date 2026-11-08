@@ -29,6 +29,8 @@ bool g_told = false;
 MO* g_tf = nullptr;
 MO* g_hand = nullptr;
 MO* g_mid = nullptr;
+MO* g_rhand = nullptr;   // 2026-11-08: the who-moved-it line
+MO* g_lupper = nullptr;
 FILE* g_file = nullptr;
 
 // the left hand's spot (bridge S_LEFT_SPOT, pairs.cpp) -> the zone it was taken in; -1 = not a part we measure
@@ -79,6 +81,45 @@ void open_file() {
         std::fflush(g_file);
     }
 }
+// 2026-11-08 (Tefa, the LEMI slide: "hand lands way off the gun ... just a minute ago it was landing on the gun"; twice the palm
+// went from 6-10 cm to 20-33 cm off, high and back, and stayed; hand smoothing ruled out): at each take, WHO put the hand there.
+//   ours->target  our slide code's left target vs the IK target now (someone moved the target after us)
+//   target->wrist the IK target vs the drawn wrist (the arm did not get there)
+//   ours->part    our target vs the drawn part (we aimed off: our anchor, the right hand's target, is not where the gun is drawn)
+//   R target->wrist  the right hand's IK target vs its drawn wrist (the gun drawn away from where its hand should be)
+//   reach         shoulder -> target vs the arm's length
+void who_moved_it(const Vec3& at, const Quat& gq, const Vec3& hp) {
+    const auto& s = player::now();
+    if (g_rhand == nullptr) g_rhand = joint_by_name(g_tf, L"R_Hand");
+    if (g_lupper == nullptr) g_lupper = joint_by_name(g_tf, L"L_UpperArm");
+    auto cm = [](Vec3 v) { return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z) * 100.0f; };
+    char buf[600];
+    int n = std::snprintf(buf, sizeof buf, "%s dockreport: who moved it:", TAG);
+    Vec3 ours{}, lt{}, rt{}, rh{}, sh{};
+    Quat q{};
+    float age = 0.0f;
+    const bool have_ours = rack::last_target(ours, age);
+    const bool have_lt = s.ik_left != nullptr && player::get_pose(field_obj(s.ik_left, "Target"), lt, q);
+    if (have_ours && have_lt) {
+        const Vec3 d = rotate(qinv(gq), lt - ours) * 100.0f;
+        n += std::snprintf(buf + n, sizeof buf - n, " ours->target %.1f cm (r %+.1f u %+.1f f %+.1f, ours %.0f ms old);", cm(lt - ours), d.x, d.y, d.z, age * 1000.0f);
+    } else n += std::snprintf(buf + n, sizeof buf - n, " ours->target ? (ours %d, target %d);", have_ours ? 1 : 0, have_lt ? 1 : 0);
+    if (have_lt) {
+        const Vec3 d = rotate(qinv(gq), hp - lt) * 100.0f;
+        n += std::snprintf(buf + n, sizeof buf - n, " target->wrist %.1f cm (r %+.1f u %+.1f f %+.1f);", cm(hp - lt), d.x, d.y, d.z);
+    }
+    if (have_ours) {
+        const Vec3 d = rotate(qinv(gq), ours - at) * 100.0f;
+        n += std::snprintf(buf + n, sizeof buf - n, " ours->part %.1f cm (r %+.1f u %+.1f f %+.1f);", cm(ours - at), d.x, d.y, d.z);
+    }
+    if (s.ik_right != nullptr && g_rhand != nullptr && player::get_pose(field_obj(s.ik_right, "Target"), rt, q) && get_v3(JOINT, g_rhand, "get_Position", rh)) {
+        const Vec3 d = rotate(qinv(gq), rh - rt) * 100.0f;
+        n += std::snprintf(buf + n, sizeof buf - n, " R target->wrist %.1f cm (r %+.1f u %+.1f f %+.1f);", cm(rh - rt), d.x, d.y, d.z);
+    }
+    if (have_lt && g_lupper != nullptr && get_v3(JOINT, g_lupper, "get_Position", sh))
+        n += std::snprintf(buf + n, sizeof buf - n, " reach: shoulder->target %.1f cm, shoulder->wrist %.1f cm", cm(lt - sh), cm(hp - sh));
+    LOGI("%s", buf);
+}
 } // namespace
 
 void render_point() {
@@ -91,7 +132,7 @@ void render_point() {
     if (spot != g_spot) { g_spot = spot; g_since = t; g_told = false; }
     if (key < 0 || s.tf == nullptr || s.gun == nullptr) return;
     if (t - g_since < SETTLE_S) return;
-    if (s.tf != g_tf) { g_tf = s.tf; g_hand = g_mid = nullptr; }
+    if (s.tf != g_tf) { g_tf = s.tf; g_hand = g_mid = g_rhand = g_lupper = nullptr; }
     if (g_hand == nullptr) g_hand = joint_by_name(g_tf, L"L_Hand");
     if (g_mid == nullptr) g_mid = joint_by_name(g_tf, L"L_MiddleF1");
     Vec3 hp, mp, c;
@@ -115,6 +156,7 @@ void render_point() {
         g_told = true;
         LOGI("%s dockreport: gun %d, the %s: the palm sits %.1f cm from the part (right %+.1f, up %+.1f, forward %+.1f cm, the gun's "
              "axes); the hand turned yaw %.0f pitch %.0f roll %.0f deg in the gun's frame", TAG, gun, zone_name(key), d, gap.x, gap.y, gap.z, y, p, r);
+        who_moved_it(at, gq, hp);
     }
     if (t - g_last_line >= EVERY_S) {
         g_last_line = t;

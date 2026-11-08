@@ -28,6 +28,7 @@ bool pump_gun();
 float left_gun_closeness();   // 0 = the left controller far from the gun, 1 = in the grab zone (fingers.cpp eases on it)              // the gun in hand is a pump gun: its two-handed grip IS the pump (handstate.cpp vetoes the grip script)
 bool left_near_gun();         // the left controller in a grab area: the slide / pump / bolt part, or the line along the gun (fingers.cpp)
 bool on_pump();
+bool last_target(Vec3& p, float& age);   // 2026-11-08: the left-hand target this file wrote last, and how long ago (s)
 bool palm_offset(Vec3& t);          // the wrist-to-palm offset in the hand's frame, once measured (smooth.cpp: the palm travels straight)
 bool bolt_gun();                     // the held gun is worked by a bolt (the ease's arc is for bolts only, 2026-11-08)
 float travel();               // 0 = rest, 1 = fully back

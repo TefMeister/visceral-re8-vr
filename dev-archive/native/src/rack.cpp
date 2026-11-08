@@ -62,6 +62,8 @@ float g_z_anim = 0.0f;
 bool g_slide_frozen = false;  // the spot is kept from the first measure after taking hold (the game animates the pump joint)
 bool g_rel_ok = false;
 Vec3 g_rel_pos{};
+Vec3 g_set_target{};            // 2026-11-08 (the slide hand landing off the gun): the last left-hand target written here
+float g_set_t = -100.0f;        // and when (now_s)
 Quat g_rel_rot{0, 0, 0, 1};
 Quat g_rest_rot{0, 0, 0, 1};
 
@@ -387,6 +389,7 @@ float left_gun_closeness() {   // 2026-10-25 (the open hand snapped at the zone'
 bool left_near_gun() { float off = 99.0f; if (g_joint != nullptr && near_joint(off)) return true; return on_gun_line(off); }
 bool on_pump() { return g_hand_on && pump(); }
 bool palm_offset(Vec3& t) { t = g_palm_t; return PALM_ON_SLIDE && g_palm_ok; }
+bool last_target(Vec3& p, float& age) { p = g_set_target; age = now_s() - g_set_t; return g_hand_on && age < 0.5f; }
 bool bolt_gun() { return bolt(); }
 float travel() { return g_travel; }
 
@@ -744,6 +747,13 @@ Quat slide_hand_turn(Quat gun) {
     return qnorm(qmul(qmul(gun, local), qinv(gun)));
 }
 
+// 2026-11-08: set the left IK target and remember it (dockreport.cpp compares it with what is drawn)
+void note_set(MO* ik, const Vec3& p, const Quat& q) {
+    player::set_pose(target_of(ik), p, q);
+    g_set_target = p;
+    g_set_t = now_s();
+}
+
 void on_ik(MO* ik) {
     const auto& s = player::now();
     if (!g_hand_on || ik != s.ik_left) return;
@@ -785,7 +795,7 @@ void on_ik(MO* ik) {
         const Vec3 nudge{bridge::view(bridge::S_SLIDE_HAND_X) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Y) * 0.01f, bridge::view(bridge::S_SLIDE_HAND_Z) * 0.01f};
         const Vec3 offs = rotate(gun, bridge::has(nudge.x) ? nudge : Vec3{0, 0, 0});
         const Vec3 travel = rotate(gun, Vec3{0, 0, z_now() - g_z_anim});
-        player::set_pose(target_of(ik), rp + rotate(rq, g_rel_pos) + travel + offs, qnorm(qmul(slide_hand_turn(gun), rot)));
+        note_set(ik, rp + rotate(rq, g_rel_pos) + travel + offs, qnorm(qmul(slide_hand_turn(gun), rot)));
         // the socket for the grip script's steering (2026-10-25): the same place, in the right hand's frame
         const Vec3 sock = g_rel_pos + rotate(qinv(rq), travel + offs);
         bridge::put(bridge::S_RACK_SOCKET, sock.x);
@@ -806,12 +816,12 @@ void on_ik(MO* ik) {
             const Quat jf = qnorm(qmul(gun, g_rest_rot));   // the bolt joint's frame at rest: it turns about its own Z (write_joint)
             turn = qnorm(qmul(qmul(jf, Quat{0, 0, std::sin(h), std::cos(h)}), qinv(jf)));
         }
-        player::set_pose(target_of(ik), pivot + rotate(turn, offs), qnorm(qmul(turn, hand_q)));
+        note_set(ik, pivot + rotate(turn, offs), qnorm(qmul(turn, hand_q)));
         return;
     }
     Vec3 back{0, 0, 0};   // no slide joint: where the hand took hold, slid back with the pull
     if (g_travel > 0.0f && bridge::room_dir_to_world(g_axis * (-RACK_PULL_M * g_travel), back) == false) back = Vec3{0, 0, 0};
-    player::set_pose(target_of(ik), rp + rotate(rq, g_rel_pos) + back, rot);
+    note_set(ik, rp + rotate(rq, g_rel_pos) + back, rot);
 }
 
 } // namespace vn::rack
