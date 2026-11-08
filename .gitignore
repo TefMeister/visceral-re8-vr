@@ -1,1 +1,4 @@
 dev-archive/native/tools/sim/pose_now.json
+
+# drive.sh writes the running game's process number here (2026-11-08)
+dev-archive/native/tools/sim/pid.txt
