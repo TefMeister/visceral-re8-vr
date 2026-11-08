@@ -77,26 +77,6 @@ float g_palm_closest = 99.0f;
 
 bool pose_lock() { return bridge::flag(bridge::S_POSE_LOCK); }
 
-// 2026-11-08 (Tefa, the LEMI: "gun click sound plays when my hand enters the sphere"): a free left hand coming into a pistol
-// slide's sphere (either side) clicks once; it has to be out for SLIDE_SPHERE_CLICK_REARM_S before the next one
-bool g_in_sphere = false;
-float g_out_since = -1.0f;
-void sphere_click(bool inside) {
-    const float now = now_s();
-    if (!inside) { if (g_in_sphere) g_out_since = now; g_in_sphere = false; return; }
-    if (g_in_sphere) return;
-    g_in_sphere = true;
-    if (g_out_since >= 0.0f && now - g_out_since < SLIDE_SPHERE_CLICK_REARM_S) return;
-    static std::wstring wav;
-    if (wav.empty()) {
-        wchar_t exe[MAX_PATH]{};
-        GetModuleFileNameW(nullptr, exe, MAX_PATH);
-        wav = (std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "sfx" / SLIDE_SPHERE_CLICK_WAV).wstring();
-    }
-    PlaySoundW(wav.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
-    static int n = 0;
-    if (++n <= 5 || n % 50 == 0) LOGI("%s rack: the left hand came into the slide's sphere: click (#%d)", TAG, n);
-}
 bridge::Hand working_hand() { return g_right ? bridge::RIGHT : bridge::LEFT; }   // the buzz goes to the hand on the part
 
 // ---- ONE HOLD PER GUN AND PART (2026-10-24, Tefa in the headset: "hand doesn't just grab on to the gun in one certain pose, it
@@ -533,8 +513,6 @@ void frame() {
         bolt_step(g_armed);
         return;
     }
-    if (pistol_slide() && g_joint != nullptr && play) { float d = 0.0f; sphere_click(!g_hand_on && near_joint(d)); }
-    else sphere_click(false);
     if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
         // Tefa 2026-10-18: "suppress weapon docking on the handle when the slide needs racking": with a rack due, the left
         // grip held near the gun always takes the slide (our IK target wins over the VR layer's grip dock); with none due
@@ -575,7 +553,7 @@ void frame() {
             if (is_near && bolt()) {   // Tefa 2026-10-19: "the left grip must already grip it and hold on, but not move the bolt until LT is pressed"
                 g_hand_on = g_capture = true;
                 g_armed = g_rel_ok = false;
-                bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+                if (RACK_TAKE_BUZZ) bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             } else if (is_near) {
                 g_hand_on = g_capture = true;
                 g_pulled = g_armed = g_rel_ok = false;
@@ -585,7 +563,7 @@ void frame() {
                     g_from_left = g_near_left;
                     LOGI("%s rack: slide taken in its %s-side sphere", TAG, g_from_left ? "left" : "right");
                 } else g_from_left = slide_side(left) && left;
-                bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
+                if (RACK_TAKE_BUZZ) bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             }
         }
     }

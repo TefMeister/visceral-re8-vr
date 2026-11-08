@@ -28,7 +28,7 @@ local TAG = "[visceral-re8-sounds]"
 local S_SFX_CODE, S_SFX_SEQ, S_SFX_LUA_HAS = 61, 62, 63
 local SOUNDS_FILE = "visceral_re8/sounds.json"
 local UPPER_LAYER = 1          -- the player's upper-body motion layer (scope mod probe, 2026-09-27)
-local LOG_PER_ID = 3           -- log lines per game sound id
+local LOG_PER_ID = 400         -- log lines per game sound id (2026-11-08: 400 while the slide-sphere click is hunted; was 3)
 local HEARD_MAX = 60           -- rows kept in the menu list
 local JOBS = {
     { code = 1, name = "slide pulled back" }, { code = 2, name = "slide goes home" },

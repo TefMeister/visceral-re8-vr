@@ -274,6 +274,11 @@ constexpr float RACK_FOLLOW = 0.92f;             // the slide follows the hand b
 constexpr float RACK_SPRING_STEP = 0.2f;         // let go mid-way: travel lost per frame as it springs back
 constexpr float PUMP_RETURN_SEC = 0.2f;          // the pump handle returning by itself after LT is let go
 constexpr float RACK_BUZZ_AMP = 0.45f, RACK_BUZZ_SEC = 0.05f;
+// 2026-11-08 (Tefa, the LEMI: "gun click sound plays when my hand enters the sphere ... something that should not happen"):
+// the half-strength 50 ms buzz as the left hand takes the slide / bolt was the only thing the mod fired at that moment (the
+// headset log shows no game sound there; a short pulse on a Quest controller is heard as a tick). Off; the buzz at the full pull
+// stays. [hypothesis] until worn: if the click is still there, it is not this.
+constexpr bool RACK_TAKE_BUZZ = false;
 // the bolt action (Tefa 2026-10-19: "turn the bolt up, pull backwards, then a gun click sound must play to signify that i can
 // now push the bolt back forward and then back down to lock it in", after every round): the turns are read from the left
 // hand going up / down against the right one (the controllers' turn readings jumped around, 2026-10-19)
@@ -301,10 +306,6 @@ constexpr float RIGHT_RACK_LOG_SEC = 1.0f;        // how often the "gun held by 
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
 constexpr float SMOOTH_ARC_SEC = 0.30f;           // the same ease when the hand ARCS over the gun onto / off the slide / pump / bolt (slower, so the arc is a path, not a blink)
 constexpr float SMOOTH_ARC_MAX_M = 0.30f;         // the arc's height is clamped to this
-// 2026-11-08 (Tefa, the LEMI: "a gun click sound plays when my hand enters the sphere"): the click and how long the hand must be
-// out of the sphere before the next one (so a hand on the sphere's edge does not rattle)
-constexpr const wchar_t* SLIDE_SPHERE_CLICK_WAV = L"dry_click.wav";
-constexpr float SLIDE_SPHERE_CLICK_REARM_S = 0.25f;
 constexpr float SMOOTH_TOWARD_M = 0.01f;          // a later solve asking this much closer to the left controller = an undo (drawn)
 constexpr float FREE_TURN_DEVIATION_RAD = 0.35f;  // smooth.cpp: the free hand's target turned this far (20 deg) from its controller prediction = a dock
 constexpr float FREE_DEVIATION_M = 0.04f;         // smooth.cpp: the free hand's target this far from its controller prediction = a dock (put back)
