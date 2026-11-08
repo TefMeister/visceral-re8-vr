@@ -32,4 +32,6 @@ dock poses, clip edits untouched). Labels name the left end first. Hand Poser + 
 ## The slide-sphere click
 Not a game sound in the headset log, and not heard on the simulator (`tools/sim/hear_entry.py`, about -45 dBFS throughout, with
 and without LG). The one thing the mod fires at that moment is a 50 ms half-strength buzz on the left controller as it takes
-the slide: switched off (`RACK_TAKE_BUZZ = false`, b087). `[hypothesis]` until worn.
+the slide: switched off (`RACK_TAKE_BUZZ = false`, b087). **Ruled out the same evening** `[disproved]`: Tefa says the click
+comes NOT every time and NOT while holding LG, just with the hand nearing the gun, and the take buzz only fires with LG. Parked by
+Tefa ("let's leave it for now").
