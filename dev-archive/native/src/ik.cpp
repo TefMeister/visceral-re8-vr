@@ -8,6 +8,7 @@
 #include "rack_right.h"
 #include "recoil.h"
 #include "reload.h"
+#include "sleephands.h"
 #include "smooth.h"
 
 namespace vn::ik {
@@ -26,6 +27,7 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     gate::on_ik(ik);       // 2026-11-01: the Wolfsbane held by the left hand while the right hand loads it
     dockpose::on_ik(ik);   // LAST (2026-10-28; last since 2026-11-02, Tefa: "on the wolfsbane hammer ... tuning sliders does nothing"):
                            // the docked spot's wrist from Dock Poser, on top of whoever placed the hand
+    sleephands::on_ik(ik); // 2026-11-09: after even that: a sleeping controller's hand rests by the hip
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }
 } // namespace

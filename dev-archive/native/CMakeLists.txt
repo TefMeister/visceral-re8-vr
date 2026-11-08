@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(visceral_re8_native SHARED
     src/plugin.cpp
     src/armstretch.cpp
+    src/sleephands.cpp
     src/equipguard.cpp
     src/common.cpp
     src/bridge.cpp

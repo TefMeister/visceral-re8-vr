@@ -27,6 +27,7 @@
 #include "fingers.h"
 #include "forearm.h"
 #include "armstretch.h"
+#include "sleephands.h"
 #include "righthand.h"
 #include "pumpbolt.h"
 #include "nodock.h"
@@ -85,6 +86,7 @@ void on_frame() {
     recoil::frame();
     handstate::frame();
     turn::frame();           // 2026-10-29: the game's own body-follow rule, with Tefa's numbers
+    sleephands::frame();     // 2026-11-09: a sleeping controller lowers its hand to the side
     gunreport::frame();      // 2026-10-29: the gun's place in the hand, written down (the "gun too low, swings like a pendulum" launches)
     body::frame();
     fingers::frame();

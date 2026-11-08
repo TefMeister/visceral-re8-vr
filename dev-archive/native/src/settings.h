@@ -396,4 +396,13 @@ constexpr bool  MAGDISP_ON = true;              // 2026-11-05 magdisp.cpp: a mag
 constexpr int SHELLS_PER_GRAB = 2;               // a pouch grab takes this many (fewer if fewer are carried or fit)
 constexpr float SHELLS_STEP_S = 0.55f;           // one shell after another: the finger movement (0.48 s) and a breath
 
+// sleephands.cpp (2026-11-09, Tefa: "make the hands go down on the sides when controllers go to sleep"): a frozen controller's hand
+constexpr bool  SLEEP_HANDS_ON = true;
+constexpr int   SLEEP_FRAMES = 20;               // this many frames with not one number of the controller's pose changed = asleep
+constexpr float SLEEP_DOWN_M = 0.62f;            // the resting hand: this far below the headset (about the hip)
+constexpr float SLEEP_SIDE_M = 0.22f;            // out to its own side
+constexpr float SLEEP_FWD_M = 0.04f;             // a little ahead, so the hand does not sink into the thigh
+constexpr float SLEEP_EASE_IN_S = 0.40f;         // down to the side over this long
+constexpr float SLEEP_EASE_OUT_S = 0.12f;        // back to the woken controller over this long
+
 } // namespace vn::settings
