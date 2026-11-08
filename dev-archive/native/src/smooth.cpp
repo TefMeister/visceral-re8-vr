@@ -196,7 +196,12 @@ void on_ik(MO* ik) {
                 g_free_q = pq;
                 ++g_free_count;
                 if (now_s() - g_free_log_t > 1.0f) { g_free_log_t = now_s(); LOGI("%s smooth: the game docked the free hand (LG up): put back on the controller (%d times so far)", TAG, g_free_count); }
-                if (g_have && frame == g_frame) return;
+                if (g_have && frame == g_frame) {
+                    // 2026-11-09 (Tefa: off the slide the hand "teleports"; b091 eased it over 0.40 s, but every later solve of the
+                    // frame put the free hand straight back on the controller): during the way back, a later solve draws the eased place
+                    if (g_owner == CONTROLLER && now_s() - g_t0 < g_ease_sec) player::set_pose(target_of(ik), rp + rotate(rq, g_final_p), qnorm(qmul(rq, g_final_q)));
+                    return;
+                }
                 lp = pp;
                 lq = pq;
                 rel = rotate(inv, lp - rp);
@@ -206,7 +211,8 @@ void on_ik(MO* ik) {
     }
     if (g_have && frame == g_frame) {
         if (g_free_frame == frame && free_now) {
-            player::set_pose(target_of(ik), g_free_p, g_free_q);   // a later solve's dock: the free hand stays put back
+            if (g_owner == CONTROLLER && now_s() - g_t0 < g_ease_sec) player::set_pose(target_of(ik), rp + rotate(rq, g_final_p), qnorm(qmul(rq, g_final_q)));   // 2026-11-09: still on the way back
+            else player::set_pose(target_of(ik), g_free_p, g_free_q);   // a later solve's dock: the free hand stays put back
             return;
         }
         const bool easing = now_s() - g_t0 < g_ease_sec;

@@ -148,8 +148,17 @@ void frame() {
     g_last_t = t;
     const auto& s = player::now();
     const bool play = FINGER_OPEN_ON && bridge::live() && bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
-    const bool free_hand = !bridge::held(bridge::S_LGRIP) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !rack::active() &&
-                           !reload::mag_in_hand() && !reload::round_in_hand() && !shellclip::playing_left();
+    bool free_hand = !bridge::held(bridge::S_LGRIP) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !rack::active() &&
+                     !reload::mag_in_hand() && !reload::round_in_hand() && !shellclip::playing_left();
+    // 2026-11-09 (Tefa, screenshot 01:41: "at the end of the slide rack, fingers still automatically open"): the hand comes off the
+    // slide right inside the slide's zone, where an empty hand opens toward the part. After letting go of a part the fingers stay as
+    // they are (no opening, no easing into the game's hold) until the left controller has left the grab areas once
+    static bool was_on_part = false, after_part = false;
+    const bool on_part = rack::active();
+    if (was_on_part && !on_part) after_part = true;
+    was_on_part = on_part;
+    if (after_part && !rack::left_near_gun()) after_part = false;
+    if (after_part) free_hand = false;
     // 2026-10-25 (Tefa, screenshots: the hand "teleport alternates between hand poses" near the gun): the open hand stepped on
     // at the zone's edge and fought Hand Poser, which holds the same joints. Now it ramps with the distance to the gun, and
     // stands down entirely while a poser holds any finger
