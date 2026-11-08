@@ -5,6 +5,8 @@
 #include "player.h"
 #include "settings.h"
 
+#include <windows.h>
+
 #include <cmath>
 
 namespace vn::sleephands {
@@ -25,6 +27,32 @@ struct Hand {
 };
 Hand g_hands[2] = {{"left", bridge::S_LPOS, bridge::S_LROT}, {"right", bridge::S_RPOS, bridge::S_RROT}};
 float g_last_t = -1.0f;
+
+// 2026-11-09 (Tefa: "Hand freeze and clicking the right thumbstick now automatically bring my hands to my sides like the controllers
+// were inactive, instead of freezing them where i hold them"): Hand Freeze holds a controller's pose perfectly still on purpose, and
+// Window View's CONTROL mode freezes the game's hands too; a frozen hand is never "asleep". Read from their shared blocks (the
+// layers run in this process): Hand Freeze's `frozen` bits (hand-freeze-vr, Local\FlatToVR_HandFreeze_v4, offset 8: 1 left, 2
+// right) and Window View's `ctrl_mode` (window-view-vr shared.h, Local\FlatToVR_WindowView_v2, offset 536).
+struct Block { const wchar_t* name; DWORD size; const volatile LONG* base = nullptr; DWORD tried = 0; };
+Block g_freeze{L"Local\\FlatToVR_HandFreeze_v4", 208};
+Block g_view{L"Local\\FlatToVR_WindowView_v2", 644};
+LONG read_long(Block& b, DWORD offset) {
+    if (b.base == nullptr) {
+        const DWORD now = GetTickCount();
+        if (b.tried != 0 && now - b.tried < 2000) return 0;
+        b.tried = now == 0 ? 1 : now;
+        HANDLE h = OpenFileMappingW(FILE_MAP_READ, FALSE, b.name);
+        if (h == nullptr) return 0;
+        b.base = static_cast<const volatile LONG*>(MapViewOfFile(h, FILE_MAP_READ, 0, 0, 0));   // the whole block, whatever its size
+        CloseHandle(h);
+        if (b.base == nullptr) return 0;
+    }
+    return b.base[offset / 4];
+}
+bool held_on_purpose(int side) {   // 0 left, 1 right
+    const LONG frozen = read_long(g_freeze, 8);
+    return (frozen & (side == 0 ? 1 : 2)) != 0 || read_long(g_view, 536) != 0;
+}
 
 float ease(float t) { return t * t * (3.0f - 2.0f * t); }
 
@@ -66,9 +94,10 @@ void frame() {
     const float t = now_s();
     const float dt = g_last_t < 0.0f ? 0.0f : std::fmin(0.1f, t - g_last_t);
     g_last_t = t;
-    for (auto& h : g_hands) {
+    for (int side = 0; side < 2; ++side) {
+        Hand& h = g_hands[side];
         read(h);
-        const bool asleep = h.moved && h.have && h.still >= SLEEP_FRAMES;   // (not S_HMD: it may drop with the controllers)
+        const bool asleep = h.moved && h.have && h.still >= SLEEP_FRAMES && !held_on_purpose(side);   // (not S_HMD: it may drop with the controllers)
         if (asleep != h.asleep) {
             h.asleep = asleep;
             LOGI("%s sleephands: the %s controller %s", TAG, h.name,
