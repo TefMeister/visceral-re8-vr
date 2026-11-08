@@ -19,6 +19,11 @@
 --
 -- PROVES ITSELF: every 10 s the log says how much frame-to-frame turn the gun hand had while held still, raw and smoothed.
 -- Menu: "Visceral RE8 hand smoothing" (on / off, strength, which hands). Saved in visceral_re8/hand_smooth.json.
+--
+-- PER GUN (2026-11-08, Tefa: "a system that allows me to switch on and off hand smoothing on guns individually, both left,
+-- right or both hands"): cfg.guns[<gun id>] = "off" | "left" | "right" | "both"; a gun with no entry follows the default
+-- (cfg.left / cfg.right). Set for the gun in hand from the Visceral Emporium (Comfort: "Smoothing on the <gun>") or the
+-- REFramework menu; each gun remembers its own. Melee and bare hands stay raw whatever is set (the 2026-11-02 rule).
 
 local TAG = "[visceral-re8-smooth]"
 local FILE = "visceral_re8/hand_smooth.json"
@@ -36,11 +41,18 @@ local DT_MIN, DT_MAX = 1 / 500, 0.1
 local STILL_RAD_S = 0.35      -- "held still" for the proof line: the raw hand turning slower than this
 local REPORT_S = 10.0
 
-local cfg = { on = true, strength = 4, right = true, left = true }
+local cfg = { on = true, strength = 4, right = true, left = true, guns = {} }
 pcall(function()
     local f = json.load_file(FILE)
     if type(f) == "table" then for k, v in pairs(f) do cfg[k] = v end end
 end)
+if type(cfg.guns) ~= "table" then cfg.guns = {} end
+local cur_gun = nil   -- the short id of the gun in hand ("ri3008"), nil with the knife or bare hands (gun_in_hand)
+local GUN_NAMES = { ri3008 = "M1851 Wolfsbane", ri3021 = "W870 TAC", ri3023 = "GM 79", ri3036 = "M1897", ri3040 = "M1911",
+    ri3042 = "F2 Rifle", ri3046 = "LEMI", ri3047 = "V61 Custom", ri3048 = "SYG-12", ri3050 = "S.T.A.K.E",
+    ri3122 = "Samurai Edge AW-01" }
+local function gun_label(id) return id and (GUN_NAMES[id] or id) or "gun in hand" end
+local MODES = { "default", "off", "left", "right", "both" }   -- the per-gun choice, in the menu's order
 local function save() pcall(function() json.dump_file(FILE, cfg) end) end
 
 -- ---- small maths ----------------------------------------------------------------------------------------------------------
@@ -65,7 +77,14 @@ local function new_hand(side, ci)
              raw_sum = 0, out_sum = 0, still_n = 0 }
 end
 local hands = { new_hand("left", 1), new_hand("right", 2) }
-local function wanted(h) return (h.side == "right" and cfg.right) or (h.side == "left" and cfg.left) end
+local function default_wanted(h) return (h.side == "right" and cfg.right) or (h.side == "left" and cfg.left) end
+local function wanted(h)
+    local m = cur_gun and cfg.guns[cur_gun]
+    if m == "off" then return false end
+    if m == "both" then return true end
+    if m == "left" or m == "right" then return h.side == m end
+    return default_wanted(h)
+end
 
 local function offsets_get(h)
     local q, p = nil, nil
@@ -147,7 +166,7 @@ local function gun_in_hand()
     local now = os.clock()
     if now - gun_cache.t < 0.2 then return gun_cache.yes end
     gun_cache.t = now
-    local yes = false
+    local yes, id = false, nil
     pcall(function()
         gun_core_t = gun_core_t or sdk.find_type_definition("app.WeaponGunCore")
         local pm = sdk.get_managed_singleton("app.PropsManager")
@@ -160,7 +179,16 @@ local function gun_in_hand()
         local pg = u and u:call("get_playerGun")
         local w = pg and pg:call("get_equipWeaponObject")
         yes = w ~= nil and gun_core_t ~= nil and w:get_type_definition():is_a(gun_core_t)
+        if yes then
+            local go = w:call("get_GameObject") or w:get_field("<owner>k__BackingField")
+            local nm = go and tostring(go:call("get_Name")) or ""
+            id = nm:match("^(ri%d+)") or (nm ~= "" and nm or nil)
+        end
     end)
+    if id ~= cur_gun then
+        cur_gun = id
+        if id then log.info(string.format("%s %s in hand: smoothing %s", TAG, gun_label(id), cfg.guns[id] or "as the default")) end
+    end
     if yes ~= gun_cache.yes then log.info(TAG .. (yes and " working: a gun is in hand" or " paused: no gun in hand (knife, bare hands)")) end
     gun_cache.yes = yes
     return yes
@@ -168,7 +196,8 @@ end
 
 local function run()
     if rawget(_G, "re8vr") == nil or vrmod == nil then return end
-    local active = cfg.on and vrmod:is_hmd_active() and gun_in_hand()
+    local gun = gun_in_hand()   -- every time, so the menus always name the gun in hand
+    local active = cfg.on and vrmod:is_hmd_active() and gun
     local ctl = nil
     if active then pcall(function() ctl = vrmod:get_controllers() end) end
     if ctl == nil or ctl[1] == nil or ctl[2] == nil then active = false end
@@ -212,7 +241,7 @@ local function run()
                 TAG, r.still_n, math.deg(r.raw_sum / r.still_n), math.deg(r.out_sum / r.still_n),
                 100 * (1 - (r.out_sum / math.max(1e-9, r.raw_sum))),
                 gn > 0 and string.format("%.4f", math.deg(r.game_sum / gn)) or "not read",
-                tostring(cfg.strength), (cfg.on and cfg.right) and "(on)" or "(OFF)"))
+                tostring(cfg.strength), (cfg.on and wanted(hands[2])) and "(on)" or "(OFF)"))
         end
         for _, h in ipairs(hands) do h.raw_sum, h.out_sum, h.still_n, h.game_sum, h.game_n = 0, 0, 0, 0, 0 end
     end
@@ -257,8 +286,42 @@ re.on_draw_ui(function()
     if c then cfg.right = v; save() end
     c, v = imgui.checkbox("Left hand", cfg.left)
     if c then cfg.left = v; save() end
+    imgui.text("(the two boxes above are the default for guns without their own setting)")
+    if cur_gun then
+        local cur = 1
+        for i, m in ipairs(MODES) do if (cfg.guns[cur_gun] or "default") == m then cur = i end end
+        c, v = imgui.combo("This gun: " .. gun_label(cur_gun), cur, { "As the default", "Off", "Left hand only", "Right hand only", "Both hands" })
+        if c then cfg.guns[cur_gun] = (v > 1) and MODES[v] or nil; save() end
+    else
+        imgui.text("Take a gun out to set its own smoothing.")
+    end
     imgui.text("Steady when the hand moves slowly; fast moves are followed at once.")
     imgui.tree_pop()
+end)
+
+-- ---- the Visceral Emporium (Comfort): this gun's smoothing, and the default -------------------------------------------------
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+local this_gun = { tab = "comfort", order = 40, kind = "choice", label = "Smoothing on the gun in hand",
+    choices = { "As the default", "Off", "Left hand only", "Right hand only", "Both hands" },
+    help = "Each gun remembers its own. The knife and bare hands are never smoothed.",
+    get = function()
+        if not cur_gun then return 1 end
+        for i, m in ipairs(MODES) do if (cfg.guns[cur_gun] or "default") == m then return i end end
+        return 1
+    end,
+    set = function(v) if cur_gun then cfg.guns[cur_gun] = (v > 1) and MODES[v] or nil; save() end end }
+table.insert(_G.VISCERAL_OPTIONS, this_gun)
+table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 41, kind = "choice", label = "Smoothing, the default",
+    choices = { "Off", "Left hand only", "Right hand only", "Both hands" },
+    help = "For every gun without its own setting.",
+    get = function()
+        if not cfg.on or (not cfg.left and not cfg.right) then return 1 end
+        if cfg.left and cfg.right then return 4 end
+        return cfg.left and 2 or 3
+    end,
+    set = function(v) cfg.on = true; cfg.left = (v == 2 or v == 4); cfg.right = (v == 3 or v == 4); save() end })
+re.on_frame(function()   -- the row names the gun in hand
+    this_gun.label = cur_gun and ("Smoothing on the " .. gun_label(cur_gun)) or "Smoothing on the gun in hand (none)"
 end)
 
 log.info(TAG .. " loaded (" .. (cfg.on and ("on, strength " .. tostring(cfg.strength)) or "off") .. ")")
