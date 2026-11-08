@@ -58,6 +58,14 @@ bool g_capture = false;       // take the hand's turn (and, with no slide joint,
 bool g_slide_ok = false;
 Vec3 g_slide_pos{};
 Quat g_slide_gun{0, 0, 0, 1};
+// 2026-11-08 (b089, Tefa: the LEMI slide hand lands 20-33 cm off, high and back, after the controllers were set down and woke up;
+// b088's line showed the IK did exactly what it was told and OUR target sat 35 cm from the drawn slide instead of the usual 11-14):
+// the slide's place in the gun hand was read at LateUpdateBehavior, before the arms are solved, against the right hand's IK target;
+// the gun there is still where the animation put it, which after a controller sleep is ~20 cm from the hand's target. Now it is read
+// as DRAWN (BeginRendering, arms solved, the gun on the hand), every frame until the hand takes hold, and that is what is used.
+Vec3 g_draw_pos{};
+Quat g_draw_gun{0, 0, 0, 1};
+float g_draw_t = -100.0f;
 float g_z_anim = 0.0f;
 bool g_slide_frozen = false;  // the spot is kept from the first measure after taking hold (the game animates the pump joint)
 bool g_rel_ok = false;
@@ -660,7 +668,20 @@ void frame() {
     }
 }
 
-void begin_render_point() { write_joint(); }
+void begin_render_point() {
+    write_joint();
+    if (g_hand_on || g_joint == nullptr) return;   // b089: the slide's place in the gun hand, as drawn (kept from the frame before a take)
+    const auto& s = player::now();
+    Vec3 rp, jp;
+    Quat rq, gq;
+    if (s.ik_right == nullptr || s.weapon_tf == nullptr || !player::get_pose(target_of(s.ik_right), rp, rq) ||
+        !get_v3(JOINT, g_joint, "get_Position", jp) || !get_q(XFORM, s.weapon_tf, "get_Rotation", gq))
+        return;
+    const Quat inv = qinv(rq);
+    g_draw_pos = rotate(inv, jp - rp);
+    g_draw_gun = qnorm(qmul(inv, qnorm(gq)));
+    g_draw_t = now_s();
+}
 
 void late_point() {
     if (g_hand_on && g_slide_frozen) { write_joint(); return; }   // Tefa 2026-10-19: the hand wandered on the shotgun's fore-end
@@ -673,6 +694,12 @@ void late_point() {
         const Quat inv = qinv(rq);
         g_slide_pos = rotate(inv, jp - rp);
         g_slide_gun = qnorm(qmul(inv, qnorm(gq)));
+        if (now_s() - g_draw_t < 0.2f) {   // b089: the drawn place wins (see g_draw_pos)
+            if (g_hand_on && !g_slide_frozen)
+                LOGI("%s rack: slide place as drawn vs read early: %.1f cm apart (the drawn one is used)", TAG, dist(g_slide_pos, g_draw_pos) * 100.0f);
+            g_slide_pos = g_draw_pos;
+            g_slide_gun = g_draw_gun;
+        }
         g_z_anim = lp.z;
         g_slide_ok = true;
         if (g_hand_on && !bolt()) {   // 2026-10-24 (Tefa: the slide "closes straight away"): start from where the game holds it
