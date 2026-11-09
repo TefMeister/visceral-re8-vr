@@ -193,6 +193,11 @@ _G.__visceral_right_rack = function() return rack_rg end
 -- left and right hand"): which holster spot each hand is inside, for Hand Poser only (bridge slots 214 left, 215 right; 0 none,
 -- 1 right shoulder, 2 right hip, 3 left hip, 4 left shoulder = the SPOTS order). The left hand's spots take nothing out: report only
 local S_LEFT_HOLSTER, S_RIGHT_HOLSTER = 214, 215
+-- 2026-11-09 evening (Tefa: holster spots should show up for a hand only "if there is something that an LG press does in that
+-- spot"; "yeas please on the holsters"): a hand registers at a holster spot only where its grip does something there. The right
+-- grip takes a gun out at all four; LG does nothing at any of them today, so the left hand registers at none. When LG gets a job
+-- at a spot, set that spot true here
+local LEFT_GRIP_DOES = { ["right shoulder"] = false, ["right hip"] = false, ["left hip"] = false, ["left shoulder"] = false }
 local inside_l = {}
 local told = { -1, -1 }
 local function publish(l, r)
@@ -211,7 +216,7 @@ local function which_spot(hand, hmd, ins)   -- the same enter / leave distances 
         local d = dist(hand, spot_pos(hmd, s))
         if not ins[s.name] and d < ENTER_M then ins[s.name] = true
         elseif ins[s.name] and d > LEAVE_M then ins[s.name] = false end
-        if ins[s.name] and found == 0 then found = i end
+        if ins[s.name] and found == 0 and LEFT_GRIP_DOES[s.name] == true then found = i end   -- (only the left hand uses this)
     end
     return found
 end
