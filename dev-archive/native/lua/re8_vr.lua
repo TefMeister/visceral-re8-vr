@@ -1169,6 +1169,13 @@ end
 local function fix_player_camera(player_camera)
     if true then
         re8vr:fix_player_camera(player_camera)
+        -- VISCERAL (2026-11-10): the body turn (visceral_re8_bodyturn.lua) works out the body's direction right after
+        -- the loader has written the head's; it changes nothing here
+        local vbt = _G.VISCERAL_BODY_TURN
+        if vbt ~= nil and vbt.on and vbt.after ~= nil then
+            local ok, e = pcall(vbt.after, player_camera)
+            if not ok then vbt.last_error = tostring(e) end
+        end
         return
     end
 
