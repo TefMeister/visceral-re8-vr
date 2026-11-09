@@ -300,6 +300,39 @@ local function visceral_block_allowed(lt, lg)
     return ok
 end
 
+-- Visceral RE8 (2026-11-09 evening, Tefa: "i still can't get the guard text to come up, all i have to do is just stretch my hands
+-- out and hold LT right?"; earlier: "just putting hand in front and pressing LT without any sound is the way to go"): praydog's
+-- gesture also needs both controllers turned (palms toward the face), which is not what Tefa does. So BOTH hands in front of the
+-- face (within the same cone praydog uses) + LT on its own + the left hand not docked is a block too, however the hands are turned
+local BLOCK_BY_LT_IN_FRONT = true
+local BLOCK_FRONT_DOT = 0.8      -- praydog's "in front": the hand's direction from the headset within about 37 deg of the view
+local lt_front_log = nil
+local function visceral_lt_block(lt, lg)
+    if not BLOCK_BY_LT_IN_FRONT then return false end
+    local docked = re8vr.was_gripping_weapon == true or re8vr.is_holding_left_grip == true
+    if lt ~= true or lg == true or docked then lt_front_log = nil; return false end
+    local ok, front = pcall(function()
+        local c = vrmod:get_controllers()
+        local hmd = vrmod:get_transform(0)
+        local lm, rm = vrmod:get_transform(c[1]), vrmod:get_transform(c[2])
+        local f, h = hmd[2], hmd[3]
+        local function in_front(m)
+            local p = m[3]
+            local x, y, z = p.x - h.x, p.y - h.y, p.z - h.z
+            local n = math.sqrt(x * x + y * y + z * z)
+            if n < 0.001 then return false end
+            return math.abs((f.x * x + f.y * y + f.z * z) / n) >= BLOCK_FRONT_DOT
+        end
+        return in_front(lm) and in_front(rm)
+    end)
+    front = ok and front == true
+    if front ~= lt_front_log then
+        log.info("[visceral-re8-block] LT on its own: " .. (front and "both hands in front: BLOCK" or "hands not both in front of the face: no block"))
+        lt_front_log = front
+    end
+    return front
+end
+
 local function update_pad_device(device)
     if not vrmod:is_hmd_active() then
         re8vr.is_holding_left_grip = false
@@ -487,7 +520,8 @@ local function update_pad_device(device)
     if rawget(_G, "__visceral_reload_busy") == true then re8vr.wants_block = false -- Visceral RE8: a reload in the left hand (2026-10-18)
     elseif re8vr.wants_block and not visceral_block_allowed(vrmod:is_action_active(action_trigger, left_joystick),
             vrmod:is_action_active(action_grip, left_joystick)) then re8vr.wants_block = false -- Visceral RE8 (2026-11-09)
-    elseif re8vr.wants_block or vrmod:is_action_active(action_block, left_joystick) or vrmod:is_action_active(action_block, right_joystick) then
+    elseif re8vr.wants_block or vrmod:is_action_active(action_block, left_joystick) or vrmod:is_action_active(action_block, right_joystick)
+        or visceral_lt_block(vrmod:is_action_active(action_trigger, left_joystick), vrmod:is_action_active(action_grip, left_joystick)) then -- Visceral RE8 (2026-11-09 evening)
         cur_button = cur_button | via.hid.GamePadButton.LTrigTop
         re8vr.wants_block = true
     end
