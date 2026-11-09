@@ -795,11 +795,33 @@ void install() {
     if (n == 0) LOGW("%s reload: no tryReload / requestReload found: the game's own reload stays on (see type_probe.txt)", TAG);
 }
 
+// b098 (2026-11-09, Tefa, screenshots 11:46: "when i launch the game and first grab the Lemi grip, my hand is away ... when i
+// do LG+B eject and put the mag back in, it's fine"): the magazine's seat (g_rest_*) was read only when a magazine first came
+// out, so until then the hand docked on a blank default (log dockreport: forward +2.4 cm, yaw 19 against -2.3 cm, yaw 0 after
+// an eject). It is now read from the seated magazine shortly after each gun comes out.
+namespace {
+bool g_rest_need = false;
+float g_rest_need_t = 0.0f;
+void read_rest(const char* why) {
+    Vec3 p, sc;
+    Quat q;
+    if (g_joint == nullptr || !get_v3(JOINT, g_joint, "get_LocalPosition", p) || !get_q(JOINT, g_joint, "get_LocalRotation", q)) return;
+    if (!get_v3(JOINT, g_joint, "get_LocalScale", sc) || sc.x < 0.01f) sc = Vec3{1, 1, 1};
+    g_rest_pos = p;
+    g_rest_rot = qnorm(q);
+    g_rest_scale = sc;
+    g_rest_need = false;
+    LOGI("%s reload: %s magazine seat read (%s): local %.3f %.3f %.3f, turn %.3f %.3f %.3f %.3f", TAG, g_id.c_str(), why, p.x, p.y, p.z, g_rest_rot.x, g_rest_rot.y, g_rest_rot.z, g_rest_rot.w);
+}
+} // namespace
+
 void frame() {
     if (!RELOAD_ON) return;
     const std::string id = weapons::canonical(player::now().weapon_id);
     if (id != g_id) {
         put_back_on_swap(id.empty() ? "weapon put away" : "weapon changed");
+        g_rest_need = MAG_SEAT_READ_ON;
+        g_rest_need_t = now_s();
         g_id = id;
         g_w = weapons::find(id);
         resolve_frame();
@@ -863,6 +885,8 @@ void frame() {
 
 void late_point() {
     if (!managed_now()) return;
+    if (g_rest_need && g_w->reload == Reload::MAG && g_st == St::SEATED && (now_s() - g_rest_need_t >= MAG_SEAT_READ_SEC || g_hand_on_mag))
+        read_rest(g_hand_on_mag ? "the hand took it first" : "the gun is out");
     pose_shell();
     if (g_w->reload == Reload::MAG) pose_joint();
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();

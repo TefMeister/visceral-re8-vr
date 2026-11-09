@@ -82,3 +82,15 @@ out and falls. The same magazine at the well with LT held now goes on at the bot
 (instead of the 30 % push). Not yet worn; the likely rough edge: a small jump of the hand and magazine where it leaves the bottom.
 
 **b096 worn 2026-11-09 11:27 (Tefa):** the slide now stays back after the magazine goes in (log "the game holds the slide 67% back") and the magazine rail works ("otherwise seems to be working better again") `[verified-live 2026-11-09, headset, n=1]`; but taking the slide snapped it shut. Log: the take had no "N% back when taken" line, so the hand started from closed: our own hand-on write had already shut the joint before the take read it. **b097** (compiled, not installed while the game runs): a slide held locked back starts the hand at the held travel.
+
+**b097 worn 2026-11-09 ~11:45 (Tefa): "yep that is working too now!"** `[verified-live 2026-11-09, headset, n=1]`.
+
+## b098 (2026-11-09 11:5x, compiled, not installed while the game runs): the first grab after a launch
+
+Tefa (two screenshots, 11:46): *"when i launch the game and first grab the Lemi grip, my hand is away like in one of the
+screenshots, then when i do LG+B eject and put the mag back in, it's fine, also fine after swapping weapons"*. Log: the first
+two grabs docked the palm at forward +2.4 cm, yaw 19 deg (dockreport), every grab after the first eject at -2.3 cm, yaw 0.
+Cause: the magazine's seat (`g_rest_pos` / `g_rest_rot`) was read only when a magazine came out (begin_drop / pull_out); before
+that the hand docked on a blank default seat. Now `read_rest` reads it from the seated magazine 0.5 s after every gun comes
+out (or at once if the hand takes it first); log "magazine seat read". Switch MAG_SEAT_READ_ON. Also from the same log: the
+hand turns about 125 deg in one frame when it docks onto the magazine; the forearm follows at 20 deg a frame (b095's limit).

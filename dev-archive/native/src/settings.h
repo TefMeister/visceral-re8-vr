@@ -99,6 +99,9 @@ constexpr float PISTOL_INSERT_PUSH = 0.30f;
 // b096 (2026-11-09, Tefa): a handgun magazine moves only along the grip until it is out (reload.cpp, THE GRIP'S RAIL). The
 // line's length is RELOAD_MAG_DROP_M. false = b095 (straight into the hand).
 constexpr bool  MAG_RAIL_ON = true;
+// b098: each magazine gun's seat is read from the game this long after it comes out (was: only at the first eject)
+constexpr bool  MAG_SEAT_READ_ON = true;
+constexpr float MAG_SEAT_READ_SEC = 0.5f;
 constexpr float MAG_RAIL_SEAT_U = 0.08f;       // pushed up to within this much of the top (of the line) = seated
 constexpr float MAG_RAIL_MOVED = 0.25f;        // ...but only after it moved this much on the line (no instant re-seat on B)
 constexpr float MAG_RAIL_LEAVE_EXTRA = 0.25f;  // one put on at the bottom leaves only this much past the bottom (no flicker)
