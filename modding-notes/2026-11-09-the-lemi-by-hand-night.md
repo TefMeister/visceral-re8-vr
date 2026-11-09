@@ -80,3 +80,5 @@ measured in the right hand target's frame (the gun's own transform lags); the dr
 hand; pushed back to within MAG_RAIL_SEAT_U of the top after moving MAG_RAIL_MOVED = seated (no LT needed); LG let go = slides
 out and falls. The same magazine at the well with LT held now goes on at the bottom of the line and is pushed up the same way
 (instead of the 30 % push). Not yet worn; the likely rough edge: a small jump of the hand and magazine where it leaves the bottom.
+
+**b096 worn 2026-11-09 11:27 (Tefa):** the slide now stays back after the magazine goes in (log "the game holds the slide 67% back") and the magazine rail works ("otherwise seems to be working better again") `[verified-live 2026-11-09, headset, n=1]`; but taking the slide snapped it shut. Log: the take had no "N% back when taken" line, so the hand started from closed: our own hand-on write had already shut the joint before the take read it. **b097** (compiled, not installed while the game runs): a slide held locked back starts the hand at the held travel.

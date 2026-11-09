@@ -593,6 +593,16 @@ void frame() {
                     g_from_left = g_near_left;
                     LOGI("%s rack: slide taken in its %s-side sphere", TAG, g_from_left ? "left" : "right");
                 } else g_from_left = slide_side(left) && left;
+                // b097 (2026-11-09, Tefa: "when i put my hand on the slider then slide teleports close"): the take used to read
+                // how far back the slide was from the joint, which our own hand-on write had already shut that frame; a slide
+                // we hold locked back starts the hand's travel from there instead
+                if (SLIDE_LOCK_HOLD_ON && g_parked && !pump()) {
+                    if (auto it = g_lock_by_id.find(g_id); it != g_lock_by_id.end() && it->second > g_travel) {
+                        g_travel = it->second;
+                        if (g_travel >= 0.97f) g_pulled = true;
+                        LOGI("%s rack: the slide was held %.0f%% back when taken: it stays there", TAG, g_travel * 100.0f);
+                    }
+                }
                 if (RACK_TAKE_BUZZ) bridge::rumble(bridge::LEFT, RACK_BUZZ_AMP * 0.5f, RACK_BUZZ_SEC, RELOAD_BUZZ_HZ);
             }
         }
