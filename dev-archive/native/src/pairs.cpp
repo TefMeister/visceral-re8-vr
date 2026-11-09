@@ -261,6 +261,19 @@ void frame() {
         if (area != last_area) { last_area = area; LOGI("%s pairs: left hand area %d", TAG, (int)area); }
         bridge::put(bridge::S_LEFT_AREA, area);
     }
+    // b104 (2026-11-09): the RIGHT hand's gun zone while the LEFT hand holds the gun (the Wolfsbane's cover / drum, the rifle's
+    // bolt), so Hand Poser can keep the right hand's poses per area too. The right hand holding the gun is in no area
+    {
+        float area = 0.0f;
+        Quat gq;
+        Vec3 hp;
+        zones::Key k = zones::MAG;
+        if ((gate::gun_rot(gq) || rack_right::gun_rot(gq)) && bridge::room_to_world(bridge::hand_pos(bridge::RIGHT), hp) && zones::area_of(hp, k))
+            area = 10.0f + (float)k;
+        static float last_r = -1.0f;
+        if (area != last_r) { last_r = area; LOGI("%s pairs: right hand area %d", TAG, (int)area); }
+        bridge::put(bridge::S_RIGHT_AREA, area);
+    }
     // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
     // (2026-11-08: 4 = the right hand on the bolt from the click at the back until it is home, as the left's 11)
     bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? (rack::right_on() && rack::at_back() ? 4.0f : 2.0f) : gate::right_lifted() ? 3.0f : 0.0f);   // 3: over the hammer (2026-11-06)

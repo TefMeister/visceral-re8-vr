@@ -114,6 +114,11 @@ enum Slot : int {
     S_CLIP_PLAYING = 186,     // 2026-11-05, WRITTEN BY THE PLUGIN: a finger clip plays (shellclip.cpp): +1 the left hand, +2 the right; Hand Poser stands aside for that hand
     S_MENU_KEY = 185,         // 2026-11-04, WRITTEN BY THE EMPORIUM SCRIPT: 1 = press REFramework's menu key once (menukey.cpp), the plugin clears it
     S_GAME_SFX_SEQ = 182,     // 2026-11-01, WRITTEN BY THE SOUNDS SCRIPT: +1 on every gun sound the game itself plays (not ours, not footsteps)
+    // 2026-11-09 (b104, Tefa: Hand Poser must "read all the grip zones we have in the game for all the guns and holster zones for
+    // both left and right hand"): 214 / 215 WRITTEN BY THE HOLSTER SCRIPT: the holster spot the left / right hand is inside (0 none,
+    // 1 right shoulder, 2 right hip, 3 left hip, 4 left shoulder); 216 WRITTEN BY THE PLUGIN: the gun zone the RIGHT hand is in while
+    // the LEFT hand holds the gun (the Wolfsbane, the rifle's bolt by RG): 0 none, 10 + zones::Key as S_LEFT_AREA. pairs.cpp
+    S_LEFT_HOLSTER = 214, S_RIGHT_HOLSTER = 215, S_RIGHT_AREA = 216,
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

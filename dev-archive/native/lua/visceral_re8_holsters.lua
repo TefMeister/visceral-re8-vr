@@ -189,16 +189,49 @@ local function rack_combo(v)
 end
 _G.__visceral_right_rack = function() return rack_rg end
 
+-- 2026-11-09 (b104, Tefa: Hand Poser must "read all the grip zones we have in the game for all the guns and holster zones for both
+-- left and right hand"): which holster spot each hand is inside, for Hand Poser only (bridge slots 214 left, 215 right; 0 none,
+-- 1 right shoulder, 2 right hip, 3 left hip, 4 left shoulder = the SPOTS order). The left hand's spots take nothing out: report only
+local S_LEFT_HOLSTER, S_RIGHT_HOLSTER = 214, 215
+local inside_l = {}
+local told = { -1, -1 }
+local function publish(l, r)
+    local b = rawget(_G, "visceral_re8_bridge")
+    if b == nil or not b.ready() then return end
+    pcall(function() b.w(S_LEFT_HOLSTER, l); b.w(S_RIGHT_HOLSTER, r) end)
+    if l ~= told[1] or r ~= told[2] then
+        told[1], told[2] = l, r
+        local nm = function(i) return i > 0 and SPOTS[i].name or "none" end
+        L(string.format("holster spot for Hand Poser: left hand %s, right hand %s", nm(l), nm(r)))
+    end
+end
+local function which_spot(hand, hmd, ins)   -- the same enter / leave distances as the right hand's grabs
+    local found = 0
+    for i, s in ipairs(SPOTS) do
+        local d = dist(hand, spot_pos(hmd, s))
+        if not ins[s.name] and d < ENTER_M then ins[s.name] = true
+        elseif ins[s.name] and d > LEAVE_M then ins[s.name] = false end
+        if ins[s.name] and found == 0 then found = i end
+    end
+    return found
+end
+
 re.on_pre_application_entry("UpdateBehavior", function()
     _G.__visceral_holster_zone = false
-    if not ON or not vrmod:is_hmd_active() then return end
+    if not ON or not vrmod:is_hmd_active() then publish(0, 0) return end
     local v = rawget(_G, "re8vr")
-    if v == nil or v.player == nil then return end
-    if v.is_in_cutscene == true then return end
+    if v == nil or v.player == nil or v.is_in_cutscene == true then publish(0, 0) return end
     local ctrls = safe(function() return vrmod:get_controllers() end)
     local hmd = safe(function() return vrmod:get_transform(0) end)
     local rm = ctrls and ctrls[2] and safe(function() return vrmod:get_transform(ctrls[2]) end)
-    if hmd == nil or rm == nil then return end
+    if hmd == nil or rm == nil then publish(0, 0) return end
+    do
+        local lm = ctrls[1] and safe(function() return vrmod:get_transform(ctrls[1]) end)
+        local lspot = lm ~= nil and which_spot(pos_of(lm), hmd, inside_l) or 0
+        local rspot = 0
+        for i, s in ipairs(SPOTS) do if inside[s.name] and rspot == 0 then rspot = i end end   -- last frame's (updated below)
+        publish(lspot, rspot)
+    end
     local hand = pos_of(rm)
     local rj = vrmod:get_right_joystick()
     local grip = vrmod:is_action_active(vrmod:get_action_grip(), rj) == true
