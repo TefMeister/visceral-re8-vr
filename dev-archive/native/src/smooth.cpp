@@ -118,6 +118,64 @@ float g_free_log_t = -10.0f;
 // others; the log: 29 interaction-profile switches in 20 minutes, each after the controllers dropped out of tracking): the
 // put-back used an offset learned over time, which a bad moment could poison. praydog's own offsets now come through the
 // bridge each frame (slots 106-112), and the prediction is exactly his placement: controller + rotated position offset
+// 2026-11-10 (Fable; Tefa 2026-11-09: "left hand is still jittery when on it's own"): the put-back above fired about once
+// a frame for a whole 17-minute run (65,905 times) with the game's dock already off (nodock), so it is not catching docks:
+// it is the prediction (a frame-start snapshot of the controller and the camera) disagreeing with praydog's own fresh
+// placement, and the snapshot is what got drawn. The probe measures that gap per arm solve; the mode picks what is drawn:
+//   0 = as before (put back whenever the target is FREE_DEVIATION_M from the prediction)
+//   1 = put back only when praydog's own flag says he docked (was_gripping_weapon); otherwise his placement is drawn,
+//       exactly as the right hand's is
+// reframework/data/visceral_re8/freehand.json {"mode": 0|1} overrides FREE_PUTBACK_MODE, re-read once a second
+int g_fh_mode = FREE_PUTBACK_MODE;
+float g_fh_mode_t = -10.0f;
+void fh_mode_refresh() {
+    const float t = now_s();
+    if (t - g_fh_mode_t < 1.0f) return;
+    g_fh_mode_t = t;
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    json::Value v;
+    int m = FREE_PUTBACK_MODE;
+    if (json::load_file((std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "freehand.json").wstring(), v) && v.kind == json::Value::OBJ) {
+        const auto* x = v.get("mode");
+        if (x != nullptr && x->kind == json::Value::NUM) m = (int)x->n;
+    }
+    if (m != g_fh_mode) { g_fh_mode = m; LOGI("%s smooth: free-hand put-back mode %d (%s)", TAG, m, m == 1 ? "only when praydog says he docked" : "whenever the target leaves the prediction"); }
+}
+struct FhProbe { int n = 0, over = 0; float sum = 0.0f, mx = 0.0f; };
+FhProbe g_fh[4];
+int g_fh_solve = 0, g_fh_frames = 0, g_fh_flag_frames = 0, g_fh_putbacks = 0;
+float g_fh_frame = -1.0f, g_fh_t = -10.0f, g_fh_step_sum = 0.0f, g_fh_step_max = 0.0f;
+Vec3 g_fh_last_c{};
+void fh_probe(float frame, float dev, Vec3 cp) {
+    if (frame != g_fh_frame) {
+        g_fh_frame = frame;
+        g_fh_solve = 0;
+        ++g_fh_frames;
+        if (bridge::flag(bridge::S_GRIPPING_WEAPON)) ++g_fh_flag_frames;
+        const float step = dist(cp, g_fh_last_c);
+        g_fh_last_c = cp;
+        if (step < 0.5f) { g_fh_step_sum += step; g_fh_step_max = std::fmax(g_fh_step_max, step); }
+    }
+    FhProbe& b = g_fh[g_fh_solve < 3 ? g_fh_solve : 3];
+    ++g_fh_solve;
+    ++b.n;
+    b.sum += dev;
+    b.mx = std::fmax(b.mx, dev);
+    if (dev > FREE_DEVIATION_M) ++b.over;
+    if (now_s() - g_fh_t < 2.0f) return;
+    g_fh_t = now_s();
+    if (g_fh_frames > 0)
+        LOGI("%s freehand probe (mode %d): %d frames, praydog-docked flag on %d, put back %d; the predicted hand moved %.1f mm a frame (max %.1f); gap prediction-to-praydog in mm, mean/max/over-4cm per solve: #1 %.1f/%.1f/%d of %d, #2 %.1f/%.1f/%d of %d, #3 %.1f/%.1f/%d of %d, later %.1f/%.1f/%d of %d",
+             TAG, g_fh_mode, g_fh_frames, g_fh_flag_frames, g_fh_putbacks, g_fh_step_sum / g_fh_frames * 1000.0f, g_fh_step_max * 1000.0f,
+             g_fh[0].n ? g_fh[0].sum / g_fh[0].n * 1000.0f : 0.0f, g_fh[0].mx * 1000.0f, g_fh[0].over, g_fh[0].n,
+             g_fh[1].n ? g_fh[1].sum / g_fh[1].n * 1000.0f : 0.0f, g_fh[1].mx * 1000.0f, g_fh[1].over, g_fh[1].n,
+             g_fh[2].n ? g_fh[2].sum / g_fh[2].n * 1000.0f : 0.0f, g_fh[2].mx * 1000.0f, g_fh[2].over, g_fh[2].n,
+             g_fh[3].n ? g_fh[3].sum / g_fh[3].n * 1000.0f : 0.0f, g_fh[3].mx * 1000.0f, g_fh[3].over, g_fh[3].n);
+    for (auto& b2 : g_fh) b2 = FhProbe{};
+    g_fh_frames = g_fh_flag_frames = g_fh_putbacks = 0;
+    g_fh_step_sum = g_fh_step_max = 0.0f;
+}
 bool praydog_offsets(Vec3& p, Quat& q) {
     const float x = bridge::view(bridge::S_LHAND_OFF);
     if (!bridge::has(x)) return false;
@@ -194,7 +252,11 @@ void on_ik(MO* ik) {
         if (controller_now(cp, cq)) {
             const Vec3 pp = cp + rotate(cq, g_cal_p);
             const Quat pq = qnorm(qmul(cq, g_cal_q));
-            if (dist(lp, pp) > FREE_DEVIATION_M) {
+            fh_mode_refresh();
+            fh_probe(frame, dist(lp, pp), pp);
+            const bool put_back = g_fh_mode == 1 ? (bridge::flag(bridge::S_GRIPPING_WEAPON) && dist(lp, pp) > FREE_DEVIATION_M) : dist(lp, pp) > FREE_DEVIATION_M;
+            if (put_back) {
+                ++g_fh_putbacks;
                 player::set_pose(target_of(ik), pp, pq);
                 g_free_frame = frame;
                 g_free_p = pp;

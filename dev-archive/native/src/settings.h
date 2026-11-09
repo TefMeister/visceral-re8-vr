@@ -343,6 +343,7 @@ constexpr float SMOOTH_ARC_SEC = 0.30f;           // the same ease when the hand
 constexpr float SMOOTH_ARC_MAX_M = 0.30f;         // the arc's height is clamped to this
 constexpr float SMOOTH_TOWARD_M = 0.01f;          // a later solve asking this much closer to the left controller = an undo (drawn)
 constexpr float FREE_TURN_DEVIATION_RAD = 0.35f;  // smooth.cpp: the free hand's target turned this far (20 deg) from its controller prediction = a dock
+constexpr int   FREE_PUTBACK_MODE = 1;            // smooth.cpp (2026-11-10): 0 = put the free hand back whenever its target leaves the prediction; 1 = only when praydog says he docked (data/visceral_re8/freehand.json overrides)
 constexpr float FREE_DEVIATION_M = 0.04f;         // smooth.cpp: the free hand's target this far from its controller prediction = a dock (put back)
 constexpr int   FREE_LEARN_FRAMES = 5;            // free frames in a row before the controller offset is learned from them
 constexpr float FREE_LEARN_RATE = 0.05f;          // how fast the learned offset follows
