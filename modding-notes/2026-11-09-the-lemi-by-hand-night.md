@@ -94,3 +94,23 @@ Cause: the magazine's seat (`g_rest_pos` / `g_rest_rot`) was read only when a ma
 that the hand docked on a blank default seat. Now `read_rest` reads it from the seated magazine 0.5 s after every gun comes
 out (or at once if the hand takes it first); log "magazine seat read". Switch MAG_SEAT_READ_ON. Also from the same log: the
 hand turns about 125 deg in one frame when it docks onto the magazine; the forearm follows at 20 deg a frame (b095's limit).
+
+**b098 worn 2026-11-09 ~12:2x (Tefa): "it did yes! landed right where it had to"** `[verified-live 2026-11-09, headset, n=1]`.
+
+## b099 (2026-11-09 12:30, compiled, installed, not worn): the ready and free hand, LT closes the hand on a part
+
+Tefa (12:2x): *"to have the hand at only one pose when it is in any activation sphere, i'll make the pose and you make it animate
+slightly ... when letting go of which ever grabbing pose, the hand then naturally opens up to that default pose if still in the
+activation area, or if moved away then to the hand-open pose"*; then *"i want the LG to put the left hand on the part, for example
+dock the left hand on the slide, but leave the hand open, then LT closes it"*; then *"can you make your versions of the loose hand
+in activation area and the one outside it right now, and i'll tweak them if needed"*.
+
+- Native (`fingers.cpp` left_area, `pairs.cpp`): a free left hand is Hand Poser spot 14 "ready" inside an activation area (the
+  pouch, the seated magazine, a slide / pump / bolt zone or the gun line), 15 "free" elsewhere (READY_POSES_ON). The b093 "fingers
+  stay shut after a part" is off with it. A magazine on the grip's line is spot 13 (carried), not 4.
+- Hand Poser (`hand-poser-vr` hand_poser.lua): "ready" / "free" use the gun's own pose if kept, else `any gun @ ready` /
+  `any gun @ free` (Claude's first versions: free = the left side of Tefa's "no gun" pose; ready = fingers opened to about a third
+  of that curl and spread a little); with neither kept, the hand is Visceral's as before. Every pose change is eased
+  (POSE_BLEND_SEC 0.15, from where the joint stood) instead of written in one frame; the ready pose sways (2 deg, two slow waves).
+  Docked on a worked part (slide, slide from the left, magazine, drum, hammer) the hand shows the ready pose until LT is held,
+  then the part's pose; any "start" sphere shows the ready pose. The easing is in the shared script, so RE2 / RE3 get it too.

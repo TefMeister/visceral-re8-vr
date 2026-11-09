@@ -13,6 +13,10 @@ namespace vn::fingers {
 void frame();          // UpdateBehavior pre: in an area or not, the eased amount
 void render_point();   // PrepareRendering post: read the animated fingers once, write the opened ones
 void begin_render();   // BeginRendering pre: write them again (the engine re-poses joints between the two)
-bool busy();           // 2026-11-01: the left fingers are being opened toward a part (righthand.cpp stands aside)
+bool busy();
+// b099 (2026-11-09, Tefa's ready pose): 0 = the left hand holds or works something, 1 = free inside an activation area
+// (the pouch, the seated magazine, a slide / pump / bolt zone or the gun line), 2 = free anywhere else. pairs.cpp turns it into
+// Hand Poser's spots "ready" (14) and "free" (15)
+int left_area();           // 2026-11-01: the left fingers are being opened toward a part (righthand.cpp stands aside)
 
 } // namespace vn::fingers

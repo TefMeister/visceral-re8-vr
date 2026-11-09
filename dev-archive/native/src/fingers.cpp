@@ -140,7 +140,10 @@ Blend blend_for(const std::string& gun) {
     it = g_blend.find("default");
     return it != g_blend.end() ? it->second : Blend{};
 }
+int g_area = 0;
 } // namespace
+
+int left_area() { return g_area; }
 
 void frame() {
     const float t = now_s();
@@ -153,12 +156,18 @@ void frame() {
     // 2026-11-09 (Tefa, screenshot 01:41: "at the end of the slide rack, fingers still automatically open"): the hand comes off the
     // slide right inside the slide's zone, where an empty hand opens toward the part. After letting go of a part the fingers stay as
     // they are (no opening, no easing into the game's hold) until the left controller has left the grab areas once
+    // b099 (2026-11-09, Tefa: "can the hand open up straight after letting go of LG on the slide"): with the ready / free poses on,
+    // the area is told to Hand Poser (pairs.cpp) and the fingers are not held shut after a part
+    {
+        const bool area = free_hand && (reload::in_pouch() || reload::hand_near_mag() || (s.gun != nullptr && rack::left_near_gun()));
+        g_area = !play || !free_hand ? 0 : area ? 1 : 2;
+    }
     static bool was_on_part = false, after_part = false;
     const bool on_part = rack::active();
     if (was_on_part && !on_part) after_part = true;
     was_on_part = on_part;
     if (after_part && !rack::left_near_gun()) after_part = false;
-    if (after_part) free_hand = false;
+    if (after_part && !READY_POSES_ON) free_hand = false;
     // 2026-10-25 (Tefa, screenshots: the hand "teleport alternates between hand poses" near the gun): the open hand stepped on
     // at the zone's edge and fought Hand Poser, which holds the same joints. Now it ramps with the distance to the gun, and
     // stands down entirely while a poser holds any finger

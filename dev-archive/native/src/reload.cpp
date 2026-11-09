@@ -622,6 +622,7 @@ bool session_active() { return mag_out() || g_round_in_hand; }
 bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st == St::IN_HAND || g_st == St::INSERT); }
 bool round_in_hand() { return managed_now() && g_round_in_hand; }
 float pouch_dist(bridge::Hand h) { return dist(bridge::hand_pos(h), pouch_spot()); }
+bool on_rail() { return managed_now() && g_st == St::RAIL; }
 bool in_pouch() { return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours; }
 
 

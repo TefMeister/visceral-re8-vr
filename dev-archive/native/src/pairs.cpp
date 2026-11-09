@@ -9,6 +9,7 @@
 #include "rack.h"
 #include "rack_right.h"
 #include "reload.h"
+#include "fingers.h"
 #include "settings.h"
 #include "weapons.h"
 
@@ -228,7 +229,7 @@ void frame() {
     // 2026-11-09 (Tefa: "hand pose when getting to the end of the slide rack must stay the same until LT is released"; from the right
     // the saved "at the back" pose still changed it): a pistol SLIDE keeps its pull spot to the end; bolts and pumps keep their stage
     else if (rack::active()) spot = (rack::at_back() && (rack::bolt_gun() || rack::pump_gun())) ? (rack::slide_from_left() ? 12.0f : 11.0f) : (rack::slide_from_left() ? 8.0f : 3.0f);
-    else if (reload::hand_on_mag()) spot = 4.0f;   // on the seated magazine (the grip look), and again while LT pushes one in
+    else if (reload::hand_on_mag()) spot = reload::on_rail() ? 13.0f : 4.0f;   // b099: on the grip's line it is carried (13)   // on the seated magazine (the grip look), and again while LT pushes one in
     // 2026-11-08 (Tefa: "holding LG to grip the mag, so it looks like holding the grip in game, then pressing B makes the hand actually
     // move under the mag, pressing it in with LT changes the hand to go back on the grip"): a magazine carried in the left hand (after
     // B / LT took it out, or fresh from the pouch) is its own spot, 13, until LT starts it in (then 4 again)
@@ -240,6 +241,9 @@ void frame() {
             for (const auto& p : g_pairs)
                 if (for_gun(p, gun) && dist(world(p.a), lp) <= p.r) { spot = 2000.0f + (float)p.n; break; }
     }
+    // b099 (2026-11-09, Tefa: "the hand at only one pose when it is in any activation sphere ... if moved away then to the hand-open
+    // pose"): a free left hand is "ready" (14) inside an activation area, "free" (15) elsewhere; Hand Poser shows the two poses
+    if (spot == 0.0f && READY_POSES_ON) { const int a = fingers::left_area(); spot = a == 1 ? 14.0f : a == 2 ? 15.0f : 0.0f; }
     bridge::put(bridge::S_LEFT_SPOT, spot);
     // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
     // (2026-11-08: 4 = the right hand on the bolt from the click at the back until it is home, as the left's 11)
