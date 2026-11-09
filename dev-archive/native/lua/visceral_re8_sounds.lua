@@ -27,6 +27,8 @@
 local TAG = "[visceral-re8-sounds]"
 local S_SFX_CODE, S_SFX_SEQ, S_SFX_LUA_HAS = 61, 62, 63
 local SOUNDS_FILE = "visceral_re8/sounds.json"
+local BLOCK_SOUNDS_OFF = true   -- 2026-11-09: the block's gun foley is skipped in VR (the exhale stays)
+local block_cuts = 0
 local UPPER_LAYER = 1          -- the player's upper-body motion layer (scope mod probe, 2026-09-27)
 local LOG_PER_ID = 400         -- log lines per game sound id (2026-11-08: 400 while the slide-sphere click is hunted; was 3)
 local HEARD_MAX = 60           -- rows kept in the menu list
@@ -282,6 +284,19 @@ local function hook()
                     if onchar and not on_player[key] then on_player[key] = true end
                     note(key, onchar and "the player" or "the weapon", name, motion)
                     record(key, motion)
+                    -- 2026-11-09 (Tefa: "we need to remove the gun sound from blocking, and only leave the exhale breath sound"):
+                    -- in VR the block's gun foley is skipped on every gun: SE_MVT_GUARD (the clack), and in the lowered / guard
+                    -- motions (23xx) SE_HAND (the hand on the gun) and SE_MVT_AIM (the click back to aim). In the 2026-11-09 run all
+                    -- 57 AIM and 52 HAND sounds came within 0.6 s of a GUARD one. Ethan's exhale is a voice, not one of these.
+                    if not replaying and vr_on() and BLOCK_SOUNDS_OFF then
+                        local nm = names[key] or ""
+                        local in23 = motion ~= nil and math.floor(motion / 100) == 23
+                        if nm:find("_SE_MVT_GUARD", 1, true) or (in23 and (nm:find("_SE_HAND", 1, true) or nm:find("_SE_MVT_AIM", 1, true))) then
+                            block_cuts = block_cuts + 1
+                            if block_cuts <= 6 then L(string.format("block sound skipped: %s '%s' (motion %s)", key, nm, tostring(motion))) end
+                            return sdk.PreHookResult.SKIP_ORIGINAL
+                        end
+                    end
                     -- 2026-10-24 (Tefa: "the original game sounds and animations for rifle after a shot is fired, the bolt racking
                     -- and gun turning, and for the shotgun the shell guard opening, sound playing and shell flying out, they have
                     -- to be removed"): in VR, the moment the game's after-shot motion (24xx) plays one of this gun's own

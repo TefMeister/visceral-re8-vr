@@ -442,6 +442,7 @@ local function update_pad_device(device)
     re8vr.is_holding_left_grip = vrmod:is_action_active(action_grip, left_joystick) and rawget(_G, "__visceral_reload_busy") ~= true
 
     if rawget(_G, "__visceral_reload_busy") == true then re8vr.wants_block = false -- Visceral RE8: a reload in the left hand (2026-10-18)
+    elseif re8vr.wants_block and not visceral_block_hands_near_face() then re8vr.wants_block = false -- Visceral RE8 (2026-11-09)
     elseif re8vr.wants_block or vrmod:is_action_active(action_block, left_joystick) or vrmod:is_action_active(action_block, right_joystick) then
         cur_button = cur_button | via.hid.GamePadButton.LTrigTop
         re8vr.wants_block = true
@@ -1642,6 +1643,33 @@ local function update_lua_block_gesture()
     local left_up = math.abs(hmd_fwd.x * lh_x.x + hmd_fwd.y * lh_x.y + hmd_fwd.z * lh_x.z) >= 0.5
     local right_up = math.abs(hmd_fwd.x * rh_x.x + hmd_fwd.y * rh_x.y + hmd_fwd.z * rh_x.z) >= 0.5
     re8vr.wants_block = left_up and right_up and rawget(_G, "__visceral_reload_busy") ~= true -- Visceral RE8: not during a reload (2026-10-18)
+end
+
+-- Visceral RE8 (2026-11-09): a block also needs BOTH hands close to the face. Without it, reaching the left hand toward
+-- the gun started a block (Tefa: "the gun sound when the left controller is close to the gun ... an exhale from Ethan";
+-- the log showed upper motion 2305 aim <-> 2306 guard flipping with SE_MVT_GUARD + SE_HAND). Works on wants_block from
+-- either source (praydog's built-in gesture or the Lua one above). One log line each time the answer changes.
+local BLOCK_MAX_HAND_DIST = 0.40 -- metres from the headset; both hands nearer than this to block
+local BLOCK_NEAR_FACE_RULE = false -- 2026-11-09: off = watch only (log the distances, refuse nothing) until Tefa decides
+local block_log_state = nil
+local function visceral_block_hands_near_face()
+    local ok, near, l_len, r_len = pcall(function()
+        local controllers = vrmod:get_controllers()
+        local hmd = vrmod:get_transform(0)
+        local lm = vrmod:get_transform(controllers[1])
+        local rm = vrmod:get_transform(controllers[2])
+        local h, l, r = hmd[3], lm[3], rm[3]
+        local ll = math.sqrt((l.x - h.x) ^ 2 + (l.y - h.y) ^ 2 + (l.z - h.z) ^ 2)
+        local rl = math.sqrt((r.x - h.x) ^ 2 + (r.y - h.y) ^ 2 + (r.z - h.z) ^ 2)
+        return ll <= BLOCK_MAX_HAND_DIST and rl <= BLOCK_MAX_HAND_DIST, ll, rl
+    end)
+    if not ok then return true end -- cannot read the hands: leave the block as it was decided
+    if near ~= block_log_state then
+        log.info(string.format("[visceral-re8-block] %s: left %.2f m, right %.2f m from the face (limit %.2f)",
+            near and "near" or (BLOCK_NEAR_FACE_RULE and "refused" or "far (watch only, allowed)"), l_len, r_len, BLOCK_MAX_HAND_DIST))
+        block_log_state = near
+    end
+    return near or not BLOCK_NEAR_FACE_RULE
 end
 
 local function update_player_gestures()
