@@ -8,6 +8,7 @@
 #include "player.h"
 #include "settings.h"
 #include "shellclip.h"
+#include "smooth.h"
 #include "zones.h"
 
 #include <windows.h>
@@ -29,6 +30,13 @@ std::filesystem::file_time_type g_mtime{};
 float g_check_t = -10.0f;
 Pose g_cur, g_cur_r;                                            // what is applied now (left, right), eased toward the spot's numbers
 int g_last_spot = -1, g_last_spot_r = -1;
+// b102 (DOCK_POSE_RIDES_GLIDE): a left spot change that came with a glide of the hand (smooth.cpp) goes from what was applied
+// then to the new spot's numbers on the glide's own curve, so the hand's place and Hand Poser's offset arrive together
+Pose g_ride_from;
+bool g_ride = false;
+float g_ride_u0 = 0.0f;   // the glide's progress when the ride was anchored (a spot change mid-glide rides the rest of it)
+int g_ride_glide = -1;    // the glide ridden: a new glide re-anchors from what is applied now, never back to the old start
+void ride_anchor(const Pose& now) { g_ride = true; g_ride_from = now; g_ride_u0 = smooth::progress(); g_ride_glide = smooth::glide_id(); }
 
 std::filesystem::path file_path() {
     wchar_t exe[MAX_PATH]{};
@@ -98,14 +106,28 @@ void on_ik(MO* ik) {
     const int gun = (int)(bridge::view(bridge::S_WEAPON_NUM) + 0.5f);
     const Pose want = wanted(gun, spot);
     int& last = left ? g_last_spot : g_last_spot_r;
+    Pose& cur = left ? g_cur : g_cur_r;
     if (spot != last) {
         if (docked(spot) && !zero(want)) LOGI("%s dockpose: gun %d spot %d (%s hand): wrist %.3f %.3f %.3f m, %.1f %.1f %.1f deg", TAG, gun, spot, left ? "left" : "right", want.x, want.y, want.z, want.rx, want.ry, want.rz);
+        if (left && DOCK_POSE_RIDES_GLIDE && smooth::easing()) {
+            ride_anchor(cur);
+            LOGI("%s dockpose: spot %d -> %d moves with the hand's glide (at %.0f%%)", TAG, last, spot, g_ride_u0 * 100.0f);
+        }
         last = spot;
     }
-    Pose& cur = left ? g_cur : g_cur_r;
-    const float k = DOCK_POSE_EASE;   // per arm solve: a short ease, so a change of spot (or of a slider) never snaps
-    cur.x += (want.x - cur.x) * k; cur.y += (want.y - cur.y) * k; cur.z += (want.z - cur.z) * k;
-    cur.rx += (want.rx - cur.rx) * k; cur.ry += (want.ry - cur.ry) * k; cur.rz += (want.rz - cur.rz) * k;
+    if (left && g_ride && !smooth::easing()) g_ride = false;   // the glide is over: the per-solve ease below finishes the last bit
+    // any new glide (also one that starts a frame after the spot changed) carries what is left of the spot change with it
+    if (left && DOCK_POSE_RIDES_GLIDE && smooth::easing() && smooth::glide_id() != g_ride_glide) ride_anchor(cur);
+    if (left && g_ride) {
+        const float u = g_ride_u0 >= 0.999f ? 1.0f : (smooth::progress() - g_ride_u0) / (1.0f - g_ride_u0);
+        const Pose& a = g_ride_from;
+        cur.x = a.x + (want.x - a.x) * u; cur.y = a.y + (want.y - a.y) * u; cur.z = a.z + (want.z - a.z) * u;
+        cur.rx = a.rx + (want.rx - a.rx) * u; cur.ry = a.ry + (want.ry - a.ry) * u; cur.rz = a.rz + (want.rz - a.rz) * u;
+    } else {
+        const float k = DOCK_POSE_EASE;   // per arm solve: a short ease, so a slider change (or a spot change with no glide) never snaps
+        cur.x += (want.x - cur.x) * k; cur.y += (want.y - cur.y) * k; cur.z += (want.z - cur.z) * k;
+        cur.rx += (want.rx - cur.rx) * k; cur.ry += (want.ry - cur.ry) * k; cur.rz += (want.rz - cur.rz) * k;
+    }
     // 2026-11-07 (Animation & Timing): the whole-hand move keyed into the finger clip playing on this hand (shellclip.h), on top
     Pose tot = cur;
     float hn[6]{};

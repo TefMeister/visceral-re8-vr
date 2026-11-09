@@ -34,6 +34,7 @@ Quat g_off_q{0, 0, 0, 1};
 Vec3 g_final_p{};                  // what was last drawn, in the gun hand's frame
 Quat g_final_q{0, 0, 0, 1};
 float g_frame = -1.0f;             // the game solves the arm twice a frame: the second solve gets the same answer
+int g_glide_id = 0;                // b102: +1 at each owner change (glide_id())
 // 2026-10-24 (worn 15:39, Tefa: with the hand on the grip "hand jitters with handgun too while i walk, rifle does too"): the
 // grip's place comes from the animation's socket, which the walk keeps moving. Once the hand has eased onto the grip, its place
 // on the gun is frozen (in the gun hand's frame) until it lets go, so the walk cannot shake it
@@ -153,6 +154,10 @@ void publish_zone() {
     if (kept == nullptr || !player::get_pose(target_of(s.ik_right), rp, rq)) { zones::clear(zones::GRIP); return; }
     zones::publish(zones::GRIP, zones::center(zones::GRIP, rp + rotate(qnorm(rq), kept->p)), zones::radius(zones::GRIP));
 }
+
+bool easing() { return g_have && !bridge::experiment(bridge::EX_NO_SMOOTH) && now_s() - g_t0 < g_ease_sec; }
+float progress() { return easing() ? ease((now_s() - g_t0) / g_ease_sec) : 1.0f; }
+int glide_id() { return g_glide_id; }
 
 void on_ik(MO* ik) {
     const auto& s = player::now();
@@ -290,6 +295,7 @@ void on_ik(MO* ik) {
             g_off_palm = (g_final_p + rotate(g_final_q, t)) - (rel + rotate(qrel, t));
         }
         g_t0 = now_s();
+        ++g_glide_id;
         {
             const float a = bridge::view(bridge::S_ARC_CM);
             const bool rack_end = ((owner == RACK || g_owner == RACK) && rack::bolt_gun()) || owner == PAIR || g_owner == PAIR;   // (the pairs arc too; slides and pumps go straight, 2026-11-08)

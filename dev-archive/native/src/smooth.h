@@ -11,4 +11,9 @@
 namespace vn::smooth {
 void on_ik(MO* ik);   // ik.cpp: the left arm is about to be solved, after recoil, reload and rack have written
 void publish_zone();  // once a frame: this gun's kept grip spot as the FRONT GRIP zone (zones.h GRIP) for the menu and the grip script
+// 2026-11-09 (b102): how far the left hand's glide onto / off a part has come, on the same curve the hand moves by
+// (0 = just started, 1 = arrived); easing() = a glide is under way. dockpose.cpp moves Hand Poser's numbers along it
+bool easing();
+float progress();
+int glide_id();       // +1 at each new glide (a change of who places the hand)
 } // namespace vn::smooth

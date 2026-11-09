@@ -284,6 +284,11 @@ constexpr Vec3 SLIDE_LEFT_OFF{-0.05f, 0.0f, 0.0f};
 // 2026-10-28 (Dock Poser, dockpose.cpp): how often dock_poses.json's write time is checked, and the ease per arm solve
 constexpr float DOCK_POSE_FILE_CHECK_S = 1.0f;
 constexpr float DOCK_POSE_EASE = 0.2f;          // how often pairs.json's write time is checked
+// 2026-11-09 (b102; Tefa: onto the slide "a stepped very quick throw", and off the right-side slide "pushes the hand forward
+// first"; video re8 glitchy stuff.mp4, 60 fps): the spot's numbers came in at DOCK_POSE_EASE per arm solve (most of them in
+// 2-3 frames) while the hand glided to the slide over SMOOTH_DOCK_SEC (9 frames), so the hand was first thrown by the spot's
+// offset (LEMI slide: 10 cm back, 5 cm down, 45 deg), then glided. A spot change during a glide now moves along the glide
+constexpr bool DOCK_POSE_RIDES_GLIDE = true;
 constexpr float PAIR_BUZZ_AMP = 0.35f, PAIR_BUZZ_SEC = 0.05f, PAIR_BUZZ_HZ = 160.0f;   // a short tick in the left hand at a take      // how often zones.json's write time is checked (a save from the Grab Zones window)
                                                  // (0.20 until 2026-10-24: Tefa "hand must not go straight onto the slider or the bolt after
                                                  // inserting a mag, there has to be a tighter zone"; it also needs a fresh LG press now)
