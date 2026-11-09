@@ -244,7 +244,9 @@ void frame() {
     // b099 (2026-11-09, Tefa: "the hand at only one pose when it is in any activation sphere ... if moved away then to the hand-open
     // pose"): a free left hand is "ready" (14) inside an activation area, "free" (15) elsewhere; Hand Poser shows the two poses
     if (spot == 0.0f && READY_POSES_ON) { const int a = fingers::left_area(); spot = a == 1 ? 14.0f : a == 2 ? 15.0f : 0.0f; }
-    bridge::put(bridge::S_LEFT_SPOT, spot);
+    // 2026-11-09 (Tefa: "i want hand poses and animations happening only on very certain times and spots"; then, in Hand Poser, "it
+    // says left hand ready in a spot with no name"): "ready" came from the whole bubble round the gun (rack::left_near_gun), wider
+    // than the named zones inside it, where LG does nothing. Now the hand is "ready" only in a NAMED area; elsewhere it is "free"
     // 2026-11-09 (Tefa: "i need a way to make every weapon hand pose change individual ... make Hand Poser say in the info part that
     // the left hand is now in for example left side slide activation area"): which area the "ready" hand is in, so Hand Poser can
     // name it and keep a ready pose per gun per area. 0 when not "ready".
@@ -256,7 +258,9 @@ void frame() {
             if (reload::in_pouch()) area = 1.0f;
             else if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), ap) && zones::area_of(ap, k)) area = 10.0f + (float)k;
             else if (reload::hand_near_mag()) area = 10.0f + (float)zones::MAG;
+            if (area == 0.0f && READY_ONLY_NAMED) spot = 15.0f;   // near the gun but in no named area: free
         }
+        bridge::put(bridge::S_LEFT_SPOT, spot);
         static float last_area = -1.0f;
         if (area != last_area) { last_area = area; LOGI("%s pairs: left hand area %d", TAG, (int)area); }
         bridge::put(bridge::S_LEFT_AREA, area);

@@ -102,6 +102,7 @@ constexpr bool  MAG_RAIL_ON = true;
 // b099 (2026-11-09, Tefa): the free left hand is Hand Poser's "ready" spot (14) inside an activation area and "free" (15) elsewhere,
 // so one pose each (any gun @ ready / any gun @ free, or a gun's own) shows there; letting go of a part no longer holds the fingers
 constexpr bool  READY_POSES_ON = true;
+constexpr bool  READY_ONLY_NAMED = true;   // b105 (2026-11-09): "ready" only inside a named area; the rest of the bubble round the gun is "free" (pairs.cpp)
 // b098: each magazine gun's seat is read from the game this long after it comes out (was: only at the first eject)
 constexpr bool  MAG_SEAT_READ_ON = true;
 constexpr float MAG_SEAT_READ_SEC = 0.5f;
