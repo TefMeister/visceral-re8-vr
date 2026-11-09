@@ -1005,6 +1005,29 @@ local function watch_back()
 end
 
 -- ===== the frame =====
+-- ===== NO RED WALL: THE CARDS HANG IN THE GAME WORLD (2026-11-10, Fable) =====
+-- Tefa (2026-11-05, headset): "the red background removed, view goes into like a 2D screen in front of me that has depth
+-- but all the rest is black ... appear in the game world so i can still freely look around".
+-- Found live on the simulator [verified-live 2026-11-10, n=1]: the black is the shop's own wall object (GUIShopBg), not
+-- a camera switch: with that one object's drawing off, the village is there behind the cards and every screen after
+-- them. While OUR Emporium is open the wall is not drawn; at a real Duke it is left alone.
+-- VISCERAL_EMPORIUM_WALL = true brings the wall back (for a comparison).
+-- The object carries two things: a flat black sheet (a GUI element: stopped here) and the red wall itself (a mesh on the
+-- same object: its drawing is switched off on the object, which the element hook alone did not reach, seen 2026-11-10).
+local wall_hidden = nil
+re.on_pre_gui_draw_element(function(element, context)
+    local go = element:call("get_GameObject")
+    if go == nil or go:call("get_Name") ~= "GUIShopBg" then return true end
+    local hide = ui.open and not _G.VISCERAL_EMPORIUM_WALL
+    if hide then
+        if go:call("get_DrawSelf") then go:call("set_DrawSelf", false) end
+        wall_hidden = go
+        return false
+    end
+    if wall_hidden ~= nil then pcall(function() go:call("set_DrawSelf", true) end); wall_hidden = nil end   -- a real Duke: the wall is his
+    return true
+end)
+
 re.on_frame(function()
     frames = frames + 1
     watch_buttons()
