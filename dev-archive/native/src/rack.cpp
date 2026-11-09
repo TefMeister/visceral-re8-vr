@@ -52,6 +52,11 @@ int g_log_near = 0;
 struct Kept { bool needed, parked; int bstate; float turn, travel; };
 std::map<std::string, Kept> g_kept;
 std::map<std::string, std::pair<Vec3, Quat>> g_rest_by_id;   // 2026-11-01: each gun's slide / pump rest, read once
+// b096 (2026-11-09, Tefa: "when i take out a half full mag, shoot the one bullet that is left in the chamber, and then put the
+// same mag in, then the slide closes as soon as the mag is in"): the game holds an EMPTY gun's slide back by itself and lets
+// it go the moment the magazine makes it "loaded" again, while the rack is still due. How far back the game held it (0..1 of
+// SLIDE_BACK_M) is kept per gun while it is empty; with the rack due we hold it there until the hand racks it.
+std::map<std::string, float> g_lock_by_id;
 
 bool g_capture = false;       // take the hand's turn (and, with no slide joint, its place) at the next left-arm solve
 // the slide joint relative to the right hand target, measured after each frame's animation (late_point)
@@ -273,6 +278,7 @@ bool in_grip_zone() {
 
 void complete() {
     const bool was = g_needed;
+    g_lock_by_id.erase(g_id);   // racked: the slide goes home
     if (!pump() && !bolt()) bridge::sfx(bridge::SFX_SLIDE_FORWARD);   // the slide slams home (the bolt and pump say their own)
     ghosthand::event(part(), "done");
     g_needed = g_parked = false;
@@ -303,6 +309,13 @@ void hand_off(const char* why) {
 }
 
 void write_joint() {
+    if (SLIDE_LOCK_HOLD_ON && g_joint != nullptr && g_have_rest && g_parked && !g_hand_on && !g_right && !pump() && !bolt()) {
+        if (auto it = g_lock_by_id.find(g_id); it != g_lock_by_id.end()) {   // locked back with the rack due: stays back
+            Vec3 p{g_rest.x, g_rest.y, g_rest.z + SLIDE_BACK_M * it->second};
+            set_any(JOINT, g_joint, "set_LocalPosition", &p);
+            return;
+        }
+    }
     if (g_joint == nullptr || !g_have_rest || !(g_hand_on || g_right || g_travel > 0.0f || g_turn > 0.0f || g_hold_closed)) return;
     Vec3 p{g_rest.x, g_rest.y, z_now()};
     set_any(JOINT, g_joint, "set_LocalPosition", &p);
@@ -498,6 +511,12 @@ void frame() {
     // pump after every shot; its remaining shells wait in reload.cpp until then (the game's own pump motion still plays)
     if ((pump() || bolt()) && shot && loaded > 0 && !g_needed) need(pump() ? "pumped after the shot" : "the bolt after the shot");   // the trigger waits (reload.cpp)
     g_last_loaded = loaded;
+    if (SLIDE_LOCK_HOLD_ON && !pump() && !bolt() && !g_hand_on) {
+        // an empty gun's slide is the game's to show (it locks back): a hold-closed from an earlier rack must not shut it
+        if (loaded == 0 && g_hold_closed) g_hold_closed = false;
+        // loaded again with no rack due (the game's own reload, a cheat): the lock is over
+        if (loaded > 0 && !g_parked && !g_needed && g_lock_by_id.erase(g_id) > 0) LOGI("%s rack: %s loaded with no rack due: the slide lock is let go", TAG, g_id.c_str());
+    }
     if (!pump() && !g_parked && !reload::mag_out() && loaded == 0) { g_parked = true; LOGI("%s rack: %s empty: it can be racked", TAG, g_id.c_str()); }
 
     const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
@@ -702,6 +721,15 @@ void late_point() {
         }
         g_z_anim = lp.z;
         g_slide_ok = true;
+        // b096: while the gun is empty and nobody holds the slide, note how far back the game itself holds it
+        if (SLIDE_LOCK_HOLD_ON && !g_hand_on && !g_right && !pump() && !bolt() && g_have_rest && player::loaded() == 0 &&
+            g_lock_by_id.find(g_id) == g_lock_by_id.end()) {
+            const float tr = clamp01((lp.z - g_rest.z) / SLIDE_BACK_M);
+            if (tr >= SLIDE_LOCK_MIN) {
+                g_lock_by_id[g_id] = tr;
+                LOGI("%s rack: %s empty, the game holds the slide %.0f%% back: kept there until it is racked", TAG, g_id.c_str(), tr * 100.0f);
+            }
+        }
         if (g_hand_on && !bolt()) {   // 2026-10-24 (Tefa: the slide "closes straight away"): start from where the game holds it
             const float tr = clamp01((lp.z - g_rest.z) / (pump() ? PUMP_BACK_M : SLIDE_BACK_M));
             if (tr > g_travel + 0.05f) {

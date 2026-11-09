@@ -256,6 +256,11 @@ void pose_joint() {
         write_scale(g_rest_scale);
         write_local(lerp(mag_out_pos(), g_rest_pos, ease(t / RELOAD_INSERT_SEC)), g_rest_rot);
         return;
+    case St::RAIL:   // b096: only along the grip, as far as the hand has drawn it (reload.cpp rail_frame)
+        mag_part_shown(true);
+        write_scale(g_rest_scale);
+        write_local(lerp(g_rest_pos, mag_out_pos(), rail_u()), g_rest_rot);
+        return;
     }
 }
 

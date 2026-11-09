@@ -63,6 +63,7 @@ const char* st_name(St s) {
     case St::SEATED: return "seated";       case St::SLIDE_OUT: return "sliding out"; case St::FALL: return "falling";
     case St::OUT: return "out";             case St::IN_HAND: return "in the left hand";
     case St::HAND_FALL: return "dropped from the hand"; case St::INSERT: return "going in";
+    case St::RAIL: return "in the grip, moved by the hand";
     }
     return "?";
 }
@@ -232,6 +233,7 @@ bool insert_round(int clip_hands = shellclip::BOTH) {
 // unknown carried ammo (-1) = try anyway: the game's own reload then decides (and logs before / after)
 bool supply() { const int r = player::reserve(); return player::unlimited() || r != 0 || g_mag_rounds > 0 || g_pocket > 0; }
 
+void rail_enter(float u, const char* why);   // THE GRIP'S RAIL, below
 void hand_checks() {
     if (pose_lock() || g_w == nullptr) return;
     const bool mag = g_w->reload == Reload::MAG && g_st == St::IN_HAND;
@@ -263,6 +265,7 @@ void hand_checks() {
     if (mag && pistol_mag() && g_lt_to_seat) {   // 2026-10-31: only the same magazine going back in; a pouch one seats by itself
         static float told = -10.0f;
         const bool lt = bridge::held(bridge::S_LTRIG), deep = d <= dock_need() * (1.0f - PISTOL_INSERT_PUSH);
+        if (MAG_RAIL_ON && lt) { rail_enter(1.0f, "LT held at the well: onto the grip's line"); return; }
         if (!lt || !deep) {
             if (now - told > 2.0f) { told = now; LOGI("%s reload: the magazine is at the well (%.3f m of %.2f): %s", TAG, d, dock_need(), !lt ? "hold LT and push it in" : "push it further in"); }
             return;
@@ -368,6 +371,71 @@ void begin_drop() {
 // the hand (the state the pouch hands a fresh one in), with the eject's bookkeeping: its rounds leave the gun and stay
 // counted, the rest pose is kept for the next seat. Letting go drops it as any carried magazine; the pouch then gives a new
 // one; a pulled-out magazine can also go straight back in.
+bool g_magrel_ok = false;
+Vec3 g_magrel_rest{}, g_magrel_out{};
+Quat g_magrel_rot{0, 0, 0, 1};
+// ---- THE GRIP'S RAIL (b096, 2026-11-09, Tefa: "is there a way to make handgun magazines move only up and down in the grip
+// shaft until taken out, right now the mag just comes out the side of the handle when i hold LG and press B"): a released
+// handgun magazine is not the hand's yet. It moves only along the grip's own line (seat -> mag_out_pos), as far as the left
+// controller has moved along that line since it went on, and the drawn hand stays on it. Past the bottom it is free in the
+// hand (IN_HAND); pushed back to the top it seats; LG let go and it slides out and falls. The same magazine brought back to
+// the well with LT held goes on at the bottom and is pushed up the same way. The line is measured in the right hand's
+// target frame, which carries the gun (g_magrel_*), so it does not lag the gun the way the gun's own transform would.
+bool g_rail_ok = false;
+float g_rail_u0 = 0.0f, g_rail_u = 0.0f, g_rail_max = 0.0f;
+Vec3 g_rail_c0{};                 // the left controller where the rail began, in the right hand target's frame
+bool rail_ctrl(Vec3& rel) {       // the left controller in the right hand target's frame
+    Vec3 rp, cp;
+    Quat rq;
+    if (!rh_target(rp, rq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return false;
+    rel = rotate(qinv(qnorm(rq)), cp - rp);
+    return true;
+}
+float rail_len(Vec3& axis) {      // the grip's line, top to bottom, and its length
+    const Vec3 d = g_magrel_out - g_magrel_rest;
+    const float n = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+    axis = n > 1e-4f ? d * (1.0f / n) : Vec3{0, -1, 0};
+    return n;
+}
+void rail_enter(float u, const char* why) {
+    g_rail_ok = g_magrel_ok && rail_ctrl(g_rail_c0);
+    g_rail_u0 = g_rail_u = u;
+    g_rail_max = 0.0f;
+    g_hand_on_mag = false;
+    set_state(St::RAIL, why);
+    if (!g_rail_ok) LOGW("%s reload: %s: the grip's line is not measured yet: the magazine goes straight into the hand", TAG, g_id.c_str());
+    if (u > 0.5f) { bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ); bridge::sfx(bridge::SFX_MAG_IN); }
+}
+void rail_frame() {
+    const float now = now_s();
+    if (!g_rail_ok) { set_state(St::IN_HAND, "no rail: into the hand"); g_last_dock = now; return; }
+    if (!bridge::held(bridge::S_LGRIP)) {   // let go in the grip: it slides the rest of the way out and falls
+        LOGI("%s reload: LG let go with the magazine %.0f%% down the grip: it slides out", TAG, g_rail_u * 100.0f);
+        set_state(St::SLIDE_OUT, "let go in the grip");
+        g_t0 = now - g_rail_u * RELOAD_SLIDE_SEC;
+        return;
+    }
+    Vec3 c, axis;
+    const float len = rail_len(axis);
+    if (!rail_ctrl(c) || len < 0.01f) return;
+    const Vec3 d = c - g_rail_c0;
+    const float raw = g_rail_u0 + (d.x * axis.x + d.y * axis.y + d.z * axis.z) / len;
+    g_rail_u = raw < 0.0f ? 0.0f : raw > 1.0f ? 1.0f : raw;
+    g_rail_max = std::fmax(g_rail_max, std::fabs(raw - g_rail_u0));
+    if (raw >= 1.0f + (g_rail_u0 > 0.5f ? MAG_RAIL_LEAVE_EXTRA : 0.0f)) {   // out of the bottom: the hand's now
+        g_last_dock = now;   // no snapping straight back on at the well
+        set_state(St::IN_HAND, "out of the bottom of the grip");
+        return;
+    }
+    if (raw <= MAG_RAIL_SEAT_U && g_rail_max >= MAG_RAIL_MOVED) {   // pushed home
+        g_last_dock = now;
+        bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
+        ghosthand::event("mag", "done");
+        LOGI("%s reload: the magazine pushed up the grip: seated", TAG);
+        set_state(St::INSERT, "pushed home along the grip");
+        g_t0 = now - RELOAD_INSERT_SEC;   // already there: INSERT seats it at once (fill_magazine; the hand stays on with LG)
+    }
+}
 bool mag_world(Vec3& p, Quat& q);   // below
 void pull_out() {
     const int n = player::loaded();
@@ -394,7 +462,8 @@ void pull_out() {
     g_lt_to_seat = true;     // it goes back in only on a fresh LT press at the well (hand_checks)
     g_same_mag = true;
     shellclip::play(g_id, "mag_out");   // 2026-11-04: the game's own finger movement for the magazine coming out (shellclip.h)
-    set_state(St::IN_HAND, pistol_mag() ? "released (B) into the left hand" : "pulled out by hand (LT)");
+    if (MAG_RAIL_ON && pistol_mag()) rail_enter(0.0f, "released (B): it moves only along the grip until it is out");
+    else set_state(St::IN_HAND, pistol_mag() ? "released (B) into the left hand" : "pulled out by hand (LT)");
     ghosthand::event("mag", "start");
     bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
     log_parts();
@@ -545,6 +614,7 @@ void post_reload_request(void** ret, REFrameworkTypeDefinitionHandle, unsigned l
     t_blocked = false;
 }
 } // namespace
+namespace detail { float rail_u() { return g_rail_u; } }   // b096: for pose_joint (reload_pose.cpp)
 
 bool managed_now() { return RELOAD_ON && g_w != nullptr && g_w->reload != Reload::NONE && g_gun != nullptr && bridge::live(); }
 bool mag_out() { return managed_now() && g_w->reload == Reload::MAG && g_st != St::SEATED; }
@@ -582,9 +652,7 @@ Quat g_tq_off{0, 0, 0, 1};        // hand joint = IK target * this
 // freely"): the gun's transform read before the arm is solved is where the game's animation holds it, not where the VR hand
 // puts it. So the magazine's seat and its out spot are measured after the solves (render_point) relative to the right hand's
 // IK target, which carries the gun, and placed from that target at the next solve (the way the slide is, rack.cpp)
-bool g_magrel_ok = false;
-Vec3 g_magrel_rest{}, g_magrel_out{};
-Quat g_magrel_rot{0, 0, 0, 1};
+// (g_magrel_ok / g_magrel_rest / g_magrel_out / g_magrel_rot: declared above THE GRIP'S RAIL, which uses them)
 void measure_mag_rel() {
     Vec3 rp, a, b;
     Quat rq, qa, qb;
@@ -600,8 +668,9 @@ bool mag_world(Vec3& p, Quat& q) {
     Quat rq;
     if (g_joint == nullptr || !g_magrel_ok || !rh_target(rp, rq)) return false;
     const Vec3 rel = g_st == St::INSERT ? lerp(g_magrel_out, g_magrel_rest, ease((now_s() - g_t0) / RELOAD_INSERT_SEC))
+                   : g_st == St::RAIL ? lerp(g_magrel_rest, g_magrel_out, rail_u())
                    : g_st == St::SEATED ? g_magrel_rest : Vec3{0, 0, 0};
-    if (g_st != St::INSERT && g_st != St::SEATED) return false;
+    if (g_st != St::INSERT && g_st != St::SEATED && g_st != St::RAIL) return false;
     p = rp + rotate(qnorm(rq), rel);
     q = qnorm(qmul(qnorm(rq), g_magrel_rot));
     return true;
@@ -676,7 +745,7 @@ void publish_zones() {
     if (port_world(port)) zones::publish(zones::WELL, zones::center(zones::WELL, port), zones::radius(zones::WELL), mag_in_hand() ? 2.0f : 1.0f);
     else zones::clear(zones::WELL);
 }
-bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_hand_on_mag); }
+bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_st == St::RAIL || g_hand_on_mag); }
 
 void on_ik(MO* ik) {
     const auto& s = player::now();
@@ -764,6 +833,9 @@ void frame() {
         case St::HAND_FALL:
             if (throw_taken()) set_state(St::OUT, "the thrown copy took over");
             else if (t >= RELOAD_FALL_SEC) set_state(St::OUT, "on the floor");
+            break;
+        case St::RAIL:
+            rail_frame();
             break;
         case St::INSERT:
             if (t >= RELOAD_INSERT_SEC) {

@@ -59,3 +59,24 @@ nicely"*.
   FOREARM_TWIST_MAX_DEG, FOREARM_TWIST_RATE_DEG.
 - Not run yet. What to look for in the headset: the sleeve turning with the hand palm up / palm down; the rifle's bolt and
   hand-back not jumping; the log lines above.
+
+**Worn 2026-11-09 ~11:0x (Tefa, headset): "yes it works really well now"** `[verified-live 2026-11-09, headset, n=1]`.
+
+## b096 (2026-11-09 11:11, home PC, Opus): the slide stays locked back; handgun magazines move along the grip `[compile-verified]`
+
+**Slide.** Tefa: *"when i take out a half full mag, shoot the one bullet that is left in the chamber, and then put the same mag
+in, then the slide closes as soon as the mag is in"*. Read in the code: the mod never draws a locked-back slide itself; the game
+holds an EMPTY gun's slide back, and the moment `fill_magazine` makes the gun "loaded" again the game lets it go, although
+`rack::need("a magazine into an empty gun")` has the trigger waiting. Now (`rack.cpp`, SLIDE_LOCK_HOLD_ON): while the gun is
+empty and nobody holds the slide, how far back the game holds it is kept per gun (at least SLIDE_LOCK_MIN of SLIDE_BACK_M;
+log "empty, the game holds the slide N% back"); with the rack due the slide is written there until the hand racks it
+(taking it there counts as already pulled: "it only has to go home"). A hold-closed left from an earlier rack is dropped while
+the gun is empty, so it cannot shut an empty slide.
+
+**Magazine.** Tefa (01:1x): *"make handgun magazines move only up and down in the grip shaft until taken out"*. New state
+`RAIL` (`reload.cpp`, THE GRIP'S RAIL; MAG_RAIL_ON): after B with the hand on it, the magazine sits on the grip's line (seat ->
+RELOAD_MAG_DROP_M below, the line the B drop already used), as far down as the left controller has moved along that line,
+measured in the right hand target's frame (the gun's own transform lags); the drawn hand stays on it. Past the bottom = in the
+hand; pushed back to within MAG_RAIL_SEAT_U of the top after moving MAG_RAIL_MOVED = seated (no LT needed); LG let go = slides
+out and falls. The same magazine at the well with LT held now goes on at the bottom of the line and is pushed up the same way
+(instead of the 30 % push). Not yet worn; the likely rough edge: a small jump of the hand and magazine where it leaves the bottom.

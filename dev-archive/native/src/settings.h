@@ -96,6 +96,12 @@ constexpr float INSERT_LT_MIN_SEC = 0.25f;        // the pull-out's own LT press
 // but have to push it in a little , 30% and then the game's animation takes over"): a handgun's magazine goes in once it is
 // pushed this share of the way from the well zone's edge toward its middle with LG and LT held
 constexpr float PISTOL_INSERT_PUSH = 0.30f;
+// b096 (2026-11-09, Tefa): a handgun magazine moves only along the grip until it is out (reload.cpp, THE GRIP'S RAIL). The
+// line's length is RELOAD_MAG_DROP_M. false = b095 (straight into the hand).
+constexpr bool  MAG_RAIL_ON = true;
+constexpr float MAG_RAIL_SEAT_U = 0.08f;       // pushed up to within this much of the top (of the line) = seated
+constexpr float MAG_RAIL_MOVED = 0.25f;        // ...but only after it moved this much on the line (no instant re-seat on B)
+constexpr float MAG_RAIL_LEAVE_EXTRA = 0.25f;  // one put on at the bottom leaves only this much past the bottom (no flicker)
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in
@@ -296,6 +302,10 @@ constexpr float BOLT_TURN_DEG = -60.0f;          // how far the bolt joint turns
 constexpr float BOLT_HOME = 0.08f;               // travel at or under this = pushed home
 constexpr float BARREL_MUZZLE_MIN_M = 0.05f;     // the muzzle joint at least this far from the gun's origin = a usable barrel line
 constexpr float SLIDE_BACK_M = -0.045f;          // the slide joint fully back, local Z from rest (when the joint is known)
+// b096 (2026-11-09): an empty pistol's slide stays where the game locked it back until it is racked, also after a magazine goes
+// in (the game itself lets it go then). false = b095. SLIDE_LOCK_MIN: how far back (of SLIDE_BACK_M) counts as locked back.
+constexpr bool  SLIDE_LOCK_HOLD_ON = true;
+constexpr float SLIDE_LOCK_MIN = 0.6f;
 constexpr float PUMP_BACK_M = -0.080f;
 
 // rack_right.cpp (2026-11-01): the RIGHT hand works the bolt while the left hand holds the front (RG, with LG on the front + LT)

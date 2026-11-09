@@ -8,10 +8,11 @@
 
 namespace vn::reload::detail {
 
-enum class St { SEATED, SLIDE_OUT, FALL, OUT, IN_HAND, HAND_FALL, INSERT };
+enum class St { SEATED, SLIDE_OUT, FALL, OUT, IN_HAND, HAND_FALL, INSERT, RAIL };   // RAIL: b096, a handgun magazine in the grip, moved by the hand along it
 
 // ---- the state (defined in reload.cpp) ------------------------------------------------------------------------------
 extern St g_st;
+float rail_u();   // b096: how far down the grip a magazine on the rail sits, 0 seated .. 1 at the bottom (reload.cpp)
 extern const weapons::Weapon* g_w;
 extern std::string g_id;
 extern MO* g_gun;
