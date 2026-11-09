@@ -2,6 +2,7 @@
 #include "fingers.h"
 #include "bridge.h"
 #include "joints.h"
+#include "pairs.h"
 #include "player.h"
 #include "rack.h"
 #include "reload.h"
@@ -151,7 +152,12 @@ void frame() {
     g_last_t = t;
     const auto& s = player::now();
     const bool play = FINGER_OPEN_ON && bridge::live() && bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
-    bool free_hand = !bridge::held(bridge::S_LGRIP) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !rack::active() &&
+    // 2026-11-09 (Tefa: "left hand is still curling when LG is pressed on it's own ... i want hand poses and animations happening
+    // only on very certain times and spots, so that it is like an indicator for players that something is \"doable\" with LG"):
+    // LG counts only when it took hold of something (docked on the gun, a part, a magazine, a round, a hand pair). An LG pressed
+    // on its own leaves the hand free: the free / ready pose stays and the game's curled hand no longer shows through.
+    const bool lg_took_hold = bridge::held(bridge::S_LGRIP) && (pairs::active() || reload::hand_on_mag());
+    bool free_hand = !lg_took_hold && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !rack::active() &&
                      !reload::mag_in_hand() && !reload::round_in_hand() && !shellclip::playing_left();
     // 2026-11-09 (Tefa, screenshot 01:41: "at the end of the slide rack, fingers still automatically open"): the hand comes off the
     // slide right inside the slide's zone, where an empty hand opens toward the part. After letting go of a part the fingers stay as
