@@ -304,7 +304,7 @@ constexpr float RIGHT_RACK_LOG_SEC = 1.0f;        // how often the "gun held by 
 
 // smooth.cpp (2026-10-24): the left hand eased onto and off the gun, the slide, the pump and the bolt
 constexpr float SMOOTH_DOCK_SEC = 0.15f;
-constexpr float SMOOTH_RELEASE_SEC = 0.40f;       // 2026-11-09: off the slide / pump / bolt back to the controller (0.15 read as a teleport)
+constexpr float SMOOTH_RELEASE_SEC = 0.25f;       // 2026-11-09: off the slide / pump / bolt back to the controller (0.15 read as a teleport; 0.40 smooth but slow, Tefa: "needs to be quicker")
 constexpr float SMOOTH_ARC_SEC = 0.30f;           // the same ease when the hand ARCS over the gun onto / off the slide / pump / bolt (slower, so the arc is a path, not a blink)
 constexpr float SMOOTH_ARC_MAX_M = 0.30f;         // the arc's height is clamped to this
 constexpr float SMOOTH_TOWARD_M = 0.01f;          // a later solve asking this much closer to the left controller = an undo (drawn)
@@ -405,5 +405,11 @@ constexpr float SLEEP_SIDE_M = 0.22f;            // out to its own side
 constexpr float SLEEP_FWD_M = 0.04f;             // a little ahead, so the hand does not sink into the thigh
 constexpr float SLEEP_EASE_IN_S = 0.40f;         // down to the side over this long
 constexpr float SLEEP_EASE_OUT_S = 0.12f;        // back to the woken controller over this long
+
+// righthand.cpp firm grip (2026-11-09, Tefa: "hand pose on the gun must always be the pose it has when a shot has just been fired,
+// firmly on the grip, right now after a shot is fired, about 3-5 seconds later the hand loosens and starts the subtle movement")
+constexpr bool  FIRM_GRIP_ON = true;
+constexpr float FIRM_CAPTURE_S = 0.12f;          // the right fingers are read this long after a shot (the firing hold)
+constexpr float FIRM_EASE_S = 0.15f;             // into / out of the held grip
 
 } // namespace vn::settings

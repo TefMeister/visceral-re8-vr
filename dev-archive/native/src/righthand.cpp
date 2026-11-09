@@ -6,11 +6,16 @@
 #include "joints.h"
 #include "player.h"
 #include "rack.h"
+#include "rack_right.h"
+#include "recoil.h"
 #include "reload.h"
 #include "settings.h"
 #include "shellclip.h"
 
 #include <cmath>
+#include <array>
+#include <map>
+#include <string>
 
 namespace vn::righthand {
 
@@ -92,6 +97,65 @@ struct Still {
             if (have[i] && joint[i] != nullptr) set_any(JOINT, joint[i], "set_LocalRotation", &target[i]);
     }
 };
+// 2026-11-09 (Tefa: "hand pose on the gun must always be the pose it has when a shot has just been fired, firmly on the grip, right
+// now after a shot is fired, about 3-5 seconds later the hand loosens and starts the subtle movement animation"): the right fingers
+// are read FIRM_CAPTURE_S after a live shot, kept per gun (until the game closes), and held from then on whenever that gun is in hand
+// and the right hand has no other job (the bolt, the Wolfsbane's cover, a finger clip, a reload, a cutscene). Hand Poser, which
+// writes after this, still wins on any joint it holds. Before the gun's first shot of a session its hand is the game's.
+struct Firm {
+    MO* tf = nullptr;
+    MO* joint[N] = {};
+    std::map<std::string, std::array<Quat, N>> kept;
+    std::string gun;
+    float caught_for = -1.0f;   // the shot already read
+    float k = 0.0f, last_t = -1.0f;
+    Quat target[N] = {};
+    bool have[N] = {};
+
+    bool find(MO* skel) {
+        if (skel != tf) { tf = skel; for (auto& j : joint) j = nullptr; }
+        if (tf == nullptr) return false;
+        for (int i = 0; i < N; ++i) if (joint[i] == nullptr) joint[i] = joint_by_name(tf, RIGHT[i]);
+        return true;
+    }
+    void render(MO* skel, const std::string& id, bool free_for_it) {
+        for (auto& h : have) h = false;
+        const float t = now_s(), dt = last_t < 0.0f ? 0.0f : std::fmin(0.1f, t - last_t);
+        last_t = t;
+        if (!FIRM_GRIP_ON || id.empty() || !find(skel)) { k = 0.0f; return; }
+        const float shot = recoil::last_shot_s();
+        if (shot > 0.0f && shot != caught_for && t - shot >= FIRM_CAPTURE_S && t - shot < FIRM_CAPTURE_S + 0.5f) {
+            caught_for = shot;
+            std::array<Quat, N> q{};
+            bool ok = true;
+            for (int i = 0; i < N && ok; ++i) ok = joint[i] != nullptr && get_q(JOINT, joint[i], "get_LocalRotation", q[i]);
+            if (ok) {
+                const bool first = kept.find(id) == kept.end();
+                kept[id] = q;
+                if (first) LOGI("%s righthand: %s: the right hand's firm grip read from a shot; held from now on", TAG, id.c_str());
+            }
+        }
+        auto it = kept.find(id);
+        const bool want = free_for_it && it != kept.end();
+        const float step = dt / FIRM_EASE_S;
+        k = want ? std::fmin(1.0f, k + step) : std::fmax(0.0f, k - step);
+        if (k <= 0.0f || it == kept.end()) return;
+        const float u = ease(k);
+        for (int i = 0; i < N; ++i) {
+            Quat cur;
+            if (joint[i] == nullptr || !get_q(JOINT, joint[i], "get_LocalRotation", cur)) continue;
+            target[i] = nlerp(qnorm(cur), qnorm(it->second[i]), u);
+            have[i] = true;
+            set_any(JOINT, joint[i], "set_LocalRotation", &target[i]);
+        }
+    }
+    void again() const {
+        for (int i = 0; i < N; ++i)
+            if (have[i] && joint[i] != nullptr) set_any(JOINT, joint[i], "set_LocalRotation", &target[i]);
+    }
+};
+Firm g_firm;
+
 Still g_right{RIGHT, "right"};
 Still g_left{LEFT, "left"};
 struct PhaseInit { PhaseInit() { g_left.phase = 2.4f; } } g_phase_init;
@@ -101,6 +165,9 @@ void render_point() {
     const auto& s = player::now();
     const bool play = bridge::live() && bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     g_right.render(s.tf, RIGHT_STILL_ON && play && s.weapon == nullptr, "held still: no weapon out (the relaxed rest pose)");
+    const bool right_free = play && s.gun != nullptr && !rack_right::active() && !gate::right_at_cover() && !gate::right_lifted() &&
+                            !shellclip::playing_right() && !bridge::flag(bridge::S_IS_RELOADING);
+    g_firm.render(s.tf, s.gun != nullptr ? s.weapon_id : std::string(), right_free);
     // 2026-11-01 23:3x (Tefa: "left hand is still animating while walking"): the left fingers the same, whenever the left hand
     // is free: not gripping or holding anything, no Hand Poser on it, and not opening toward a part (fingers.cpp)
     // (2026-11-02: the game's own "gripping" flag left out: it flickers while LG is up, the game docking the free hand)
@@ -111,6 +178,6 @@ void render_point() {
     g_left.render(s.tf, LEFT_STILL_ON && play && left_free, "held still: the left hand is free (the relaxed rest pose)", s.weapon == nullptr);
 }
 
-void begin_render() { g_right.again(); g_left.again(); }
+void begin_render() { g_right.again(); g_left.again(); g_firm.again(); }
 
 } // namespace vn::righthand

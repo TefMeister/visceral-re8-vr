@@ -80,6 +80,7 @@ std::atomic<int> g_frame{0};
 std::mt19937 g_rng{std::random_device{}()};
 std::atomic<int> g_kicks{0}, g_patches{0};
 bool g_installed_fire = false, g_installed_cam = false;
+std::atomic<float> g_shot_s{0.0f};
 
 #ifdef VN_RECOIL_TEST   // tools/recoil_test: the same shots through this file and through Andyalpa's Lua, side by side
 double vn_test_clock();
@@ -574,6 +575,7 @@ int pre_shoot(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned 
     const auto& s = player::now();
     if (gun != s.weapon && (s.gun == nullptr || gun != s.gun)) return REFRAMEWORK_HOOK_CALL_ORIGINAL;   // is_player_weapon_gun
     m_fire_had_ammo = has_loaded_ammo(gun) != 0;
+    if (m_fire_had_ammo) g_shot_s.store(now_s());   // 2026-11-09: the firm grip (righthand.cpp)
     if (m_fire_had_ammo && recoil_on() && !block_queue() && m_pending < REC_PENDING_MAX) ++m_pending;   // add_pending_recoil_shot
     return REFRAMEWORK_HOOK_CALL_ORIGINAL;
 }
@@ -630,5 +632,7 @@ void on_ik(MO* ik) {
     std::lock_guard lk(g_mx);
     ik_pass(ik);
 }
+
+float last_shot_s() { return g_shot_s.load(); }
 
 } // namespace vn::recoil

@@ -20,5 +20,6 @@ void install();        // hooks shoot and the camera shake (first game frame, af
 void frame();          // UpdateBehavior pre: settings file check
 void physics_point();  // UpdateMotion pre and LateUpdateBehavior pre: the once-per-frame physics step
 void on_ik(MO* ik);    // ik.cpp: a player hand is about to be solved (the hook moved there 2026-10-18)
+float last_shot_s();   // 2026-11-09: now_s() of the player's last live shot (0 = none yet), for righthand.cpp's firm grip
 
 } // namespace vn::recoil

@@ -225,7 +225,9 @@ void frame() {
     // the rifle bolt, when pulled back with left hand then after the click that means it's at the very back, then the hand changes
     // pose automatically"): from the click at the back until the part is home, the slide / pump / bolt is its own spot, 11 (12 for a
     // pistol's slide taken from the left); a gun with no pose saved there keeps the one it had (Hand Poser; Dock Poser falls back)
-    else if (rack::active()) spot = rack::at_back() ? (rack::slide_from_left() ? 12.0f : 11.0f) : (rack::slide_from_left() ? 8.0f : 3.0f);
+    // 2026-11-09 (Tefa: "hand pose when getting to the end of the slide rack must stay the same until LT is released"; from the right
+    // the saved "at the back" pose still changed it): a pistol SLIDE keeps its pull spot to the end; bolts and pumps keep their stage
+    else if (rack::active()) spot = (rack::at_back() && (rack::bolt_gun() || rack::pump_gun())) ? (rack::slide_from_left() ? 12.0f : 11.0f) : (rack::slide_from_left() ? 8.0f : 3.0f);
     else if (reload::hand_on_mag()) spot = 4.0f;   // on the seated magazine (the grip look), and again while LT pushes one in
     // 2026-11-08 (Tefa: "holding LG to grip the mag, so it looks like holding the grip in game, then pressing B makes the hand actually
     // move under the mag, pressing it in with LT changes the hand to go back on the grip"): a magazine carried in the left hand (after
