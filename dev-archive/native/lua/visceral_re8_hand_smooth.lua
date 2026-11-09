@@ -47,6 +47,10 @@ pcall(function()
     if type(f) == "table" then for k, v in pairs(f) do cfg[k] = v end end
 end)
 if type(cfg.guns) ~= "table" then cfg.guns = {} end
+-- 2026-11-09 (Tefa: "hand smoothing has to be individual on each gun ... aiming the Lemi is just "off" with hand smoothing, while
+-- aiming the shotgun felt really good"): each gun may keep its own strength too, cfg.gun_strength[<gun id>] = 0..10; none =
+-- the default strength
+if type(cfg.gun_strength) ~= "table" then cfg.gun_strength = {} end
 local cur_gun = nil   -- the short id of the gun in hand ("ri3008"), nil with the knife or bare hands (gun_in_hand)
 local GUN_NAMES = { ri3008 = "M1851 Wolfsbane", ri3021 = "W870 TAC", ri3023 = "GM 79", ri3036 = "M1897", ri3040 = "M1911",
     ri3042 = "F2 Rifle", ri3046 = "LEMI", ri3047 = "V61 Custom", ri3048 = "SYG-12", ri3050 = "S.T.A.K.E",
@@ -54,6 +58,10 @@ local GUN_NAMES = { ri3008 = "M1851 Wolfsbane", ri3021 = "W870 TAC", ri3023 = "G
 local function gun_label(id) return id and (GUN_NAMES[id] or id) or "gun in hand" end
 local MODES = { "default", "off", "left", "right", "both" }   -- the per-gun choice, in the menu's order
 local function save() pcall(function() json.dump_file(FILE, cfg) end) end
+local function strength_now()   -- the gun in hand's own strength, else the default
+    local s = cur_gun and tonumber(cfg.gun_strength[cur_gun]) or nil
+    return math.max(0, math.min(10, s or tonumber(cfg.strength) or 4))
+end
 
 -- ---- small maths ----------------------------------------------------------------------------------------------------------
 local function alpha(cutoff_hz, dt) local tau = 1.0 / (2 * math.pi * cutoff_hz); return 1.0 / (1.0 + tau / dt) end
@@ -125,7 +133,7 @@ local function step(h, rc, pc, dt)
     local ad = alpha(D_CUTOFF_HZ, dt)
     h.wspeed = h.wspeed + (ang / dt - h.wspeed) * ad
     h.vspeed = h.vspeed + (dist / dt - h.vspeed) * ad
-    local st = math.max(0, math.min(10, tonumber(cfg.strength) or 4))
+    local st = strength_now()
     local still_hz, beta_k = CUTOFF_TOP_HZ * CUTOFF_STEP ^ st, BETA_STEP ^ st
     local prev_rs = h.rs
     h.rs = nlerp(h.rs, rc, alpha(still_hz + BETA_ROT * beta_k * h.wspeed, dt))
@@ -241,7 +249,7 @@ local function run()
                 TAG, r.still_n, math.deg(r.raw_sum / r.still_n), math.deg(r.out_sum / r.still_n),
                 100 * (1 - (r.out_sum / math.max(1e-9, r.raw_sum))),
                 gn > 0 and string.format("%.4f", math.deg(r.game_sum / gn)) or "not read",
-                tostring(cfg.strength), (cfg.on and wanted(hands[2])) and "(on)" or "(OFF)"))
+                tostring(strength_now()) .. ((cur_gun and cfg.gun_strength[cur_gun]) and " (this gun's own)" or ""), (cfg.on and wanted(hands[2])) and "(on)" or "(OFF)"))
         end
         for _, h in ipairs(hands) do h.raw_sum, h.out_sum, h.still_n, h.game_sum, h.game_n = 0, 0, 0, 0, 0 end
     end
@@ -292,6 +300,13 @@ re.on_draw_ui(function()
         for i, m in ipairs(MODES) do if (cfg.guns[cur_gun] or "default") == m then cur = i end end
         c, v = imgui.combo("This gun: " .. gun_label(cur_gun), cur, { "As the default", "Off", "Left hand only", "Right hand only", "Both hands" })
         if c then cfg.guns[cur_gun] = (v > 1) and MODES[v] or nil; save() end
+        local own = cfg.gun_strength[cur_gun] ~= nil
+        c, v = imgui.checkbox("Own strength for the " .. gun_label(cur_gun), own)
+        if c then cfg.gun_strength[cur_gun] = v and math.floor(tonumber(cfg.strength) or 4) or nil; save() end
+        if cfg.gun_strength[cur_gun] ~= nil then
+            c, v = imgui.slider_int("Strength on the " .. gun_label(cur_gun), math.floor(tonumber(cfg.gun_strength[cur_gun]) or 4), 0, 10)
+            if c then cfg.gun_strength[cur_gun] = v; save() end
+        end
     else
         imgui.text("Take a gun out to set its own smoothing.")
     end
@@ -311,6 +326,17 @@ local this_gun = { tab = "comfort", order = 40, kind = "choice", label = "Smooth
     end,
     set = function(v) if cur_gun then cfg.guns[cur_gun] = (v > 1) and MODES[v] or nil; save() end end }
 table.insert(_G.VISCERAL_OPTIONS, this_gun)
+-- 2026-11-09: this gun's own strength (1 = as the default, 2..12 = strength 0..10)
+local STRENGTH_CHOICES = { "As the default", "0 (light)", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10 (heavy)" }
+local this_strength = { tab = "comfort", order = 40.5, kind = "choice", label = "Smoothing strength on the gun in hand",
+    choices = STRENGTH_CHOICES,
+    help = "Each gun remembers its own; \"As the default\" uses the strength set in the REFramework menu.",
+    get = function()
+        local s = cur_gun and tonumber(cfg.gun_strength[cur_gun]) or nil
+        return s and (math.floor(s) + 2) or 1
+    end,
+    set = function(v) if cur_gun then cfg.gun_strength[cur_gun] = (v > 1) and (v - 2) or nil; save() end end }
+table.insert(_G.VISCERAL_OPTIONS, this_strength)
 table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 41, kind = "choice", label = "Smoothing, the default",
     choices = { "Off", "Left hand only", "Right hand only", "Both hands" },
     help = "For every gun without its own setting.",
@@ -322,6 +348,7 @@ table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 41, kind = "choice"
     set = function(v) cfg.on = true; cfg.left = (v == 2 or v == 4); cfg.right = (v == 3 or v == 4); save() end })
 re.on_frame(function()   -- the row names the gun in hand
     this_gun.label = cur_gun and ("Smoothing on the " .. gun_label(cur_gun)) or "Smoothing on the gun in hand (none)"
+    this_strength.label = cur_gun and ("Smoothing strength on the " .. gun_label(cur_gun)) or "Smoothing strength on the gun in hand (none)"
 end)
 
 log.info(TAG .. " loaded (" .. (cfg.on and ("on, strength " .. tostring(cfg.strength)) or "off") .. ")")
