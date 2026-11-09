@@ -245,6 +245,22 @@ void frame() {
     // pose"): a free left hand is "ready" (14) inside an activation area, "free" (15) elsewhere; Hand Poser shows the two poses
     if (spot == 0.0f && READY_POSES_ON) { const int a = fingers::left_area(); spot = a == 1 ? 14.0f : a == 2 ? 15.0f : 0.0f; }
     bridge::put(bridge::S_LEFT_SPOT, spot);
+    // 2026-11-09 (Tefa: "i need a way to make every weapon hand pose change individual ... make Hand Poser say in the info part that
+    // the left hand is now in for example left side slide activation area"): which area the "ready" hand is in, so Hand Poser can
+    // name it and keep a ready pose per gun per area. 0 when not "ready".
+    {
+        float area = 0.0f;
+        if (spot == 14.0f) {
+            Vec3 ap;
+            zones::Key k = zones::MAG;
+            if (reload::in_pouch()) area = 1.0f;
+            else if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), ap) && zones::area_of(ap, k)) area = 10.0f + (float)k;
+            else if (reload::hand_near_mag()) area = 10.0f + (float)zones::MAG;
+        }
+        static float last_area = -1.0f;
+        if (area != last_area) { last_area = area; LOGI("%s pairs: left hand area %d", TAG, (int)area); }
+        bridge::put(bridge::S_LEFT_AREA, area);
+    }
     // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
     // (2026-11-08: 4 = the right hand on the bolt from the click at the back until it is home, as the left's 11)
     bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? (rack::right_on() && rack::at_back() ? 4.0f : 2.0f) : gate::right_lifted() ? 3.0f : 0.0f);   // 3: over the hammer (2026-11-06)

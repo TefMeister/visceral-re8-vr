@@ -114,6 +114,10 @@ enum Slot : int {
     S_CLIP_PLAYING = 186,     // 2026-11-05, WRITTEN BY THE PLUGIN: a finger clip plays (shellclip.cpp): +1 the left hand, +2 the right; Hand Poser stands aside for that hand
     S_MENU_KEY = 185,         // 2026-11-04, WRITTEN BY THE EMPORIUM SCRIPT: 1 = press REFramework's menu key once (menukey.cpp), the plugin clears it
     S_GAME_SFX_SEQ = 182,     // 2026-11-01, WRITTEN BY THE SOUNDS SCRIPT: +1 on every gun sound the game itself plays (not ours, not footsteps)
+    S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
+                              // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
+                              // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,
+                              // 14 front grip, 15 handle, 16 drum, 17 insert point, 18 the slide from the left). pairs.cpp
     S_COUNT = 175,            // the button snapshot's length (unchanged: the slots from 175 on are read live with view()); the Lua array is 182 long            // 2026-10-29: 174 the brightness tick box; 2026-10-27: 154-168 the handle / drum / insert zones; 2026-10-26: 153 the left hand's spot; 2026-10-25: 142-152 the hand pairs; 136-140 the FRONT GRIP zone
 };
 enum Sfx : int {               // S_SFX_CODE values

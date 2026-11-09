@@ -37,5 +37,6 @@ void clear(Key k);                                         // not shown this fra
 // the grip handle), the one whose middle p is nearest, measured in that zone's own radii (0 = the middle, 1 = its edge);
 // false = none shown
 bool nearest_grab(const Vec3& p, Key& key, float& radii);
+bool area_of(const Vec3& p, Key& key);   // 2026-11-09: the shown zone the point is inside (any kind), for Hand Poser
 
 } // namespace vn::zones

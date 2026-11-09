@@ -180,10 +180,11 @@ void publish(Key k, const Vec3& c, float r, float on) {
 }
 void clear(Key k) { bridge::put((bridge::Slot)(first_slot(k) + 4), 0.0f); }
 
-bool nearest_grab(const Vec3& p, Key& key, float& radii) {
-    static const Key GRABS[] = {MAG, PART, GRIP, HANDLE};
+namespace {
+bool nearest_of(const Key* keys, int n, const Vec3& p, Key& key, float& radii) {
     bool any = false;
-    for (Key k : GRABS) {
+    for (int i = 0; i < n; ++i) {
+        const Key k = keys[i];
         const int s = first_slot(k);
         const float r = bridge::view((bridge::Slot)(s + 3));
         if (bridge::view((bridge::Slot)(s + 4)) <= 0.5f || r <= 0.001f) continue;
@@ -192,6 +193,19 @@ bool nearest_grab(const Vec3& p, Key& key, float& radii) {
         if (!any || q < radii) { radii = q; key = k; any = true; }
     }
     return any;
+}
+} // namespace
+
+bool nearest_grab(const Vec3& p, Key& key, float& radii) {
+    static const Key GRABS[] = {MAG, PART, GRIP, HANDLE};
+    return nearest_of(GRABS, 4, p, key, radii);
+}
+// 2026-11-09: every zone shown for the gun in hand, the slide's left side, the drum and the insert point included (pairs.cpp, the
+// left hand's area for Hand Poser); only zones the hand is inside (radii <= 1) count
+bool area_of(const Vec3& p, Key& key) {
+    static const Key ALL[] = {MAG, WELL, PART, GRIP, HANDLE, DRUM, INSERT, SLIDE_LEFT};
+    float q = 99.0f;
+    return nearest_of(ALL, 8, p, key, q) && q <= 1.0f;
 }
 
 } // namespace vn::zones
