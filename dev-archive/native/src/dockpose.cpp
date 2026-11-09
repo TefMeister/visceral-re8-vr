@@ -7,6 +7,7 @@
 #include "json_mini.h"
 #include "player.h"
 #include "settings.h"
+#include "rack.h"
 #include "shellclip.h"
 #include "smooth.h"
 #include "zones.h"
@@ -36,7 +37,30 @@ Pose g_ride_from;
 bool g_ride = false;
 float g_ride_u0 = 0.0f;   // the glide's progress when the ride was anchored (a spot change mid-glide rides the rest of it)
 int g_ride_glide = -1;    // the glide ridden: a new glide re-anchors from what is applied now, never back to the old start
-void ride_anchor(const Pose& now) { g_ride = true; g_ride_from = now; g_ride_u0 = smooth::progress(); g_ride_glide = smooth::glide_id(); }
+
+// the spot's turn as a quaternion in the gun's axes (y, then x, then z: as Hand Poser's sliders have always been read)
+Quat euler_q(float rx, float ry, float rz) {
+    const float d = 3.14159265f / 360.0f;   // half a degree in radians: quaternion halves
+    return qnorm(qmul(qmul(Quat{0, std::sin(ry * d), 0, std::cos(ry * d)}, Quat{std::sin(rx * d), 0, 0, std::cos(rx * d)}),
+                      Quat{0, 0, std::sin(rz * d), std::cos(rz * d)}));
+}
+Quat slerp_q(Quat a, Quat b, float t) {   // a -> b by t, the short way
+    float c = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    if (c < 0.0f) { b = Quat{-b.x, -b.y, -b.z, -b.w}; c = -c; }
+    if (c > 0.9995f) return qnorm(Quat{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t});
+    const float th = std::acos(c), s = std::sin(th), fa = std::sin((1.0f - t) * th) / s, fb = std::sin(t * th) / s;
+    return qnorm(Quat{a.x * fa + b.x * fb, a.y * fa + b.y * fb, a.z * fa + b.z * fb, a.w * fa + b.w * fb});
+}
+// b103 (2026-11-09, Tefa on LG under the LEMI's magazine: "hand takes like a curve to spin around and get to that pose ...
+// unnatural ... travel a shorter distance and just land on the spot"; that spot turns the hand 180 / 65 / 78 deg): during a
+// ride the turn goes the direct way (140 deg) instead of each slider angle on its own (190 deg of turning in all), and the
+// middle of the hand travels in a straight line instead of being swung round the wrist (DOCK_GLIDE_HAND_STRAIGHT)
+Quat g_ride_from_q{0, 0, 0, 1};
+Quat g_shown_q{0, 0, 0, 1};   // the left spot turn applied at the last solve (without the clip's nudge)
+void ride_anchor(const Pose& now) {
+    g_ride_from_q = g_ride ? g_shown_q : euler_q(now.rx, now.ry, now.rz);
+    g_ride = true; g_ride_from = now; g_ride_u0 = smooth::progress(); g_ride_glide = smooth::glide_id();
+}
 
 std::filesystem::path file_path() {
     wchar_t exe[MAX_PATH]{};
@@ -115,11 +139,13 @@ void on_ik(MO* ik) {
         }
         last = spot;
     }
-    if (left && g_ride && !smooth::easing()) g_ride = false;   // the glide is over: the per-solve ease below finishes the last bit
+    if (left && g_ride && !smooth::easing()) { g_ride = false; cur = want; }   // the glide is over: the spot's numbers are reached
     // any new glide (also one that starts a frame after the spot changed) carries what is left of the spot change with it
     if (left && DOCK_POSE_RIDES_GLIDE && smooth::easing() && smooth::glide_id() != g_ride_glide) ride_anchor(cur);
-    if (left && g_ride) {
-        const float u = g_ride_u0 >= 0.999f ? 1.0f : (smooth::progress() - g_ride_u0) / (1.0f - g_ride_u0);
+    const bool riding = left && g_ride;
+    float u = 1.0f;
+    if (riding) {
+        u = g_ride_u0 >= 0.999f ? 1.0f : (smooth::progress() - g_ride_u0) / (1.0f - g_ride_u0);
         const Pose& a = g_ride_from;
         cur.x = a.x + (want.x - a.x) * u; cur.y = a.y + (want.y - a.y) * u; cur.z = a.z + (want.z - a.z) * u;
         cur.rx = a.rx + (want.rx - a.rx) * u; cur.ry = a.ry + (want.ry - a.ry) * u; cur.rz = a.rz + (want.rz - a.rz) * u;
@@ -144,11 +170,27 @@ void on_ik(MO* ik) {
         if (s.weapon_tf == nullptr || !player::get_pose(s.weapon_tf, gp, gq)) return;
     }
     gq = qnorm(gq);
-    const float d = 3.14159265f / 360.0f;   // half a degree in radians: quaternion halves
-    const Quat local = qnorm(qmul(qmul(Quat{0, std::sin(tot.ry * d), 0, std::cos(tot.ry * d)}, Quat{std::sin(tot.rx * d), 0, 0, std::cos(tot.rx * d)}),
-                                  Quat{0, 0, std::sin(tot.rz * d), std::cos(tot.rz * d)}));
-    const Quat turn = qnorm(qmul(qmul(gq, local), qinv(gq)));   // about the gun's own axes, at the wrist
-    player::set_pose(target, lp + rotate(gq, Vec3{tot.x, tot.y, tot.z}), qnorm(qmul(turn, qnorm(lq))));
+    lq = qnorm(lq);
+    const Quat want_q = euler_q(want.rx, want.ry, want.rz);
+    const Quat base = riding ? slerp_q(g_ride_from_q, want_q, u) : euler_q(cur.rx, cur.ry, cur.rz);   // the spot's turn now
+    if (left) g_shown_q = base;
+    const Quat local = qnorm(qmul(base, euler_q(hn[3], hn[4], hn[5])));   // the clip's nudge on top
+    const Quat ginv = qinv(gq);
+    auto about_gun = [&](Quat l) { return qnorm(qmul(qmul(gq, l), ginv)); };   // about the gun's own axes, at the wrist
+    const Quat turn = about_gun(local);
+    Vec3 pos = lp + rotate(gq, Vec3{tot.x, tot.y, tot.z});
+    Vec3 t;
+    if (riding && DOCK_GLIDE_HAND_STRAIGHT && u < 1.0f && rack::palm_offset(t)) {
+        const float tl = std::sqrt(t.x * t.x + t.y * t.y + t.z * t.z);
+        if (tl > 1e-4f) {
+            const Vec3 hw = rotate(lq, t * (DOCK_GLIDE_PIVOT_M / tl));   // the middle of the hand from the wrist, before the spot's turn
+            const Pose& a = g_ride_from;
+            const Vec3 c_from = lp + rotate(gq, Vec3{a.x, a.y, a.z}) + rotate(about_gun(g_ride_from_q), hw);
+            const Vec3 c_to = lp + rotate(gq, Vec3{want.x, want.y, want.z}) + rotate(about_gun(want_q), hw);
+            pos = c_from + (c_to - c_from) * u - rotate(about_gun(base), hw) + rotate(gq, Vec3{hn[0], hn[1], hn[2]});
+        }
+    }
+    player::set_pose(target, pos, qnorm(qmul(turn, lq)));
 }
 
 } // namespace vn::dockpose

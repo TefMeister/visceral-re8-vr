@@ -289,6 +289,10 @@ constexpr float DOCK_POSE_EASE = 0.2f;          // how often pairs.json's write 
 // 2-3 frames) while the hand glided to the slide over SMOOTH_DOCK_SEC (9 frames), so the hand was first thrown by the spot's
 // offset (LEMI slide: 10 cm back, 5 cm down, 45 deg), then glided. A spot change during a glide now moves along the glide
 constexpr bool DOCK_POSE_RIDES_GLIDE = true;
+// b103 (Tefa: under the LEMI magazine the hand "takes like a curve to spin around"): during that glide the spot's turn goes
+// the direct way, and the middle of the hand (DOCK_GLIDE_PIVOT_M from the wrist, toward the palm) moves in a straight line
+constexpr bool DOCK_GLIDE_HAND_STRAIGHT = true;
+constexpr float DOCK_GLIDE_PIVOT_M = 0.07f;
 constexpr float PAIR_BUZZ_AMP = 0.35f, PAIR_BUZZ_SEC = 0.05f, PAIR_BUZZ_HZ = 160.0f;   // a short tick in the left hand at a take      // how often zones.json's write time is checked (a save from the Grab Zones window)
                                                  // (0.20 until 2026-10-24: Tefa "hand must not go straight onto the slider or the bolt after
                                                  // inserting a mag, there has to be a tighter zone"; it also needs a fresh LG press now)
