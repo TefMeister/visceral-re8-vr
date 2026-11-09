@@ -39,3 +39,23 @@ The hand turned around a magazine taken out; the left forearm twisting with the 
 why the wrist bends like a pretzel); fingers flicking with a magazine out; the step onto the slide (Tefa's video); the
 right-side release pushing forward; ammo counters at zero until a shot; the free left hand's jitter (Fable); the live
 connector (praydog's needs .NET, which this REFramework build lacks; Wednesday).
+
+## b095 (2026-11-09 10:38, home PC, Opus): the left forearm twists with the hand `[compile-verified]`
+
+Tefa (02:3x): *"left wrist really needs to turn with the forearm, right now forearm is frozen so it doesn't rotate at all
+and that's why my wrist in game is whanged into a prezel, but that is the only way to get the hand to grip around the handle
+nicely"*.
+
+- `forearm.cpp` still takes the twist joints' pose 45 frames after a draw (b094's grip), but that pose is now the ZERO of a
+  twist, not a freeze. Once a frame, after the arm solves (BeginRendering), it reads L_Hand's local turn under L_Forearm
+  and takes its twist about the forearm's long axis (the axis = L_Hand's local position, the bone direction).
+- The twist since the gun settled is unwrapped (always the nearest way round, so the half-turn flip that made the rifle's
+  forearm jump 100 deg in one frame on 2026-11-01 cannot happen), capped at 150 deg, and moves at most 20 deg a frame.
+- Each twist joint turns by that twist times its place along the forearm (0 at the elbow, 1 at the wrist), worked out at
+  the settle from the joints' own positions; whether a twist joint hangs from L_Forearm or from another twist joint is
+  read at the settle too, and logged ("forearm: twist follows the hand: axis ..., shares ..., parents ...").
+- The hand itself is not touched, so the grip around the handle stays as it was.
+- Switches in `settings.h`: FOREARM_TWIST_FOLLOW_ON (false = the 2026-11-01 plain hold), FOREARM_TWIST_SHARE,
+  FOREARM_TWIST_MAX_DEG, FOREARM_TWIST_RATE_DEG.
+- Not run yet. What to look for in the headset: the sleeve turning with the hand palm up / palm down; the rifle's bolt and
+  hand-back not jumping; the log lines above.

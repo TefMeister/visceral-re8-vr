@@ -177,6 +177,14 @@ constexpr float DRUM_TILT_DEG = 30.0f;
 constexpr float BREAK_OPEN_DEG = 40.0f;
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;
+// 2026-11-09 (Tefa: "left wrist really needs to turn with the forearm ... my wrist in game is whanged into a prezel"): the
+// held twist joints now turn with the hand's own twist about the forearm (swing-twist split of L_Hand under L_Forearm),
+// shared out by each joint's place along the forearm; unwrapped so a half turn never flips it (the rifle's old jump), capped
+// and rate-limited. At zero twist it is exactly the b094 held pose. false = the plain hold of 2026-11-01.
+constexpr bool  FOREARM_TWIST_FOLLOW_ON = true;
+constexpr float FOREARM_TWIST_SHARE = 1.0f;     // 1 = the joint at the wrist turns as far as the hand; less = a softer sleeve
+constexpr float FOREARM_TWIST_MAX_DEG = 150.0f; // the most the forearm twists from the settled pose either way
+constexpr float FOREARM_TWIST_RATE_DEG = 20.0f; // per frame at most: a sudden hand flip is followed, never jumped
 // armstretch.cpp (2026-11-08, Tefa: "hands need to stretch to keep the left hand on the weapon handle at all times, even if they
 // look rubber hands"): with the left hand held on the gun and its target past the arm's reach, the arm from the elbow down grows
 constexpr bool  ARM_STRETCH_ON = true;

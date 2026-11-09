@@ -4,6 +4,8 @@
 // L_Forearm_Twist_1..3 jumped 100 deg in one frame, then 51 and 52: the game works the twist joints out from the left hand's
 // turn, and a quick turn flips them. So once a gun has been out FOREARM_SETTLE_FRAMES frames, the twist joints' local turns
 // are kept and written back after the arm solves every frame, until the gun is put away or changed.
+// 2026-11-09: the kept pose is now the ZERO of a twist that follows the hand (FOREARM_TWIST_FOLLOW_ON): the hand's turn about
+// the forearm since the gun settled, unwrapped (no flip at a half turn), capped and rate-limited, shared out along the joints.
 #pragma once
 #include "common.h"
 
