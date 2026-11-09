@@ -2,7 +2,9 @@
 Prints the answer. The chunk may return values; helpers S N T F M G C show, and the table E that stays between
 questions. --front brings the game window forward first (the game pauses when it is not in front)."""
 import json, os, sys, time, subprocess
-D = os.path.join(r"C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE", "reframework", "data", "visceral_re8")
+GAME = os.environ.get("RV_GAME_DIR", r"C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE")   # RV_GAME_DIR: another RE Engine game with the eval script in autorun
+D = os.path.join(GAME, "reframework", "data", "visceral_re8")
+os.makedirs(D, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__))
 args = sys.argv[1:]
 front = "--front" in args
