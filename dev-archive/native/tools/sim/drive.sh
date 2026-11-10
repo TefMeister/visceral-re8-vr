@@ -11,3 +11,12 @@ python "$S/keys.py" $P >/dev/null; python "$S/stick.py" left 0 1; sleep 1       
 python "$S/keys.py" $P >/dev/null; python "$S/vb.py" Village press a; sleep 28     # load
 python "$S/keys.py" $P >/dev/null; python "$S/keys.py" $P >/dev/null; python "$S/vb.py" Village press a; sleep 6   # chapter card
 echo driven
+# 2026-11-10: a guard. Once the presses landed on NEW GAME instead of the save (the view-mode and difficulty questions
+# came up; nothing was confirmed or saved). If the game is not plainly in play now, it is closed and this says so.
+T=$(python "$S/rv.py" --front "local t = sdk.get_managed_singleton('app.GUIManager'):get_field('exclusiveTarget'); return re8vr ~= nil and re8vr.player ~= nil, t and t:get_type_definition():get_full_name() or 'none'" 2>/dev/null)
+case "$T" in
+  *CameraTypeSetting*|*GUIDifficulty*|*GUIMainMenu*|*GUITitle*)
+    echo "WRONG MENU ($T): closing the game, nothing confirmed"; python "$S/close_village.py" >/dev/null 2>&1; exit 3;;
+  true*) echo "in play ($T)";;
+  *) echo "state unknown ($T)";;
+esac

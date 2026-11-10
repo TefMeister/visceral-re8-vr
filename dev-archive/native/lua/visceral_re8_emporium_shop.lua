@@ -298,6 +298,19 @@ end
 local function close()
     if not ui.open then return end
     ui.closing = true
+    -- 2026-11-10: closing from INSIDE one of the game's own screens (X + A, or the desk's "close", while the Supplies
+    -- grid or the Gunsmithy is up): that screen is asked to hide first, the way the game's own Back does. Closing only
+    -- the top shop left it up alone with the Duke's real stock on it.
+    if ui.level == "real" then
+        local m = gm()
+        local t = m and safe(function() return m:get_field("exclusiveTarget") end)
+        local tn = t and type_name(t) or ""
+        if tn:find("Shop") and tn ~= "app.GUIShop" and tn ~= "app.GUIShopMenu" then
+            local o = safe(function() return t:call("get_order") end)
+            local okh = o ~= nil and pcall(function() o:call("hide(System.Boolean, System.Boolean, System.Boolean, System.String)", false, false, false, "") end)
+            L("closing from inside " .. tn .. ": that screen asked to hide first (" .. tostring(okh) .. ")")
+        end
+    end
     local sd = driver_of(ui.top)
     local order = sd and safe(function() return sd:call("get_order") end)
     local ok = false
@@ -358,6 +371,13 @@ local function back()
         ui.level = "tabs"
         render()
         ui.render_in = RENDER_AGAIN_FRAMES
+    elseif ui.level == "real" then
+        -- 2026-11-10 (Tefa 2026-11-09: "in a sub menu, say comfort ... i pressed B on right controller and it turned
+        -- back into the Dukes shop!"; reproduced on the simulator): inside one of the game's own screens (the Supplies
+        -- grid, the Gunsmithy) B is the GAME's. Its own Back leaves that screen and our onHide hooks bring the groups
+        -- back. Closing the top shop from here took our dressing away and left the real Buy screen up alone, with the
+        -- Duke's stock on it (the log: "closing", "closed", and the game still on app.GUIShopBuy).
+        return
     else
         close()
     end
