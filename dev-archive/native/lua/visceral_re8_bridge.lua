@@ -32,6 +32,8 @@ local S_BARE_HANDS, S_INTERACTION_BLOCKED = 88, 89   -- ammo_hud.cpp: two of the
 local S_HUD_PING = 87     -- the plugin bumps it after an ammo change: refresh the game's remaining-ammo display
 local REMAIN_AMMO_GUI = 1927694450   -- Andyalpa's ETHAN_REMAIN_AMMO_HASH (re8_vr_ammo_hud.lua)
 local hud_ping_seen = 0
+local HUD_AFTER_GUN_S, HUD_KEEP_S = 0.6, 2.0   -- the counter is refreshed this long after a gun change, and this often
+local hud_gun_seen, hud_due_t, hud_keep_n = nil, 0, 0
 local hud_update_told, hud_methods_told, hud_gui_told = nil, false, false   -- 2026-10-31: the counter refresh probe
 local S_SLIDE_HAND = 84   -- x, y, z: the hand on the slide, nudged in cm (gun axes: right, up, forward), saved below
 local S_SLIDE_HAND_ROT = 93   -- x, y, z: the same hand turned, degrees about the gun's axes (2026-10-24)
@@ -274,7 +276,8 @@ local function village_readings()
     w(S_RECOIL_FLAGS, bits)
     -- reload.cpp: Andyalpa's left-hip ammo spot is our ammo pouch; the pose switch; the block-pose stand-down
     wb(S_IN_AMMO_ZONE, rawget(_G, "__vr_in_ammo_holster_zone") == true)
-    wb(S_CUTSCENE, re8vr and re8vr.is_in_cutscene == true)
+    -- 2026-11-11: the game's own new-gun move (visceral_re8_newgun.lua) is a cutscene to the plugin: every hand job stands down
+    wb(S_CUTSCENE, (re8vr and re8vr.is_in_cutscene == true) or rawget(_G, "__visceral_newgun_playing") == true)
     -- ammo_hud.cpp (re8_vr_ammo_hud.lua): bare hands, and whether a menu / inventory blocks the hands
     wb(S_BARE_HANDS, rawget(_G, "__re8_bare_hands") == true)
     local blocked = false
@@ -319,8 +322,21 @@ local function village_readings()
     end
     -- 2026-10-19: the rifle showed 0/0 after a reload until the trigger was pulled. Do what the game's own HUD code does on
     -- a change: apply the remaining-ammo driver to its UI and ask its order to show the remaining ammo.
+    -- 2026-11-11 (Tefa 2026-11-09: "ammo counters showed zero just now, a shot made them go correct"): the same refresh
+    -- also a little after every gun change, and every HUD_KEEP_S while a gun is out in play, so a counter the game left
+    -- at zero (after the start, a gun change, a menu) corrects itself without a shot. [hypothesis]: which of those left
+    -- it at zero was not caught; the refresh is the one a shot triggers.
     local ping = r(S_HUD_PING)
-    if ping ~= hud_ping_seen then
+    local hud_now = os.clock()
+    local hud_gun = r(S_WEAPON_NUM)
+    if hud_gun ~= hud_gun_seen then hud_gun_seen = hud_gun; hud_due_t = hud_now + HUD_AFTER_GUN_S end
+    local hud_keep = hud_now >= hud_due_t and r(S_CUTSCENE) ~= 1.0 and r(S_BARE_HANDS) ~= 1.0
+    if hud_keep then
+        hud_due_t = hud_now + HUD_KEEP_S
+        hud_keep_n = hud_keep_n + 1
+        if hud_keep_n == 1 then log.info(TAG .. " ammo counter: the keep-right refresh is running (after a gun change and every " .. HUD_KEEP_S .. " s)") end
+    end
+    if ping ~= hud_ping_seen or hud_keep then
         hud_ping_seen = ping
         pcall(function()
             local gm = sdk.get_managed_singleton("app.GUIManager")
@@ -369,6 +385,8 @@ local function village_readings()
         end)
     end
     rawset(_G, "__visceral_reload_busy", attached and r(S_RELOAD_BUSY) == 1.0 or nil)
+    -- 2026-11-11: what the left hand is doing (handstate.h's code), for the hand smoothing's one-hand / two-hand strengths
+    rawset(_G, "__visceral_left_hand_state", attached and math.floor(r(S_HAND_STATE) + 0.5) or nil)
 end
 
 local function buttons()

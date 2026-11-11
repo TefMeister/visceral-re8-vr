@@ -363,6 +363,16 @@ local function update_pad_device(device)
     _G.__visceral_thumbrest_dpad = thumbrest_dpad
     local dpad_axis = vr_right_stick_axis
     if thumbrest_dpad then vr_right_stick_axis = Vector2f.new(0.0, 0.0) end
+    -- Visceral RE8 (2026-11-11): while the Visceral Emporium is open the sticks are the menu's
+    -- (visceral_re8_emporium_shop.lua, watch_sticks): the right stick does not turn the view, and inside one of its
+    -- screens the left stick's sideways half is the group change, not the game's
+    local emporium_pad = rawget(_G, "__visceral_emporium_pad")
+    if emporium_pad ~= nil then
+        vr_right_stick_axis = Vector2f.new(0.0, 0.0)
+        dpad_axis = vr_right_stick_axis
+        if emporium_pad.mute_ls_x then vr_left_stick_axis = Vector2f.new(0.0, vr_left_stick_axis.y) end
+        if (emporium_pad.lx or 0.0) ~= 0.0 then vr_left_stick_axis = Vector2f.new(emporium_pad.lx, 0.0) end   -- a card move
+    end
 
     local cur_button = device:call("get_Button")
     
@@ -557,6 +567,15 @@ local function update_pad_device(device)
     if is_re7 and vrmod:should_handle_pause() then
         cur_button = cur_button | via.hid.GamePadButton.CRight
         vrmod:set_handle_pause(false)
+    end
+
+    if emporium_pad ~= nil then   -- one D-pad tap for each step of the right stick (2026-11-11)
+        if emporium_pad.up then cur_button = cur_button | via.hid.GamePadButton.LUp end
+        if emporium_pad.down then cur_button = cur_button | via.hid.GamePadButton.LDown end
+        if emporium_pad.left then cur_button = cur_button | via.hid.GamePadButton.LLeft | via.hid.GamePadButton.EmuLleft end
+        if emporium_pad.right then cur_button = cur_button | via.hid.GamePadButton.LRight | via.hid.GamePadButton.EmuLright end
+        if emporium_pad.back then cur_button = cur_button | via.hid.GamePadButton.Cancel | via.hid.GamePadButton.RRight end
+        if emporium_pad.decide then cur_button = cur_button | via.hid.GamePadButton.Decide | via.hid.GamePadButton.RDown end
     end
 
     device:call("set_Button", cur_button)

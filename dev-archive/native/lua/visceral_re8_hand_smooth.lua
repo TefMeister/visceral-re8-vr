@@ -24,6 +24,9 @@
 -- right or both hands"): cfg.guns[<gun id>] = "off" | "left" | "right" | "both"; a gun with no entry follows the default
 -- (cfg.left / cfg.right). Set for the gun in hand from the Visceral Emporium (Comfort: "Smoothing on the <gun>") or the
 -- REFramework menu; each gun remembers its own. Melee and bare hands stay raw whatever is set (the 2026-11-02 rule).
+--
+-- BY HOW THE GUN IS HELD (2026-11-11): per gun, a strength for one hand on the gun and one each for the right and the left
+-- hand while both are on it (cfg.hold); it switches by itself when the left hand takes or leaves the gun.
 
 local TAG = "[visceral-re8-smooth]"
 local FILE = "visceral_re8/hand_smooth.json"
@@ -51,6 +54,15 @@ if type(cfg.guns) ~= "table" then cfg.guns = {} end
 -- aiming the shotgun felt really good"): each gun may keep its own strength too, cfg.gun_strength[<gun id>] = 0..10; none =
 -- the default strength
 if type(cfg.gun_strength) ~= "table" then cfg.gun_strength = {} end
+-- 2026-11-11 (Tefa 2026-11-09: "smoothing on with one hand and turned down when both hands are on the pistol ... when both
+-- hands are holding it, to be able to adjust left and right hand smoothing separately"): per gun, three more strengths,
+-- cfg.hold[<gun id>] = { one = 0..10, two_r = 0..10, two_l = 0..10 }: ONE = the gun hand while the left hand is off the gun,
+-- TWO_R / TWO_L = the right / left hand while the left hand is on the gun. A missing one = the gun's strength as before.
+if type(cfg.hold) ~= "table" then cfg.hold = {} end
+local HOLD_KEYS = { "one", "two_r", "two_l" }
+local HOLD_LABELS = { one = "one hand on the gun", two_r = "both hands on it: the right hand", two_l = "both hands on it: the left hand" }
+local LEFT_ON_GUN = { [1] = true, [2] = true, [3] = true }   -- handstate.h: the two-hand grip, on the slide / bolt, on the pump
+local two_hands = false   -- the left hand is on the gun (set once a frame in run())
 local cur_gun = nil   -- the short id of the gun in hand ("ri3008"), nil with the knife or bare hands (gun_in_hand)
 local GUN_NAMES = { ri3008 = "M1851 Wolfsbane", ri3021 = "W870 TAC", ri3023 = "GM 79", ri3036 = "M1897", ri3040 = "M1911",
     ri3042 = "F2 Rifle", ri3046 = "LEMI", ri3047 = "V61 Custom", ri3048 = "SYG-12", ri3050 = "S.T.A.K.E",
@@ -61,6 +73,22 @@ local function save() pcall(function() json.dump_file(FILE, cfg) end) end
 local function strength_now()   -- the gun in hand's own strength, else the default
     local s = cur_gun and tonumber(cfg.gun_strength[cur_gun]) or nil
     return math.max(0, math.min(10, s or tonumber(cfg.strength) or 4))
+end
+local function hold_key(side)   -- which of the gun's three hold strengths this hand is under now
+    if two_hands then return side == "left" and "two_l" or "two_r" end
+    return side == "right" and "one" or nil   -- a left hand off the gun keeps the gun's strength
+end
+local function strength_for(side)
+    local t = cur_gun and cfg.hold[cur_gun]
+    local k = hold_key(side)
+    local s = type(t) == "table" and k and tonumber(t[k]) or nil
+    return s and math.max(0, math.min(10, s)) or strength_now()
+end
+local function left_on_gun()
+    local on = false
+    pcall(function() on = re8vr.was_gripping_weapon == true end)
+    local st = rawget(_G, "__visceral_left_hand_state")
+    return on or (st ~= nil and LEFT_ON_GUN[st] == true)
 end
 
 -- ---- small maths ----------------------------------------------------------------------------------------------------------
@@ -133,7 +161,7 @@ local function step(h, rc, pc, dt)
     local ad = alpha(D_CUTOFF_HZ, dt)
     h.wspeed = h.wspeed + (ang / dt - h.wspeed) * ad
     h.vspeed = h.vspeed + (dist / dt - h.vspeed) * ad
-    local st = strength_now()
+    local st = strength_for(h.side)
     local still_hz, beta_k = CUTOFF_TOP_HZ * CUTOFF_STEP ^ st, BETA_STEP ^ st
     local prev_rs = h.rs
     h.rs = nlerp(h.rs, rc, alpha(still_hz + BETA_ROT * beta_k * h.wspeed, dt))
@@ -205,6 +233,12 @@ end
 local function run()
     if rawget(_G, "re8vr") == nil or vrmod == nil then return end
     local gun = gun_in_hand()   -- every time, so the menus always name the gun in hand
+    local two = gun and left_on_gun()
+    if two ~= two_hands then
+        two_hands = two
+        if gun then log.info(string.format("%s %s: strength right %s, left %s", TAG, two and "both hands on the gun" or "one hand on the gun",
+            tostring(strength_for("right")), tostring(strength_for("left")))) end
+    end
     local active = cfg.on and vrmod:is_hmd_active() and gun
     local ctl = nil
     if active then pcall(function() ctl = vrmod:get_controllers() end) end
@@ -249,7 +283,7 @@ local function run()
                 TAG, r.still_n, math.deg(r.raw_sum / r.still_n), math.deg(r.out_sum / r.still_n),
                 100 * (1 - (r.out_sum / math.max(1e-9, r.raw_sum))),
                 gn > 0 and string.format("%.4f", math.deg(r.game_sum / gn)) or "not read",
-                tostring(strength_now()) .. ((cur_gun and cfg.gun_strength[cur_gun]) and " (this gun's own)" or ""), (cfg.on and wanted(hands[2])) and "(on)" or "(OFF)"))
+                tostring(strength_for("right")) .. (two_hands and " (both hands on the gun)" or " (one hand)"), (cfg.on and wanted(hands[2])) and "(on)" or "(OFF)"))
         end
         for _, h in ipairs(hands) do h.raw_sum, h.out_sum, h.still_n, h.game_sum, h.game_n = 0, 0, 0, 0, 0 end
     end
@@ -307,6 +341,21 @@ re.on_draw_ui(function()
             c, v = imgui.slider_int("Strength on the " .. gun_label(cur_gun), math.floor(tonumber(cfg.gun_strength[cur_gun]) or 4), 0, 10)
             if c then cfg.gun_strength[cur_gun] = v; save() end
         end
+        for _, k in ipairs(HOLD_KEYS) do
+            local t = cfg.hold[cur_gun]
+            local has = type(t) == "table" and t[k] ~= nil
+            c, v = imgui.checkbox("Own strength with " .. HOLD_LABELS[k], has)
+            if c then
+                cfg.hold[cur_gun] = type(t) == "table" and t or {}
+                cfg.hold[cur_gun][k] = v and strength_now() or nil
+                save()
+            end
+            if type(cfg.hold[cur_gun]) == "table" and cfg.hold[cur_gun][k] ~= nil then
+                c, v = imgui.slider_int("Strength, " .. HOLD_LABELS[k], math.floor(tonumber(cfg.hold[cur_gun][k]) or 4), 0, 10)
+                if c then cfg.hold[cur_gun][k] = v; save() end
+            end
+        end
+        imgui.text("Now: " .. (two_hands and "both hands on the gun" or "one hand on the gun"))
     else
         imgui.text("Take a gun out to set its own smoothing.")
     end
@@ -337,6 +386,27 @@ local this_strength = { tab = "comfort", order = 40.5, kind = "choice", label = 
     end,
     set = function(v) if cur_gun then cfg.gun_strength[cur_gun] = (v > 1) and (v - 2) or nil; save() end end }
 table.insert(_G.VISCERAL_OPTIONS, this_strength)
+-- 2026-11-11: the gun in hand's three hold strengths (1 = as this gun's strength, 2..12 = strength 0..10)
+local HOLD_CHOICES = { "As this gun's strength", "0 (light)", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10 (heavy)" }
+local HOLD_ROW_LABELS = { one = "Smoothing with one hand on the gun", two_r = "Smoothing with both hands on it: right hand",
+    two_l = "Smoothing with both hands on it: left hand" }
+local hold_rows = {}
+for i, k in ipairs(HOLD_KEYS) do
+    hold_rows[k] = { tab = "comfort", order = 40.5 + i * 0.1, kind = "choice", label = HOLD_ROW_LABELS[k], choices = HOLD_CHOICES,
+        help = "For the gun in hand; each gun remembers its own. Both hands = the left hand on the grip, the slide or the pump.",
+        get = function()
+            local t = cur_gun and cfg.hold[cur_gun]
+            local s = type(t) == "table" and tonumber(t[k]) or nil
+            return s and (math.floor(s) + 2) or 1
+        end,
+        set = function(v)
+            if not cur_gun then return end
+            if type(cfg.hold[cur_gun]) ~= "table" then cfg.hold[cur_gun] = {} end
+            cfg.hold[cur_gun][k] = (v > 1) and (v - 2) or nil
+            save()
+        end }
+    table.insert(_G.VISCERAL_OPTIONS, hold_rows[k])
+end
 table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 41, kind = "choice", label = "Smoothing, the default",
     choices = { "Off", "Left hand only", "Right hand only", "Both hands" },
     help = "For every gun without its own setting.",
@@ -349,6 +419,7 @@ table.insert(_G.VISCERAL_OPTIONS, { tab = "comfort", order = 41, kind = "choice"
 re.on_frame(function()   -- the row names the gun in hand
     this_gun.label = cur_gun and ("Smoothing on the " .. gun_label(cur_gun)) or "Smoothing on the gun in hand (none)"
     this_strength.label = cur_gun and ("Smoothing strength on the " .. gun_label(cur_gun)) or "Smoothing strength on the gun in hand (none)"
+    for _, k in ipairs(HOLD_KEYS) do hold_rows[k].label = HOLD_ROW_LABELS[k] .. (cur_gun and (" (" .. gun_label(cur_gun) .. ")") or " (no gun in hand)") end
 end)
 
 log.info(TAG .. " loaded (" .. (cfg.on and ("on, strength " .. tostring(cfg.strength)) or "off") .. ")")

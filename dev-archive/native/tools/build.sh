@@ -73,7 +73,7 @@ put "$HERE/bindings/_interaction_profiles_oculus_touch_controller.json" _interac
 for f in visceral_re8_bridge.lua visceral_re8_menu.lua visceral_re8_sounds.lua re8_vr.lua jitterlog.lua \
          re8_vr_holster.lua re8_vr_holster_visuals.lua visceral_re8_holsters.lua visceral_re8_hud.lua visceral_re8_emporium.lua visceral_re8_emporium_shop.lua \
          re8_vrz_begone_grip.lua visceral_re8_origin.lua visceral_re8_zones.lua visceral_re8_whitepoint.lua \
-         visceral_re8_hand_smooth.lua visceral_re8_magthrow.lua visceral_re8_bodyturn.lua visceral_re8_shell2.lua visceral_re8_mag2.lua; do
+         visceral_re8_hand_smooth.lua visceral_re8_magthrow.lua visceral_re8_bodyturn.lua visceral_re8_shell2.lua visceral_re8_mag2.lua visceral_re8_newgun.lua; do
     put "$HERE/lua/$f" "reframework/autorun/$f" code
 done
 for f in "$PACK"/autorun/*.lua; do

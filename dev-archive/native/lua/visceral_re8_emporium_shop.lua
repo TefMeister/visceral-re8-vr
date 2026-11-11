@@ -188,26 +188,33 @@ end
 local function lit_card()
     local view = view_of(ui.menu)
     if view == nil then return nil end
-    local found = nil
-    local function visit(ctrl, depth, in_list, item)
-        if ctrl == nil or depth > 10 or found ~= nil then return end
+    -- 2026-11-11: the cards live in two lists, l_list (three cards) and l_list_add (four, once the Duke cooks). Only one
+    -- is in use, but the other keeps a cursor showing on its first card; with the four-card list up this read card 0
+    -- whatever was lit. The list in use is the one whose lit card the screen's own selection agrees with.
+    local found = {}
+    local function visit(ctrl, depth, list, item)
+        if ctrl == nil or depth > 10 then return end
         local name = safe(function() return ctrl:call("get_Name") end) or ""
-        local here_list = in_list or name == "l_list"
+        local here_list = (name == "l_list" or name == "l_list_add") and name or list
         local here_item = item
         if here_list and name:match("^si_list%d$") then here_item = tonumber(name:sub(8)) end
-        if here_item ~= nil and name == "cursor" and safe(function() return ctrl:call("get_Visible") end) == true then
-            found = here_item
+        if here_list and here_item ~= nil and name == "cursor" and found[here_list] == nil
+            and safe(function() return ctrl:call("get_Visible") end) == true then
+            found[here_list] = here_item
             return
         end
-        if name == "l_list_add" then return end
         local child = safe(function() return ctrl:call("get_Child") end)
-        while child ~= nil and found == nil do
+        while child ~= nil do
             visit(child, depth + 1, here_list, here_item)
             child = safe(function() return child:call("get_Next") end)
         end
     end
-    visit(view, 0, false, nil)
-    return found
+    visit(view, 0, nil, nil)
+    local d = driver_of(ui.menu)
+    local list = d and safe(function() return d:get_field("<simpleList>k__BackingField") end)
+    local sel = tonumber(list and safe(function() return list:call("get_SelectedIndex") end))
+    if found.l_list_add ~= nil and (found.l_list == nil or sel == found.l_list_add) then return found.l_list_add end
+    return found.l_list or found.l_list_add
 end
 
 local function selected_index()
@@ -829,12 +836,15 @@ do
         if stepping then stepping = false; return sdk.to_ptr(0) end
         return retval
     end)
+    -- the rows are lit once a gun (a group) is chosen: lateUpdateSetTune runs only from then on
+    hook("lateUpdateSetTune", function(args) if ui.open and ui.level == "real" then ui.cust_rows = true end end)
     hook("tuning", function(args)
         if ui.open and ui.level == "real" then return sdk.PreHookResult.SKIP_ORIGINAL end
     end)
     -- leaving the Gunsmithy (B): back to our groups
     hook("onHide", nil, function(retval)
         if ui.open and ui.level == "real" then ui.level, cust_drv, cust_cache = "tabs", nil, nil; ui.render_in = 6 end
+        ui.cust_rows = false
         return retval
     end)
 end
@@ -1024,6 +1034,138 @@ local function watch_back()
     end
 end
 
+-- ===== THE STICKS DRIVE THE MENU (2026-11-11) =====
+-- Tefa 2026-11-08 / 11-09: "RS to change settings and sliders in VR options, LS to change the category from comfort to
+-- graphics and so on, so no need to keep exiting to "main menu" of the VR options"; "use the RS - up/down to choose
+-- settings - left/right to change them both sliders and on/off ones".
+--   right stick up / down    = the game's own selection moves (handed to the pad as one D-pad tap a step, re8_vr.lua);
+--                              on the cards, which lie side by side, up = the card before, down = the next
+--   right stick left / right = the lit setting steps down / up (a tick box flips); on the three group cards it moves
+--                              between the cards, since a card has nothing to change
+--   left stick left / right  = the next / the previous group, from inside any screen (Back, then the next card, by itself)
+-- While the Emporium is open the right stick does not reach the game (no turning), nor the left stick's sideways half
+-- inside a screen. Each direction repeats while held. The desk can press them too: emporium_cmd.json "stick r up" ...
+local STICK_ON, STICK_OFF = 0.6, 0.35              -- pushed this far = a step; back under this = let go
+local STICK_FIRST_S, STICK_REPEAT_S = 0.45, 0.16   -- held: the second step after this long, then one every this long
+local HOP_WAIT_FRAMES, HOP_GIVE_UP_FRAMES = 12, 240   -- group change: frames on the cards before the pick; when to give up
+local pad = { up = false, down = false, left = false, right = false, back = false, decide = false, lx = 0.0, mute_ls_x = false }
+-- the three cards answer the left STICK only (D-pad taps did nothing on them, 2026-11-11, simulator): a card move is the
+-- stick's sideways half held for a few frames
+local FLICK_FRAMES, FLICK_REST_FRAMES = 5, 14      -- held this long; then this long before the next flick or the pick
+local flick = { dir = 0, frames = 0, rest = 0 }
+local function card_flick(dir) if flick.frames <= 0 and flick.rest <= 0 then flick.dir, flick.frames = dir, FLICK_FRAMES; return true end return false end   -- re8_vr.lua reads it
+local sticks = { r = { dir = nil, next_t = 0 }, l = { dir = nil, next_t = 0 } }
+local fake_stick = nil        -- { hand = "r" | "l", dir = "up" | ..., frames = n } from the desk
+local function stick_dir(v, was)
+    if v == nil then return nil end
+    local ax, ay = math.abs(v.x), math.abs(v.y)
+    local limit = was and STICK_OFF or STICK_ON
+    if math.max(ax, ay) < limit then return nil end
+    if ay >= ax then return v.y > 0 and "up" or "down" end
+    return v.x > 0 and "right" or "left"
+end
+-- one step now? (the first push, then the repeats)
+local function stick_step(st, dir, now)
+    if dir == nil then st.dir = nil return nil end
+    if st.dir ~= dir then st.dir, st.next_t = dir, now + STICK_FIRST_S return dir end
+    if now >= st.next_t then st.next_t = now + STICK_REPEAT_S return dir end
+    return nil
+end
+-- the lit setting of the screen that is up, and how to put its new value on the screen
+local function lit_entry()
+    if ui.level == "real" then
+        -- the screen that belongs to the card that was picked (a screen that is still fading out keeps its driver a while)
+        if ui.tab ~= 3 then sell_drv = nil end
+        if cust_drv and ui.tab == 2 then
+            -- the Gunsmithy starts in its gun column (the group); its rows are lit only once a gun is chosen
+            if not ui.cust_rows then return nil, nil, "the Gunsmithy's gun column" end
+            local row = tonumber(safe(function() return cust_drv:get_field("<cursorIndex>k__BackingField") end)) or 0
+            local g, wi = cust_group()
+            return wi < #TABS and rows_for_group(g)[row + 1] or nil, function() ui.render_cust_in = 1 end, "the Gunsmithy"
+        elseif sell_drv and ui.tab == 3 then
+            local idx = (tonumber(safe(function() return sell_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
+            return sell_rows()[idx], function() ui.sell_tick = 6 end, "the Duke's Purse"
+        elseif buy_drv then
+            local idx = (tonumber(safe(function() return buy_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
+            return checks_for_group()[idx], function() ui.render_buy_in = 1 end, "the Supplies screen"
+        end
+        return nil
+    elseif ui.level == "page" then
+        local c = ui.cards and ui.cards[(lit_card() or 0) + 1]
+        return (c and type(c.what) == "table") and c.what or nil, function() ui.render_in = 1 end, "a page"
+    end
+    return nil
+end
+local function watch_sticks()
+    pad.up, pad.down, pad.left, pad.right, pad.back, pad.decide, pad.lx = false, false, false, false, false, false, 0.0
+    if flick.frames > 0 then
+        flick.frames = flick.frames - 1; pad.lx = flick.dir
+        if flick.frames == 0 then flick.rest = FLICK_REST_FRAMES end
+    elseif flick.rest > 0 then flick.rest = flick.rest - 1 end
+    if not ui.open or ui.closing or ui.game_closing then
+        if rawget(_G, "__visceral_emporium_pad") ~= nil then rawset(_G, "__visceral_emporium_pad", nil) end
+        sticks.r.dir, sticks.l.dir, ui.hop = nil, nil, nil
+        return
+    end
+    rawset(_G, "__visceral_emporium_pad", pad)
+    pad.mute_ls_x = ui.level == "real"
+    local rv, lv = nil, nil
+    if vrmod and safe(function() return vrmod:is_hmd_active() end) then
+        rv = safe(function() return vrmod:get_right_stick_axis() end)
+        lv = safe(function() return vrmod:get_left_stick_axis() end)
+    end
+    local now = os.clock()
+    local rdir = stick_step(sticks.r, stick_dir(rv, sticks.r.dir ~= nil), now)
+    local ldir = stick_step(sticks.l, stick_dir(lv, sticks.l.dir ~= nil), now)
+    if fake_stick then
+        if fake_stick.hand == "r" then rdir = fake_stick.dir else ldir = fake_stick.dir end
+        fake_stick = nil
+    end
+    -- a group change under way: on the cards again -> pick the wanted one
+    if ui.hop then
+        ui.hop.frames = ui.hop.frames + 1
+        if ui.level == "tabs" and ui.menu ~= nil then
+            -- on the cards again: walk the game's own selection to the wanted card, then the game's own OK on it (the
+            -- same road as A in the headset, so the card opens its real screen)
+            ui.hop.on_cards = (ui.hop.on_cards or 0) + 1
+            local lit = lit_card() or 0
+            if ui.hop.on_cards >= HOP_WAIT_FRAMES and flick.frames <= 0 and flick.rest <= 0 then
+                if lit == ui.hop.card then
+                    pad.decide = true; L("group change: OK on card " .. ui.hop.card); ui.hop = nil
+                else
+                    card_flick(lit < ui.hop.card and 1 or -1)
+                end
+            end
+            if ui.hop and ui.hop.frames > HOP_GIVE_UP_FRAMES then L("group change: card " .. ui.hop.card .. " was not reached (lit " .. tostring(lit) .. "); given up"); ui.hop = nil end
+        elseif ui.hop.frames > HOP_GIVE_UP_FRAMES then L("group change: the cards never came back; given up"); ui.hop = nil end
+        return
+    end
+    if (rdir == "up" or rdir == "down") and ui.level ~= "real" then
+        -- the cards lie side by side: up = the card before, down = the next one
+        card_flick(rdir == "up" and -1 or 1)
+    elseif rdir == "up" then pad.up = true elseif rdir == "down" then pad.down = true
+    elseif rdir == "left" or rdir == "right" then
+        local e, redraw, where = lit_entry()
+        if e then
+            step_setting(e, rdir == "right" and 1 or -1)
+            ui.flip_quiet_until = os.clock() + 0.15
+            if redraw then redraw() end
+            L("right stick " .. rdir .. " on " .. tostring(where) .. ": " .. tostring(e.label) .. " -> " .. value_text(e))
+        elseif ui.level ~= "real" then
+            card_flick(rdir == "left" and -1 or 1)   -- between the cards
+        elseif where == "the Gunsmithy's gun column" and rdir == "right" then
+            pad.decide = true   -- into the lit group's rows, as A does
+        end
+    end
+    if (ldir == "left" or ldir == "right") and ui.level == "real" then
+        local n = #TABS
+        local card = ((ui.tab or 1) - 1 + (ldir == "right" and 1 or -1)) % n
+        ui.hop = { card = card, frames = 0 }
+        L("left stick " .. ldir .. ": group " .. tostring(ui.tab) .. " -> card " .. card .. " (the game's own Back first)")
+        pad.back = true   -- inside one of the game's screens Back is the GAME's (see back()): one tap of its Cancel button
+    end
+end
+
 -- ===== the frame =====
 -- ===== NO RED WALL: THE CARDS HANG IN THE GAME WORLD (2026-11-10, Fable) =====
 -- Tefa (2026-11-05, headset): "the red background removed, view goes into like a 2D screen in front of me that has depth
@@ -1052,6 +1194,10 @@ re.on_frame(function()
     frames = frames + 1
     watch_buttons()
     watch_back()
+    do
+        local ok, err = pcall(watch_sticks)
+        if not ok and not ui.stick_err_said then ui.stick_err_said = true; L("the sticks failed: " .. tostring(err)) end
+    end
     if ui.open and ui.menu == nil and not ui.closing then
         ui.wait_menu = (ui.wait_menu or 0) + 1
         if adopt_menu() then ui.wait_menu = 0
@@ -1168,6 +1314,13 @@ re.on_frame(function()
             elseif line == "realbuy" then ui.real_screens = true; ui.raw = false; L("experiment: the cards open the game's real screens")
             elseif line == "realraw" then ui.real_screens = true; ui.raw = true; L("experiment: the real screens, none of our changes")
             elseif line == "ownpages" then ui.real_screens = false; L("the cards open our own pages again")
+            elseif line:sub(1, 6) == "stick " then   -- "stick r up": one step of a stick, from the desk
+                local hand, dir = line:match("^stick ([rl]) (%a+)$")
+                if hand and dir then fake_stick = { hand = hand, dir = dir } end
+            elseif line == "where" then
+                local e, _, where = lit_entry()
+                L(string.format("where: level %s, tab %s, screen %s, lit card %s, lit setting %s = %s", tostring(ui.level), tostring(ui.tab),
+                    tostring(where), tostring(lit_card()), tostring(e and e.label), tostring(e and value_text(e))))
             elseif line == "open" then pcall(open) elseif line == "close" then pcall(close)
             elseif line == "back" then pcall(back) elseif line:sub(1, 5) == "pick " then pcall(pick, tonumber(line:sub(6)) or 0) end
         end
