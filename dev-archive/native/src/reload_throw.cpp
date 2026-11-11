@@ -50,7 +50,7 @@ static Vec3 throw_velocity() {
     return v;
 }
 
-void throw_hand_over(Vec3 mag_pos, Quat mag_rot, bool from_hand) {
+void throw_hand_over(Vec3 mag_pos, Quat mag_rot, bool from_hand, int rounds_look) {
     const int part = mag_part();
     const Vec3 v = from_hand ? throw_velocity() : Vec3{0, 0, 0};
     g_hist_n = 0;
@@ -66,7 +66,7 @@ void throw_hand_over(Vec3 mag_pos, Quat mag_rot, bool from_hand) {
     put(S_MAGTHROW_VEL, v.x); put(static_cast<Slot>(S_MAGTHROW_VEL + 1), v.y); put(static_cast<Slot>(S_MAGTHROW_VEL + 2), v.z);
     put(S_MAGTHROW_PART, static_cast<float>(part));
     // 2026-11-05 (magdisp.cpp): the copy shows its rounds parts only when the magazine holds any (its OWN count, not the gun's)
-    const int rounds = reload::mag_rounds_out();
+    const int rounds = rounds_look >= 0 ? rounds_look : reload::mag_rounds_out();
     put(S_MAGTHROW_ROUNDS, static_cast<float>(rounds >= 0 ? rounds : g_mag_rounds));
     g_seq += 1.0f;
     put(S_MAGTHROW_SEQ, g_seq);   // last: the Lua reads the numbers above once this changes

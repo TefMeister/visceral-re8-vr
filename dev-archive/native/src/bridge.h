@@ -126,6 +126,14 @@ enum Slot : int {
     S_SHELL2_POS = 218,       // 218-220: where the FIRST shell is drawn (world)
     S_SHELL2_ROT = 221,       // 221-224: its turn (x, y, z, w)
     S_SHELL2_SIZE = 225,      // its size against the game's (1 = the game's; the menu's "size" slider)
+    // 2026-11-11 (twomag.h): a second magazine in the left hand, drawn by visceral_re8_mag2.lua as a copy
+    S_MAG2_ON = 226,          // WRITTEN BY THE PLUGIN: S_FRAME + 1 of the frame an extra magazine was last in the hand; stale = none
+    S_MAG2_ROLE = 227,        // 1 = a spare from the pouch (the hand's second place), 2 = the old magazine after the swap (the first place)
+    S_MAG2_POS = 228,         // 228-230: the hand's magazine hold (world), 231-234 its turn (x, y, z, w)
+    S_MAG2_ROUNDS = 235,      // the extra magazine's own rounds (its look)
+    S_MAG2_DRAWN_POS = 236,   // 236-238, WRITTEN BY THE LUA: where it drew the extra magazine (world); 239-242 its turn
+    S_MAG2_DRAWN_ROT = 239,
+    S_MAG2_DRAWN_ON = 243,    // WRITTEN BY THE LUA: S_FRAME + 1 of the frame it drew it
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

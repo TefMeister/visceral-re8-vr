@@ -7,6 +7,7 @@
 #include "settings.h"
 #include "bridge.h"
 #include "shells.h"
+#include "twomag.h"
 
 #include <algorithm>
 #include <cmath>
@@ -154,6 +155,19 @@ void capture_second() {
     LOGI("%s reload: %s Magazine_second rides along (%.3f m from Magazine); parents: Magazine under %s, Magazine_second under %s%s", TAG,
          g_id.c_str(), dist(p1w, p2w), a.c_str(), b.c_str(), g_j2_same_parent ? "" : " (different: it follows only while falling)");
 }
+// 2026-11-11 (twomag.h): the spare going in starts where the Lua drew it in the hand
+bool g_ins_ok = false;
+Vec3 g_ins_p{};
+Quat g_ins_q{0, 0, 0, 1};
+void insert_from(bool ok, Vec3 world, Quat wrot) { g_ins_ok = ok && to_weapon_local(world, wrot, g_ins_p, g_ins_q); }
+void pose_second() {
+    if (twomag::has() == twomag::Has::NONE) return;
+    Vec3 p;
+    Quat q;
+    if (!held_pose(p, q)) return;
+    if (twomag::has() == twomag::Has::OLD) throw_sample(p);   // its speed, should it be let go
+    twomag::publish(p, q);
+}
 void shell_write(Vec3 p, Quat q) {
     set_any(JOINT, g_shell, "set_LocalPosition", &p);
     set_any(JOINT, g_shell, "set_LocalRotation", &q);
@@ -233,6 +247,7 @@ void pose_joint() {
     const float t = now_s() - g_t0;
     switch (g_st) {
     case St::SEATED:
+        g_ins_ok = false;
         if (g_scale_restore) { write_scale(g_rest_scale); g_scale_restore = false; }
         return;
     case St::SLIDE_OUT:
@@ -260,6 +275,19 @@ void pose_joint() {
     }
     case St::INSERT:
         write_scale(g_rest_scale);
+        if (g_ins_ok) {   // 2026-11-11: from the hand to the bottom of the grip, then up it
+            const float u = std::fmin(1.0f, t / RELOAD_INSERT_SEC), a = TWOMAG_INSERT_REACH_PART;
+            if (u < a) {
+                const float k = ease(u / a);
+                Quat b = g_rest_rot;
+                if (g_ins_q.x * b.x + g_ins_q.y * b.y + g_ins_q.z * b.z + g_ins_q.w * b.w < 0.0f) b = {-b.x, -b.y, -b.z, -b.w};
+                const Quat q = qnorm({g_ins_q.x + (b.x - g_ins_q.x) * k, g_ins_q.y + (b.y - g_ins_q.y) * k, g_ins_q.z + (b.z - g_ins_q.z) * k, g_ins_q.w + (b.w - g_ins_q.w) * k});
+                write_local(lerp(g_ins_p, mag_out_pos(), k), q);
+            } else {
+                write_local(lerp(mag_out_pos(), g_rest_pos, ease((u - a) / (1.0f - a))), g_rest_rot);
+            }
+            return;
+        }
         write_local(lerp(mag_out_pos(), g_rest_pos, ease(t / RELOAD_INSERT_SEC)), g_rest_rot);
         return;
     case St::RAIL:   // b096: only along the grip, as far as the hand has drawn it (reload.cpp rail_frame)

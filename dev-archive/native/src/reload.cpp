@@ -14,6 +14,7 @@
 #include "rack.h"
 #include "rack_right.h"
 #include "settings.h"
+#include "twomag.h"
 #include "weapons.h"
 #include "zones.h"
 
@@ -234,6 +235,31 @@ bool insert_round(int clip_hands = shellclip::BOTH) {
 bool supply() { const int r = player::reserve(); return player::unlimited() || r != 0 || g_mag_rounds > 0 || g_pocket > 0; }
 
 void rail_enter(float u, const char* why);   // THE GRIP'S RAIL, below
+bool left_in_holster() { const float v = bridge::view(bridge::S_LEFT_HOLSTER); return bridge::has(v) && v > 0.5f; }
+// 2026-11-11 (twomag.h): LT with both magazines in the hand: the spare goes in by itself, the old one stays in the hand
+void swap_in() {
+    const float d = dock_dist(), now = now_s();
+    if (d > TWOMAG_SWAP_REACH_M) {
+        bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+        LOGI("%s reload: LT with two magazines in the hand, %.3f m from the well: bring them within %.2f", TAG, d, TWOMAG_SWAP_REACH_M);
+        return;
+    }
+    Vec3 sp{};
+    Quat sq{0, 0, 0, 1};
+    const bool from = twomag::drawn_pose(sp, sq);
+    twomag::swap(g_mag_rounds);
+    g_same_mag = false;     // the one going in is a fresh one: filled from the carried ammo (the old one's rounds stay counted)
+    g_lt_to_seat = false;
+    g_last_dock = now;
+    set_state(St::INSERT, "LT: the spare goes in, the old magazine stays in the hand");
+    insert_from(from, sp, sq);
+    bridge::sfx(bridge::SFX_MAG_IN);
+    bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
+    ghosthand::value("mag_closest_m", d);
+    ghosthand::event("mag", "done");
+    magazine_shown(true);
+    LOGI("%s reload: the swap at %.3f m from the well (%s)", TAG, d, from ? "the spare starts where it was drawn" : "the Lua's place for the spare is not known: it starts at the bottom of the grip");
+}
 void hand_checks() {
     if (pose_lock() || g_w == nullptr) return;
     const bool mag = g_w->reload == Reload::MAG && g_st == St::IN_HAND;
@@ -245,6 +271,12 @@ void hand_checks() {
         ghosthand::event(g_round_in_hand ? "shell" : "mag", "fail");
         g_closest = 99.0f;
         if (g_round_in_hand) { g_round_in_hand = false; g_rounds_n = 0; shell_home(); LOGI("%s reload: round(s) let go: back in the pouch", TAG); return; }
+        // 2026-11-11 (Tefa: "if placed into any of the holster zones in the body, it just dissapears from hand without dropping down")
+        if (left_in_holster()) {
+            bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            set_state(St::OUT, "let go in a holster spot: put away, not dropped");
+            return;
+        }
         Quat wr;
         if (!held_pose(g_fall_from, wr)) g_fall_from = Vec3{0, 0, 0};
         g_fall_rot = wr;
@@ -253,6 +285,10 @@ void hand_checks() {
         return;
     }
     if (g_round_in_hand && (g_w->breech == weapons::Breech::CYLINDER || shells::port_gun())) return;   // docked on the drum / the shell port (2026-11-02), LT puts each in
+    if (mag && twomag::has() == twomag::Has::SPARE) {   // 2026-11-11: two in the hand: the old one does not go back in; LT swaps them
+        if (bridge::pressed(bridge::S_LTRIG)) swap_in();
+        return;
+    }
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
     if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
@@ -319,6 +355,7 @@ void put_back_on_swap(const char* why) {
     if (g_stash > 0 && is_managed(old)) { set_loaded_on(old, g_stash); LOGI("%s reload: %s: %d rounds that waited for a rack put in (%s)", TAG, g_id.c_str(), g_stash, why); }
     g_stash = 0;
     g_hand_on_mag = false;
+    twomag::clear(why);
     if (g_st == St::SEATED) return;
     if (is_managed(g_drop_gun)) set_loaded_on(g_drop_gun, g_mag_rounds + g_chamber);
     g_chamber = 0;
@@ -437,6 +474,34 @@ void rail_frame() {
     }
 }
 bool mag_world(Vec3& p, Quat& q);   // below
+// 2026-11-11 (twomag.h): the extra magazine each frame: let go, put away, or turned into the ordinary one
+void twomag_frame() {
+    using twomag::Has;
+    const Has h = twomag::has();
+    if (h == Has::NONE) return;
+    if (!pistol_mag() || pose_lock()) { twomag::clear("not a handgun in play"); return; }
+    const bool lg = bridge::held(bridge::S_LGRIP);
+    if (h == Has::SPARE) {
+        if (!lg) { twomag::clear("LG let go: back in the pouch"); return; }
+        if (g_st == St::OUT) {   // the gun's own magazine went to the floor: the spare is simply the magazine in the hand now
+            twomag::clear("the gun's magazine is gone: the spare is the magazine in the hand now");
+            g_lt_to_seat = false;
+            g_same_mag = false;
+            set_state(St::IN_HAND, "the spare from the pouch");
+        }
+        return;
+    }
+    if (lg) return;   // the old magazine, still held
+    Vec3 p{};
+    Quat q{0, 0, 0, 1};
+    if (left_in_holster()) {
+        bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
+        twomag::clear("let go in a holster spot: put away");
+    } else {
+        if (g_joint != nullptr && held_pose(p, q)) throw_hand_over(p, q, true, twomag::rounds());
+        twomag::clear("LG let go: dropped");
+    }
+}
 void pull_out() {
     const int n = player::loaded();
     if (n < 0) { LOGW("%s reload: %s: no loaded-ammo call found, the magazine stays", TAG, g_id.c_str()); return; }
@@ -486,8 +551,11 @@ bool b_catch_near() {
 }
 void grab_frame() {
     if (!in_play() || g_st != St::SEATED || g_joint == nullptr || rack::active() || pose_lock()) return;
+    // 2026-11-11 (twomag.h): a spare in the hand docks on the seated magazine with LG simply held (it was pressed at the pouch)
+    const bool spare = twomag::has() == twomag::Has::SPARE && bridge::held(bridge::S_LGRIP);
+    if (twomag::has() == twomag::Has::OLD) return;   // the hand is full until the old magazine is let go
     if (!g_hand_on_mag) {
-        if (!bridge::pressed(bridge::S_LGRIP)) return;   // on the press only: an LG already held for the grip or the pump never grabs the magazine
+        if (!bridge::pressed(bridge::S_LGRIP) && !spare) return;   // on the press only: an LG already held for the grip or the pump never grabs the magazine
         // 03:06 (the rifle: no grab, the hand went to the bolt or the grip): the controller sits ~15 cm behind the drawn hand,
         // so the hand's own place (the left IK target, where it was drawn last frame) is measured, and every press is logged
         const auto& s = player::now();
@@ -498,13 +566,23 @@ void grab_frame() {
         (void)s; (void)cq;
         if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return;
         const float d = dist(zones::center(zones::MAG, mp), cp), need = zones::radius(zones::MAG);   // the zone (zones.json) over MAG_GRAB_M
-        LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, need);
+        if (!spare) LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, need);
         if (d > need) return;
         if (rack::bolt_wants_left()) { LOGI("%s reload: the hand is near the bolt too and a rack is due: the bolt takes it, not the magazine", TAG); return; }
         g_hand_on_mag = true;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
-        LOGI("%s reload: the left hand on the seated magazine (%.3f m from it): %s", TAG, d, pistol_mag() ? "right B releases it into the hand" : "LT pulls it out");
+        LOGI("%s reload: the left hand on the seated magazine (%.3f m from it)%s: %s", TAG, d, spare ? ", a spare in it" : "", pistol_mag() ? "right B releases it into the hand" : "LT pulls it out");
         return;
+    }
+    if (spare) {   // docked with a spare: the hand leaves again when it is taken well away (LG stays held for the spare)
+        Vec3 mp, cp;
+        Quat mq;
+        if (mag_world(mp, mq) && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) &&
+            dist(zones::center(zones::MAG, mp), cp) > zones::radius(zones::MAG) * TWOMAG_UNDOCK_SCALE) {
+            g_hand_on_mag = false;
+            LOGI("%s reload: the hand with the spare taken away from the seated magazine: undocked", TAG);
+            return;
+        }
     }
     // 2026-10-30 (Tefa, first wear: "it has to be just LG held and the mag just slides out after pressing B with hand on the
     // mag. LT only needed to put it back in"): on a handgun right B, with the left hand holding the magazine, releases it into
@@ -553,6 +631,19 @@ void pouch_grab() {
         ghosthand::event("shell", "start");
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s reload: %d round(s) in the left hand (carried %d)", TAG, g_rounds_n, player::reserve());
+        return;
+    }
+    // 2026-11-11 (twomag.h): a handgun with its magazine still seated: a spare into the hand
+    if (TWOMAG_ON && g_st == St::SEATED && pistol_mag() && g_joint != nullptr) {
+        if (twomag::has() != twomag::Has::NONE || g_hand_on_mag) return;
+        if (!player::unlimited() && player::reserve() == 0) {
+            LOGI("%s reload: no spare magazine to take (no rounds carried)", TAG);
+            bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            return;
+        }
+        twomag::take_spare();
+        ghosthand::event("mag", "start");
+        bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
         return;
     }
     if (g_st != St::OUT) return;
@@ -619,7 +710,7 @@ namespace detail { float rail_u() { return g_rail_u; } }   // b096: for pose_joi
 bool managed_now() { return RELOAD_ON && g_w != nullptr && g_w->reload != Reload::NONE && g_gun != nullptr && bridge::live(); }
 bool mag_out() { return managed_now() && g_w->reload == Reload::MAG && g_st != St::SEATED; }
 bool session_active() { return mag_out() || g_round_in_hand; }
-bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st == St::IN_HAND || g_st == St::INSERT); }
+bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st == St::IN_HAND || g_st == St::INSERT || twomag::has() != twomag::Has::NONE); }   // (2026-11-11: or an extra one, twomag.h)
 bool round_in_hand() { return managed_now() && g_round_in_hand; }
 float pouch_dist(bridge::Hand h) { return dist(bridge::hand_pos(h), pouch_spot()); }
 bool on_rail() { return managed_now() && g_st == St::RAIL; }
@@ -746,7 +837,8 @@ void publish_zones() {
     if (port_world(port)) zones::publish(zones::WELL, zones::center(zones::WELL, port), zones::radius(zones::WELL), mag_in_hand() ? 2.0f : 1.0f);
     else zones::clear(zones::WELL);
 }
-bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_st == St::RAIL || g_hand_on_mag); }
+// (2026-11-11: not on a spare going in by itself: the hand keeps the old magazine and stays the controller's)
+bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && ((g_st == St::INSERT && twomag::has() != twomag::Has::OLD) || g_st == St::RAIL || g_hand_on_mag); }
 
 void on_ik(MO* ik) {
     const auto& s = player::now();
@@ -866,13 +958,14 @@ void frame() {
                 g_scale_restore = true;
                 magazine_shown(true);
                 fill_magazine();
-                g_hand_on_mag = bridge::held(bridge::S_LGRIP) && g_joint != nullptr;
+                g_hand_on_mag = bridge::held(bridge::S_LGRIP) && g_joint != nullptr && twomag::has() == twomag::Has::NONE;   // (2026-11-11: not with the old magazine still in the hand)
             }
             break;
         default:
             break;
         }
         mag_hand_frame();
+        twomag_frame();
         grab_frame();
         // B ejects only on pistols (Tefa 2026-10-25); a gun whose magazine joint is unknown keeps B, having no hand path. With the
         // left hand on the magazine B releases it into the hand instead (grab_frame, 2026-10-30)
@@ -889,7 +982,7 @@ void late_point() {
     if (g_rest_need && g_w->reload == Reload::MAG && g_st == St::SEATED && (now_s() - g_rest_need_t >= MAG_SEAT_READ_SEC || g_hand_on_mag))
         read_rest(g_hand_on_mag ? "the hand took it first" : "the gun is out");
     pose_shell();
-    if (g_w->reload == Reload::MAG) pose_joint();
+    if (g_w->reload == Reload::MAG) { pose_joint(); pose_second(); }
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }
 
@@ -900,7 +993,7 @@ void render_point() {
     if (managed_now() && g_w->reload == Reload::MAG) measure_mag_rel();
     publish_zones();
     if (managed_now()) { hand_checks(); pose_shell(); }
-    if (managed_now() && g_w->reload == Reload::MAG) pose_joint();
+    if (managed_now() && g_w->reload == Reload::MAG) { pose_joint(); pose_second(); }
     if (mag_out() && (g_st == St::OUT || g_joint == nullptr)) hide_mag_part();
 }
 

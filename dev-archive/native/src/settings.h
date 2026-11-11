@@ -257,6 +257,12 @@ constexpr bool  DRUM_OWN_FALL = true;          // our falling case (a drum round
 constexpr bool  DRUM_TRY_GAME_THROW = true;    // the game's own case throw too, when the gun has a cartridgeJoint (log says)
 // 2026-11-06 (Tefa: the case must come out at the end of the drum's turn, the round must travel into the chamber visibly)
 constexpr float DRUM_CASE_AFTER_TURN_S = 0.05f;  // the case starts out this long after the drum's turn has ended
+// 2026-11-11 (twomag.h): two magazines in the left hand
+constexpr bool  TWOMAG_ON = true;
+constexpr float TWOMAG_SWAP_REACH_M = 0.25f;         // LT swaps the magazines with the held one within this of the well
+constexpr float TWOMAG_UNDOCK_SCALE = 3.0f;          // a hand docked on the seated magazine with a spare leaves it this many zone radii away
+constexpr float TWOMAG_INSERT_REACH_PART = 0.45f;    // of the insert's time: the spare travels from the hand to the bottom of the grip, then up it
+constexpr float TWOMAG_DRAWN_STALE_FRAMES = 3.0f;    // the Lua's "drawn here" older than this is not used
 constexpr float RELOAD_B_CATCH_SCALE = 2.5f;     // 2026-11-07: right B with LG held catches a handgun magazine within this many zone radii
 constexpr int   DRUM_HOLE_STEP = -1;             // 2026-11-07: the hole = the chamber nearest the lid hinge, this many on (Tefa: "the previous one")
 constexpr float DRUM_CASE_AT_OPEN_S = 0.15f;     // the case at the cover comes out this long after the cover starts opening
