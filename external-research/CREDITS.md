@@ -30,3 +30,10 @@ GitHub issue on this repo and we will correct it as soon as possible.
 ## Sources (2026-11-07)
 
 - **praydog**, REFramework: master commits and nightlies 01434 to 01438, incl. PR #1885 by **wdre9** (HookManager error paths and thread safety) — https://github.com/praydog/REFramework
+
+## Sources (2026-11-11)
+
+- **G4PLS**, REFramework issue #1739 (REFramework.NET "exception in reframework_plugin_required_version"), with comments by
+  **danfq** and **UncleSweetshare** (the .NET 10 Desktop Runtime fix) — https://github.com/praydog/REFramework/issues/1739
+- **praydog**, REFramework source at `76298bd` and `8c209b1` (`PluginLoader.cpp`, `API.h`, `csharp-api`) — https://github.com/praydog/REFramework
+- **cursey and contributors**, the REFramework book's C# API page (requirements) — https://cursey.github.io/reframework-book/api_cs/general/index.html

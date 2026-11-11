@@ -1,6 +1,6 @@
 # Research index
 
-**Last `/gr` pass: 2026-11-07 (estate sweep) — CHECK-IN.** REFramework master since 11-01: HookManager error paths and thread safety (#1885, nightly 01438: Lua errors in hook callbacks caught, the first float argument's register kept, hook add/remove serialised) and an ARM64EC skip; nothing touches OpenXR, `json.load_file` or the `fs` calls, nothing names RE8; pd-upscaler unchanged since 2026-10-11. No new public Village VR gameplay mod found (one web and one GitHub search). Nothing new.
+**Last `/gr` pass: 2026-11-11 — CHECK-IN.** The connector dead end (dossier §1): the same "exception in reframework_plugin_required_version" line is publicly reported on an ordinary nightly (#1739) and was cured by installing the .NET 10 Desktop Runtime, so it points at the .NET runtime failing to start, not at our `76298bd` build; one topic, pointer in `engine-research/inbox/` and in visceral-re2-vr's (same build). REFramework otherwise quiet since 11-07 (no nightly after 01438, `pd-upscaler` unchanged since 2026-10-11).
 
 _Previous: **Last `/gr` pass: 2026-11-01 (estate sweep) — CHECK-IN.** REFramework check: master fixed hooks on methods with out/ref float arguments (#1853, 2026-11-01) and made Lua json.dump_file atomic (#1795); the pd-upscaler branch has neither. Library inbox has the hook note._
 
@@ -10,6 +10,7 @@ Status tags: 🆕 new · 👀 being looked at · ✅ used / confirmed · ❌ dea
 
 | Date | Topic | Status | Summary |
 | --- | --- | --- | --- |
+| 2026-11-11 | [The connector's "exception in reframework_plugin_required_version" is the .NET runtime failing to start, not the build](topics/2026-11-11-the-dotnet-connector-error-is-a-runtime-start-failure-not-the-build.md) | 🆕 | Same line on nightly 01371 in Pragmata (#1739), fixed there by the .NET 10 Desktop Runtime; the failing function only writes 1.15.0, so the throw is the mixed managed DLL starting .NET. Check `dotnet --list-runtimes` and the zip's files before calling the connector dead on `76298bd`. Pointer in `engine-research/inbox/`. |
 | 2026-10-26 | [REFramework takes the standing origin from the head at VR start, and again on every runtime recenter](topics/2026-10-26-the-standing-origin-is-taken-from-the-head-at-vr-start-and-on-every-recenter.md) | 🆕 | Supports the "gun wrong again" lead; pin the height through `vrmod:set_standing_origin` from the Lua bridge. Pointer in `engine-research/inbox/`. |
 | 2026-10-26 | [Accuracy from movement: the lever is already found, in the sibling scope project](topics/2026-10-26-accuracy-from-movement-the-lever-is-already-found-in-the-scope-project.md) | 🆕 | Blend the scattered and clean rotations at the bullet's build step; no spread value needs finding. Pointer in `engine-research/inbox/`. |
 | 2026-10-26 | [Drawn spheres ignore their size: public RE Engine mods resize spawned meshes with `set_LocalScale`](topics/2026-10-26-drawn-sphere-size-public-mods-scale-with-set-localscale.md) | 🆕 | Three candidate causes and the read that separates them. Pointer in `engine-research/inbox/`. |
