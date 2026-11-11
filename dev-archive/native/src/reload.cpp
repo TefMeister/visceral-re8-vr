@@ -840,6 +840,14 @@ void publish_zones() {
 // (2026-11-11: not on a spare going in by itself: the hand keeps the old magazine and stays the controller's)
 bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && ((g_st == St::INSERT && twomag::has() != twomag::Has::OLD) || g_st == St::RAIL || g_hand_on_mag); }
 
+bool left_at_gun() {
+    if (hand_on_mag()) return true;
+    if (!managed_now() || !bridge::held(bridge::S_LGRIP)) return false;
+    if (bridge::flag(bridge::S_GRIPPING_WEAPON)) return true;
+    Vec3 port, cp;
+    return port_world(port) && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) && dist(zones::center(zones::WELL, port), cp) <= ACC_AT_GUN_M;
+}
+
 void on_ik(MO* ik) {
     const auto& s = player::now();
     if (ik != s.ik_left || !bridge::live()) return;

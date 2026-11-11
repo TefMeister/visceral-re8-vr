@@ -15,6 +15,7 @@ add_library(visceral_re8_native SHARED
     src/bridge.cpp
     src/reload_throw.cpp
     src/twomag.cpp
+    src/accuracy.cpp
     src/magdisp.cpp
     src/haptics.cpp
     src/player.cpp

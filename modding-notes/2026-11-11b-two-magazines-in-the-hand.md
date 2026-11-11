@@ -57,12 +57,29 @@ part, the second magazine part and the "vanish when empty" parts (the rounds, on
 - On the simulator the gun is drawn about 0.4 m below and 0.3 m behind the right controller, so a fresh magazine cannot be
   seated at the default robot pose ("not in front of you at gun height"); a run that drops the magazine needs a game restart.
 
-## Not built: the accuracy rule
+## The accuracy rule (b114, `src/accuracy.h`)
 
-"Gripping the gun with a magazine already in hand: 75%; with an empty hand: 100%, no spread." The lever is known
-(`external-research/topics/2026-10-26-accuracy-from-movement-...`: replace or blend the bullet's rotation at the build
-step, a native pre-hook; proven on the sniper rifle only). It is its own job with live shots, and one thing is Tefa's to
-say first: what a handgun held in ONE hand should do (today: the game's own scatter).
+Tefa, 2026-11-11, later: *"one handed running is 30%, walking is 50%, standing still is 75%, extra mag in hand, running is
+40%, walking is 65%, standing still is 85%, both hands on the gun - LG docked on the mag, running is 50%, walking 80%,
+standing still 100%"*.
+
+- Where: the scope project's lever, now a dial. `app.WeaponGunCore.createBullet` gives the ray, `createBulletImple` is
+  handed the scattered rotation; ours replaces it with the clean aim turned by a random angle inside a cone of
+  (100 - accuracy)% of `ACC_CONE_DEG` (5 degrees, a first guess). The lever works on a handgun too
+  `[verified-live 2026-11-11, simulator, n=12 shots, LEMI]`: it had been proven on the sniper rifle only.
+- Which guns: magazine-fed handguns in VR. Everything else keeps the game's own scatter.
+- The hold: both hands = docked on the magazine, or the game's own two-handed grip, or LG held within 12 cm of the well;
+  "a magazine in it" = the same with any magazine in the left hand; else one hand. A magazine merely carried, away from
+  the gun, is one hand (my reading of "gripping the gun with mag already in hand").
+- The movement: the player's speed over the ground, smoothed 0.2 s: under 0.30 m/s still, under 2.60 walking, else
+  running. The game's own speeds `[measured 2026-11-11, app.PlayerMovement fields read live]`: walking 1.66 m/s, running
+  3.43; hurt 1.40 / 2.30 (a hurt run counts as walking).
+- Seen on the simulator `[verified-live 2026-11-11, simulator + VR Bench, n=3 shots each]` (`tools/sim/accuracy_test.py`):
+  one hand still 75% (bullets 0.89-1.10 deg off, cone 1.25); LG on the magazine 100% (0.00 deg, three of three, where the
+  game's own would have been 1.34-3.39); a spare docked 85% (0.26-0.64 of 0.75); walking 50% (2.45 of 2.50, n=1: the player
+  walked into a fence). The LEMI's own scatter in VR on those shots: 1.06 to 3.39 deg.
+- NOT seen: a running shot (the magazine was empty by then; the class is the same code as walking); how 5 degrees FEELS;
+  the old-magazine-in-hand case near the gun; any other handgun.
 
 ## Code shape
 

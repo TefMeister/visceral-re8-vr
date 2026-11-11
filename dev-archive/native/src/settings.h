@@ -257,6 +257,16 @@ constexpr bool  DRUM_OWN_FALL = true;          // our falling case (a drum round
 constexpr bool  DRUM_TRY_GAME_THROW = true;    // the game's own case throw too, when the gun has a cartridgeJoint (log says)
 // 2026-11-06 (Tefa: the case must come out at the end of the drum's turn, the round must travel into the chamber visibly)
 constexpr float DRUM_CASE_AFTER_TURN_S = 0.05f;  // the case starts out this long after the drum's turn has ended
+// 2026-11-11 (accuracy.h): a handgun's accuracy from the hold and the movement. Tefa's numbers; rows: one hand, the left hand
+// on the gun with a magazine in it, both hands on the gun; columns: running, walking, standing still
+constexpr bool  ACC_ON = true;
+constexpr float ACC_PCT[3][3] = {{30.0f, 50.0f, 75.0f}, {40.0f, 65.0f, 85.0f}, {50.0f, 80.0f, 100.0f}};
+constexpr float ACC_CONE_DEG = 5.0f;          // 0% accuracy = a bullet anywhere within this angle of the aim (a first guess, not felt yet)
+constexpr float ACC_WALK_MPS = 0.30f;         // slower than this over the ground = standing still
+constexpr float ACC_RUN_MPS = 2.60f;          // this fast or faster = running. The game's own numbers (app.PlayerMovement, read live 2026-11-11): walking 1.66 m/s, running 3.43; hurt 1.40 / 2.30, so a hurt run counts as walking
+constexpr float ACC_SPEED_SMOOTH_S = 0.20f;   // the speed is smoothed over about this long
+constexpr float ACC_SPEED_MAX_MPS = 12.0f;    // a jump faster than this is a teleport, not a speed
+constexpr float ACC_AT_GUN_M = 0.12f;         // LG held with the left controller this close to the magazine well = the hand is on the gun
 // 2026-11-11 (twomag.h): two magazines in the left hand
 constexpr bool  TWOMAG_ON = true;
 constexpr float TWOMAG_SWAP_REACH_M = 0.25f;         // LT swaps the magazines with the held one within this of the well
