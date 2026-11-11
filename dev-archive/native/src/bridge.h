@@ -119,6 +119,16 @@ enum Slot : int {
     // 1 right shoulder, 2 right hip, 3 left hip, 4 left shoulder); 216 WRITTEN BY THE PLUGIN: the gun zone the RIGHT hand is in while
     // the LEFT hand holds the gun (the Wolfsbane, the rifle's bolt by RG): 0 none, 10 + zones::Key as S_LEFT_AREA. pairs.cpp
     S_LEFT_HOLSTER = 214, S_RIGHT_HOLSTER = 215, S_RIGHT_AREA = 216,
+    // 2026-11-11 (Tefa: "can you get 2 shotgun shells to show up for the shotgun ... so they disappear one after another when
+    // inserted"), reload_pose.cpp -> visceral_re8_shell2.lua: the gun has ONE loose shell joint, so the second shell of a grab is
+    // a copy of the gun's mesh showing only its shell part, drawn beside the first by the Lua. All WRITTEN BY THE PLUGIN:
+    S_SHELL2_ON = 217,        // S_FRAME + 1 of the frame it was last wanted (a second shell is in the left hand); stale = not wanted
+    S_SHELL2_POS = 218,       // 218-220: where the FIRST shell is drawn (world)
+    S_SHELL2_ROT = 221,       // 221-224: its turn (x, y, z, w)
+    S_SHELL2_SIZE = 225,      // its size against the game's (1 = the game's; the menu's "size" slider)
+    S_SHELL2_REST_POS = 226,  // 226-228: the shell joint at rest in the gun, from the gun's root, in the root's own turn (m); 229-232 its turn
+    S_SHELL2_REST_ROT = 229,  // (the copy's root is placed by these when the copy has no joints of its own to measure)
+    S_SHELL2_REST_OK = 233,   // 1 = 226-232 were measured for the gun in hand
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

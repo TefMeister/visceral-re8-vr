@@ -55,6 +55,13 @@ std::map<int, int> g_learned;   // chamber -> the part the game switched on when
 std::string g_pattern;
 int g_last_loaded = -99;
 int g_carry = -1;               // the chamber whose round is in the right hand
+// 2026-11-11 (Tefa: "as many ammo in the palm of hand, as is either needed to fill the drum or amount in the pouch"): the REST of the
+// grab lies in the right palm, drawn with the round joints of chambers that show nothing now (emptied by us, or not loaded). The
+// one that goes in next stays between the thumb and index tips (g_carry); each round that goes in takes one out of the palm.
+std::vector<int> g_palm;
+float g_palm_off[3] = {DRUM_PALM_OFF_CM[0], DRUM_PALM_OFF_CM[1], DRUM_PALM_OFF_CM[2]};   // lid_swing.json "palm_off": along the fingers, across, out of the palm (cm)
+float g_palm_step = DRUM_PALM_STEP_CM;                                                   // lid_swing.json "palm_step": one round to the next (cm)
+int g_palm_told = -1;
 std::vector<Move> g_falls;   // the moves under way (ejects and inserts)
 Vec3 g_carry_p{};               // where the carried round was last drawn (an insert starts there)
 Quat g_carry_q{0, 0, 0, 1};
@@ -132,7 +139,7 @@ bool setup() {
     const auto& s = player::now();
     if (s.weapon_tf == g_wtf && (!g_ch.empty() || g_wtf == nullptr)) return !g_ch.empty();
     // a new gun: the old gun's joints are not touched again (its object may be gone), our state is simply dropped
-    g_ch.clear(); g_guess.clear(); g_learned.clear(); g_falls.clear();
+    g_ch.clear(); g_guess.clear(); g_learned.clear(); g_falls.clear(); g_palm.clear();
     g_wtf = s.weapon_tf;
     g_mesh = nullptr; g_parts_n = 0; g_last_loaded = -99; g_carry = -1; g_lines = 0;
     if (g_wtf == nullptr) return false;
@@ -219,6 +226,7 @@ Quat nlerp(Quat a, Quat b, float u) {
     return qnorm({a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, a.z + (b.z - a.z) * u, a.w + (b.w - a.w) * u});
 }
 bool busy(int i);
+bool moving(int i);
 // the cover as the gun is now: its place, the barrel's forward, and a round's turn lined up with the barrel (a resting chamber's)
 int g_hole = -1;   // the chamber at the cover, from the last cover_now()
 int g_hole_step = DRUM_HOLE_STEP;
@@ -260,17 +268,57 @@ bool cover_now(Vec3& lid, Vec3& fwd, Quat& rq) {
     }
     rq = Quat{0, 0, 0, 1};
     for (int k = 0; k < (int)g_ch.size(); ++k)
-        if (!busy(k) && get_q(JOINT, g_ch[k].j, "get_Rotation", rq)) { rq = qnorm(rq); break; }
+        if (!busy(k) && get_q(JOINT, g_ch[k].j, "get_Rotation", rq)) { rq = qnorm(rq); return true; }
+    // 2026-11-11: a full hand has every round joint out of the drum: the turn a chamber would have at rest, from the drum's own
+    Quat dq{};
+    for (int k = 0; k < (int)g_ch.size(); ++k)
+        if (g_ch[k].rest && get_q(JOINT, cj, "get_Rotation", dq)) { rq = qnorm(qmul(qnorm(dq), g_ch[k].q)); break; }
     return true;
 }
-bool busy(int i) {
+bool moving(int i) {   // at the fingertips, or on its way in / out
     if (i == g_carry) return true;
     for (const auto& f : g_falls) if (f.i == i) return true;
     return false;
 }
+bool in_palm(int i) { return std::find(g_palm.begin(), g_palm.end(), i) != g_palm.end(); }
+bool busy(int i) { return moving(i) || in_palm(i); }
+void palm_release(int i) {   // out of the palm, back as its chamber was: an emptied chamber stays empty
+    const bool was_hidden = g_ch[i].hidden;
+    let_go(i, false);
+    if (was_hidden) { const Vec3 zero{0, 0, 0}; g_ch[i].hidden = true; set_any(JOINT, g_ch[i].j, "set_LocalScale", &zero); }
+}
+Vec3 cross(Vec3 a, Vec3 b) { return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x}; }
+float dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+bool unit(Vec3& v) { const float n = std::sqrt(dot(v, v)); if (n < 1e-5f) return false; v = v * (1.0f / n); return true; }
+Quat arc(Vec3 from, Vec3 to) {   // the shortest turn that takes unit `from` onto unit `to`
+    const float d = dot(from, to);
+    if (d < -0.9999f) { Vec3 ax = cross(Vec3{1, 0, 0}, from); if (!unit(ax)) { ax = cross(Vec3{0, 1, 0}, from); unit(ax); } return {ax.x, ax.y, ax.z, 0.0f}; }
+    const Vec3 c = cross(from, to);
+    return qnorm({c.x, c.y, c.z, 1.0f + d});
+}
+// the right palm, from the hand's own joints (no axis of the hand joint is assumed): `along` the fingers, `side` from the index
+// knuckle to the little finger's, `out` of the palm; base = the middle of the palm
+bool palm_frame(Vec3& base, Vec3& along, Vec3& side, Vec3& out) {
+    MO* tf = player::now().tf;
+    MO* hj = joint_by_name(tf, L"R_Hand");
+    MO* ij = joint_by_name(tf, L"R_IndexF1");
+    MO* pj = joint_by_name(tf, L"R_PinkyF1");
+    Vec3 h{}, i{}, p{};
+    if (hj == nullptr || ij == nullptr || pj == nullptr || !get_v3(JOINT, hj, "get_Position", h) || !get_v3(JOINT, ij, "get_Position", i) ||
+        !get_v3(JOINT, pj, "get_Position", p)) return false;
+    const Vec3 mid = lerp(i, p, 0.5f);
+    along = mid - h;
+    if (!unit(along)) return false;
+    side = (p - i) - along * dot(p - i, along);
+    if (!unit(side)) return false;
+    out = cross(i - h, p - h);   // right hand, right-handed axes: out of the palm [inferred-static]; "palm_off" z negative turns it over
+    if (!unit(out)) return false;
+    base = lerp(h, mid, DRUM_PALM_ALONG);
+    return true;
+}
 } // namespace
 
-void point(bool carrying) {
+void point(bool carrying, int rounds) {
     if (!setup()) return;
     learn();
     // the round in the right hand: the chamber that fills next
@@ -285,20 +333,52 @@ void point(bool carrying) {
         else {
             Vec3 l0{}, f0{}; Quat r0{};
             cover_now(l0, f0, r0);
-            if (g_hole >= 0 && g_ch[g_hole].hidden && !busy(g_hole)) want = g_hole;
-            for (int k = 0; want < 0 && k < (int)g_ch.size(); ++k) if (g_ch[k].hidden && !busy(k)) want = k;
-            if (want < 0 && ld >= 0 && ld < (int)g_ch.size() && !busy(ld)) want = ld;
+            // (2026-11-11: a round lying in the palm may be the one: it moves up to the fingertips)
+            if (g_hole >= 0 && g_ch[g_hole].hidden && !moving(g_hole)) want = g_hole;
+            for (int k = 0; want < 0 && k < (int)g_ch.size(); ++k) if (g_ch[k].hidden && !moving(k)) want = k;
+            if (want < 0 && ld >= 0 && ld < (int)g_ch.size() && !moving(ld)) want = ld;
         }
     }   // (b073 tested busy(ld) alone, which counts the carried one: it flickered)
     if (want != g_carry) {
         if (g_carry >= 0) let_go(g_carry, false);
         g_carry = want;
+        if (g_carry >= 0) g_palm.erase(std::remove(g_palm.begin(), g_palm.end(), g_carry), g_palm.end());   // out of the palm, still drawn by us
         if (g_carry >= 0) LOGI("%s drumrounds: chamber %d's round drawn in the right hand (part %d%s)", TAG, g_carry, part_for(g_carry),
                                g_learned.count(g_carry) ? ", learned" : part_for(g_carry) >= 0 ? ", first guess" : ": NOT KNOWN, the joint's size only");
     }
     if (g_carry >= 0) {
         Vec3 p; Quat q;
         if (carry_pose(p, q)) { draw_at(g_carry, p, q, carry_size()); g_carry_p = p; g_carry_q = q; }
+    }
+    // 2026-11-11: the rest of the grab in the palm: `rounds` are in the hand, one of them at the fingertips (none while one travels
+    // into the cover: then they all wait in the palm, and the next moves up when it has gone in)
+    {
+        const int n = (int)g_ch.size();
+        const int palm_want = carrying ? std::max(0, rounds - (g_carry >= 0 ? 1 : 0)) : 0;
+        while ((int)g_palm.size() > palm_want) { palm_release(g_palm.back()); g_palm.pop_back(); }
+        for (int k = n - 1; (int)g_palm.size() < palm_want && k >= 0; --k)
+            if (!busy(k) && (g_ch[k].hidden || k >= ld)) g_palm.push_back(k);
+        const int shown = (int)g_palm.size() + (g_carry >= 0 ? 1 : 0);
+        if (carrying && shown != g_palm_told) {
+            g_palm_told = shown;
+            LOGI("%s drumrounds: %d round(s) in the right hand: %d drawn (%d at the fingertips, %d in the palm)%s", TAG, rounds, shown, g_carry >= 0 ? 1 : 0,
+                 (int)g_palm.size(), (int)g_palm.size() < palm_want ? ": NOT ENOUGH free round joints for the rest" : "");
+        }
+        if (!carrying) g_palm_told = -1;
+        Vec3 base{}, along{}, side{}, out{};
+        if (!g_palm.empty() && palm_frame(base, along, side, out)) {
+            // a round's long axis is the barrel's line while it rests in the drum: turned onto the fingers' line
+            Vec3 l0{}, f0{}; Quat r0{0, 0, 0, 1};
+            Quat q = g_carry_q;
+            if (cover_now(l0, f0, r0)) q = qnorm(qmul(arc(f0, along), r0));
+            const float size = carry_size();
+            const int m = (int)g_palm.size();
+            for (int a = 0; a < m; ++a) {
+                const float across = (a - (m - 1) * 0.5f) * g_palm_step + g_palm_off[1];
+                const Vec3 p = base + along * (g_palm_off[0] * 0.01f) + side * (across * 0.01f) + out * (g_palm_off[2] * 0.01f);
+                draw_at(g_palm[a], p, q, size);
+            }
+        }
     }
     // 2026-11-07 (Tefa: "they get filled again before i actually put the bullet in"): the game's animation writes the drum's joints every
     // frame, so an emptied chamber is drawn empty at every point, not once
@@ -384,10 +464,13 @@ void eject(float delay) {
     {
         Vec3 l0{}, f0{}; Quat r0{};
         cover_now(l0, f0, r0);
-        if (g_hole >= 0 && !busy(g_hole) && !g_ch[g_hole].hidden) i = g_hole;
+        if (g_hole >= 0 && !moving(g_hole) && !g_ch[g_hole].hidden) i = g_hole;   // (2026-11-11: also when it lies in the palm, below)
     }
     for (int k = (int)g_ch.size() - 1; i < 0 && k >= 0; --k) if (!busy(k) && !g_ch[k].hidden) i = k;
+    // 2026-11-11: a full hand uses every round joint: the case borrows one from the palm (one round fewer there while it falls)
+    for (int a = (int)g_palm.size() - 1; i < 0 && a >= 0; --a) if (!g_ch[g_palm[a]].hidden) i = g_palm[a];
     if (i < 0) { LOGI("%s drumrounds: no free chamber joint to draw the falling case with", TAG); return; }
+    if (in_palm(i)) { g_palm.erase(std::remove(g_palm.begin(), g_palm.end(), i), g_palm.end()); LOGI("%s drumrounds: chamber %d's joint borrowed from the palm for the falling case", TAG, i); }
     Move m;   // waits for the drum's turn to end, then slides out of the cover and drops (drawn in point())
     m.i = i;
     m.t0 = now_s() + delay;
@@ -397,15 +480,19 @@ void eject(float delay) {
 
 void tune(float yaw, float pitch, float roll) { g_ypr[0] = yaw; g_ypr[1] = pitch; g_ypr[2] = roll; }
 void tune_hole(int step) { g_hole_step = step; }
+void tune_palm(float along_cm, float across_cm, float out_cm, float step_cm) { g_palm_off[0] = along_cm; g_palm_off[1] = across_cm; g_palm_off[2] = out_cm; g_palm_step = step_cm; }
 
 void reset(const char* why) {
-    if (g_carry < 0 && g_falls.empty()) return;
+    if (g_carry < 0 && g_falls.empty() && g_palm.empty()) return;
     if (player::now().weapon_tf == g_wtf) {   // only the gun still in hand is written to (another gun's object may be gone)
         if (g_carry >= 0) let_go(g_carry, false);
         for (const auto& f : g_falls) let_go(f.i, false);
+        for (int i : g_palm) palm_release(i);
     }
     g_carry = -1;
     g_falls.clear();
+    g_palm.clear();
+    g_palm_told = -1;
     LOGI("%s drumrounds: every round joint home (%s)", TAG, why);
 }
 

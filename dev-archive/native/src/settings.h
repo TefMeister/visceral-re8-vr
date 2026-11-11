@@ -246,6 +246,10 @@ constexpr Vec3  DRUM_ROUND_HAND_OFF{0.0f, 0.0f, 0.0f};    // the round from the 
 constexpr float DRUM_ROUND_HAND_YPR[3] = {0.0f, -90.0f, 0.0f};   // b075 (+90 about Y) faced Tefa: turned 180   // b074 (90 about X) faced LEFT (Tefa): so X ~ forward, Z = the long axis (up), Y = left-right: 90 about Y; -90 if it faces back  // its turn there (deg: about Z, Y, X), before the sliders' turn; 2026-11-06 Tefa
                                                                // (screenshot: "pointing up and it needs to point forward"): b073's 90 about Z did nothing (Z is most likely the round's own
 // long axis, as the drum's), so 90 about X; lid_swing.json "round_ypr" (yaw Z, pitch Y, roll X), read at every cover opening
+// 2026-11-11: the rest of a grab lies in the right palm (drumrounds.cpp). First guesses, not seen yet
+constexpr float DRUM_PALM_ALONG = 0.60f;                  // the row's middle, from the wrist (0) to the knuckles (1)
+constexpr float DRUM_PALM_OFF_CM[3] = {0.0f, 0.0f, 2.0f}; // moved along the fingers, across the palm, out of the palm (cm); lid_swing.json "palm_off"
+constexpr float DRUM_PALM_STEP_CM = 1.3f;                 // one round to the next, across the palm (cm); lid_swing.json "palm_step"
 constexpr float DRUM_CASE_FALL_SEC = 0.6f;     // a spent case's fall out of the cover, then it is gone
 constexpr float DRUM_CASE_OUT_MS = 0.4f;       // its push out of the cover, away from the drum's middle (m/s)
 constexpr float DRUM_CASE_SPIN_DEG_S = 540.0f; // its tumble while it falls

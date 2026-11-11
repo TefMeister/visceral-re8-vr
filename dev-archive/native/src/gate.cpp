@@ -792,7 +792,7 @@ void late_point() {
         player::set_pose(g_lift_tf, g_lift_gun.p, g_lift_gun.q);
     turn_drum();
     hold_hammer();
-    if (here()) drumrounds::point(g_phase == Phase::HELD && g_rounds > 0);   // 2026-11-06: the round in the right hand, the falling cases
+    if (here()) drumrounds::point(g_phase == Phase::HELD && g_rounds > 0, g_rounds);   // 2026-11-06: the round in the right hand, the falling cases
     else drumrounds::reset("not the cover gun");
 }
 

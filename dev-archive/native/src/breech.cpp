@@ -84,6 +84,11 @@ void load_lid_tune() {   // re-read each time the cover opens, so the swing can 
         gate::tune_hammer(v3("hammer_axis", GATE_HAMMER_AXIS), hd != nullptr && hd->kind == json::Value::NUM ? (float)hd->n : GATE_HAMMER_DOWN_DEG);
         const Vec3 ry = v3("round_ypr", Vec3{DRUM_ROUND_HAND_YPR[0], DRUM_ROUND_HAND_YPR[1], DRUM_ROUND_HAND_YPR[2]});
         drumrounds::tune(ry.x, ry.y, ry.z);
+        {   // 2026-11-11: the rounds lying in the right palm (drumrounds.h)
+            const Vec3 po = v3("palm_off", Vec3{DRUM_PALM_OFF_CM[0], DRUM_PALM_OFF_CM[1], DRUM_PALM_OFF_CM[2]});
+            const auto* ps = v.get("palm_step");
+            drumrounds::tune_palm(po.x, po.y, po.z, ps != nullptr && ps->kind == json::Value::NUM ? (float)ps->n : DRUM_PALM_STEP_CM);
+        }
         const auto* hs = v.get("hole_step");
         drumrounds::tune_hole(hs != nullptr && hs->kind == json::Value::NUM ? (int)hs->n : DRUM_HOLE_STEP);
         const auto* ld = v.get("lift_deg");

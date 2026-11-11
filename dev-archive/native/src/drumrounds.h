@@ -21,7 +21,12 @@
 
 namespace vn::drumrounds {
 
-void point(bool carrying);   // gate.cpp late_point, after the drum's turn: carrying = the right hand holds rounds (HELD)
+// 2026-11-11 (Tefa: "as many ammo in the palm of hand, as is either needed to fill the drum or amount in the pouch if player has
+// less"): `rounds` = how many the right hand holds (gate.cpp's count: the free chambers, or fewer when fewer are carried). One is
+// drawn at the fingertips, the others in a row across the palm (round joints of chambers that show nothing now); each round that
+// goes in takes one out of the palm. lid_swing.json "palm_off" [along the fingers, across, out of the palm; cm] and "palm_step" (cm).
+void point(bool carrying, int rounds);   // gate.cpp late_point, after the drum's turn: carrying = the right hand holds rounds (HELD)
+void tune_palm(float along_cm, float across_cm, float out_cm, float step_cm);
 void inserted();             // gate.cpp, a round went in from the right hand: the carried one is home
 void eject(float delay);     // gate.cpp: a spent case comes out of the chamber at the cover after delay s (the cover opening, the
                              // drum's turn); that chamber then looks EMPTY (its round joint hidden) until a round goes into it
