@@ -8,12 +8,14 @@
 -- magazine), placed so the copy's shell lies beside the first one. The plugin says when (bridge slot 217: a second shell is
 -- in the hand, this frame) and where the first shell is (218-225); when the first shell has gone in, the count drops to one,
 -- the copy goes, and the gun's own shell joint is the one left in the hand.
--- WHICH mesh part is the shell is not known for any gun yet [hypothesis until found]: shell2.json "guns" -> "<gun number>" ->
--- "part". Until it is set for a gun, no copy is drawn there (one log line). Finding it, with the gun in hand:
---   reframework/data/visceral_re8/shell2_test.json  {"front": true, "part": 7}   the copy with only part 7, floating 0.5 m in
---   front of the camera (read once a second); {"front": true, "whole": true} = the whole gun there (is a copy drawn at all?).
---   The log also lists the gun's own fields with "Parts" in their name, once per gun (the shell's may be among them).
--- Everything here is [hypothesis] until seen in the game.
+-- WHICH mesh part holds the shell [measured 2026-11-11, flat, one part on at a time with the gun's body moved away]:
+--   W870 (3021): part 50, the shell alone (as the LEMI's rounds are its part 50). The gun itself is part 0.
+--   M1897 (3036): part 0, the SAME part as the whole gun: no part shows its shell alone.
+-- So the copy never relies on the part alone: its Body joint (every gun piece hangs under it) is put 100 m under the floor and
+-- its shell joint is written straight to where the second shell belongs. That works for both guns (seen on the real guns the
+-- same day). shell2.json "guns" -> "<gun number>" -> "part" overrides the part; a gun not listed below draws no copy.
+-- Test without a headset: reframework/data/visceral_re8/shell2_test.json {"front": true} floats the copy's shell 0.35 m in
+-- front of the camera (read once a second); "part": N tries another part, "whole": true every part.
 
 if reframework:get_game_name() ~= "re8" then return end
 
@@ -26,10 +28,12 @@ local function safe(f) local ok, v = pcall(f); if ok then return v end end
 -- ===== settings (saved to reframework/data/visceral_re8/shell2.json) =====
 local FILE, TEST_FILE = "visceral_re8/shell2.json", "visceral_re8/shell2_test.json"
 local S_FRAME, S_CAM_POS, S_CAM_ROT, S_WEAPON_NUM = 0, 72, 75, 97
-local S_ON, S_POS, S_ROT, S_SIZE, S_REST_POS, S_REST_ROT, S_REST_OK = 217, 218, 221, 225, 226, 229, 233
+local S_ON, S_POS, S_ROT, S_SIZE = 217, 218, 221, 225
 local STALE_FRAMES = 3         -- the plugin's "wanted" stamp older than this = no second shell
 local PARTS_MAX = 256          -- a gun mesh has at most this many parts
 local SHELL_JOINTS = { "Bullet", "ShotgunCartridge_FK_0" }   -- as src/reload.cpp looks for them
+local BODY_JOINT, BODY_AWAY_M = "Body", 100.0
+local KNOWN_PART = { [3021] = 50, [3085] = 50, [3036] = 0, [3084] = 0, [3147] = 0 }   -- W870 (+ Mercenaries), M1897 (+ Mercenaries, Rose); the two variants by likeness, not measured
 local cfg = {
     enabled = true,
     guns = {},                 -- "<gun number>" -> { part = <mesh part>, x, y, z (cm, the first shell's own axes), rx, ry, rz (deg) }
@@ -39,7 +43,7 @@ local function gun_cfg(num)
     local g = cfg.guns[key]
     if type(g) ~= "table" then g = {}; cfg.guns[key] = g end
     -- beside the first shell: one shell's width across (a first guess: which of its axes is "across" is not known yet)
-    for k, v in pairs({ part = -1, x = 2.2, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0 }) do if type(g[k]) ~= "number" then g[k] = v end end
+    for k, v in pairs({ part = KNOWN_PART[num] or -1, x = 2.2, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0 }) do if type(g[k]) ~= "number" then g[k] = v end end
     return g
 end
 local function load_cfg()
@@ -154,7 +158,7 @@ local function log_parts_fields(num, w, mesh)   -- once per gun: what the gun it
 end
 
 -- ===== the copy =====
-local copy = nil   -- { go, xf, mesh, num, part, rel_p, rel_q, scale, how }
+local copy = nil   -- { go, xf, mesh, num, part, whole, scale, body, shell, how }
 local function destroy()
     if copy and copy.go then pcall(function() copy.go:call("destroy", copy.go) end) end
     copy = nil
@@ -193,44 +197,31 @@ local function make(b, num, part, whole)
     local xf = safe(function() return go:call("get_Transform") end)
     if xf == nil then pcall(function() go:call("destroy", go) end); return nil end
     pcall(function() xf:call("set_LocalScale", Vector3f.new(scale, scale, scale)) end)
-    -- where the shell sits against the copy's root: from the copy's own shell joint when it has one (what the copy really
-    -- draws), else the plugin's measurement on the real gun at rest
     local c = { go = go, xf = xf, mesh = mc, num = num, part = part, whole = whole, scale = scale }
+    c.body = safe(function() return xf:call("getJointByName", BODY_JOINT) end)
     for _, name in ipairs(SHELL_JOINTS) do
-        local j = safe(function() return xf:call("getJointByName", name) end)
-        if j then
-            local jp, jq = safe(function() return j:call("get_Position") end), safe(function() return j:call("get_Rotation") end)
-            local rp, rq = safe(function() return xf:call("get_Position") end), safe(function() return xf:call("get_Rotation") end)
-            if jp and jq and rp and rq then
-                local inv = qinv(qnorm({ x = rq.x, y = rq.y, z = rq.z, w = rq.w }))
-                c.rel_p = qrot(inv, { x = jp.x - rp.x, y = jp.y - rp.y, z = jp.z - rp.z })
-                c.rel_q = qnorm(qmul(inv, qnorm({ x = jq.x, y = jq.y, z = jq.z, w = jq.w })))
-                c.how = "the copy's own joint " .. name
-                break
-            end
-        end
+        c.shell = safe(function() return xf:call("getJointByName", name) end)
+        if c.shell then c.how = name; break end
     end
-    if c.rel_p == nil then
-        if b.r(S_REST_OK) > 0.5 then
-            c.rel_p = { x = b.r(S_REST_POS), y = b.r(S_REST_POS + 1), z = b.r(S_REST_POS + 2) }
-            c.rel_q = qnorm({ x = b.r(S_REST_ROT), y = b.r(S_REST_ROT + 1), z = b.r(S_REST_ROT + 2), w = b.r(S_REST_ROT + 3) })
-            c.how = "the plugin's measurement on the gun"
-        else
-            c.rel_p, c.rel_q, c.how = { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0, w = 1 }, "NOT KNOWN (the gun's root is put at the shell's place)"
-        end
+    if c.shell == nil then
+        once("nojoint" .. num, string.format("gun %d: the copy has no shell joint: no second shell", num))
+        pcall(function() go:call("destroy", go) end)
+        return nil
     end
-    L(string.format("copy made for gun %d (%s): the shell sits %.3f %.3f %.3f from the root, by %s; scale %.2f", num,
-        whole and "WHOLE GUN, test" or ("part " .. tostring(part)), c.rel_p.x, c.rel_p.y, c.rel_p.z, c.how, scale))
+    L(string.format("copy made for gun %d (%s): shell joint %s, body joint %s, scale %.2f", num,
+        whole and "WHOLE GUN, test" or ("part " .. tostring(part)), c.how, c.body and "found (moved away)" or "NOT FOUND (the gun's body may show)", scale))
     return c
 end
--- the copy's root, so that ITS shell is at (p, q), size k against the game's
+-- the copy's shell at (p, q), size k against the game's; the rest of the gun far under the floor. The root rides along at
+-- the shell, so the object's bounds stay where it is looked at
 local function place(c, p, q, k)
-    local rq = qnorm(qmul(q, qinv(c.rel_q)))
-    local off = qrot(rq, { x = c.rel_p.x * k, y = c.rel_p.y * k, z = c.rel_p.z * k })
     pcall(function()
-        c.xf:call("set_Position", Vector3f.new(p.x - off.x, p.y - off.y, p.z - off.z))
-        c.xf:call("set_Rotation", Quaternion.new(rq.w, rq.x, rq.y, rq.z))
-        c.xf:call("set_LocalScale", Vector3f.new(c.scale * k, c.scale * k, c.scale * k))
+        c.xf:call("set_Position", Vector3f.new(p.x, p.y, p.z))
+        c.xf:call("set_Rotation", Quaternion.new(q.w, q.x, q.y, q.z))
+        if c.body and not c.whole then c.body:call("set_Position", Vector3f.new(p.x, p.y - BODY_AWAY_M, p.z)) end
+        c.shell:call("set_Position", Vector3f.new(p.x, p.y, p.z))
+        c.shell:call("set_Rotation", Quaternion.new(q.w, q.x, q.y, q.z))
+        c.shell:call("set_LocalScale", Vector3f.new(k, k, k))
     end)
 end
 
@@ -266,10 +257,14 @@ local function update()
         shown = false
     end
     if not shown then pcall(function() copy.go:call("set_DrawSelf", true) end); shown = true; if wanted then L("the second shell is drawn beside the first") end end
-    if front and not wanted then   -- TEST: 0.5 m in front of the game camera
-        local cq = qnorm({ x = b.r(S_CAM_ROT), y = b.r(S_CAM_ROT + 1), z = b.r(S_CAM_ROT + 2), w = b.r(S_CAM_ROT + 3) })
-        local fwd = qrot(cq, { x = 0, y = 0, z = -1 })
-        place(copy, { x = b.r(S_CAM_POS) + fwd.x * 0.5, y = b.r(S_CAM_POS + 1) + fwd.y * 0.5, z = b.r(S_CAM_POS + 2) + fwd.z * 0.5 }, cq, 1.0)
+    if front and not wanted then   -- TEST: 0.35 m in front of the game camera (the game's own camera: the bridge's is empty on the flat screen)
+        local cx = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform") end)
+        local cp, cr = cx and safe(function() return cx:call("get_Position") end), cx and safe(function() return cx:call("get_Rotation") end)
+        if cp and cr then
+            local cq = qnorm({ x = cr.x, y = cr.y, z = cr.z, w = cr.w })
+            local fwd = qrot(cq, { x = 0, y = 0, z = -1 })
+            place(copy, { x = cp.x + fwd.x * 0.35, y = cp.y + fwd.y * 0.35, z = cp.z + fwd.z * 0.35 }, cq, 1.0)
+        end
         return
     end
     local p1 = { x = b.r(S_POS), y = b.r(S_POS + 1), z = b.r(S_POS + 2) }
@@ -292,7 +287,7 @@ re.on_draw_ui(function()
     local num = (b and b.ready()) and math.floor(b.r(S_WEAPON_NUM) + 0.5) or 0
     if num > 0 then
         local g = gun_cfg(num)
-        imgui.text("Gun " .. num .. (copy and (": copy placed by " .. tostring(copy.how)) or ": no copy now"))
+        imgui.text("Gun " .. num .. (copy and (": the copy's shell joint is " .. tostring(copy.how)) or ": no copy now"))
         local ch
         ch, g.part = imgui.slider_int("The shell's mesh part (-1 = not known)", math.floor(g.part + 0.5), -1, 80); c = ch
         for _, k in ipairs({ "x", "y", "z" }) do ch, g[k] = imgui.slider_float("move " .. k .. ", cm", g[k], -8.0, 8.0); c = c or ch end

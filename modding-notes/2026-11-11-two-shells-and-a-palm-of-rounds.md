@@ -30,14 +30,31 @@ Build b111. Compiled and installed; **nothing here has been seen in the game yet
   (one round fewer there for about a second). `cover_now` no longer needs a free chamber to read a round's turn.
 - Log lines: `drumrounds: N round(s) in the right hand: M drawn (1 at the fingertips, K in the palm)`.
 
-## The shotgun: the second shell is a copy (`visceral_re8_shell2.lua`, `reload_pose.cpp`, bridge slots 217-233)
+## The shotgun: the second shell is a copy (`visceral_re8_shell2.lua`, `reload_pose.cpp`, bridge slots 217-225)
 
 - The plugin says each frame "a second shell is in the hand" (2 or more counted, a shell-port gun) and where the first is;
-  the script draws a copy of the gun's mesh showing only its shell part beside it (the thrown magazine's way). First shell
-  in: the count drops to 1, the copy goes, the gun's own shell is the one left.
-- **Not known yet: WHICH mesh part is the shell, for either shotgun.** Until `shell2.json` `guns.<number>.part` is set, no
-  copy is drawn (one log line). Finding it: `shell2_test.json` `{"front": true, "part": N}` floats part N in front of the
-  camera; the log lists the gun's fields with Parts / Bullet / Shell / Cartridge in their names once per gun. Also open:
-  whether a copy made this way has joints of its own (then its shell's place is read from it; else the plugin's
-  measurement on the real gun at rest is used), and which of the shell's axes is "across" (first guess x, 2.2 cm; sliders in
-  the REFramework menu, "Visceral RE8 second shell").
+  the script draws a copy of the gun's mesh with only its shell left in sight, beside the first. First shell in: the count
+  drops to 1, the copy goes, the gun's own shell is the one left.
+- **Which mesh part holds the shell** `[measured 2026-11-11, flat, n=1 per gun]` (one part on at a time, the gun's `Body`
+  joint moved 100 m down, the shell joint written 0.35 m in front of the camera, green pixels counted, then by eye):
+  - W870 (ri3021): **part 50** is the shell alone (the LEMI's rounds are its part 50 too); the gun is part 0. Parts 1 and 3
+    are off in play and show nothing.
+  - M1897 (ri3036): the live shell (`Bullet`) is in **part 0, with the whole gun**; no part shows it alone. `EmptyBullet` is
+    a fired, opened shell (another model).
+- So the copy does not rely on parts alone: its `Body` joint (every other piece hangs under it) is put 100 m under the
+  floor and its shell joint is written straight to the second shell's place. A copy made with `via.GameObject.create` +
+  a `via.render.Mesh` component HAS the mesh's joints and they take writes at LateUpdateBehavior `[measured, both guns]`.
+- Seen on the flat screen, both guns `[verified-live 2026-11-11, flat, n=1 each]`: the copy's shell alone in front of the
+  camera (test file), and the pair, the gun's own shell with the copy 2.2 cm beside it, when the script is told a second
+  shell is in the hand (the bridge slots written by hand through the live question line). Pictures looked at, not kept.
+- NOT seen yet: the real thing in the headset (pouch grab of two, where the second lies against the hand, one going away per
+  LT). The 2.2 cm is along the shell joint's own x; whether that is "beside" or "on top" in the palm is for the headset.
+  Sliders: REFramework menu, "Visceral RE8 second shell" (move, turn, per gun).
+- The Mercenaries / Rose variants (3085, 3084, 3147) take their base gun's part by likeness `[hypothesis]`.
+
+## Driving notes from the run
+
+- `tools/sim/flat_boot.sh` launches flat (also with a headset streaming) and drives into the save; worked twice.
+- `app.GUIManager.exclusiveTarget` keeps saying `app.GUIDialog` after the load: it does not tell "in play". The player's
+  transform answering does.
+- The bridge's camera slots (72-78) are empty on the flat screen; the game's primary camera works there.

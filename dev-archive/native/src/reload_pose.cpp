@@ -163,28 +163,7 @@ void shell_write(Vec3 p, Quat q) {
 // (0, -0.015, -0.013), which only makes sense under Body (local 0, 0.030, 0.222 from the root, joint log 2026-10-24), so
 // the shell was most likely off by Body's place and swung with the gun's turn [inferred-static]. Now it is written in
 // the world (as the falling magazine is), which needs no parent; the parent is logged once per gun to settle it.
-// 2026-11-11: the second shell of a grab (visceral_re8_shell2.lua draws it, see bridge.h S_SHELL2_*). The shell joint's rest
-// against the gun's root is measured while the shell sits in the gun, once per gun
-void shell2_rest() {
-    static MO* done_for = nullptr;
-    if (done_for != g_shell) bridge::put(bridge::S_SHELL2_REST_OK, 0.0f);   // another gun's numbers are not this gun's
-    if (g_shell == nullptr || g_round_in_hand || !g_shell_have_rest || done_for == g_shell) return;
-    Vec3 lp, jp, rp;
-    Quat jq, rq;
-    if (!get_v3(JOINT, g_shell, "get_LocalPosition", lp) || dist(lp, g_shell_rest) > 0.002f) return;   // not at rest now
-    if (!get_v3(JOINT, g_shell, "get_Position", jp) || !get_q(JOINT, g_shell, "get_Rotation", jq) ||
-        !get_v3(XFORM, g_wtf, "get_Position", rp) || !get_q(XFORM, g_wtf, "get_Rotation", rq)) return;
-    done_for = g_shell;
-    const Quat inv = qinv(qnorm(rq));
-    const Vec3 rel = rotate(inv, jp - rp);
-    const Quat relq = qnorm(qmul(inv, qnorm(jq)));
-    const float v[7] = {rel.x, rel.y, rel.z, relq.x, relq.y, relq.z, relq.w};
-    for (int i = 0; i < 7; ++i) bridge::put((bridge::Slot)(bridge::S_SHELL2_REST_POS + i), v[i]);
-    bridge::put(bridge::S_SHELL2_REST_OK, 1.0f);
-    LOGI("%s reload: %s shell joint at rest %.3f %.3f %.3f from the gun's root (for the second shell's copy)", TAG, g_id.c_str(), rel.x, rel.y, rel.z);
-}
 void pose_shell() {   // the gun's shell joint rides in the left hand while a round is carried
-    shell2_rest();
     if (g_shell == nullptr || !g_round_in_hand) return;
     Vec3 wp, lp;
     Quat wr, lr;
