@@ -467,4 +467,17 @@ constexpr bool  FIRM_GRIP_ON = true;
 constexpr float FIRM_CAPTURE_S = 0.12f;          // the right fingers are read this long after a shot (the firing hold)
 constexpr float FIRM_EASE_S = 0.15f;             // into / out of the held grip
 
+// torch.cpp -- the torch you hold (2026-11-12, Tefa; Visceral RE2's numbers for the left shoulder spot)
+constexpr bool  TORCH_ON = true;
+constexpr float TORCH_SPOT_SIDE = -0.28f;     // the left shoulder spot from the headset: left (-), down (-), behind (-), metres
+constexpr float TORCH_SPOT_UP   = -0.22f;
+constexpr float TORCH_SPOT_FWD  = -0.08f;
+constexpr float TORCH_SPOT_ENTER_M = 0.20f;   // Tefa 2026-11-12: "as big as possible" (RE2 / RE3 use the same reach)
+constexpr float TORCH_SPOT_LEAVE_M = 0.26f;
+constexpr float TORCH_LENS_M    = 0.08f;      // from the drawn fist to where the beam starts, along the torch
+constexpr float TORCH_FLIP_DOT  = 0.25f;      // the lens end must point this far past sideways (cos) before the grip flips
+constexpr float TORCH_BUZZ_ENTER_AMP = 0.35f, TORCH_BUZZ_ENTER_SEC = 0.05f;
+constexpr float TORCH_BUZZ_GRAB_AMP  = 0.70f, TORCH_BUZZ_GRAB_SEC  = 0.08f;
+constexpr float TORCH_BUZZ_HZ   = 160.0f;
+
 } // namespace vn::settings

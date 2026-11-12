@@ -12,7 +12,7 @@
 -- Slot map must match src/bridge.h.
 
 local TAG = "[visceral-re8-bridge]"
-local N = 244   -- 2026-11-11: 226-243 a second magazine in the left hand (src/bridge.h S_MAG2_*, twomag.cpp, visceral_re8_mag2.lua); 217-225 the second shotgun shell (src/bridge.h S_SHELL2_*, reload_pose.cpp, visceral_re8_shell2.lua); 2026-11-09 (b104): 214 / 215 the holster spot each hand is in (visceral_re8_holsters.lua), 216 the right hand's area (src/bridge.h S_LEFT_HOLSTER / S_RIGHT_HOLSTER / S_RIGHT_AREA), for Hand Poser; 2026-11-09: 213 the left hand's area for Hand Poser (src/bridge.h S_LEFT_AREA); 2026-11-05: 2026-11-05: 203-212 the thrown magazine's look (src/bridge.h S_MAGTHROW_ROUNDS / SECOND / VANISH, magdisp.cpp); 2026-11-05: 187-202 the thrown magazine (src/bridge.h S_MAGTHROW_*, reload_throw.cpp, visceral_re8_magthrow.lua); 2026-11-05: 186 a finger clip plays (src/bridge.h S_CLIP_PLAYING, Hand Poser stands aside); 2026-11-04: 185 the Emporium's menu-key request (src/bridge.h S_MENU_KEY, menukey.cpp); 2026-11-02: 184 the right hand's spot for Hand Poser (src/bridge.h S_RIGHT_SPOT); 2026-11-01: 183 the Wolfsbane held by the left hand (src/bridge.h S_GATE_HOLD); 2026-11-01: 182 the game's gun sounds counter (src/bridge.h S_GAME_SFX_SEQ); 2026-10-31: 175-181 the round in the left hand (src/bridge.h S_SHELL_HOLD); 2026-10-29: 174 the brightness tick box (src/bridge.h S_AUTO_EXPOSURE_ON, exposure.cpp); 2026-10-28: 169-173 the slide's left-side sphere (src/zones.h SLIDE_LEFT); 2026-10-27: 154-168 the handle / drum / insert zones (src/zones.h); 2026-10-26: 153 the left hand's spot for Hand Poser (src/pairs.cpp); 2026-10-25 (late): 142-152 the hand pairs (src/pairs.h); 2026-10-25: 141 the arc over the gun (cm); 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
+local N = 252   -- 2026-11-12: 244-251 the torch you hold (src/bridge.h S_TORCH / S_TORCH_POS / S_TORCH_ROT, torch.cpp, read by re8_vr_holster.lua FLASH); 2026-11-11: 226-243 a second magazine in the left hand (src/bridge.h S_MAG2_*, twomag.cpp, visceral_re8_mag2.lua); 217-225 the second shotgun shell (src/bridge.h S_SHELL2_*, reload_pose.cpp, visceral_re8_shell2.lua); 2026-11-09 (b104): 214 / 215 the holster spot each hand is in (visceral_re8_holsters.lua), 216 the right hand's area (src/bridge.h S_LEFT_HOLSTER / S_RIGHT_HOLSTER / S_RIGHT_AREA), for Hand Poser; 2026-11-09: 213 the left hand's area for Hand Poser (src/bridge.h S_LEFT_AREA); 2026-11-05: 2026-11-05: 203-212 the thrown magazine's look (src/bridge.h S_MAGTHROW_ROUNDS / SECOND / VANISH, magdisp.cpp); 2026-11-05: 187-202 the thrown magazine (src/bridge.h S_MAGTHROW_*, reload_throw.cpp, visceral_re8_magthrow.lua); 2026-11-05: 186 a finger clip plays (src/bridge.h S_CLIP_PLAYING, Hand Poser stands aside); 2026-11-04: 185 the Emporium's menu-key request (src/bridge.h S_MENU_KEY, menukey.cpp); 2026-11-02: 184 the right hand's spot for Hand Poser (src/bridge.h S_RIGHT_SPOT); 2026-11-01: 183 the Wolfsbane held by the left hand (src/bridge.h S_GATE_HOLD); 2026-11-01: 182 the game's gun sounds counter (src/bridge.h S_GAME_SFX_SEQ); 2026-10-31: 175-181 the round in the left hand (src/bridge.h S_SHELL_HOLD); 2026-10-29: 174 the brightness tick box (src/bridge.h S_AUTO_EXPOSURE_ON, exposure.cpp); 2026-10-28: 169-173 the slide's left-side sphere (src/zones.h SLIDE_LEFT); 2026-10-27: 154-168 the handle / drum / insert zones (src/zones.h); 2026-10-26: 153 the left hand's spot for Hand Poser (src/pairs.cpp); 2026-10-25 (late): 142-152 the hand pairs (src/pairs.h); 2026-10-25: 141 the arc over the gun (cm); 114-140 the grab zones (136-140 the FRONT GRIP zone) (zones.cpp / visceral_re8_zones.lua); before: 100-102 the rack's socket, 99 the pump two-hand flag, 29 the poser's held count
 local S_FRAME, S_HMD = 0, 1
 local S_LGRIP, S_LTRIG, S_RGRIP, S_RTRIG = 2, 3, 4, 5
 local S_LA, S_LB, S_RA, S_RB = 6, 7, 8, 9
@@ -385,6 +385,16 @@ local function village_readings()
         end)
     end
     rawset(_G, "__visceral_reload_busy", attached and r(S_RELOAD_BUSY) == 1.0 or nil)
+    -- 2026-11-12: the torch you hold (src/torch.cpp): nil = the plugin's torch is not running; else { hand, light, beam_ok,
+    -- pos, rot } (the beam's place in the world while it is in the hand). re8_vr_holster.lua's FLASH obeys it; re8_vr.lua keeps
+    -- the block off while it is in the hand (LT switches the light then)
+    local tv = attached and math.floor(r(244) + 0.5) or 0
+    if tv >= 4 then
+        rawset(_G, "__visceral_torch", { hand = tv % 2 == 1, light = math.floor(tv / 2) % 2 == 1, beam_ok = math.floor(tv / 8) % 2 == 1,
+            pos = Vector3f.new(r(245), r(246), r(247)), rot = Quaternion.new(r(251), r(248), r(249), r(250)) })
+    else
+        rawset(_G, "__visceral_torch", nil)
+    end
     -- 2026-11-11: what the left hand is doing (handstate.h's code), for the hand smoothing's one-hand / two-hand strengths
     rawset(_G, "__visceral_left_hand_state", attached and math.floor(r(S_HAND_STATE) + 0.5) or nil)
 end

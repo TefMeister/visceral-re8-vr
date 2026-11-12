@@ -22,6 +22,7 @@
 
 #include "ammo_hud.h"
 #include "body.h"
+#include "torch.h"
 #include "turn.h"
 #include "gunreport.h"
 #include "fingers.h"
@@ -83,6 +84,7 @@ void on_frame() {
     rack::frame();
     dryfire::frame();                                  // 2026-10-30: the empty click on RT (after reload + rack: they say if it fires)
     smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
+    torch::frame();                                    // 2026-11-12: the torch you hold (torch.h), before handstate reads it
     pairs::frame();                                    // the numbered hand pairs, after rack (pairs.h): the slide / bolt takes an LG first
     ammo_hud::frame();
     recoil::frame();

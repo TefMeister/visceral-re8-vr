@@ -34,7 +34,7 @@ add_library(visceral_re8_native SHARED
     src/lookup.cpp
     src/eject.cpp
     src/body.cpp
-    src/turn.cpp
+    src/torch.cpp src/turn.cpp
     src/gunreport.cpp
     src/fingers.cpp
     src/forearm.cpp

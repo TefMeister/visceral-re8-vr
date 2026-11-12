@@ -1746,7 +1746,9 @@ local function update_lua_block_gesture()
     local rh_x = right_m[0]
     local left_up = math.abs(hmd_fwd.x * lh_x.x + hmd_fwd.y * lh_x.y + hmd_fwd.z * lh_x.z) >= 0.5
     local right_up = math.abs(hmd_fwd.x * rh_x.x + hmd_fwd.y * rh_x.y + hmd_fwd.z * rh_x.z) >= 0.5
+    local vt = rawget(_G, "__visceral_torch")
     re8vr.wants_block = left_up and right_up and rawget(_G, "__visceral_reload_busy") ~= true -- Visceral RE8: not during a reload (2026-10-18)
+        and not (vt ~= nil and vt.hand) -- Visceral RE8 (2026-11-12): not with the torch in the left hand (its LT is the light)
 end
 
 local function update_player_gestures()

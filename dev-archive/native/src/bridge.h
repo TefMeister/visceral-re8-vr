@@ -134,6 +134,10 @@ enum Slot : int {
     S_MAG2_DRAWN_POS = 236,   // 236-238, WRITTEN BY THE LUA: where it drew the extra magazine (world); 239-242 its turn
     S_MAG2_DRAWN_ROT = 239,
     S_MAG2_DRAWN_ON = 243,    // WRITTEN BY THE LUA: S_FRAME + 1 of the frame it drew it
+    // 2026-11-12 (Tefa: the torch you hold, torch.cpp), WRITTEN BY THE PLUGIN, read by re8_vr_holster.lua's FLASH: 244 the
+    // state (0 = the plugin's torch is not running; else 4 + 1 in the hand + 2 light on + 8 the beam place below is good),
+    // 245-247 where the beam starts (world), 248-251 its turn (world x y z w; local -Z = the way it shines)
+    S_TORCH = 244, S_TORCH_POS = 245, S_TORCH_ROT = 248,
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

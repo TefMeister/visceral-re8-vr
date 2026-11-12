@@ -9013,6 +9013,17 @@ FLASH.align_to_hmd = function()
     local tf, shaft = FLASH.get_beam_tfs()
     if not tf then return end
     local pos, rot = nil, nil
+    -- Visceral RE8 (2026-11-12): the torch in the left hand: the beam leaves the fist where the plugin says (src/torch.cpp)
+    local vt = rawget(_G, "__visceral_torch")
+    if vt ~= nil and vt.hand and vt.beam_ok then
+        pcall(function() tf:call("set_Position", vt.pos) end)
+        pcall(function() tf:call("set_Rotation", vt.rot) end)
+        if shaft and managed_object_alive(shaft) then
+            pcall(function() shaft:call("set_Position", vt.pos) end)
+            pcall(function() shaft:call("set_Rotation", vt.rot) end)
+        end
+        return
+    end
     pcall(function()
         local m = vrmod:get_last_render_matrix()
         if m and m[3] then
@@ -9195,6 +9206,17 @@ end
 
 FLASH.tick = function()
     FLASH.install_power_hooks()
+    -- Visceral RE8 (2026-11-12, Tefa: the torch you hold, src/torch.cpp): while the plugin's torch runs, it decides the power
+    -- (LT, in the hand or at the left shoulder) and, in the hand, where the beam is; the head zone steps aside
+    local vt = rawget(_G, "__visceral_torch")
+    if vt ~= nil then
+        FLASH.in_zone = false
+        FLASH.grab_ready_prev = false
+        rawset(_G, "__vr_in_head_flashlight_zone", false)
+        if FLASH.power ~= vt.light then FLASH.power = vt.light end
+        FLASH.apply_power()
+        return
+    end
     if CFG.head_flashlight_enabled == false then
         FLASH.in_zone = false
         FLASH.grab_ready_prev = false
