@@ -33,3 +33,25 @@ animation plays), the primary camera switching to another camera object, or the 
 already wraps `app.InteractManager` lateUpdate for VR). First step next time: a watcher with a bigger, filtered notebook
 over the WHOLE examine (start to end), plus the primary camera's object and the PlayerCamera's final rotation every frame;
 then the same in the pretend headset.
+
+## Solved flat, built for VR (same day, Fable)
+
+- A watcher over a whole examine: for its whole length (6-8 s) `get_IsControlledByHalfAnimation` and
+  `checkEventCameraType` are true, `IsOldSetExternalTask` true, `controlRate` 1; no setter is called (fields written
+  directly) and the primary camera stays MainCamera. Test 3 (those getters forced false, input forced on; hooks fired
+  2,569 times): still grabbed `[verified-live, n=1]`: the internals do not go through the getters.
+- Measured angles: the camera's turn = `_CameraJoint` (a camera bone of Ethan's animation: round by ~60 degrees and 70
+  down), the mouse allowed a few degrees on top; `OperatedCameraRot` / `DesiredCameraRot` sit frozen at a LEVEL direction
+  (not the player's real look) `[measured]`.
+- Test 4 (turn overwritten with `OperatedCameraRot` after lateUpdate): the override held all examine long, but the view
+  jumped to that level direction. Test 5 (the real camera turn of the frame before it starts, held, `set_cameraRotation` +
+  `setCameraTransformRotation` after lateUpdate): Tefa: *"nice i think it works! the camera followed head height and
+  position, but didn't take control of it"* `[verified-live 2026-11-12, flat, n=1]`. What is drawn = what we set (the main
+  camera joint, read at BeginRendering).
+- VR: praydog's `on_post_player_camera_update` treats this as a cutscene (BaseTransSolver type not 0) and puts the headset
+  on top of the swinging turn. Built into our `lua/re8_vr.lua`: while half-animation control lasts (and its 0.3 s lead-in
+  and 0.2 s tail; never under full animation control) the turn it starts from is the level direction of the frame
+  before; the place still follows the game. Option "Keep my view when Ethan examines something" (on). `luac -p` clean;
+  NOT installed, NOT run (Tefa's flat game was running) `[compile-verified]`.
+- Open: the way back at the end (flat: "when returning view it didn't go back to where it started from", in test 4);
+  whether other half-animation moments (ladders, doors, pick-ups) feel right held; the place following Ethan's lean in VR.

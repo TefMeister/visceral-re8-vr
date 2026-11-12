@@ -950,6 +950,14 @@ end
 
 local old_camera_rot = nil
 local old_camera_pos = nil
+-- Visceral RE8 (2026-11-12): the examine hold (on_post_player_camera_update)
+visceral_examine_hold_on = true
+visceral_examine_base = nil
+visceral_examine_told = false
+_G.VISCERAL_OPTIONS = _G.VISCERAL_OPTIONS or {}
+table.insert(_G.VISCERAL_OPTIONS, { tab = "settings", order = 40, kind = "check",
+    label = "Keep my view when Ethan examines something", help = "Off: the game turns the camera to the thing, as it does flat.",
+    get = function() return visceral_examine_hold_on end, set = function(v) visceral_examine_hold_on = v == true end })
 
 -- let player look at interaction elements with the camera
 local function on_pre_interact_manager_lateupdate(args)
@@ -1309,6 +1317,33 @@ local function fix_player_camera(player_camera)
 
     local camera_rot = transform_get_rotation:call(camera_transform)
     local camera_pos = transform_get_position:call(camera_transform)
+
+    -- Visceral RE8 (2026-11-12, Tefa: "the camera grabs control and this part is especially bad in VR, can you see if this
+    -- part of the game can leave the camera control entirely to the player"): at an examine spot (the Beneviento mannequin)
+    -- the game hands the camera's TURN to a camera bone of Ethan's animation ("half animation" control: it swings round and
+    -- 70 degrees down, measured live) and praydog's code puts the headset on top of that, so the world swings under the
+    -- head. While that lasts the turn is held at the level direction from just before it started; the headset alone looks.
+    -- The camera's PLACE still follows the game (Tefa, flat test: "followed head height and position, but didn't take
+    -- control of it"). Full animation control (real cutscenes) is left alone. modding-notes/2026-11-12b-...
+    if is_re8 and visceral_examine_hold_on then
+        local held = false
+        pcall(function()
+            if player_camera:call("get_IsControlledByAnimation") == true then return end
+            held = player_camera:call("get_IsControlledByHalfAnimation") == true
+                or player_camera:call("get_isUseNextEventReferenceLerp") == true
+                or player_camera:call("get_isReceptionControll") == false
+                or (player_camera:call("get_controlRate") or 0) > 0
+        end)
+        if held and visceral_examine_base ~= nil then
+            camera_rot = visceral_examine_base:clone()
+            if not visceral_examine_told then visceral_examine_told = true; log.info("[visceral-re8] examine: the game took the camera's turn; held at the direction from before") end
+        elseif not held then
+            local f = camera_rot * Vector3f.new(0, 0, 1)
+            f.y = 0
+            if f:length() > 0.001 then visceral_examine_base = f:normalized():to_quat() end
+            if visceral_examine_told then visceral_examine_told = false; log.info("[visceral-re8] examine: over, the camera's turn is the game's again") end
+        end
+    end
 
     -- fix camera position.
     if is_maximum_controllable and vrmod:is_using_controllers() then
