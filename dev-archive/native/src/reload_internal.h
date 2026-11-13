@@ -54,7 +54,7 @@ void write_scale(Vec3 s);
 void capture_second();
 void pose_shell();
 void pose_second();                                     // 2026-11-11: the extra magazine's hold, for the Lua (twomag.h)
-void insert_from(bool ok, Vec3 world, Quat wrot);       // 2026-11-11: the next INSERT starts at this place in the hand, not at the bottom of the grip
+void insert_from(bool ok, Vec3 lpos, Quat lrot);         // 2026-11-11: the next INSERT starts at this place in the hand, not at the bottom of the grip
 void shell_home();
 void log_parts();
 void pose_joint();

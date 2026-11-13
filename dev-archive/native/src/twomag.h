@@ -30,7 +30,7 @@ void take_spare();                       // reload.cpp, the pouch grab with a ma
 void swap(int old_rounds);               // reload.cpp, LT: the spare is the gun's now, the old one stays in the hand
 void clear(const char* why);
 int rounds();                            // the extra magazine's own rounds (its look; a spare counts as full)
-void publish(Vec3 hold_p, Quat hold_q);  // reload_pose.cpp, both pose points: the hand's magazine hold, for the Lua
-bool drawn_pose(Vec3& p, Quat& q);       // where the Lua drew the extra magazine this frame (the swap starts from there)
+void publish(Vec3 hold_p, Quat hold_q);  // reload_pose.cpp, both pose points: the hand's magazine hold in the gun's space, for the Lua
+bool drawn_pose(Vec3& p, Quat& q);       // where the Lua drew the extra magazine this frame, gun's space (the swap starts there)
 
 } // namespace vn::twomag

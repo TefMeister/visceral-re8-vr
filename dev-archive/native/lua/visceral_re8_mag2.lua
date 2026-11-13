@@ -11,7 +11,13 @@
 -- The copy looks as full as its own rounds: the gun's "vanish when empty" parts are on only when it holds any.
 -- Test without a headset: reframework/data/visceral_re8/mag2_test.json {"front": true} floats the copy's magazine 0.35 m in
 -- front of the camera; "rounds": 0 shows the empty look.
--- The second place is a first guess [hypothesis]; nothing here has been worn.
+-- The second place is a first guess [hypothesis].
+-- 2026-11-13 (Tefa's clip "Lemi 2 mags re8", b113 worn): the spare hung low right in the view and turned with the head instead
+-- of sitting in the hand. Drawn in the world, it took the hand's place from before the arms reach the controllers (where the
+-- game's animation keeps Ethan's left hand, by the camera). Now the copy hangs UNDER THE GUN and the plugin hands over the hold
+-- in the gun's space (the way it writes the gun's own magazine in the hand, which sat right in the same clip); it is written
+-- after the arms are placed (PrepareRendering, BeginRendering), never at LateUpdateBehavior. Once a second the log says how far
+-- the copy was drawn from the gun's own magazine (with the gun's pulled out into the hand the spare's second place is 3 cm off).
 -- (The maths and the copy-making below are the same as in visceral_re8_shell2.lua: two copies of that code for now.)
 
 if reframework:get_game_name() ~= "re8" then return end
@@ -101,6 +107,9 @@ local function mesh_of(w)
     if w == nil then return nil, nil end
     local mesh = safe(function() return w:get_field("Mesh") end)
     local go = safe(function() return w:call("get_GameObject") end)
+    -- 2026-11-13: a Village gun (app.WeaponGunCore) is an item, not a component: its object is its owner (player.cpp's way);
+    -- without it the copy had no gun to hang under
+    if go == nil then go = safe(function() return w:call("get_owner") end) or safe(function() return w:get_field("<owner>k__BackingField") end) end
     if mesh == nil and go then mesh = safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.render.Mesh")) end) end
     return mesh, go
 end
@@ -119,11 +128,11 @@ local function held_gun()   -- the held gun's mesh, its size, and the gun compon
     local xf = go and safe(function() return go:call("get_Transform") end)
     local sc = xf and safe(function() return xf:call("get_LocalScale") end)
     if sc and sc.x and sc.x > 0.01 then scale = sc.x end
-    return mesh, scale, w
+    return mesh, scale, w, xf
 end
 
 -- ===== the copy =====
-local copy = nil   -- { go, xf, mesh, num, scale, body, mag, mag2, rel2_p, rel2_q, gun, gun_mesh, look, role }
+local copy = nil   -- { go, xf, mesh, num, scale, body, mag, mag2, rel2_p, rel2_q, gun, gun_mesh, look, role, gun_xf, under_gun, body_p, body_q, rel2l_p, rel2l_q }
 local function destroy()
     if copy and copy.go then pcall(function() copy.go:call("destroy", copy.go) end) end
     copy = nil
@@ -162,7 +171,7 @@ local function set_look(c, rounds)
         tostring(part), tostring(second), #vanish, named and "only those parts" or "no magazine part named: the gun's own parts"))
 end
 local function make(num)
-    local mesh, scale, w = held_gun()
+    local mesh, scale, w, gun_xf = held_gun()
     if mesh == nil then once("nomesh", "no gun mesh found: no second magazine"); return nil end
     local res = safe(function() return mesh:call("getMesh") end) or safe(function() return mesh:call("get_Mesh") end)
     local mat = safe(function() return mesh:call("get_Material") end)
@@ -190,7 +199,7 @@ local function make(num)
     local xf = safe(function() return go:call("get_Transform") end)
     if xf == nil then pcall(function() go:call("destroy", go) end); return nil end
     pcall(function() xf:call("set_LocalScale", Vector3f.new(scale, scale, scale)) end)
-    local c = { go = go, xf = xf, mesh = mc, num = num, scale = scale, gun = w, gun_mesh = mesh }
+    local c = { go = go, xf = xf, mesh = mc, num = num, scale = scale, gun = w, gun_mesh = mesh, gun_xf = gun_xf }
     c.body = safe(function() return xf:call("getJointByName", BODY_JOINT) end)
     c.mag = safe(function() return xf:call("getJointByName", MAG_JOINT) end)
     c.mag2 = safe(function() return xf:call("getJointByName", MAG_JOINT2) end)
@@ -209,6 +218,39 @@ local function make(num)
         else
             c.mag2 = nil
         end
+    end
+    -- 2026-11-13: hung under the gun, at its root (the plugin's hold is in the gun's space); the size then comes from the gun
+    if gun_xf then
+        for _, how in ipairs({ "setParent(via.Transform, System.Boolean)", "set_Parent" }) do
+            local ok = pcall(function()
+                if how == "set_Parent" then xf:call(how, gun_xf) else xf:call(how, gun_xf, false) end
+            end)
+            local par = ok and safe(function() return xf:call("get_Parent") end)
+            if par ~= nil then c.under_gun = how; break end
+        end
+    end
+    if c.under_gun then
+        pcall(function()
+            xf:call("set_LocalPosition", Vector3f.new(0, 0, 0))
+            xf:call("set_LocalRotation", Quaternion.new(1, 0, 0, 0))
+            xf:call("set_LocalScale", Vector3f.new(1, 1, 1))
+        end)
+        local bp = c.body and safe(function() return c.body:call("get_LocalPosition") end)
+        local bq = c.body and safe(function() return c.body:call("get_LocalRotation") end)
+        c.body_p = bp and { x = bp.x, y = bp.y, z = bp.z } or { x = 0, y = 0, z = 0 }
+        c.body_q = bq and qnorm({ x = bq.x, y = bq.y, z = bq.z, w = bq.w }) or { x = 0, y = 0, z = 0, w = 1 }
+        if c.mag2 then
+            local p1, q1 = safe(function() return c.mag:call("get_LocalPosition") end), safe(function() return c.mag:call("get_LocalRotation") end)
+            local p2, q2 = safe(function() return c.mag2:call("get_LocalPosition") end), safe(function() return c.mag2:call("get_LocalRotation") end)
+            if p1 and q1 and p2 and q2 then
+                local inv = qinv(qnorm({ x = q1.x, y = q1.y, z = q1.z, w = q1.w }))
+                c.rel2l_p = qrot(inv, { x = p2.x - p1.x, y = p2.y - p1.y, z = p2.z - p1.z })
+                c.rel2l_q = qnorm(qmul(inv, qnorm({ x = q2.x, y = q2.y, z = q2.z, w = q2.w })))
+            end
+        end
+        L(string.format("gun %d: the copy hangs under the gun (%s); Body rests at %.3f %.3f %.3f", num, c.under_gun, c.body_p.x, c.body_p.y, c.body_p.z))
+    else
+        once("noparent" .. num, string.format("gun %d: the copy could NOT be hung under the gun: drawn in the world as before (it may follow the view)", num))
     end
     L(string.format("copy made for gun %d: Magazine joint found, Magazine_second %s, body joint %s, scale %.2f", num,
         c.mag2 and "rides along" or "none", c.body and "found (moved away)" or "NOT FOUND (the gun's body may show)", scale))
@@ -231,8 +273,27 @@ local function place(c, p, q)
     end)
 end
 
+-- 2026-11-13: the copy under the gun: (p, q) is the magazine in the gun's space; Body (the magazine's parent) 100 m down
+local function place_local(c, p, q)
+    pcall(function()
+        local bp = { x = c.body_p.x, y = c.body_p.y - BODY_AWAY_M, z = c.body_p.z }
+        if c.body then c.body:call("set_LocalPosition", Vector3f.new(bp.x, bp.y, bp.z)) end
+        local bi = qinv(c.body_q)   -- into Body's own space (the magazine hangs under it)
+        local lp = qrot(bi, { x = p.x - bp.x, y = p.y - bp.y, z = p.z - bp.z })
+        local lq = qnorm(qmul(bi, q))
+        c.mag:call("set_LocalPosition", Vector3f.new(lp.x, lp.y, lp.z))
+        c.mag:call("set_LocalRotation", Quaternion.new(lq.w, lq.x, lq.y, lq.z))
+        if c.mag2 and c.rel2l_p then
+            local o = qrot(lq, c.rel2l_p)
+            local q2 = qnorm(qmul(lq, c.rel2l_q))
+            c.mag2:call("set_LocalPosition", Vector3f.new(lp.x + o.x, lp.y + o.y, lp.z + o.z))
+            c.mag2:call("set_LocalRotation", Quaternion.new(q2.w, q2.x, q2.y, q2.z))
+        end
+    end)
+end
+
 local shown = false
-local function update()
+local function update(point)
     local now = os.clock()
     if now - test_t > 1.0 then test_t = now; read_test() end
     local b = rawget(_G, "visceral_re8_bridge")
@@ -254,12 +315,13 @@ local function update()
         if copy == nil then return end
         shown = false
     end
+    if copy.under_gun and point == "late" and not front then return end   -- before the arms are placed: never
     if front and not wanted then   -- TEST: 0.35 m in front of the game's camera
         set_look(copy, test.rounds or 1)
         if not shown then pcall(function() copy.go:call("set_DrawSelf", true) end); shown = true end
         local cx = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform") end)
         local cp, cr = cx and safe(function() return cx:call("get_Position") end), cx and safe(function() return cx:call("get_Rotation") end)
-        if cp and cr then
+        if cp and cr and not copy.under_gun then
             local cq = qnorm({ x = cr.x, y = cr.y, z = cr.z, w = cr.w })
             local fwd = qrot(cq, { x = 0, y = 0, z = -1 })
             place(copy, { x = cp.x + fwd.x * 0.35, y = cp.y + fwd.y * 0.35, z = cp.z + fwd.z * 0.35 }, cq)
@@ -279,14 +341,34 @@ local function update()
     local off = qrot(q1, { x = g.x * 0.01, y = g.y * 0.01, z = g.z * 0.01 })
     local p = { x = p1.x + off.x, y = p1.y + off.y, z = p1.z + off.z }
     local q = qnorm(qmul(q1, q_ypr(g.rz, g.ry, g.rx)))
-    place(copy, p, q)
+    if copy.under_gun then place_local(copy, p, q) else place(copy, p, q) end
     b.w(S_DRAWN_POS, p.x); b.w(S_DRAWN_POS + 1, p.y); b.w(S_DRAWN_POS + 2, p.z)
     b.w(S_DRAWN_ROT, q.x); b.w(S_DRAWN_ROT + 1, q.y); b.w(S_DRAWN_ROT + 2, q.z); b.w(S_DRAWN_ROT + 3, q.w)
     b.w(S_DRAWN_ON, b.r(S_FRAME) + 1.0)
 end
 
-re.on_application_entry("LateUpdateBehavior", function() local ok, e = pcall(update); if not ok then once("err", "update failed: " .. tostring(e)) end end)
-re.on_pre_application_entry("BeginRendering", function() local ok, e = pcall(update); if not ok then once("err2", "update failed: " .. tostring(e)) end end)
+-- 2026-11-13: the check. At the start of the next frame (what was drawn), how far the copy's magazine is from the gun's own
+-- and from the camera; once a second while it is shown
+local check_t = 0
+local function check()
+    if copy == nil or not shown then return end
+    local now = os.clock()
+    if now - check_t < 1.0 then return end
+    check_t = now
+    local real = copy.gun_xf and safe(function() return copy.gun_xf:call("getJointByName", MAG_JOINT) end)
+    local a = safe(function() return copy.mag:call("get_Position") end)
+    local b = real and safe(function() return real:call("get_Position") end)
+    local cam = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform"):call("get_Position") end)
+    if a == nil or b == nil then return end
+    local function d(u, v) return math.sqrt((u.x - v.x) ^ 2 + (u.y - v.y) ^ 2 + (u.z - v.z) ^ 2) end
+    L(string.format("check: the copy (role %s, %s) is %.3f m from the gun's own magazine; copy %.3f m, gun's magazine %.3f m from the camera",
+        tostring(copy.role), copy.under_gun and "under the gun" or "in the world", d(a, b), cam and d(a, cam) or -1, cam and d(b, cam) or -1))
+end
+
+re.on_pre_application_entry("LateUpdateBehavior", function() pcall(check) end)
+re.on_application_entry("LateUpdateBehavior", function() local ok, e = pcall(update, "late"); if not ok then once("err", "update failed: " .. tostring(e)) end end)
+re.on_application_entry("PrepareRendering", function() local ok, e = pcall(update, "prep"); if not ok then once("err3", "update failed: " .. tostring(e)) end end)
+re.on_pre_application_entry("BeginRendering", function() local ok, e = pcall(update, "begin"); if not ok then once("err2", "update failed: " .. tostring(e)) end end)
 
 re.on_draw_ui(function()
     if not imgui.tree_node("Visceral RE8 second magazine") then return end

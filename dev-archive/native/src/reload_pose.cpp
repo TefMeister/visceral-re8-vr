@@ -159,14 +159,22 @@ void capture_second() {
 bool g_ins_ok = false;
 Vec3 g_ins_p{};
 Quat g_ins_q{0, 0, 0, 1};
-void insert_from(bool ok, Vec3 world, Quat wrot) { g_ins_ok = ok && to_weapon_local(world, wrot, g_ins_p, g_ins_q); }
+void insert_from(bool ok, Vec3 lpos, Quat lrot) {   // 2026-11-13: the Lua hands back the gun's space now
+    g_ins_ok = ok;
+    if (ok) { g_ins_p = lpos; g_ins_q = qnorm(lrot); }
+}
 void pose_second() {
     if (twomag::has() == twomag::Has::NONE) return;
     Vec3 p;
     Quat q;
     if (!held_pose(p, q)) return;
     if (twomag::has() == twomag::Has::OLD) throw_sample(p);   // its speed, should it be let go
-    twomag::publish(p, q);
+    // 2026-11-13 (Tefa's clip "Lemi 2 mags re8": the spare hung low right in the view and turned with the head): handed over
+    // in the gun's space, as pose_joint writes the gun's own magazine in the hand; the Lua's copy hangs under the gun
+    Vec3 lp;
+    Quat lq;
+    if (!to_weapon_local(p, q, lp, lq)) return;
+    twomag::publish(lp, lq);
 }
 void shell_write(Vec3 p, Quat q) {
     set_any(JOINT, g_shell, "set_LocalPosition", &p);

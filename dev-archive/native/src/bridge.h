@@ -129,9 +129,10 @@ enum Slot : int {
     // 2026-11-11 (twomag.h): a second magazine in the left hand, drawn by visceral_re8_mag2.lua as a copy
     S_MAG2_ON = 226,          // WRITTEN BY THE PLUGIN: S_FRAME + 1 of the frame an extra magazine was last in the hand; stale = none
     S_MAG2_ROLE = 227,        // 1 = a spare from the pouch (the hand's second place), 2 = the old magazine after the swap (the first place)
-    S_MAG2_POS = 228,         // 228-230: the hand's magazine hold (world), 231-234 its turn (x, y, z, w)
+    S_MAG2_POS = 228,         // 228-230: the hand's magazine hold, IN THE GUN'S SPACE (2026-11-13: was world, and the copy then hung
+                              // where the animation had the hand, following the view), 231-234 its turn (x, y, z, w)
     S_MAG2_ROUNDS = 235,      // the extra magazine's own rounds (its look)
-    S_MAG2_DRAWN_POS = 236,   // 236-238, WRITTEN BY THE LUA: where it drew the extra magazine (world); 239-242 its turn
+    S_MAG2_DRAWN_POS = 236,   // 236-238, WRITTEN BY THE LUA: where it drew the extra magazine (the gun's space); 239-242 its turn
     S_MAG2_DRAWN_ROT = 239,
     S_MAG2_DRAWN_ON = 243,    // WRITTEN BY THE LUA: S_FRAME + 1 of the frame it drew it
     // 2026-11-12 (Tefa: the torch you hold, torch.cpp), WRITTEN BY THE PLUGIN, read by re8_vr_holster.lua's FLASH: 244 the
