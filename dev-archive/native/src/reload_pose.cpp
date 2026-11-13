@@ -221,7 +221,12 @@ void pose_shell() {   // the gun's shell joint rides in the left hand while a ro
              parent_name(g_shell).c_str(), have ? pl.x : 0.0f, have ? pl.y : 0.0f, have ? pl.z : 0.0f, SHELL_WORLD_WRITE ? "in the world" : "by gun-local numbers");
     }
     if (shells::port_gun() && reload::rounds_in_hand() >= 2) {   // 2026-11-11: a second shell lies beside this one (the Lua's copy)
-        const float v[8] = {wp.x, wp.y, wp.z, wr.x, wr.y, wr.z, wr.w, k};
+        // 2026-11-13: handed over in the GUN's space, as the spare magazine (twomag.cpp): the copy hangs under the gun, so it
+        // cannot be left where the animation had the hand (the spare magazine followed the view that way, Tefa's clip)
+        Vec3 gp;
+        Quat gq;
+        if (!to_weapon_local(wp, wr, gp, gq)) return;
+        const float v[8] = {gp.x, gp.y, gp.z, gq.x, gq.y, gq.z, gq.w, k};
         for (int i = 0; i < 8; ++i) bridge::put((bridge::Slot)(bridge::S_SHELL2_POS + i), v[i]);
         bridge::put(bridge::S_SHELL2_ON, bridge::view(bridge::S_FRAME) + 1.0f);
     }

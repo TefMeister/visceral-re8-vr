@@ -123,7 +123,7 @@ enum Slot : int {
     // inserted"), reload_pose.cpp -> visceral_re8_shell2.lua: the gun has ONE loose shell joint, so the second shell of a grab is
     // a copy of the gun's mesh with only its shell left in sight, drawn beside the first by the Lua. All WRITTEN BY THE PLUGIN:
     S_SHELL2_ON = 217,        // S_FRAME + 1 of the frame it was last wanted (a second shell is in the left hand); stale = not wanted
-    S_SHELL2_POS = 218,       // 218-220: where the FIRST shell is drawn (world)
+    S_SHELL2_POS = 218,       // 218-220: where the FIRST shell is drawn (the GUN's space since 2026-11-13; was world)
     S_SHELL2_ROT = 221,       // 221-224: its turn (x, y, z, w)
     S_SHELL2_SIZE = 225,      // its size against the game's (1 = the game's; the menu's "size" slider)
     // 2026-11-11 (twomag.h): a second magazine in the left hand, drawn by visceral_re8_mag2.lua as a copy

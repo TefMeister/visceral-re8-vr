@@ -115,6 +115,8 @@ local function mesh_of(w)
     if w == nil then return nil, nil end
     local mesh = safe(function() return w:get_field("Mesh") end)
     local go = safe(function() return w:call("get_GameObject") end)
+    -- 2026-11-13: a Village gun is an item; its object is its owner (as visceral_re8_mag2.lua, player.cpp)
+    if go == nil then go = safe(function() return w:call("get_owner") end) or safe(function() return w:get_field("<owner>k__BackingField") end) end
     if mesh == nil and go then mesh = safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.render.Mesh")) end) end
     return mesh, go
 end
@@ -133,7 +135,7 @@ local function held_gun()   -- the held gun's mesh, its size, and the gun compon
     local xf = go and safe(function() return go:call("get_Transform") end)
     local sc = xf and safe(function() return xf:call("get_LocalScale") end)
     if sc and sc.x and sc.x > 0.01 then scale = sc.x end
-    return mesh, scale, w
+    return mesh, scale, w, xf
 end
 local function log_parts_fields(num, w, mesh)   -- once per gun: what the gun itself says about its parts
     if told["fields" .. num] then return end
@@ -167,7 +169,7 @@ local function show_parts(mc, part, whole)
     for i = 0, PARTS_MAX - 1 do pcall(function() mc:call("setPartsEnable", i, whole or i == part) end) end
 end
 local function make(b, num, part, whole)
-    local mesh, scale, w = held_gun()
+    local mesh, scale, w, gun_xf = held_gun()
     if mesh == nil then once("nomesh", "no gun mesh found: no second shell"); return nil end
     log_parts_fields(num, w, mesh)
     local res = safe(function() return mesh:call("getMesh") end) or safe(function() return mesh:call("get_Mesh") end)
@@ -203,6 +205,23 @@ local function make(b, num, part, whole)
         c.shell = safe(function() return xf:call("getJointByName", name) end)
         if c.shell then c.how = name; break end
     end
+    -- 2026-11-13 (the spare magazine's fix, Tefa's clip "Lemi 2 mags re8": drawn in the world it followed the view): the
+    -- copy hangs UNDER THE GUN; the plugin hands the place over in the gun's space and place_gun turns it into the world
+    -- through the copy's own root at that moment, so wherever the gun is drawn later the copy goes with it
+    if gun_xf and not whole then
+        local ok = pcall(function() xf:call("set_Parent", gun_xf) end)
+        if ok and safe(function() return xf:call("get_Parent") end) ~= nil then
+            c.under_gun = true
+            pcall(function()
+                xf:call("set_LocalPosition", Vector3f.new(0, 0, 0))
+                xf:call("set_LocalRotation", Quaternion.new(1, 0, 0, 0))
+                xf:call("set_LocalScale", Vector3f.new(1, 1, 1))
+            end)
+            local bp = c.body and safe(function() return c.body:call("get_LocalPosition") end)
+            c.body_p = bp and { x = bp.x, y = bp.y, z = bp.z } or nil
+        end
+    end
+    if not c.under_gun then once("noparent" .. num, string.format("gun %d: the copy could NOT be hung under the gun: drawn in the world (it may follow the view)", num)) end
     if c.shell == nil then
         once("nojoint" .. num, string.format("gun %d: the copy has no shell joint: no second shell", num))
         pcall(function() go:call("destroy", go) end)
@@ -225,8 +244,23 @@ local function place(c, p, q, k)
     end)
 end
 
+-- 2026-11-13: the copy under the gun: (p, q) in the gun's space, made world through the copy's root (= the gun) now
+local function place_gun(c, p, q, k)
+    pcall(function()
+        local rp, rr = c.xf:call("get_Position"), c.xf:call("get_Rotation")
+        local rq = qnorm({ x = rr.x, y = rr.y, z = rr.z, w = rr.w })
+        local o = qrot(rq, p)
+        local wp = { x = rp.x + o.x, y = rp.y + o.y, z = rp.z + o.z }
+        local wq = qnorm(qmul(rq, q))
+        if c.body and c.body_p then c.body:call("set_LocalPosition", Vector3f.new(c.body_p.x, c.body_p.y - BODY_AWAY_M, c.body_p.z)) end
+        c.shell:call("set_Position", Vector3f.new(wp.x, wp.y, wp.z))
+        c.shell:call("set_Rotation", Quaternion.new(wq.w, wq.x, wq.y, wq.z))
+        c.shell:call("set_LocalScale", Vector3f.new(k, k, k))
+    end)
+end
+
 local shown = false
-local function update()
+local function update(point)
     local now = os.clock()
     if now - test_t > 1.0 then test_t = now; read_test() end
     local b = rawget(_G, "visceral_re8_bridge")
@@ -257,10 +291,11 @@ local function update()
         shown = false
     end
     if not shown then pcall(function() copy.go:call("set_DrawSelf", true) end); shown = true; if wanted then L("the second shell is drawn beside the first") end end
+    if copy.under_gun and point == "late" and not front then return end   -- before the arms are placed: never (2026-11-13)
     if front and not wanted then   -- TEST: 0.35 m in front of the game camera (the game's own camera: the bridge's is empty on the flat screen)
         local cx = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform") end)
         local cp, cr = cx and safe(function() return cx:call("get_Position") end), cx and safe(function() return cx:call("get_Rotation") end)
-        if cp and cr then
+        if cp and cr and not copy.under_gun then
             local cq = qnorm({ x = cr.x, y = cr.y, z = cr.z, w = cr.w })
             local fwd = qrot(cq, { x = 0, y = 0, z = -1 })
             place(copy, { x = cp.x + fwd.x * 0.35, y = cp.y + fwd.y * 0.35, z = cp.z + fwd.z * 0.35 }, cq, 1.0)
@@ -272,12 +307,14 @@ local function update()
     local k = b.r(S_SIZE)
     if not (k > 0.05 and k < 5.0) then k = 1.0 end
     local off = qrot(q1, { x = g.x * 0.01, y = g.y * 0.01, z = g.z * 0.01 })
-    place(copy, { x = p1.x + off.x, y = p1.y + off.y, z = p1.z + off.z }, qnorm(qmul(q1, q_ypr(g.rz, g.ry, g.rx))), k)
+    local pp, pq = { x = p1.x + off.x, y = p1.y + off.y, z = p1.z + off.z }, qnorm(qmul(q1, q_ypr(g.rz, g.ry, g.rx)))
+    if copy.under_gun then place_gun(copy, pp, pq, k) else place(copy, pp, pq, k) end
 end
 
 -- after the plugin has placed the first shell (its late point and its render point), and once more just before drawing
-re.on_application_entry("LateUpdateBehavior", function() local ok, e = pcall(update); if not ok then once("err", "update failed: " .. tostring(e)) end end)
-re.on_pre_application_entry("BeginRendering", function() local ok, e = pcall(update); if not ok then once("err2", "update failed: " .. tostring(e)) end end)
+re.on_application_entry("LateUpdateBehavior", function() local ok, e = pcall(update, "late"); if not ok then once("err", "update failed: " .. tostring(e)) end end)
+re.on_application_entry("PrepareRendering", function() local ok, e = pcall(update, "prep"); if not ok then once("err3", "update failed: " .. tostring(e)) end end)
+re.on_pre_application_entry("BeginRendering", function() local ok, e = pcall(update, "begin"); if not ok then once("err2", "update failed: " .. tostring(e)) end end)
 
 re.on_draw_ui(function()
     if not imgui.tree_node("Visceral RE8 second shell") then return end
