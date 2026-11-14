@@ -190,6 +190,7 @@ local marker_logged = { name = nil, t = -10 }
 -- (sitting, several spots lie about 20 cm from the hands: the log flipped between them every second); the sphere now stays on
 -- its spot until another is MARKER_SWITCH_M nearer.
 local MARKER_SWITCH_M = 0.06
+local NEAREST_MARKERS = false   -- 2026-11-14 23:33: off (crash), see publish_marker
 local prev_hmd = nil
 local marker_key = { r = nil, l = nil }
 -- 2026-11-14 22:1x (Tefa: "can you make 2 spheres show up, one closest to left, other right hand"): the right hand's nearest
@@ -233,6 +234,10 @@ local function publish_marker(hmd, rm, lm)
         end
         return
     end
+    -- 2026-11-14 23:33 (the simulator start crashed at re8.exe+0x415879c, the zone sphere's known crash place, the marker ball
+    -- made while the game loaded): the nearest-spot spheres made during PLAY broke the 2026-10-31 rule "spheres only while a
+    -- tuning window has a row open". Off again: only the Holster Zones window's open row shows its sphere (above).
+    if not NEAREST_MARKERS then return end
     if hz.sit == 0 then return end   -- window closed and not sitting: no sphere
     -- one hand's nearest spot, kept until another is MARKER_SWITCH_M nearer
     local function nearest(hand, which)
