@@ -39,12 +39,58 @@ local SPOTS = {
 -- through __visceral_seated_fwd_m (re8_vr_holster.lua adds it in the body's facing). One sphere marks the spot nearest either
 -- hand (visceral_re8_zones.lua draws __visceral_marker): one ball only, as the zone spheres (only the first ball ever drew,
 -- and making balls crashed the game three times). 0 = off: the spots as before, no sphere.
-local SEATED_TEST_FWD_M = 0.30
-local MARKER_R_M = 0.05        -- the marker sphere's radius
+local SEATED_TEST_FWD_M = 0.30   -- the default while the Holster Zones window has never written its file
+local MARKER_R_M = 0.05        -- the marker sphere's radius (the nearest-spot marker while the window is closed)
 _G.__visceral_seated_fwd_m = SEATED_TEST_FWD_M
+-- 2026-11-14 (Tefa: "can you make it into an app called holster zones?"): the Holster Zones window
+-- (github.com/TefMeister/holster-zones-vr) writes visceral_re8/holster_zones.json { sitting = { on, fwd }, spots = { key = {
+-- x right, y up, z forward, r size } } } (metres) and holster_zones_open.json { key, t } (the row open in it); this file reads
+-- both, shows the open row's spot with the sphere, and writes holster_zones_state.json four times a second (each spot's key, how
+-- far the nearer hand is, its size) for the window's live line. Keys: right-shoulder, right-hip, left-hip, left-shoulder (ours),
+-- knife, medicine, ammo (Andyalpa's: moved through __visceral_holster_extra in re8_vr_holster.lua; their sizes stay his).
+local HZ_FILE, HZ_OPEN_FILE, HZ_STATE_FILE = "visceral_re8/holster_zones.json", "visceral_re8/holster_zones_open.json", "visceral_re8/holster_zones_state.json"
+local HZ_READ_EVERY_S, HZ_OPEN_EVERY_S, HZ_STATE_EVERY_S, HZ_OPEN_STALE_S = 0.5, 0.25, 0.25, 3
+local hz = { cfg = nil, read_t = -10, open_key = nil, open_t = -10, state_t = -10, sit = SEATED_TEST_FWD_M }
+local function hz_spot(key) local sp = hz.cfg and type(hz.cfg.spots) == "table" and hz.cfg.spots[key]; return type(sp) == "table" and sp or nil end
+local function hz_num(sp, k) return sp and tonumber(sp[k]) or 0 end
+local function hz_read()
+    local now = os.clock()
+    if now - hz.read_t >= HZ_READ_EVERY_S then
+        hz.read_t = now
+        local c = nil
+        pcall(function() c = json.load_file(HZ_FILE) end)
+        hz.cfg = type(c) == "table" and c or nil
+        local sit = SEATED_TEST_FWD_M
+        if hz.cfg and type(hz.cfg.sitting) == "table" then
+            sit = hz.cfg.sitting.on == false and 0 or (tonumber(hz.cfg.sitting.fwd) or SEATED_TEST_FWD_M)
+        end
+        hz.sit = sit
+        _G.__visceral_seated_fwd_m = sit
+        local extra = {}
+        for _, k in ipairs({ "knife", "medicine", "ammo" }) do
+            local sp = hz_spot(k)
+            if sp then extra[k == "ammo" and "ammo_left" or k] = { x = hz_num(sp, "x"), y = hz_num(sp, "y"), z = hz_num(sp, "z") } end
+        end
+        _G.__visceral_holster_extra = extra
+    end
+    if now - hz.open_t >= HZ_OPEN_EVERY_S then
+        hz.open_t = now
+        local o = nil
+        pcall(function() o = json.load_file(HZ_OPEN_FILE) end)
+        if type(o) == "table" and type(o.key) == "string" and o.key ~= "" and tonumber(o.t) and os.time() - tonumber(o.t) <= HZ_OPEN_STALE_S then
+            hz.open_key = o.key
+        else
+            hz.open_key = nil
+        end
+    end
+end
+local function spot_key(s) return (s.name:gsub(" ", "-")) end
 -- 2026-11-02 (Tefa: "the holster spot seemed to move a little every time ... or maybe the activation area is just too small"):
 -- bigger, 0.15 / 0.22 before
 local ENTER_M, LEAVE_M = 0.20, 0.28          -- in a spot under ENTER, out again past LEAVE (no flicker at the edge)
+-- 2026-11-14: a spot's own size from the Holster Zones window (r), leave 8 cm past it
+local function enter_of(s) local r = tonumber((hz_spot(spot_key(s)) or {}).r); return r and r > 0 and r or ENTER_M end
+local function leave_of(s) return enter_of(s) + (LEAVE_M - ENTER_M) end
 local BUZZ_ENTER = { sec = 0.05, amp = 0.35 } -- a tick on entering a spot
 local BUZZ_GRAB = { sec = 0.08, amp = 0.70 }  -- a stronger one on grabbing there
 local BUZZ_HZ = 1.0
@@ -108,8 +154,10 @@ local function spot_pos(hmd, s)
     local y = spot_facing(math.atan(fx, fz))   -- the spots' own facing, not the head's (above)
     fx, fz = math.sin(y), math.cos(y)
     local rx, rz = -fz, fx
-    local f = s.fwd + SEATED_TEST_FWD_M
-    return Vector3f.new(p.x + rx * s.side + fx * f, p.y + s.up, p.z + rz * s.side + fz * f)
+    local sp = hz_spot(spot_key(s))
+    local f = s.fwd + hz.sit + hz_num(sp, "z")
+    local side, up = s.side + hz_num(sp, "x"), s.up + hz_num(sp, "y")
+    return Vector3f.new(p.x + rx * side + fx * f, p.y + up, p.z + rz * side + fz * f)
 end
 
 -- the room (OpenXR) point p as a world point: its place relative to the headset, laid onto the game camera (the camera is the
@@ -125,24 +173,46 @@ local function room_to_world(p, hmd, cm)
              y = c.y + cm[0].y * lx + cm[1].y * ly + cm[2].y * lz,
              z = c.z + cm[0].z * lx + cm[1].z * ly + cm[2].z * lz }
 end
-local ANDY_ZONES = { { g = "__re8_knife_zone_world", name = "knife" }, { g = "__re8_medicine_zone_world", name = "medicine" },
-                     { g = "__re8_ammo_hip_zone_world", name = "ammo" } }
+local ANDY_ZONES = { { g = "__re8_knife_zone_world", name = "knife", key = "knife" }, { g = "__re8_medicine_zone_world", name = "medicine", key = "medicine" },
+                     { g = "__re8_ammo_hip_zone_world", name = "ammo", key = "ammo" } }
 local marker_logged = { name = nil, t = -10 }
 -- the one marker: the holster spot (ours or Andyalpa's) nearest either hand, in the world
 local function publish_marker(hmd, rm, lm)
     _G.__visceral_marker = nil
-    if SEATED_TEST_FWD_M == 0 then return end
+    hz_read()
     local cm = safe(function() return sdk.get_primary_camera():call("get_WorldMatrix") end)
     if cm == nil then return end
     local hands = { room_to_world(pos_of(rm), hmd, cm) }
     if lm ~= nil then hands[2] = room_to_world(pos_of(lm), hmd, cm) end
     local spots = {}
-    for _, s in ipairs(SPOTS) do spots[#spots + 1] = { p = room_to_world(spot_pos(hmd, s), hmd, cm), name = s.name } end
+    for _, s in ipairs(SPOTS) do spots[#spots + 1] = { p = room_to_world(spot_pos(hmd, s), hmd, cm), name = s.name, key = spot_key(s), r = enter_of(s) } end
     local now = os.clock()
     for _, z in ipairs(ANDY_ZONES) do
         local w = rawget(_G, z.g)
-        if type(w) == "table" and type(w.x) == "number" and now - (w.t or 0) < 0.5 then spots[#spots + 1] = { p = w, name = z.name } end
+        if type(w) == "table" and type(w.x) == "number" and now - (w.t or 0) < 0.5 then spots[#spots + 1] = { p = w, name = z.name, key = z.key } end
     end
+    -- each spot's nearer hand, for the window's live line
+    for _, sp in ipairs(spots) do
+        sp.hand = math.huge
+        for _, hd in ipairs(hands) do sp.hand = math.min(sp.hand, dist(sp.p, hd)) end
+    end
+    if now - hz.state_t >= HZ_STATE_EVERY_S then
+        hz.state_t = now
+        local out = {}
+        for _, sp in ipairs(spots) do out[#out + 1] = { key = sp.key, hand_cm = sp.hand * 100, r_cm = sp.r and sp.r * 100 or -1 } end
+        pcall(function() json.dump_file(HZ_STATE_FILE, { t = os.time(), spots = out }) end)
+    end
+    -- the window's open row: that spot's sphere at its size (Andyalpa's at the marker size)
+    if hz.open_key ~= nil then
+        for _, sp in ipairs(spots) do
+            if sp.key == hz.open_key then
+                _G.__visceral_marker = { x = sp.p.x, y = sp.p.y, z = sp.p.z, r = sp.r or MARKER_R_M, name = sp.name, t = now }
+                return
+            end
+        end
+        return
+    end
+    if hz.sit == 0 then return end   -- window closed and not sitting: no sphere
     local best, bd = nil, math.huge
     for _, sp in ipairs(spots) do
         for _, hd in ipairs(hands) do
@@ -269,8 +339,8 @@ local function which_spot(hand, hmd, ins)   -- the same enter / leave distances 
     local found = 0
     for i, s in ipairs(SPOTS) do
         local d = dist(hand, spot_pos(hmd, s))
-        if not ins[s.name] and d < ENTER_M then ins[s.name] = true
-        elseif ins[s.name] and d > LEAVE_M then ins[s.name] = false end
+        if not ins[s.name] and d < enter_of(s) then ins[s.name] = true
+        elseif ins[s.name] and d > leave_of(s) then ins[s.name] = false end
         if ins[s.name] and found == 0 and LEFT_GRIP_DOES[s.name] == true then found = i end   -- (only the left hand uses this)
     end
     return found
@@ -337,8 +407,8 @@ re.on_pre_application_entry("UpdateBehavior", function()
     end
     for _, s in ipairs(SPOTS) do
         local d = dist(hand, spot_pos(hmd, s))
-        if not inside[s.name] and d < ENTER_M then inside[s.name] = true; if BUZZ_ON_ENTER then buzz(rj, BUZZ_ENTER) end
-        elseif inside[s.name] and d > LEAVE_M then inside[s.name] = false end
+        if not inside[s.name] and d < enter_of(s) then inside[s.name] = true; if BUZZ_ON_ENTER then buzz(rj, BUZZ_ENTER) end
+        elseif inside[s.name] and d > leave_of(s) then inside[s.name] = false end
         if inside[s.name] then
             _G.__visceral_holster_zone = true
             if pressed and not rack_rg then
@@ -379,4 +449,4 @@ re.on_pre_application_entry("UpdateBehavior", function()
     end
 end)
 
-L("loaded: " .. (SEATED_TEST_FWD_M ~= 0 and string.format("SEATED TEST: every spot %.2f m forward, one marker sphere; ", SEATED_TEST_FWD_M) or "") .. (ON and "four spots (right shoulder = up, right hip = right, left hip = down, left shoulder = left)" or "off"))
+L("loaded: " .. string.format("sitting default %.2f m forward (Holster Zones' file overrides it); ", SEATED_TEST_FWD_M) .. (ON and "four spots (right shoulder = up, right hip = right, left hip = down, left shoulder = left)" or "off"))

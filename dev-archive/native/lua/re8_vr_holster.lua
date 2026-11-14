@@ -11351,9 +11351,16 @@ do
     HJ.slot_world_pos = function(slot_key, P)
         local pos = raw_slot_world_pos(slot_key, P)
         local d = rawget(_G, "__visceral_seated_fwd_m") or 0
-        if pos and d ~= 0 then
-            local _, _, bf = HJ.torso_yaw_axes()
-            if bf then return { x = pos.x + bf.x * d, y = pos.y + bf.y * d, z = pos.z + bf.z * d } end
+        -- 2026-11-14: the Holster Zones window's own move for this spot (knife, medicine, ammo_left): x right, y up, z forward
+        local ex = rawget(_G, "__visceral_holster_extra")
+        ex = type(ex) == "table" and ex[slot_key] or nil
+        if pos and (d ~= 0 or ex) then
+            local br, bu, bf = HJ.torso_yaw_axes()
+            if bf then
+                local x, y, z = ex and ex.x or 0, ex and ex.y or 0, (ex and ex.z or 0) + d
+                return { x = pos.x + br.x * x + bu.x * y + bf.x * z, y = pos.y + br.y * x + bu.y * y + bf.y * z,
+                         z = pos.z + br.z * x + bu.z * y + bf.z * z }
+            end
         end
         return pos
     end
