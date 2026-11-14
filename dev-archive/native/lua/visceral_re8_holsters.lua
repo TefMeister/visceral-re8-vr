@@ -34,6 +34,14 @@ local SPOTS = {
     { name = "left hip",       slot = "Down",  side = -0.20, up = -0.62, fwd =  0.02 },
     { name = "left shoulder",  slot = "Left",  side = -0.28, up = -0.22, fwd = -0.08 },
 }
+-- 2026-11-14 SEATED TEST (Tefa: "for testing purposes can you bring all holsters forward and have them marked with spheres, so i
+-- can reach them sitting down"): every holster spot this far further forward, ours here and Andyalpa's knife, medicine and ammo
+-- through __visceral_seated_fwd_m (re8_vr_holster.lua adds it in the body's facing). One sphere marks the spot nearest either
+-- hand (visceral_re8_zones.lua draws __visceral_marker): one ball only, as the zone spheres (only the first ball ever drew,
+-- and making balls crashed the game three times). 0 = off: the spots as before, no sphere.
+local SEATED_TEST_FWD_M = 0.30
+local MARKER_R_M = 0.05        -- the marker sphere's radius
+_G.__visceral_seated_fwd_m = SEATED_TEST_FWD_M
 -- 2026-11-02 (Tefa: "the holster spot seemed to move a little every time ... or maybe the activation area is just too small"):
 -- bigger, 0.15 / 0.22 before
 local ENTER_M, LEAVE_M = 0.20, 0.28          -- in a spot under ENTER, out again past LEAVE (no flicker at the edge)
@@ -100,7 +108,54 @@ local function spot_pos(hmd, s)
     local y = spot_facing(math.atan(fx, fz))   -- the spots' own facing, not the head's (above)
     fx, fz = math.sin(y), math.cos(y)
     local rx, rz = -fz, fx
-    return Vector3f.new(p.x + rx * s.side + fx * s.fwd, p.y + s.up, p.z + rz * s.side + fz * s.fwd)
+    local f = s.fwd + SEATED_TEST_FWD_M
+    return Vector3f.new(p.x + rx * s.side + fx * f, p.y + s.up, p.z + rz * s.side + fz * f)
+end
+
+-- the room (OpenXR) point p as a world point: its place relative to the headset, laid onto the game camera (the camera is the
+-- headset in the world, metres both)
+local function room_to_world(p, hmd, cm)
+    local h = pos_of(hmd)
+    local dx, dy, dz = p.x - h.x, p.y - h.y, p.z - h.z
+    local lx = dx * hmd[0].x + dy * hmd[0].y + dz * hmd[0].z
+    local ly = dx * hmd[1].x + dy * hmd[1].y + dz * hmd[1].z
+    local lz = dx * hmd[2].x + dy * hmd[2].y + dz * hmd[2].z
+    local c = cm[3]
+    return { x = c.x + cm[0].x * lx + cm[1].x * ly + cm[2].x * lz,
+             y = c.y + cm[0].y * lx + cm[1].y * ly + cm[2].y * lz,
+             z = c.z + cm[0].z * lx + cm[1].z * ly + cm[2].z * lz }
+end
+local ANDY_ZONES = { { g = "__re8_knife_zone_world", name = "knife" }, { g = "__re8_medicine_zone_world", name = "medicine" },
+                     { g = "__re8_ammo_hip_zone_world", name = "ammo" } }
+local marker_logged = { name = nil, t = -10 }
+-- the one marker: the holster spot (ours or Andyalpa's) nearest either hand, in the world
+local function publish_marker(hmd, rm, lm)
+    _G.__visceral_marker = nil
+    if SEATED_TEST_FWD_M == 0 then return end
+    local cm = safe(function() return sdk.get_primary_camera():call("get_WorldMatrix") end)
+    if cm == nil then return end
+    local hands = { room_to_world(pos_of(rm), hmd, cm) }
+    if lm ~= nil then hands[2] = room_to_world(pos_of(lm), hmd, cm) end
+    local spots = {}
+    for _, s in ipairs(SPOTS) do spots[#spots + 1] = { p = room_to_world(spot_pos(hmd, s), hmd, cm), name = s.name } end
+    local now = os.clock()
+    for _, z in ipairs(ANDY_ZONES) do
+        local w = rawget(_G, z.g)
+        if type(w) == "table" and type(w.x) == "number" and now - (w.t or 0) < 0.5 then spots[#spots + 1] = { p = w, name = z.name } end
+    end
+    local best, bd = nil, math.huge
+    for _, sp in ipairs(spots) do
+        for _, hd in ipairs(hands) do
+            local d = dist(sp.p, hd)
+            if d < bd then best, bd = sp, d end
+        end
+    end
+    if best == nil then return end
+    _G.__visceral_marker = { x = best.p.x, y = best.p.y, z = best.p.z, r = MARKER_R_M, name = best.name, t = now }
+    if best.name ~= marker_logged.name and now - marker_logged.t > 1.0 then
+        marker_logged.name, marker_logged.t = best.name, now
+        L(string.format("marker sphere on the %s spot (%.2f m from the nearer hand)", best.name, bd))
+    end
 end
 
 local function weapon_change()
@@ -223,6 +278,7 @@ end
 
 re.on_pre_application_entry("UpdateBehavior", function()
     _G.__visceral_holster_zone = false
+    _G.__visceral_marker = nil
     if not ON or not vrmod:is_hmd_active() then publish(0, 0) return end
     local v = rawget(_G, "re8vr")
     if v == nil or v.player == nil or v.is_in_cutscene == true then publish(0, 0) return end
@@ -232,6 +288,7 @@ re.on_pre_application_entry("UpdateBehavior", function()
     if hmd == nil or rm == nil then publish(0, 0) return end
     do
         local lm = ctrls[1] and safe(function() return vrmod:get_transform(ctrls[1]) end)
+        pcall(publish_marker, hmd, rm, lm)
         local lspot = lm ~= nil and which_spot(pos_of(lm), hmd, inside_l) or 0
         local rspot = 0
         for i, s in ipairs(SPOTS) do if inside[s.name] and rspot == 0 then rspot = i end end   -- last frame's (updated below)
@@ -322,4 +379,4 @@ re.on_pre_application_entry("UpdateBehavior", function()
     end
 end)
 
-L("loaded: " .. (ON and "four spots (right shoulder = up, right hip = right, left hip = down, left shoulder = left)" or "off"))
+L("loaded: " .. (SEATED_TEST_FWD_M ~= 0 and string.format("SEATED TEST: every spot %.2f m forward, one marker sphere; ", SEATED_TEST_FWD_M) or "") .. (ON and "four spots (right shoulder = up, right hip = right, left hip = down, left shoulder = left)" or "off"))

@@ -11342,4 +11342,21 @@ rawget(_G, "__re8_vr_overlay_bind").holster = {
     end,
 }
 
+-- 2026-11-14 SEATED TEST (Tefa: "for testing purposes can you bring all holsters forward ... so i can reach them sitting down"):
+-- every spot that goes through HJ.slot_world_pos (pistol, knife, medicine, ammo, shoulder, chest) moved forward by
+-- __visceral_seated_fwd_m (visceral_re8_holsters.lua sets it; 0 or missing = as before), in the body's facing, after its own
+-- offsets, so the grab test, the publishes and the holster meshes all move together. Nothing is saved to the profile.
+do
+    local raw_slot_world_pos = HJ.slot_world_pos
+    HJ.slot_world_pos = function(slot_key, P)
+        local pos = raw_slot_world_pos(slot_key, P)
+        local d = rawget(_G, "__visceral_seated_fwd_m") or 0
+        if pos and d ~= 0 then
+            local _, _, bf = HJ.torso_yaw_axes()
+            if bf then return { x = pos.x + bf.x * d, y = pos.y + bf.y * d, z = pos.z + bf.z * d } end
+        end
+        return pos
+    end
+end
+
 return {}

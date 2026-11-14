@@ -398,6 +398,30 @@ re.on_application_entry("UpdateMotion", function()
         balls[0] = spawn(0)
         spawn_tried = spawn_tried or balls[0] ~= nil
     end
+    -- 2026-11-14 SEATED TEST: the holster spot nearest a hand (visceral_re8_holsters.lua publishes __visceral_marker), shown
+    -- with the same one ball while no Grip Zones row is open (one ball only: see above)
+    local mk = rawget(_G, "__visceral_marker")
+    if type(mk) ~= "table" or type(mk.x) ~= "number" or now - (mk.t or 0) > 0.5 then mk = nil end
+    if mk ~= nil and open_key == nil then
+        if balls[0] == nil and now - last_respawn_t > RESPAWN_EVERY_S then
+            last_respawn_t = now
+            if not swept then swept = true; sweep_leftovers() end
+            balls[0] = spawn(0)
+            spawn_tried = spawn_tried or balls[0] ~= nil
+            log.info(TAG .. " marker ball for the seated holster test: " .. (balls[0] and "made" or status))
+        end
+        local ball = balls[0]
+        if ball and alive(ball.go) and ball.xform then
+            set_on(ball, true)
+            local sc = (mk.r or 0.05) / SPHERE_HALF_M
+            pcall(function()
+                ball.xform:call("set_Position", Vector3f.new(mk.x, mk.y, mk.z))
+                ball.xform:call("set_LocalScale", Vector3f.new(sc, sc, sc))
+                ball.xform:call("set_Scale", Vector3f.new(sc, sc, sc))
+            end)
+        end
+        return
+    end
     -- the one zone to show: the row open in the Grip Zones window, when the gun in hand has that zone
     local show_i, show_k = nil, nil
     for _, z in ipairs(ZONES) do
