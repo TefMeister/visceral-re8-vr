@@ -16,6 +16,7 @@
 #include <cstring>
 #include "zones.h"
 #include "shells.h"
+#include "twomag.h"
 
 #include <windows.h>
 
@@ -229,6 +230,13 @@ void frame() {
     // 2026-11-09 (Tefa: "hand pose when getting to the end of the slide rack must stay the same until LT is released"; from the right
     // the saved "at the back" pose still changed it): a pistol SLIDE keeps its pull spot to the end; bolts and pumps keep their stage
     else if (rack::active()) spot = (rack::at_back() && (rack::bolt_gun() || rack::pump_gun())) ? (rack::slide_from_left() ? 12.0f : 11.0f) : (rack::slide_from_left() ? 8.0f : 3.0f);
+    // 2026-11-14 (Tefa: "hand poser needs new lines - two mags in hand - mag in and hand docked on a mag - spare mag in hand while
+    // mag being pulled from chamber - mag in hand while a mag is also still in the chamber"): a spare from the pouch in the left
+    // hand (twomag SPARE) makes four spots of its own: 16 two magazines in the hand, 17 docked on the seated magazine, 18 pulling it
+    // out along the grip, 19 the gun's magazine still seated and the hand not on it. Hand Poser falls back to the old spot's pose
+    else if (twomag::has() == twomag::Has::SPARE && reload::gun_mag_in_hand()) spot = 16.0f;
+    else if (twomag::has() == twomag::Has::SPARE && reload::hand_on_mag()) spot = reload::on_rail() ? 18.0f : 17.0f;
+    else if (twomag::has() == twomag::Has::SPARE && reload::gun_mag_seated()) spot = 19.0f;
     else if (reload::hand_on_mag()) spot = reload::on_rail() ? 13.0f : 4.0f;   // b099: on the grip's line it is carried (13)   // on the seated magazine (the grip look), and again while LT pushes one in
     // 2026-11-08 (Tefa: "holding LG to grip the mag, so it looks like holding the grip in game, then pressing B makes the hand actually
     // move under the mag, pressing it in with LT changes the hand to go back on the grip"): a magazine carried in the left hand (after

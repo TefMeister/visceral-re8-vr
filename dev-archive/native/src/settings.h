@@ -96,6 +96,13 @@ constexpr float INSERT_LT_MIN_SEC = 0.25f;        // the pull-out's own LT press
 // but have to push it in a little , 30% and then the game's animation takes over"): a handgun's magazine goes in once it is
 // pushed this share of the way from the well zone's edge toward its middle with LG and LT held
 constexpr float PISTOL_INSERT_PUSH = 0.30f;
+// 2026-11-14 (Tefa: "once the hand with a mag enters the activation zone to go into the pistol, then it just travel straight to
+// the mag without the need to push it in. when pulling it out, that needs to stay"): a handgun magazine brought to the well goes
+// onto the grip's line and travels up it by itself in PISTOL_AUTO_SEAT_SEC; no LT, no push. Pulling out along the line is as before.
+// After it came out of the bottom, the hand must first leave the well zone (PISTOL_REARM x the zone's size) before it goes in again.
+constexpr bool  PISTOL_AUTO_SEAT = true;
+constexpr float PISTOL_AUTO_SEAT_SEC = 0.15f;
+constexpr float PISTOL_REARM = 1.3f;
 // b096 (2026-11-09, Tefa): a handgun magazine moves only along the grip until it is out (reload.cpp, THE GRIP'S RAIL). The
 // line's length is RELOAD_MAG_DROP_M. false = b095 (straight into the hand).
 constexpr bool  MAG_RAIL_ON = true;

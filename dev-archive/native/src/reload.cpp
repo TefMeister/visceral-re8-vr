@@ -71,6 +71,8 @@ const char* st_name(St s) {
 
 bool g_hand_on_mag = false;       // seated with LG still held since the insert (the hand stays on the magazine)
 float g_last_grab = -10.0f, g_last_dock = -10.0f;
+bool g_rail_auto = false;         // 2026-11-14: the magazine travels up the grip's line by itself (PISTOL_AUTO_SEAT)
+bool g_well_armed = true;         // 2026-11-14: off from coming out of the bottom until the hand has left the well zone
 bool g_pouch_ours = false;        // inside our own pouch spot (used when Andyalpa's ammo spot never reports)
 
 int g_chamber = 0;                // 2026-10-31: the round kept in the chamber while the magazine is out (CHAMBER_ROUND)
@@ -234,7 +236,7 @@ bool insert_round(int clip_hands = shellclip::BOTH) {
 // unknown carried ammo (-1) = try anyway: the game's own reload then decides (and logs before / after)
 bool supply() { const int r = player::reserve(); return player::unlimited() || r != 0 || g_mag_rounds > 0 || g_pocket > 0; }
 
-void rail_enter(float u, const char* why);   // THE GRIP'S RAIL, below
+void rail_enter(float u, const char* why, bool auto_seat = false);   // THE GRIP'S RAIL, below
 bool left_in_holster() { const float v = bridge::view(bridge::S_LEFT_HOLSTER); return bridge::has(v) && v > 0.5f; }
 // 2026-11-11 (twomag.h): LT with both magazines in the hand: the spare goes in by itself, the old one stays in the hand
 void swap_in() {
@@ -291,6 +293,7 @@ void hand_checks() {
     }
     const float d = dock_dist(), now = now_s();
     g_closest = std::fmin(g_closest, d);
+    if (!g_well_armed && d > dock_need() * PISTOL_REARM) { g_well_armed = true; LOGI("%s reload: the hand left the well: a magazine brought back goes in by itself", TAG); }
     if (d <= dock_need() && !at_gun_height()) {   // close enough, but not in front at gun height: say so once per hold
         static float told = -10.0f;
         if (now - told > 2.0f) { told = now; LOGI("%s reload: at the gun (%.3f m) but not in front of you at gun height", TAG, d); }
@@ -300,6 +303,12 @@ void hand_checks() {
     // 2026-10-30: a handgun's magazine goes in with LG and LT held and a push PISTOL_INSERT_PUSH of the way in (Tefa)
     if (mag && pistol_mag() && g_lt_to_seat) {   // 2026-10-31: only the same magazine going back in; a pouch one seats by itself
         static float told = -10.0f;
+        if (PISTOL_AUTO_SEAT && MAG_RAIL_ON) {   // 2026-11-14: in the zone, it travels up the grip by itself
+            if (!g_well_armed) return;
+            g_lt_to_seat = false;
+            rail_enter(1.0f, "at the well: it travels up the grip by itself", true);
+            return;
+        }
         const bool lt = bridge::held(bridge::S_LTRIG), deep = d <= dock_need() * (1.0f - PISTOL_INSERT_PUSH);
         if (MAG_RAIL_ON && lt) { rail_enter(1.0f, "LT held at the well: onto the grip's line"); return; }
         if (!lt || !deep) {
@@ -420,6 +429,7 @@ Quat g_magrel_rot{0, 0, 0, 1};
 // target frame, which carries the gun (g_magrel_*), so it does not lag the gun the way the gun's own transform would.
 bool g_rail_ok = false;
 float g_rail_u0 = 0.0f, g_rail_u = 0.0f, g_rail_max = 0.0f;
+float g_rail_t = 0.0f;            // 2026-11-14: the last frame the magazine travelled up the line by itself
 Vec3 g_rail_c0{};                 // the left controller where the rail began, in the right hand target's frame
 bool rail_ctrl(Vec3& rel) {       // the left controller in the right hand target's frame
     Vec3 rp, cp;
@@ -434,10 +444,12 @@ float rail_len(Vec3& axis) {      // the grip's line, top to bottom, and its len
     axis = n > 1e-4f ? d * (1.0f / n) : Vec3{0, -1, 0};
     return n;
 }
-void rail_enter(float u, const char* why) {
+void rail_enter(float u, const char* why, bool auto_seat) {
     g_rail_ok = g_magrel_ok && rail_ctrl(g_rail_c0);
     g_rail_u0 = g_rail_u = u;
     g_rail_max = 0.0f;
+    g_rail_auto = auto_seat && g_rail_ok;
+    g_rail_t = now_s();
     g_hand_on_mag = false;
     set_state(St::RAIL, why);
     if (!g_rail_ok) LOGW("%s reload: %s: the grip's line is not measured yet: the magazine goes straight into the hand", TAG, g_id.c_str());
@@ -452,6 +464,21 @@ void rail_frame() {
         g_t0 = now - g_rail_u * RELOAD_SLIDE_SEC;
         return;
     }
+    if (g_rail_auto) {   // 2026-11-14: up the grip by itself, then seated as if pushed home
+        const float dt = now - g_rail_t;
+        g_rail_t = now;
+        g_rail_u = std::fmax(0.0f, g_rail_u - dt / PISTOL_AUTO_SEAT_SEC);
+        if (g_rail_u <= MAG_RAIL_SEAT_U) {
+            g_rail_auto = false;
+            g_last_dock = now;
+            bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            ghosthand::event("mag", "done");
+            LOGI("%s reload: the magazine travelled up the grip by itself: seated", TAG);
+            set_state(St::INSERT, "travelled up the grip by itself");
+            g_t0 = now - RELOAD_INSERT_SEC;
+        }
+        return;
+    }
     Vec3 c, axis;
     const float len = rail_len(axis);
     if (!rail_ctrl(c) || len < 0.01f) return;
@@ -461,6 +488,7 @@ void rail_frame() {
     g_rail_max = std::fmax(g_rail_max, std::fabs(raw - g_rail_u0));
     if (raw >= 1.0f + (g_rail_u0 > 0.5f ? MAG_RAIL_LEAVE_EXTRA : 0.0f)) {   // out of the bottom: the hand's now
         g_last_dock = now;   // no snapping straight back on at the well
+        g_well_armed = false;   // 2026-11-14: and not back in by itself until the hand has left the well zone
         set_state(St::IN_HAND, "out of the bottom of the grip");
         return;
     }
@@ -714,6 +742,9 @@ bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st
 bool round_in_hand() { return managed_now() && g_round_in_hand; }
 float pouch_dist(bridge::Hand h) { return dist(bridge::hand_pos(h), pouch_spot()); }
 bool on_rail() { return managed_now() && g_st == St::RAIL; }
+// 2026-11-14 (Hand Poser's spare-magazine lines): the gun's own magazine is in the left hand / seated in the gun
+bool gun_mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && g_st == St::IN_HAND; }
+bool gun_mag_seated() { return managed_now() && g_w->reload == Reload::MAG && g_st == St::SEATED; }
 bool in_pouch() { return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours; }
 
 
