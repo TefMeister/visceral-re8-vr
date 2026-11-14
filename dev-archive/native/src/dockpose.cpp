@@ -97,11 +97,14 @@ void refresh() {   // at most once a second: re-read dock_poses.json when the wi
 // (10: the Wolfsbane's hammer; 101 / 102: the RIGHT hand at the Wolfsbane's cover / on the rifle's bolt, 2026-11-02)
 // 2026-11-08: 11 / 12 the slide / pump / bolt at the back (12: a pistol's slide from the left), 13 a magazine in the left hand,
 // 104 the RIGHT hand on the bolt at the back (pairs.cpp)
-bool docked(int spot) { return (spot >= 3 && spot <= 13) || spot == 101 || spot == 102 || spot == 104 || (spot >= 1000 && spot < 2000); }
+// 2026-11-14: 16-19 the spare-magazine spots (pairs.cpp), docked like the spots they came out of (base_spot)
+bool docked(int spot) { return (spot >= 3 && spot <= 13) || (spot >= 16 && spot <= 19) || spot == 101 || spot == 102 || spot == 104 || (spot >= 1000 && spot < 2000); }
 
 // 2026-11-08: an "at the back" spot with nothing saved for it keeps the spot it came from (so a tuned bolt hand does not drift off
 // at the click); the magazine in hand has none: the hand is the controller's, as before
-int base_spot(int spot) { return spot == 11 ? 3 : spot == 12 ? 8 : spot == 104 ? 102 : -1; }
+// 2026-11-14: the spare-magazine spots keep the wrist of the spot they were before they had their own (17 docked on the
+// magazine = 4; 16, 18, 19 a magazine in the hand = 13)
+int base_spot(int spot) { return spot == 11 ? 3 : spot == 12 ? 8 : spot == 104 ? 102 : spot == 17 ? 4 : (spot == 16 || spot == 18 || spot == 19) ? 13 : -1; }
 
 Pose wanted(int gun, int spot) {
     if (!docked(spot)) return Pose{};

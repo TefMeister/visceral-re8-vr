@@ -8,9 +8,15 @@
 #include "bridge.h"
 #include "shells.h"
 #include "twomag.h"
+#include "json_mini.h"
 
+#include <windows.h>
+#undef IN    // windows.h's empty IN / OUT words would swallow St::OUT below
+#undef OUT
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <map>
 #include <string>
 
 namespace vn::reload::detail {
@@ -55,13 +61,53 @@ bool from_weapon_local(Vec3 lpos, Quat lrot, Vec3& world, Quat& wrot) {
     return true;
 }
 
+// 2026-11-14 (Tefa: "with a mag in hand, can i turn the mag in my hand too or just my hand around it", then "yes please i'm gonna
+// need it, but even when i turn it, can we still make it go in the chamber the right way?"): the magazine's place and turn in the
+// left hand per gun, from Hand Poser's MAGAZINE IN HAND box: reframework/data/visceral_re8/mag_hold.json { "<gun number>": { "x",
+// "y", "z" (metres, along the hold's own axes), "yaw", "pitch", "roll" (degrees, about them) } }, re-read at most once a second.
+// Only the held look changes: going in, the magazine still turns from the hand's turn to the gun's own (St::INSERT, St::RAIL).
+namespace {
+struct HoldExtra { float x = 0, y = 0, z = 0, yaw = 0, pitch = 0, roll = 0; };
+std::map<std::string, HoldExtra> g_hold_extra;
+float g_hold_check_t = -10.0f;
+std::filesystem::file_time_type g_hold_mtime{};
+HoldExtra hold_extra() {
+    const float t = now_s();
+    if (t - g_hold_check_t >= 1.0f) {
+        g_hold_check_t = t;
+        wchar_t exe[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, exe, MAX_PATH);
+        const auto p = std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "mag_hold.json";
+        std::error_code ec;
+        const auto mt = std::filesystem::last_write_time(p, ec);
+        json::Value v;
+        if (ec) { if (!g_hold_extra.empty()) g_hold_extra.clear(); }
+        else if (mt != g_hold_mtime && json::load_file(p.wstring(), v) && v.kind == json::Value::OBJ) {   // mid-write: next second
+            g_hold_mtime = mt;
+            g_hold_extra.clear();
+            for (const auto& [gun, e] : v.obj) {
+                if (e.kind != json::Value::OBJ) continue;
+                auto num = [&](const char* k) { const auto* x = e.get(k); return x != nullptr && x->kind == json::Value::NUM ? (float)x->n : 0.0f; };
+                g_hold_extra[gun] = HoldExtra{num("x"), num("y"), num("z"), num("yaw"), num("pitch"), num("roll")};
+            }
+            LOGI("%s reload: mag_hold.json read: %d gun(s) with their own magazine hold", TAG, (int)g_hold_extra.size());
+        }
+    }
+    const int gun = (int)(bridge::view(bridge::S_WEAPON_NUM) + 0.5f);
+    const auto it = g_hold_extra.find(std::to_string(gun));
+    return it == g_hold_extra.end() ? HoldExtra{} : it->second;
+}
+} // namespace
+
 bool held_pose(Vec3& pos, Quat& rot) {   // the magazine in the left hand: the hand joint plus the hold
     Vec3 hp;
     Quat hr;
     if (!get_v3(JOINT, g_hand, "get_Position", hp) || !get_q(JOINT, g_hand, "get_Rotation", hr)) return false;
     hr = qnorm(hr);
-    pos = hp + rotate(hr, Vec3{MAG_HOLD[0], MAG_HOLD[1], MAG_HOLD[2]});
-    rot = qnorm(qmul(hr, quat_from_ypr(MAG_HOLD[3], MAG_HOLD[4], MAG_HOLD[5])));
+    const Quat base = qnorm(qmul(hr, quat_from_ypr(MAG_HOLD[3], MAG_HOLD[4], MAG_HOLD[5])));
+    const HoldExtra e = hold_extra();   // 2026-11-14: Hand Poser's MAGAZINE IN HAND box, this gun's
+    pos = hp + rotate(hr, Vec3{MAG_HOLD[0], MAG_HOLD[1], MAG_HOLD[2]}) + rotate(base, Vec3{e.x, e.y, e.z});
+    rot = qnorm(qmul(base, quat_from_ypr(e.yaw, e.pitch, e.roll)));
     return true;
 }
 

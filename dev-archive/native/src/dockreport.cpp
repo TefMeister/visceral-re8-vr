@@ -39,6 +39,7 @@ int zone_of(int spot) {
     case 3: return zones::PART;
     case 8: return zones::SLIDE_LEFT;
     case 4: return zones::MAG;
+    case 17: return zones::MAG;   // 2026-11-14: docked on the magazine with a spare in the hand
     case 5: return zones::HANDLE;
     case 6: return zones::DRUM;
     case 7: return zones::INSERT;
