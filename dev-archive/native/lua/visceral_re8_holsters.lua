@@ -183,10 +183,13 @@ local marker_logged = { name = nil, t = -10 }
 -- its spot until another is MARKER_SWITCH_M nearer.
 local MARKER_SWITCH_M = 0.06
 local prev_hmd = nil
-local marker_key = nil
+local marker_key = { r = nil, l = nil }
+-- 2026-11-14 22:1x (Tefa: "can you make 2 spheres show up, one closest to left, other right hand"): the right hand's nearest
+-- spot in __visceral_marker, the left hand's in __visceral_marker_l (none when both hands are nearest the same spot)
 -- the one marker: the holster spot (ours or Andyalpa's) nearest either hand, in the world
 local function publish_marker(hmd, rm, lm)
     _G.__visceral_marker = nil
+    _G.__visceral_marker_l = nil
     hz_read()
     local cm = safe(function() return sdk.get_primary_camera():call("get_WorldMatrix") end)
     if cm == nil then return end
@@ -223,18 +226,27 @@ local function publish_marker(hmd, rm, lm)
         return
     end
     if hz.sit == 0 then return end   -- window closed and not sitting: no sphere
-    local best, bd, cur = nil, math.huge, nil
-    for _, sp in ipairs(spots) do
-        if sp.hand < bd then best, bd = sp, sp.hand end
-        if sp.key == marker_key then cur = sp end
+    -- one hand's nearest spot, kept until another is MARKER_SWITCH_M nearer
+    local function nearest(hand, which)
+        if hand == nil then return nil, math.huge end
+        local best, bd, cur, cd = nil, math.huge, nil, math.huge
+        for _, sp in ipairs(spots) do
+            local d = dist(sp.p, hand)
+            if d < bd then best, bd = sp, d end
+            if sp.key == marker_key[which] then cur, cd = sp, d end
+        end
+        if cur ~= nil and cur ~= best and cd - bd < MARKER_SWITCH_M then best, bd = cur, cd end
+        marker_key[which] = best and best.key or nil
+        return best, bd
     end
-    if best == nil then return end
-    if cur ~= nil and cur ~= best and cur.hand - bd < MARKER_SWITCH_M then best, bd = cur, cur.hand end   -- stay unless clearly nearer
-    marker_key = best.key
-    _G.__visceral_marker = { x = best.p.x, y = best.p.y, z = best.p.z, r = MARKER_R_M, name = best.name, t = now }
-    if best.name ~= marker_logged.name and now - marker_logged.t > 1.0 then
-        marker_logged.name, marker_logged.t = best.name, now
-        L(string.format("marker sphere on the %s spot (%.2f m from the nearer hand)", best.name, bd))
+    local rb, rd = nearest(hands[1], "r")
+    local lb, ld = nearest(hands[2], "l")
+    if rb ~= nil then _G.__visceral_marker = { x = rb.p.x, y = rb.p.y, z = rb.p.z, r = MARKER_R_M, name = rb.name, t = now } end
+    if lb ~= nil and lb ~= rb then _G.__visceral_marker_l = { x = lb.p.x, y = lb.p.y, z = lb.p.z, r = MARKER_R_M, name = lb.name, t = now } end
+    local both = (rb and rb.name or "-") .. " / " .. (lb and lb.name or "-")
+    if both ~= marker_logged.name and now - marker_logged.t > 1.0 then
+        marker_logged.name, marker_logged.t = both, now
+        L(string.format("marker spheres: right hand %s (%.2f m), left hand %s (%.2f m)", rb and rb.name or "none", rd, lb and lb.name or "none", ld))
     end
 end
 
@@ -359,6 +371,7 @@ end
 re.on_pre_application_entry("UpdateBehavior", function()
     _G.__visceral_holster_zone = false
     _G.__visceral_marker = nil
+    _G.__visceral_marker_l = nil
     if not ON or not vrmod:is_hmd_active() then publish(0, 0) return end
     local v = rawget(_G, "re8vr")
     if v == nil or v.player == nil or v.is_in_cutscene == true then publish(0, 0) return end

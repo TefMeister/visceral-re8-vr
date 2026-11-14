@@ -165,7 +165,7 @@ local function find_folder()
     end
     return nil
 end
-local function spawn(i)
+local function spawn(i, own_holder)
     local td = sdk.find_type_definition("via.GameObject")
     local mk2 = td and td:get_method("create(System.String, via.Folder)") or nil
     local mk1 = td and td:get_method("create(System.String)") or nil
@@ -189,12 +189,14 @@ local function spawn(i)
         if not mesh_failed[path] then
             -- the kept holder is tried, then a fresh one (a kept one went stale once, 2026-10-25)
             local fresh = holder(path, "via.render.MeshResource", "via.render.MeshResourceHolder")
-            for _, h in ipairs({ mesh_holders[path], fresh }) do
+            -- 2026-11-14: own_holder = a fresh holder only (the second marker ball): with the kept one shared, only the
+            -- first ball ever drew (2026-11-01) [hypothesis: the shared holder]
+            for _, h in ipairs(own_holder and { fresh } or { mesh_holders[path], fresh }) do
                 if h and not got then
                     pcall(function() comp:call("setMesh", h) end)
                     local back = nil
                     pcall(function() back = comp:call("getMesh") end)
-                    if back ~= nil then got = path; mesh_holders[path] = h end
+                    if back ~= nil then got = path; if not own_holder then mesh_holders[path] = h end end
                 end
             end
             if got then break end
@@ -410,18 +412,30 @@ re.on_application_entry("UpdateMotion", function()
             spawn_tried = spawn_tried or balls[0] ~= nil
             log.info(TAG .. " marker ball for the seated holster test: " .. (balls[0] and "made" or status))
         end
-        local ball = balls[0]
-        if ball and alive(ball.go) and ball.xform then
-            set_on(ball, true)
-            local sc = (mk.r or 0.05) / SPHERE_HALF_M
+        local function place(ball, m)
+            if not (ball and alive(ball.go) and ball.xform) then return end
+            set_on(ball, m ~= nil)
+            if m == nil then return end
+            local sc = (m.r or 0.05) / SPHERE_HALF_M
             pcall(function()
-                ball.xform:call("set_Position", Vector3f.new(mk.x, mk.y, mk.z))
+                ball.xform:call("set_Position", Vector3f.new(m.x, m.y, m.z))
                 ball.xform:call("set_LocalScale", Vector3f.new(sc, sc, sc))
                 ball.xform:call("set_Scale", Vector3f.new(sc, sc, sc))
             end)
         end
+        place(balls[0], mk)
+        -- the left hand's marker: a second ball, made once the first is up (2026-11-14, Tefa: "2 spheres")
+        local ml = rawget(_G, "__visceral_marker_l")
+        if type(ml) ~= "table" or type(ml.x) ~= "number" or now - (ml.t or 0) > 0.5 then ml = nil end
+        if ml ~= nil and balls[0] ~= nil and balls[1] == nil and now - last_respawn_t > RESPAWN_EVERY_S then
+            last_respawn_t = now
+            balls[1] = spawn(1, true)
+            log.info(TAG .. " second marker ball (left hand): " .. (balls[1] and "made" or status))
+        end
+        place(balls[1], ml)
         return
     end
+    if balls[1] then set_on(balls[1], false) end   -- the left marker off outside the seated marker mode
     -- the one zone to show: the row open in the Grip Zones window, when the gun in hand has that zone
     local show_i, show_k = nil, nil
     for _, z in ipairs(ZONES) do
