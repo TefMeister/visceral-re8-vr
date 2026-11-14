@@ -161,17 +161,25 @@ local function spot_pos(hmd, s)
 end
 
 -- the room (OpenXR) point p as a world point: its place relative to the headset, laid onto the game camera (the camera is the
--- headset in the world, metres both)
+-- headset in the world, metres both). 2026-11-14 (Tefa: "the holster spots they move in reverse when looking up and down, looking
+-- left and right doesn't move them"): only the TURN about the vertical is carried over (each side's right axis, made level);
+-- height goes straight across. With the full turn, the head's tilt came out the wrong way round in the world.
+local function level_right(m)   -- a matrix's right axis, made level and unit length (nil looking straight along it)
+    local x, z = m[0].x, m[0].z
+    local n = math.sqrt(x * x + z * z)
+    if n < 1e-4 then return nil end
+    return x / n, z / n
+end
 local function room_to_world(p, hmd, cm)
-    local h = pos_of(hmd)
+    local h, c = pos_of(hmd), cm[3]
     local dx, dy, dz = p.x - h.x, p.y - h.y, p.z - h.z
-    local lx = dx * hmd[0].x + dy * hmd[0].y + dz * hmd[0].z
-    local ly = dx * hmd[1].x + dy * hmd[1].y + dz * hmd[1].z
-    local lz = dx * hmd[2].x + dy * hmd[2].y + dz * hmd[2].z
-    local c = cm[3]
-    return { x = c.x + cm[0].x * lx + cm[1].x * ly + cm[2].x * lz,
-             y = c.y + cm[0].y * lx + cm[1].y * ly + cm[2].y * lz,
-             z = c.z + cm[0].z * lx + cm[1].z * ly + cm[2].z * lz }
+    local hrx, hrz = level_right(hmd)
+    local crx, crz = level_right(cm)
+    if hrx == nil or crx == nil then return { x = c.x + dx, y = c.y + dy, z = c.z + dz } end
+    -- in the headset's level frame: across (right), and back (right x up = (-rz, 0, rx))
+    local lx = dx * hrx + dz * hrz
+    local lz = dx * -hrz + dz * hrx
+    return { x = c.x + crx * lx - crz * lz, y = c.y + dy, z = c.z + crz * lx + crx * lz }
 end
 local ANDY_ZONES = { { g = "__re8_knife_zone_world", name = "knife", key = "knife" }, { g = "__re8_medicine_zone_world", name = "medicine", key = "medicine" },
                      { g = "__re8_ammo_hip_zone_world", name = "ammo", key = "ammo" } }
