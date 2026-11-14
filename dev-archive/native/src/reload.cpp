@@ -237,6 +237,7 @@ bool insert_round(int clip_hands = shellclip::BOTH) {
 bool supply() { const int r = player::reserve(); return player::unlimited() || r != 0 || g_mag_rounds > 0 || g_pocket > 0; }
 
 void rail_enter(float u, const char* why, bool auto_seat = false);   // THE GRIP'S RAIL, below
+bool rail_measured();                                                  // ...its line is measured (below)
 bool left_in_holster() { const float v = bridge::view(bridge::S_LEFT_HOLSTER); return bridge::has(v) && v > 0.5f; }
 // 2026-11-11 (twomag.h): LT with both magazines in the hand: the spare goes in by itself, the old one stays in the hand
 void swap_in() {
@@ -253,10 +254,11 @@ void swap_in() {
     g_same_mag = false;     // the one going in is a fresh one: filled from the carried ammo (the old one's rounds stay counted)
     g_lt_to_seat = false;
     g_last_dock = now;
-    set_state(St::INSERT, "LT: the spare goes in, the old magazine stays in the hand");
-    insert_from(from, sp, sq);
-    bridge::sfx(bridge::SFX_MAG_IN);
-    bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
+    // 2026-11-15 (Tefa): onto the grip's line with the hand docked on it, up it, then a small push with LT still held; the old one
+    // stays in the palm (was: INSERT, the spare going in by itself from where it was drawn)
+    (void)from; (void)sp; (void)sq;
+    rail_enter(1.0f, "LT: the spare onto the grip's line, the old magazine in the palm", true);
+    if (!rail_measured()) { set_state(St::INSERT, "LT: the spare goes in (no grip line measured)"); insert_from(from, sp, sq); }
     ghosthand::value("mag_closest_m", d);
     ghosthand::event("mag", "done");
     magazine_shown(true);
@@ -293,7 +295,10 @@ void hand_checks() {
             if (!g_well_armed && dd > dock_need() * PISTOL_REARM) { g_well_armed = true; LOGI("%s reload: two in the hand, away from the well: brought back, the spare goes in", TAG); }
             if (g_well_armed && dd <= dock_need() && at_gun_height()) { swap_in(); return; }
         }
-        if (bridge::pressed(bridge::S_LTRIG)) swap_in();
+        // 2026-11-15 (Tefa: "LT held takes my hand straight to the mag chamber, if LT is pressed in the activation area or held when
+        // brought to the activation area"): held within reach takes it; a press out of reach still says so once
+        if (bridge::held(bridge::S_LTRIG) && dock_dist() <= TWOMAG_SWAP_REACH_M) swap_in();
+        else if (bridge::pressed(bridge::S_LTRIG)) swap_in();
         return;
     }
     const float d = dock_dist(), now = now_s();
@@ -308,10 +313,13 @@ void hand_checks() {
     // 2026-10-30: a handgun's magazine goes in with LG and LT held and a push PISTOL_INSERT_PUSH of the way in (Tefa)
     if (mag && pistol_mag() && g_lt_to_seat) {   // 2026-10-31: only the same magazine going back in; a pouch one seats by itself
         static float told = -10.0f;
-        if (PISTOL_AUTO_SEAT && MAG_RAIL_ON) {   // 2026-11-14: in the zone, it travels up the grip by itself
-            if (!g_well_armed) return;
+        if (PISTOL_AUTO_SEAT && MAG_RAIL_ON) {   // 2026-11-15: LT HELD at the well: it travels up the grip, a small push seats it
+            if (!bridge::held(bridge::S_LTRIG)) {
+                if (now - told > 2.0f) { told = now; LOGI("%s reload: the same magazine at the well (%.3f m): hold LT to take it in", TAG, d); }
+                return;
+            }
             g_lt_to_seat = false;
-            rail_enter(1.0f, "at the well: it travels up the grip by itself", true);
+            rail_enter(1.0f, "LT held at the well: it travels up the grip, a small push seats it", true);
             return;
         }
         const bool lt = bridge::held(bridge::S_LTRIG), deep = d <= dock_need() * (1.0f - PISTOL_INSERT_PUSH);
@@ -449,6 +457,7 @@ float rail_len(Vec3& axis) {      // the grip's line, top to bottom, and its len
     axis = n > 1e-4f ? d * (1.0f / n) : Vec3{0, -1, 0};
     return n;
 }
+bool rail_measured() { return g_rail_ok; }
 void rail_enter(float u, const char* why, bool auto_seat) {
     g_rail_ok = g_magrel_ok && rail_ctrl(g_rail_c0);
     g_rail_u0 = g_rail_u = u;
@@ -469,18 +478,16 @@ void rail_frame() {
         g_t0 = now - g_rail_u * RELOAD_SLIDE_SEC;
         return;
     }
-    if (g_rail_auto) {   // 2026-11-14: up the grip by itself, then seated as if pushed home
+    if (g_rail_auto) {   // 2026-11-15: up the grip by itself to PISTOL_PUSH_LEFT_U short of the top; then the hand's own push (below)
         const float dt = now - g_rail_t;
         g_rail_t = now;
-        g_rail_u = std::fmax(0.0f, g_rail_u - dt / PISTOL_AUTO_SEAT_SEC);
-        if (g_rail_u <= MAG_RAIL_SEAT_U) {
+        g_rail_u = std::fmax(PISTOL_PUSH_LEFT_U, g_rail_u - dt * (1.0f - PISTOL_PUSH_LEFT_U) / PISTOL_AUTO_SEAT_SEC);
+        if (g_rail_u <= PISTOL_PUSH_LEFT_U + 1e-4f) {
             g_rail_auto = false;
-            g_last_dock = now;
-            bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ);
-            ghosthand::event("mag", "done");
-            LOGI("%s reload: the magazine travelled up the grip by itself: seated", TAG);
-            set_state(St::INSERT, "travelled up the grip by itself");
-            g_t0 = now - RELOAD_INSERT_SEC;
+            g_rail_u0 = g_rail_u;
+            g_rail_max = MAG_RAIL_MOVED;   // the travel counts as moved: the small push is enough to seat it
+            g_rail_ok = g_rail_ok && rail_ctrl(g_rail_c0);   // the push is measured from where the controller is now
+            LOGI("%s reload: the magazine travelled up the grip: push it the last %.0f%% in", TAG, PISTOL_PUSH_LEFT_U * 100.0f);
         }
         return;
     }

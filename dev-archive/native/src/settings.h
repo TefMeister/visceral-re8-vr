@@ -102,6 +102,10 @@ constexpr float PISTOL_INSERT_PUSH = 0.30f;
 // After it came out of the bottom, the hand must first leave the well zone (PISTOL_REARM x the zone's size) before it goes in again.
 constexpr bool  PISTOL_AUTO_SEAT = true;
 constexpr float PISTOL_AUTO_SEAT_SEC = 0.15f;
+// 2026-11-15 (Tefa, step by step: "after LT is held, not just pressed, the mag travels to the chamber with Ethan's hand still docked
+// on it, then needs a small push to go in all the way"): the travel stops this share of the grip's line short of the top; the hand
+// pushes the rest (two magazines in the hand: the same, with LT held)
+constexpr float PISTOL_PUSH_LEFT_U = 0.30f;
 constexpr float PISTOL_REARM = 1.3f;
 // 2026-11-15 (Tefa: "can the spare mag follow hand as well when going back in, with the mag that just came out still in my palm?"):
 // with two magazines in the hand, the spare goes in when the hand brings them to the well (once the hand has left the well zone
