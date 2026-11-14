@@ -586,7 +586,19 @@ void grab_frame() {
     if (!in_play() || g_st != St::SEATED || g_joint == nullptr || rack::active() || pose_lock()) return;
     // 2026-11-11 (twomag.h): a spare in the hand docks on the seated magazine with LG simply held (it was pressed at the pouch)
     const bool spare = twomag::has() == twomag::Has::SPARE && bridge::held(bridge::S_LGRIP);
-    if (twomag::has() == twomag::Has::OLD) return;   // the hand is full until the old magazine is let go
+    if (twomag::has() == twomag::Has::OLD) {   // the hand is full until the old magazine is let go
+        // 2026-11-15 (Tefa: "when i let go of LG after taking out a mag and inserting the new spare one, the old one jumps out of
+        // my hand as soon as i let go of LG"): the hand stayed on the new magazine at the gun while the controller went away, so
+        // the let-go threw from the gun and the hand jumped back. Taken well away, it leaves the gun with the old one in the palm
+        Vec3 mp, cp;
+        Quat mq;
+        if (g_hand_on_mag && mag_world(mp, mq) && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) &&
+            dist(zones::center(zones::MAG, mp), cp) > zones::radius(zones::MAG) * TWOMAG_UNDOCK_SCALE) {
+            g_hand_on_mag = false;
+            LOGI("%s reload: the hand with the old magazine taken away from the new one: it leaves the gun", TAG);
+        }
+        return;
+    }
     if (!g_hand_on_mag) {
         if (!bridge::pressed(bridge::S_LGRIP) && !spare) return;   // on the press only: an LG already held for the grip or the pump never grabs the magazine
         // 03:06 (the rifle: no grab, the hand went to the bolt or the grip): the controller sits ~15 cm behind the drawn hand,

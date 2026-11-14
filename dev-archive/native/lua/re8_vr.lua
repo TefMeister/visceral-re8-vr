@@ -257,6 +257,7 @@ end
 -- Visceral RE8 (2026-10-24, the Lua error log: "cannot set (new_index) into this object"): re8vr is praydog's C++ object and
 -- takes no new fields, so our pad state lives here and in _G.__visceral_thumbrest_dpad (read by the holster)
 local vz_pad = { told_t = 0, why_t = 0, err_told = false }
+local RS_TURN_DEAD = 0.35   -- 2026-11-15: the right stick's sideways push that starts a turn (0..1)
 -- Visceral RE8 (2026-11-09): a block also needs BOTH hands close to the face. Without it, reaching the left hand toward
 -- the gun started a block (Tefa: "the gun sound when the left controller is close to the gun ... an exhale from Ethan";
 -- the log showed upper motion 2305 aim <-> 2306 guard flipping with SE_MVT_GUARD + SE_HAND). Works on wants_block from
@@ -372,6 +373,18 @@ local function update_pad_device(device)
         dpad_axis = vr_right_stick_axis
         if emporium_pad.mute_ls_x then vr_left_stick_axis = Vector2f.new(0.0, vr_left_stick_axis.y) end
         if (emporium_pad.lx or 0.0) ~= 0.0 then vr_left_stick_axis = Vector2f.new(emporium_pad.lx, 0.0) end   -- a card move
+    end
+
+    -- Visceral RE8 (2026-11-15, Tefa: "turning left and right must start from more of a middle line, right now if i wanted to
+    -- crouch down with RS down for 0.2 seconds, even the slightest bit of RS pulled back and slightly to the side, ethan already
+    -- starts turning"): the right stick turns only past RS_TURN_DEAD sideways (rescaled from there), and not at all while it is
+    -- pushed more up or down than sideways; its up / down is untouched
+    do
+        local x, y = vr_right_stick_axis.x, vr_right_stick_axis.y
+        local ax = math.abs(x)
+        if ax < RS_TURN_DEAD or math.abs(y) > ax then x = 0.0
+        else x = (x > 0 and 1.0 or -1.0) * (ax - RS_TURN_DEAD) / (1.0 - RS_TURN_DEAD) end
+        vr_right_stick_axis = Vector2f.new(x, y)
     end
 
     local cur_button = device:call("get_Button")

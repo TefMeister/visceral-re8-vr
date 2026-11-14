@@ -7,6 +7,7 @@
 #include "player.h"
 #include "rack.h"
 #include "reload.h"
+#include "gate.h"
 #include "settings.h"
 #include "json_mini.h"
 
@@ -240,7 +241,11 @@ void on_ik(MO* ik) {
     // just jumps forward close to the gun"): the dock was only caught in the FIRST solve of a frame; a dock in a later solve
     // fell through to the hold-back below, which is measured from the gun hand that the dock had just turned toward the
     // controller, so the hand followed the gun. Now every solve of a free hand (LG up) is checked against the controller
-    const bool free_now = !bridge::held(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !bridge::flag(bridge::S_IS_RELOADING);
+    // 2026-11-15 (Tefa: "having a left mag or shells in left hand while walking makes the hand jittery, on it's own it is smooth
+    // and stable now"): a hand that holds a magazine or rounds with LG, and is not docked on the gun, is free too: it stays on its
+    // controller like the empty hand instead of being drawn by the game's own solve (dragged with the gun and the walk)
+    const bool carrying = (reload::mag_in_hand() || reload::round_in_hand() || reload::rounds_in_hand() > 0) && gate::left_spot() == 0;
+    const bool free_now = (!bridge::held(bridge::S_LGRIP) || carrying) && !rack::active() && !reload::hand_on_mag() && !bridge::flag(bridge::S_IS_RELOADING);
     {   // praydog's exact offsets replace whatever was learned, every frame
         Vec3 po;
         Quat ro;
