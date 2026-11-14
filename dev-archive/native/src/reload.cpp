@@ -524,14 +524,7 @@ void twomag_frame() {
         }
         return;
     }
-    if (lg) {   // the old magazine, still held
-        // 2026-11-15 (Tefa: "throwing the spare mag is different, it like jumps off my hand when i release the LG, wheres if i just
-        // take out the mag from Lemi and throw that away, it feels like real life"): its throw speed is taken from the hand's last
-        // moments, like the gun's own magazine's (hand_checks); nothing fed it after the swap, so a stale speed threw it
-        Vec3 sp; Quat sq;
-        if (held_pose(sp, sq)) throw_sample(sp);
-        return;
-    }
+    if (lg) return;   // the old magazine, still held (its throw speed: reload_pose.cpp pose_second)
     Vec3 p{};
     Quat q{0, 0, 0, 1};
     if (left_in_holster()) {
@@ -881,7 +874,10 @@ void publish_zones() {
     else zones::clear(zones::WELL);
 }
 // (2026-11-11: not on a spare going in by itself: the hand keeps the old magazine and stays the controller's)
-bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && ((g_st == St::INSERT && twomag::has() != twomag::Has::OLD) || g_st == St::RAIL || g_hand_on_mag); }
+// 2026-11-15 (Tefa, step by step: "LT press at the activation area puts the new mag in so that hand still holds on to it with the
+// mag that came out just before, still in my palm"): the hand rides in with the spare and stays on it, the old one in the palm
+// (was: not with the old magazine, 2026-11-11)
+bool hand_on_mag() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::INSERT || g_st == St::RAIL || g_hand_on_mag); }
 
 bool left_at_gun() {
     if (hand_on_mag()) return true;
@@ -1009,7 +1005,7 @@ void frame() {
                 g_scale_restore = true;
                 magazine_shown(true);
                 fill_magazine();
-                g_hand_on_mag = bridge::held(bridge::S_LGRIP) && g_joint != nullptr && twomag::has() == twomag::Has::NONE;   // (2026-11-11: not with the old magazine still in the hand)
+                g_hand_on_mag = bridge::held(bridge::S_LGRIP) && g_joint != nullptr;   // 2026-11-15: with the old magazine in the palm too (Tefa)
             }
             break;
         default:

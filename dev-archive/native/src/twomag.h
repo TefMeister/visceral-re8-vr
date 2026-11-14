@@ -17,7 +17,8 @@
 //          the ordinary magazine in the hand (it seats at the well by itself).
 //   OLD    after the swap: the joint is the new magazine going in by itself; the copy is now the old one, in the first place,
 //          looking as full as its own rounds. LG let go: it drops (the thrown magazine's copy takes over) or, in a holster
-//          spot, is put away. The hand is not kept on the new magazine.
+//          spot, is put away. 2026-11-15 (Tefa): the hand rides in with the new magazine and stays on it, the old one still in
+//          the palm, until LG is let go (was: not kept on the new magazine).
 // The ammo is the ordinary reload's: the old magazine's rounds stay counted, as a dropped one's always did (reload.h).
 #pragma once
 #include "common.h"
