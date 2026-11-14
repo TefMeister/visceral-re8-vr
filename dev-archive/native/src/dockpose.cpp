@@ -97,14 +97,18 @@ void refresh() {   // at most once a second: re-read dock_poses.json when the wi
 // (10: the Wolfsbane's hammer; 101 / 102: the RIGHT hand at the Wolfsbane's cover / on the rifle's bolt, 2026-11-02)
 // 2026-11-08: 11 / 12 the slide / pump / bolt at the back (12: a pistol's slide from the left), 13 a magazine in the left hand,
 // 104 the RIGHT hand on the bolt at the back (pairs.cpp)
-// 2026-11-14: 16-19 the spare-magazine spots (pairs.cpp), docked like the spots they came out of (base_spot)
-bool docked(int spot) { return (spot >= 3 && spot <= 13) || (spot >= 16 && spot <= 19) || spot == 101 || spot == 102 || spot == 104 || (spot >= 1000 && spot < 2000); }
+// 2026-11-14: 17 (a spare in the hand, docked on the magazine) and 18 (pulling it out along the grip) are docked like the spots
+// they came out of (base_spot). 16 (two magazines in the hand) and 19 (a spare, the gun's still seated) are NOT: the hand is free
+// there, and a docked pose turns it about the GUN's axes (Tefa 2026-11-14: "left hand moves very weird and sluggishly"; the
+// simulator, tools/sim/hand_follow.py turn: with the gun alone turning 25 deg, the free hand holding a spare turned 2.6 deg every
+// frame, up to 42, the empty one stayed put)
+bool docked(int spot) { return (spot >= 3 && spot <= 13) || spot == 17 || spot == 18 || spot == 101 || spot == 102 || spot == 104 || (spot >= 1000 && spot < 2000); }
 
 // 2026-11-08: an "at the back" spot with nothing saved for it keeps the spot it came from (so a tuned bolt hand does not drift off
 // at the click); the magazine in hand has none: the hand is the controller's, as before
 // 2026-11-14: the spare-magazine spots keep the wrist of the spot they were before they had their own (17 docked on the
 // magazine = 4; 16, 18, 19 a magazine in the hand = 13)
-int base_spot(int spot) { return spot == 11 ? 3 : spot == 12 ? 8 : spot == 104 ? 102 : spot == 17 ? 4 : (spot == 16 || spot == 18 || spot == 19) ? 13 : -1; }
+int base_spot(int spot) { return spot == 11 ? 3 : spot == 12 ? 8 : spot == 104 ? 102 : spot == 17 ? 4 : spot == 18 ? 13 : -1; }
 
 Pose wanted(int gun, int spot) {
     if (!docked(spot)) return Pose{};
