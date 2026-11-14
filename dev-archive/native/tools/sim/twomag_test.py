@@ -4,7 +4,8 @@ found (walk.py mag); LG at the pouch (a spare, the gun's still seated); LG held 
 magazine onto the grip's line); the hand drawn down the grip until it is out (two in the hand); LT (the swap: the spare goes
 in by itself); LG let go (the old one drops). Prints the plugin's and the scripts' log lines per step.
     python twomag_test.py            the whole run
-    python twomag_test.py spare      only: spare from the pouch, then LG let go (back in the pouch)"""
+    python twomag_test.py spare      only: spare from the pouch, then LG let go (back in the pouch)
+    python twomag_test.py auto       the whole run, but the swap by bringing the hand back to the well, no LT (2026-11-15)"""
 import os, re, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -91,7 +92,12 @@ def main(mode):
         if has("out of the bottom of the grip") or has("no rail"): break
     time.sleep(0.8); news("two in the hand?")
     shot("both")
-    pose(here, 1.0, trigger=1.0); time.sleep(0.3); pose(here, 1.0, trigger=0.0); time.sleep(2.0)
+    if mode == "auto":   # 2026-11-15: no LT: the hand leaves the well zone, then brings the two back to the well
+        pose(AWAY, 1.0); time.sleep(1.2); news("two in the hand, taken away from the well")
+        print(w("well")); at = list(walk.load()["left"]); pose(at, 1.0); time.sleep(2.0)
+        news("brought back to the well, no LT: the swap by itself?")
+    else:
+        pose(here, 1.0, trigger=1.0); time.sleep(0.3); pose(here, 1.0, trigger=0.0); time.sleep(2.0)
     news("LT where the magazine came out: the swap?")
     if not has("the swap at"):   # refused as too far (on the simulator the drawn hand is far from its controller): walk the hand to the well
         print(w("well")); at = list(walk.load()["left"])

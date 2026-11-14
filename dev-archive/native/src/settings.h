@@ -103,6 +103,10 @@ constexpr float PISTOL_INSERT_PUSH = 0.30f;
 constexpr bool  PISTOL_AUTO_SEAT = true;
 constexpr float PISTOL_AUTO_SEAT_SEC = 0.15f;
 constexpr float PISTOL_REARM = 1.3f;
+// 2026-11-15 (Tefa: "can the spare mag follow hand as well when going back in, with the mag that just came out still in my palm?"):
+// with two magazines in the hand, the spare goes in when the hand brings them to the well (once the hand has left the well zone
+// after the old one came out), the way a single magazine does since 2026-11-14; LT still does it too.
+constexpr bool  TWOMAG_AUTO_SWAP = true;
 // b096 (2026-11-09, Tefa): a handgun magazine moves only along the grip until it is out (reload.cpp, THE GRIP'S RAIL). The
 // line's length is RELOAD_MAG_DROP_M. false = b095 (straight into the hand).
 constexpr bool  MAG_RAIL_ON = true;

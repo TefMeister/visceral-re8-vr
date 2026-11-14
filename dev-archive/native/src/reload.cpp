@@ -288,6 +288,11 @@ void hand_checks() {
     }
     if (g_round_in_hand && (g_w->breech == weapons::Breech::CYLINDER || shells::port_gun())) return;   // docked on the drum / the shell port (2026-11-02), LT puts each in
     if (mag && twomag::has() == twomag::Has::SPARE) {   // 2026-11-11: two in the hand: the old one does not go back in; LT swaps them
+        if (TWOMAG_AUTO_SWAP) {   // 2026-11-15: or the hand brings them to the well, after it left the well zone once
+            const float dd = dock_dist();
+            if (!g_well_armed && dd > dock_need() * PISTOL_REARM) { g_well_armed = true; LOGI("%s reload: two in the hand, away from the well: brought back, the spare goes in", TAG); }
+            if (g_well_armed && dd <= dock_need() && at_gun_height()) { swap_in(); return; }
+        }
         if (bridge::pressed(bridge::S_LTRIG)) swap_in();
         return;
     }
@@ -519,7 +524,14 @@ void twomag_frame() {
         }
         return;
     }
-    if (lg) return;   // the old magazine, still held
+    if (lg) {   // the old magazine, still held
+        // 2026-11-15 (Tefa: "throwing the spare mag is different, it like jumps off my hand when i release the LG, wheres if i just
+        // take out the mag from Lemi and throw that away, it feels like real life"): its throw speed is taken from the hand's last
+        // moments, like the gun's own magazine's (hand_checks); nothing fed it after the swap, so a stale speed threw it
+        Vec3 sp; Quat sq;
+        if (held_pose(sp, sq)) throw_sample(sp);
+        return;
+    }
     Vec3 p{};
     Quat q{0, 0, 0, 1};
     if (left_in_holster()) {
