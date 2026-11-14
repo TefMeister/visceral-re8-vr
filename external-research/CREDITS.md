@@ -37,3 +37,9 @@ GitHub issue on this repo and we will correct it as soon as possible.
   **danfq** and **UncleSweetshare** (the .NET 10 Desktop Runtime fix) — https://github.com/praydog/REFramework/issues/1739
 - **praydog**, REFramework source at `76298bd` and `8c209b1` (`PluginLoader.cpp`, `API.h`, `csharp-api`) — https://github.com/praydog/REFramework
 - **cursey and contributors**, the REFramework book's C# API page (requirements) — https://cursey.github.io/reframework-book/api_cs/general/index.html
+
+## Sources (2026-11-14)
+
+- **The Khronos Group**, OpenXR 1.1 reference page for `xrSyncActions` — https://registry.khronos.org/OpenXR/specs/1.1/man/html/xrSyncActions.html
+- **praydog**, REFramework source (`OpenXR.cpp`, `VR.cpp`) and nightly 01439, incl. PR #1893 by **Dimcirui** — https://github.com/praydog/REFramework
+- **h1nt36r2**, RE2IVR (installer settings) — https://github.com/h1nt36r2/Resident-Evil-2-Remake-VR
