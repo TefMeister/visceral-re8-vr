@@ -176,16 +176,26 @@ end
 local ANDY_ZONES = { { g = "__re8_knife_zone_world", name = "knife", key = "knife" }, { g = "__re8_medicine_zone_world", name = "medicine", key = "medicine" },
                      { g = "__re8_ammo_hip_zone_world", name = "ammo", key = "ammo" } }
 local marker_logged = { name = nil, t = -10 }
+-- 2026-11-14 22:0x (Tefa: "the spots jump around when i look around"): (1) the room-to-world step used this frame's headset with
+-- the camera of the frame before (the camera is set later in the frame), so a head turn threw every converted point off by
+-- that turn; it now pairs the camera with the headset of the frame before too. (2) the nearest spot changed with every few cm
+-- (sitting, several spots lie about 20 cm from the hands: the log flipped between them every second); the sphere now stays on
+-- its spot until another is MARKER_SWITCH_M nearer.
+local MARKER_SWITCH_M = 0.06
+local prev_hmd = nil
+local marker_key = nil
 -- the one marker: the holster spot (ours or Andyalpa's) nearest either hand, in the world
 local function publish_marker(hmd, rm, lm)
     _G.__visceral_marker = nil
     hz_read()
     local cm = safe(function() return sdk.get_primary_camera():call("get_WorldMatrix") end)
     if cm == nil then return end
-    local hands = { room_to_world(pos_of(rm), hmd, cm) }
-    if lm ~= nil then hands[2] = room_to_world(pos_of(lm), hmd, cm) end
+    local conv = prev_hmd or hmd   -- the headset the camera was made from (one frame back)
+    prev_hmd = hmd
+    local hands = { room_to_world(pos_of(rm), conv, cm) }
+    if lm ~= nil then hands[2] = room_to_world(pos_of(lm), conv, cm) end
     local spots = {}
-    for _, s in ipairs(SPOTS) do spots[#spots + 1] = { p = room_to_world(spot_pos(hmd, s), hmd, cm), name = s.name, key = spot_key(s), r = enter_of(s) } end
+    for _, s in ipairs(SPOTS) do spots[#spots + 1] = { p = room_to_world(spot_pos(hmd, s), conv, cm), name = s.name, key = spot_key(s), r = enter_of(s) } end
     local now = os.clock()
     for _, z in ipairs(ANDY_ZONES) do
         local w = rawget(_G, z.g)
@@ -213,14 +223,14 @@ local function publish_marker(hmd, rm, lm)
         return
     end
     if hz.sit == 0 then return end   -- window closed and not sitting: no sphere
-    local best, bd = nil, math.huge
+    local best, bd, cur = nil, math.huge, nil
     for _, sp in ipairs(spots) do
-        for _, hd in ipairs(hands) do
-            local d = dist(sp.p, hd)
-            if d < bd then best, bd = sp, d end
-        end
+        if sp.hand < bd then best, bd = sp, sp.hand end
+        if sp.key == marker_key then cur = sp end
     end
     if best == nil then return end
+    if cur ~= nil and cur ~= best and cur.hand - bd < MARKER_SWITCH_M then best, bd = cur, cur.hand end   -- stay unless clearly nearer
+    marker_key = best.key
     _G.__visceral_marker = { x = best.p.x, y = best.p.y, z = best.p.z, r = MARKER_R_M, name = best.name, t = now }
     if best.name ~= marker_logged.name and now - marker_logged.t > 1.0 then
         marker_logged.name, marker_logged.t = best.name, now
