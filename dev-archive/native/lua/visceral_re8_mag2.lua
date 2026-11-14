@@ -170,6 +170,33 @@ local function set_look(c, rounds)
     L(string.format("gun %d: the copy looks %s (magazine part %s, second %s, %d part(s) that vanish when empty; %s)", c.num, look == 1 and "loaded" or "empty",
         tostring(part), tostring(second), #vanish, named and "only those parts" or "no magazine part named: the gun's own parts"))
 end
+-- 2026-11-14 (Tefa: "i can see my hand through the spare mag, like i would see my hand if i put it in a wall in re8"): the game
+-- draws the arms and the gun in their own first-person layer, over the world; a copy made with a fresh Mesh drew in the world,
+-- so the hand showed through it. Every plain setting of the gun's own Mesh (true / false, numbers, the enums: its layer, outputs,
+-- draw flags) is copied onto the copy's, once at its making; the ones that differed are logged, to learn which one it was.
+local COPY_SKIP = { Mesh = true, Material = true, Enabled = true, PartsEnable = true, GameObject = true, Owner = true, Transform = true }
+local function copy_render_settings(src, dst, tag)
+    local td = safe(function() return sdk.find_type_definition("via.render.Mesh") end)
+    if td == nil or src == nil or dst == nil then return end
+    local changed = {}
+    for _, m in ipairs(safe(function() return td:get_methods() end) or {}) do
+        local name = safe(function() return m:get_name() end) or ""
+        local prop = name:match("^get_(.+)$")
+        if prop and not COPY_SKIP[prop] and safe(function() return m:get_num_params() end) == 0 then
+            local rt = safe(function() return m:get_return_type() end)
+            local plain = rt ~= nil and safe(function() return rt:is_value_type() end) == true
+            local setter = plain and safe(function() return td:get_method("set_" .. prop) end) or nil
+            if setter ~= nil then
+                local a = safe(function() return src:call(name) end)
+                local b = safe(function() return dst:call(name) end)
+                if (type(a) == "boolean" or type(a) == "number") and a ~= b then
+                    if pcall(function() dst:call("set_" .. prop, a) end) then changed[#changed + 1] = prop .. " " .. tostring(b) .. " -> " .. tostring(a) end
+                end
+            end
+        end
+    end
+    L(tag .. ": the gun's drawing settings copied onto the copy: " .. (#changed > 0 and table.concat(changed, ", ") or "none differed"))
+end
 local function make(num)
     local mesh, scale, w, gun_xf = held_gun()
     if mesh == nil then once("nomesh", "no gun mesh found: no second magazine"); return nil end
@@ -193,6 +220,7 @@ local function make(num)
         once("nomc", "the copy took no mesh"); pcall(function() go:call("destroy", go) end); return nil
     end
     if mat then pcall(function() mc:call("set_Material", mat) end) end
+    copy_render_settings(mesh, mc, "copy of gun " .. tostring(num))
     pcall(function() mc:call("set_Enabled", true) end)
     pcall(function() go:call("set_DrawSelf", true) end)
     pcall(function() go:call("setActive", true) end)
