@@ -261,6 +261,9 @@ local vz_pad = { told_t = 0, why_t = 0, err_told = false,
     -- this chunk is near Lua's 200-locals limit.
     menu_was = false, menu_t = 0.0, menu_fired = false, map_frames = 0, pause_frames = 0,
     MENU_HOLD_S = 0.3,   -- held this long = pause (Tefa 2026-11-14)
+    -- 2026-11-16: crouch = the right stick held DOWN 0.2 s (Tefa: "RS down for 0.2 sec"); the game's crouch is its R3 toggle,
+    -- pressed for CROUCH_FRAMES once per hold. Before b133 the stick CLICK was the only crouch (b133 took it away).
+    crouch_down_t = nil, crouch_fired = false, crouch_frames = 0, CROUCH_HOLD_S = 0.2, CROUCH_AT = 0.7, CROUCH_FRAMES = 3,
     MAP_FRAMES = 6,      -- pad updates the game sees the map press after a tap (RE2 / RE3 use 6 for their map pulse)
     PAUSE_FRAMES = 2 }   -- pad updates the game sees the pause press (the scope mod's menu fix uses 2, worn 2026-09-27)
 rawset(_G, "__visceral_menu_owner", true)   -- the scope mod's left-menu fix then only swallows the pause signal (2026-11-15)
@@ -580,6 +583,26 @@ local function update_pad_device(device)
 
     if RS_CLICK_TO_GAME and vrmod:is_action_active(action_joystick_click, right_joystick) then
         cur_button = cur_button | via.hid.GamePadButton.RStickPush
+    end
+    -- 2026-11-16: the right stick held down 0.2 s = crouch (one R3 press per hold, the game toggles)
+    do
+        local now = os.clock()
+        local down = vr_right_stick_axis.y <= -vz_pad.CROUCH_AT
+        if down then
+            if vz_pad.crouch_down_t == nil then vz_pad.crouch_down_t = now end
+            if not vz_pad.crouch_fired and now - vz_pad.crouch_down_t >= vz_pad.CROUCH_HOLD_S then
+                vz_pad.crouch_fired = true
+                vz_pad.crouch_frames = vz_pad.CROUCH_FRAMES
+                log.info("[visceral-re8] right stick held down 0.2 s -> crouch (the game's R3)")
+            end
+        else
+            vz_pad.crouch_down_t = nil
+            vz_pad.crouch_fired = false
+        end
+        if vz_pad.crouch_frames > 0 then
+            cur_button = cur_button | via.hid.GamePadButton.RStickPush
+            vz_pad.crouch_frames = vz_pad.crouch_frames - 1
+        end
     end
 
     if vrmod:is_action_active(action_joystick_click, left_joystick) then
