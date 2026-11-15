@@ -36,7 +36,7 @@ someone would need it switchable.
 - Decoupled pitch: one switch, under Comfort (my call, it was on two lists).
 - *"if Fable is needed we need to do these parts on wednesday"* (2026-11-18): the Fable items below wait for then.
 
-## Step 1, built (not run): every tab is the Gunsmithy
+## Step 1, built: every tab is the Gunsmithy
 
 - New file `dev-archive/native/lua/visceral_re8_emporium_layout.lua`: the three tabs, their categories in order, and which
   setting goes where (by the start of its label, or a script's own `place = { tab, cat }`); a category of more than four
@@ -52,6 +52,25 @@ someone would need it switchable.
   2026-11-04; a new player has fewer, so the column must be lengthened or paged before anyone else plays it), and the
   column's own controls (to put the category names where the gun names are). The first flat run answers both: open the
   Emporium, pick each card, `custdump`, read the log line "the Gunsmithy is up: N gun(s) in its column, the tabs need 6".
+
+## Step 1, run flat (2026-11-15 13:52-14:3x, PC1, three boots by the new route)
+
+`[verified-live 2026-11-15, flat, n=1 each]`, from the log and PrintWindow pictures of the game window:
+- All three cards open the Gunsmithy with their own tab: card 1 "Comfort and Controls / Turning", card 3 "Graphics and
+  Display / HUD 1 of 2" (Crosshair off, the three-step Ammo counter); Game Settings by the desk's `tab 2`: "Holsters (1/2)"
+  with four rows, values and bars, the leading spaces gone.
+- First way tried for cards 1 and 3 (walk the selection to the Gunsmithy card) FAILED flat: the card row moves only with the
+  VR left stick ("card 1 was not reached"). Now openMenu's mode argument is swapped for the game's static Customize object,
+  the same object it passes for the Gunsmithy card. Works from the keyboard and the pad.
+- The column's lit place is `lastIndex` (column and rows); `currentWeaponIndex` stayed 0 even after choosing the second
+  gun, so the first build showed category 1 under every gun. Fixed; down one = "Camera, 2 of 3" with its three rows.
+- The gun's name and kind over the rows ("LEMI" / "Handgun") are the screen's `nameText` / `categoryText`: they now carry
+  the category and "n of N". The column itself shows only gun pictures (no names to change).
+- A on a row flips it ("Camera shake while walking" Off -> On -> Off, put back as it was).
+- The column holds `MaxListRows` = 6 on this save and the longest tab needs 6: fits here. A save with fewer guns reaches
+  fewer categories: still to solve before anyone else plays it (lengthen the list for the screen, or page it).
+- Still the game's: the bottom hint ("Upgrade fire power", "Upgrade"), the gun pictures, the right panel's gun line.
+- Not run here: the real VR sticks (the in-place tab change by the left stick is the same code as the desk's `tab`).
 
 ## The list after step 1 (what each needs)
 

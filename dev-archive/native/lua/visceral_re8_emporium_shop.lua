@@ -443,15 +443,29 @@ do
             end
             L(string.format("pick: mode %s (%s), list says %s -> card %d", tostring(addr), which, tostring(selected_index()), idx))
             if ui.mode_card ~= nil then idx = ui.mode_card end
-            -- 2026-11-15: every tab is the Gunsmithy. The first and third cards do not open their own screens: the pick
-            -- is skipped and the game's own selection is walked to the Gunsmithy card and OK'd there (the same road as
-            -- the left-stick group change, seen on the simulator 2026-11-11), keeping the wanted tab.
+            -- 2026-11-15: every tab is the Gunsmithy. On the first and third cards the mode handed to openMenu is swapped
+            -- for the game's own static Customize mode (the very object it passes when the Gunsmithy card is picked:
+            -- the argument's address equals the static Buy object on card 1, seen in the log), so the Gunsmithy opens,
+            -- keeping the wanted tab. Walking the selection over to the Gunsmithy card instead needs the VR stick (the
+            -- card row answers the left stick only), so it failed flat (2026-11-15 13:55, "card 1 was not reached");
+            -- it stays as the fallback when the static object cannot be read.
             if ALL_GUNSMITHY and ui.real_screens and ui.level == "tabs" and (v == 1 or v == 3) then
+                local mtd = sdk.find_type_definition("app.GUIShopMode")
+                local cf = mtd and mtd:get_field("Customize")
+                local cv = cf and safe(function() return cf:get_data(nil) end)
+                local ca = cv and safe(function() return cv:get_address() end)
                 ui.smithy_tab = v
-                ui.hop = { card = SMITHY_CARD, frames = 0 }
-                L("card " .. v .. " picked: on to the Gunsmithy with tab " .. TABS[v].name)
-                skipping = true
-                return sdk.PreHookResult.SKIP_ORIGINAL
+                if ca then
+                    args[3] = sdk.to_ptr(ca)
+                    L("card " .. v .. " picked: opened as the Gunsmithy with tab " .. TABS[v].name)
+                    v = 2
+                    ui.mode_card = SMITHY_CARD
+                else
+                    ui.hop = { card = SMITHY_CARD, frames = 0 }
+                    L("card " .. v .. " picked: no static Customize mode, walking to the Gunsmithy card (tab " .. TABS[v].name .. ")")
+                    skipping = true
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                end
             end
             if ui.real_screens and ui.level == "tabs" and v >= 1 and v <= 3 then
                 local this = safe(function() return sdk.to_managed_object(args[2]) end)
@@ -714,8 +728,22 @@ local function all_named(root, name)
 end
 -- 2026-11-15: the gun column = the open tab's CATEGORIES (visceral_re8_emporium_layout.lua), not the groups; the left
 -- stick changes the tab in place. The lit gun's place in the column says which category the four rows show.
+-- in the rows? lateUpdateSetTune runs every frame only while a gun's rows are lit (2026-11-11), so "ran a moment ago"
+local function in_rows() return os.clock() - (ui.tune_t or -10) < 0.15 end
+-- the column's lit place is lastIndex, in the column AND in the rows. currentWeaponIndex never moves here: walking down
+-- the column and choosing the second gun left it 0 while lastIndex went to 1 and stayed 1 in the rows
+-- [verified-live 2026-11-15 14:1x, flat, n=1, the change log below].
+local idx_seen = ""
+local function col_index()
+    local last = tonumber(cust_drv and safe(function() return cust_drv:get_field("<lastIndex>k__BackingField") end)) or 0
+    local cur = tonumber(cust_drv and safe(function() return cust_drv:get_field("<currentWeaponIndex>k__BackingField") end)) or 0
+    local rows = in_rows()
+    local now = string.format("lastIndex %d, currentWeaponIndex %d, in the rows %s", last, cur, tostring(rows))
+    if now ~= idx_seen then idx_seen = now; L("the Gunsmithy: " .. now) end
+    return last
+end
 local function cust_cat()
-    local wi = tonumber(cust_drv and safe(function() return cust_drv:get_field("<currentWeaponIndex>k__BackingField") end)) or 0
+    local wi = col_index()
     local lay = layout_mod()
     local cats = lay and lay.categories(TABS[ui.tab or 1].tab) or {}
     return cats[wi + 1], wi, #cats
@@ -780,6 +808,12 @@ local function render_cust()
     local rows = cat and cat.rows or {}
     for _, t in ipairs(c.hdr) do set_text(t, TABS[ui.tab or 1].name) end
     for _, t in ipairs(c.hdr_desc) do set_text(t, cat and cat.name or "") end
+    -- the gun's name and kind over the rows ("LEMI" / "Handgun"): the driver's own nameText / categoryText
+    -- (custdump 2026-11-15) carry the category instead, and which of the tab's categories it is
+    local _, wi, ncat = cust_cat()
+    set_text(safe(function() return cust_drv:get_field("<nameText>k__BackingField") end), cat and cat.name or "")
+    set_text(safe(function() return cust_drv:get_field("<categoryText>k__BackingField") end),
+             cat and string.format("%d of %d", wi + 1, ncat) or "")
     for r = 0, 4 do
         local e = rows[r + 1]
         for _, x in ipairs(c.rows[r]) do
@@ -896,7 +930,7 @@ do
         return retval
     end)
     -- the rows are lit once a gun (a group) is chosen: lateUpdateSetTune runs only from then on
-    hook("lateUpdateSetTune", function(args) if ui.open and ui.level == "real" then ui.cust_rows = true end end)
+    hook("lateUpdateSetTune", function(args) if ui.open and ui.level == "real" then ui.cust_rows = true; ui.tune_t = os.clock() end end)
     hook("tuning", function(args)
         if ui.open and ui.level == "real" then return sdk.PreHookResult.SKIP_ORIGINAL end
     end)
@@ -1137,7 +1171,7 @@ local function lit_entry()
         if ui.in_real ~= 3 then sell_drv = nil end
         if cust_drv and ui.in_real == 2 then
             -- the Gunsmithy starts in its gun column (the categories); its rows are lit only once a category is chosen
-            if not ui.cust_rows then return nil, nil, "the Gunsmithy's gun column" end
+            if not in_rows() then return nil, nil, "the Gunsmithy's gun column" end
             local row = tonumber(safe(function() return cust_drv:get_field("<cursorIndex>k__BackingField") end)) or 0
             return cust_rows()[row + 1], function() ui.render_cust_in = 1 end, "the Gunsmithy"
         elseif sell_drv and ui.in_real == 3 then
