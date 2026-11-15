@@ -258,6 +258,10 @@ end
 -- takes no new fields, so our pad state lives here and in _G.__visceral_thumbrest_dpad (read by the holster)
 local vz_pad = { told_t = 0, why_t = 0, err_told = false }
 local RS_TURN_DEAD = 0.35   -- 2026-11-15: the right stick's sideways push that starts a turn (0..1)
+-- 2026-11-15 (/pd), the shared Visceral layout (Tefa 2026-11-14, and 11-15: "the shared layout everywhere, where the
+-- functions apply"): crouch is right stick DOWN (held), the right stick CLICK is the dodge, and Village has no dodge, so
+-- the click no longer reaches the game (it was the game's own crouch too). true puts the old click-crouch back.
+local RS_CLICK_TO_GAME = false
 -- Visceral RE8 (2026-11-09): a block also needs BOTH hands close to the face. Without it, reaching the left hand toward
 -- the gun started a block (Tefa: "the gun sound when the left controller is close to the gun ... an exhale from Ethan";
 -- the log showed upper motion 2305 aim <-> 2306 guard flipping with SE_MVT_GUARD + SE_HAND). Works on wants_block from
@@ -565,7 +569,7 @@ local function update_pad_device(device)
         cur_button = cur_button | via.hid.GamePadButton.RUp
     end
 
-    if vrmod:is_action_active(action_joystick_click, right_joystick) then
+    if RS_CLICK_TO_GAME and vrmod:is_action_active(action_joystick_click, right_joystick) then
         cur_button = cur_button | via.hid.GamePadButton.RStickPush
     end
 
