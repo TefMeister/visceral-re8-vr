@@ -98,3 +98,20 @@ count (on at 2 and 1 loaded, off at 0) `[measured 2026-11-05]`. `NormalMagazineP
 ## Dead ends
 
 - praydog's connector on the 76298bd build (§1). The game's held-trigger shot with only `readyShootByTimer` forced (§2).
+
+## Inbox drained 2026-11-15 (/pd)
+
+- **Ghost Hand distances since about 2026-11-01 are in two spaces** (the game hand ~156 m from the controller in every
+  report): those reports' distances are unusable; their rack / magazine / shell event lines still read right
+  `[measured 2026-11-05, /gd]`. Cause not found `[hypothesis: room space against world space]`.
+- **"Empty" settings files are MISSING files** (`visceral_re8/magthrow.json`, `re8_vr_haptics.json`,
+  `village_character_joints.json`, Hand Poser's `guns/`): REFramework reports a missing file as a parse error at line 1;
+  the built-in defaults are used, as designed `[measured 2026-11-07, /gd]` (supersedes the 11-05 "empty" reading).
+- **The .NET connector dead end** (§1, "no .NET support"): the same log line on an ordinary nightly was cured by the .NET
+  10 Desktop Runtime `[reported, REFramework #1739]`; the throw is the managed DLL failing to start .NET
+  `[inferred-static 2026-11-11, /gr]`. Read §1's dead end as "REFramework.NET failed to start .NET, cause not separated"
+  until `dotnet --list-runtimes` shows `Microsoft.WindowsDesktop.App 10.x`.
+- ⚠️ **`re8_vr_holster.lua` is at Lua's 200-locals limit** (~204 by the /gs estimate, the same since b069): one more
+  top-level `local` there and the script stops loading with no warning until the game runs it. Any new holster code
+  goes elsewhere (or into a table) `[measured 2026-11-11, estimate]`.
+- The OPEN heading's form was fixed on the board before this drain.
