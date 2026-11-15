@@ -256,7 +256,14 @@ end
 
 -- Visceral RE8 (2026-10-24, the Lua error log: "cannot set (new_index) into this object"): re8vr is praydog's C++ object and
 -- takes no new fields, so our pad state lives here and in _G.__visceral_thumbrest_dpad (read by the holster)
-local vz_pad = { told_t = 0, why_t = 0, err_told = false }
+local vz_pad = { told_t = 0, why_t = 0, err_told = false,
+    -- 2026-11-15, the menu button (tap = map / files, held = pause; see update_pad_device). Fields, not new locals:
+    -- this chunk is near Lua's 200-locals limit.
+    menu_was = false, menu_t = 0.0, menu_fired = false, map_frames = 0, pause_frames = 0,
+    MENU_HOLD_S = 0.3,   -- held this long = pause (Tefa 2026-11-14)
+    MAP_FRAMES = 6,      -- pad updates the game sees the map press after a tap (RE2 / RE3 use 6 for their map pulse)
+    PAUSE_FRAMES = 2 }   -- pad updates the game sees the pause press (the scope mod's menu fix uses 2, worn 2026-09-27)
+rawset(_G, "__visceral_menu_owner", true)   -- the scope mod's left-menu fix then only swallows the pause signal (2026-11-15)
 local RS_TURN_DEAD = 0.35   -- 2026-11-15: the right stick's sideways push that starts a turn (0..1)
 -- 2026-11-15 (/pd), the shared Visceral layout (Tefa 2026-11-14, and 11-15: "the shared layout everywhere, where the
 -- functions apply"): crouch is right stick DOWN (held), the right stick CLICK is the dodge, and Village has no dodge, so
@@ -535,7 +542,9 @@ local function update_pad_device(device)
         end]]
     end
 
-    if re8vr.wants_heal or vrmod:is_action_active(action_heal, left_joystick) or vrmod:is_action_active(action_heal, right_joystick) then
+    -- Visceral RE8 (2026-11-15): the LEFT "heal" action is the Quest menu button now (the bindings file), read below as
+    -- map / pause, so only the right one (unbound on Touch) still heals here
+    if re8vr.wants_heal or vrmod:is_action_active(action_heal, right_joystick) then
         cur_button = cur_button | via.hid.GamePadButton.RTrigTop
         re8vr.wants_heal = false
     end
@@ -584,6 +593,38 @@ local function update_pad_device(device)
     if is_re7 and vrmod:should_handle_pause() then
         cur_button = cur_button | via.hid.GamePadButton.CRight
         vrmod:set_handle_pause(false)
+    end
+
+    -- Visceral RE8 (2026-11-15), the shared Visceral layout (Tefa 2026-11-14: "menu tap = journal / objectives (the game's
+    -- map or file screen); menu held 0.3 s = pause"). The Quest MENU button (left controller) reaches this script as the
+    -- left-hand "heal" action (dev-archive/native/bindings/). It used to be "systembutton": REFramework's OpenXR code turns
+    -- its PRESS into handle_pause, and the scope mod's re8_vrz_scope_sounds_menu.lua (watching both sides of UpdateHID)
+    -- presses CRight = pause at once; nothing in Lua could see the button itself. Tapped = CLeft (the game's map button,
+    -- praydog's "minimap"; the files to be confirmed as a tab of that screen), held 0.3 s = CRight (the same pause as
+    -- before). This runs in HIDPadManager.doUpdate, BEFORE UpdateHID syncs the controllers, so the button is read one
+    -- frame late (harmless). Without the new binding menu_now stays false and the old pause runs as before.
+    if is_re8 then
+        local menu_now = vrmod:is_action_active(action_heal, left_joystick) == true
+        local now = os.clock()
+        if menu_now and not vz_pad.menu_was then vz_pad.menu_t = now; vz_pad.menu_fired = false end
+        if menu_now and not vz_pad.menu_fired and now - vz_pad.menu_t >= vz_pad.MENU_HOLD_S then
+            vz_pad.menu_fired = true
+            vz_pad.pause_frames = vz_pad.PAUSE_FRAMES
+            log.info("[visceral-re8] menu button: held 0.3 s -> pause (CRight)")
+        end
+        if not menu_now and vz_pad.menu_was and not vz_pad.menu_fired then
+            vz_pad.map_frames = vz_pad.MAP_FRAMES
+            log.info(string.format("[visceral-re8] menu button: tap (%.2f s) -> map / files (CLeft)", now - vz_pad.menu_t))
+        end
+        vz_pad.menu_was = menu_now
+        if vz_pad.map_frames > 0 then
+            cur_button = cur_button | via.hid.GamePadButton.CLeft
+            vz_pad.map_frames = vz_pad.map_frames - 1
+        end
+        if vz_pad.pause_frames > 0 then
+            cur_button = cur_button | via.hid.GamePadButton.CRight
+            vz_pad.pause_frames = vz_pad.pause_frames - 1
+        end
     end
 
     if emporium_pad ~= nil then   -- one D-pad tap for each step of the right stick (2026-11-11)

@@ -65,7 +65,7 @@
             "path": "/user/hand/right/output/haptic"
         },
         {
-            "action": "systembutton",
+            "action": "heal",
             "path": "/user/hand/left/input/menu/click"
         },
         {

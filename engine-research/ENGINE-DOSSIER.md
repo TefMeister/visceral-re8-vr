@@ -115,3 +115,92 @@ count (on at 2 and 1 loaded, off at 0) `[measured 2026-11-05]`. `NormalMagazineP
   top-level `local` there and the script stops loading with no warning until the game runs it. Any new holster code
   goes elsewhere (or into a table) `[measured 2026-11-11, estimate]`.
 - The OPEN heading's form was fixed on the board before this drain.
+
+## Menu button: tap = map, held = pause (2026-11-15, /lm reader + simulator)
+
+
+From: the static reader of the 2026-11-15 live session (files only; the game was running under another driver and was
+not touched). For: the board row "TEFA'S SHARED BASE LAYOUT FOR EVERY VISCERAL GAME", item (a).
+
+### 1. How the menu button becomes pause in Village today
+
+- Village runs praydog's STOCK REFramework: the game's `dinput8.dll` has the same sha256 (8730941f...0594) as the one inside
+  `RE8_pd-upscaler_76298bd_2026-03-11_original-package.zip`; `reframework_revision.txt` = 76298bd9 `[measured 2026-11-15]`.
+  The source tree at that commit is `D:\ref-76b` (`git show HEAD:src/mods/VR.cpp`; the working copy there carries RE2 edits).
+  So there is no Village REFramework patch today, and a C++ route would mean Village's first custom REFramework build.
+- Runtime: OpenXR (no `openvr_api.dll`; today's log: "Initializing OpenXR", system name "OpenXR Simulator") `[measured 2026-11-15]`.
+- The bindings file in the game folder (= `dev-archive/native/bindings/`, identical) binds `systembutton` to
+  `/user/hand/left/input/menu/click` only. The right controller's menu button is the Oculus button, not given to apps.
+  The file replaces REFramework's built-in Touch bindings (`OpenXR::initialize_actions` clears `profile_bindings` before
+  reading it) `[inferred-static]`.
+- The chain, per frame `[inferred-static, 76298bd OpenXR.cpp / VR.cpp; order measured 2026-09-27 by the scope mod]`:
+  1. `HIDPadManager.doUpdate` runs first. `re8_vr.lua`'s pre-hook (`update_padman` -> `update_pad_device`) writes every pad
+     bit onto the ACTIVE pad's device (`set_Button` / `set_ButtonDown`).
+  2. UpdateHID entry, pre: `VR::on_pre_update_hid` -> `update_action_states` -> `OpenXR::update_input`:
+     `is_action_active_once("systembutton")` (the PRESS edge only) sets `runtime->handle_pause = true`.
+  3. The scope mod's `reframework/autorun/re8_vrz_scope_sounds_menu.lua` ("the left menu button fix", re-village-scope-vr,
+     loaded today: log 18:28:43 "menu: left menu button fix installed") watches `should_handle_pause()` on both sides of
+     UpdateHID, clears it, and presses `via.hid.GamePadButton.CRight` (32768) on the active pad now and on the next 2
+     doUpdates `[verified-live 2026-09-27, n=1 session: "seen before UpdateHID", pause pressed; scope board]`.
+  4. UpdateHID post: `VR::on_update_hid` (`#ifdef RE8`) would `set_Button(CRight)` on the MERGED pad's device if the flag
+     were still set; it normally is not (step 3 cleared it). praydog's own route alone lands on a pad nobody reads once the
+     game switches its active pad (the scope mod's 2026-09-27 finding).
+- `re8_vr.lua` itself never sees the menu button: the Lua API has no getter for the system-button action
+  (`get_action_*` exists for trigger, grip, joystick, joystick_click, a, b, weapon_dial, minimap, block, dpad_*, heal), and
+  its only `should_handle_pause()` use is `is_re7` `[inferred-static]`.
+- So today a PRESS pauses at once; hold or tap make no difference.
+
+### 2. Which pad bits open the map, the files, the pause
+
+- **Map = `CLeft` (16384)** `[inferred-static]`: praydog's `re8_vr.lua` turns the "minimap" action into `CLeft` (RE7 and
+  RE8 alike). Today it fires from the right-hand minimap check, which is true through praydog's fallback in
+  `VR::is_action_active`: left Y + the left hand behind the head (`is_hand_behind_head`, < 0.3 m). That is the "map at the
+  back" gesture. Not seen live from the files.
+- **Pause = `CRight` (32768)** `[verified-live 2026-09-27 through the scope mod; inferred-static for praydog's path]`.
+- **Inventory = `RUp`** (Xbox Y) `[measured earlier, re8_vr_holster.lua comment "Runtime scan confirmed RUp"]`.
+- **Files**: no pad bit found. praydog's `re8_map_names` = `GUIMap`, `GUIBinder` (the "binder" is most likely the files);
+  both are "UI that needs the D-pad up/down" `[hypothesis: the files are a tab of the map screen]`. No type or input dump
+  exists on this PC for Village (the `reframework/data` folder has none), so this needs one flat look: send `CLeft` once,
+  see which screen opens and how to get to the files from there.
+
+### 3. The draft (a Lua route exists, so no C++)
+
+Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installed):
+- `bindings-menu-button.patch` + the changed `_interaction_profiles_oculus_touch_controller.json`: the left
+  `menu/click` is bound to `heal` instead of `systembutton`. `heal` exists in the 76298bd action list (boolean), nothing
+  binds it on Touch, Lua can read it (`get_action_heal`). With `systembutton` gone, `handle_pause` is never raised by the
+  button, so the scope mod's fix and VR.cpp both stay quiet. REFramework reads the file only at start: a game restart is
+  needed for it to take effect.
+- `re8_vr-menu-button.patch` + the changed `re8_vr.lua` (against the repo copy, sha256 d23fdcaf...ba60; CRLF kept;
+  `luac -p` passes; main-chunk local count unchanged, all state in fields of the existing `vz_pad` table):
+  - in `update_pad_device`, after the `is_re7` pause line: left `heal` read each pad update; press time noted; held 0.3 s
+    -> `CRight` for 2 pad updates (the scope fix's proven count), once per hold; released before 0.3 s -> `CLeft` for 6
+    pad updates (RE2 / RE3's map pulse). One log line each: `[visceral-re8] menu button: tap (... s) -> map / files (CLeft)`
+    or `... held 0.3 s -> pause (CRight)`.
+  - the heal line no longer reads the LEFT heal action (it would press `RTrigTop` = heal on every menu press); the right one
+    stays (unbound on Touch). `re8_vr_holster.lua` only copies `heal_l` into a state snapshot (line ~8073), no behaviour.
+  - Either half alone is safe: Lua without the new bindings = menu_now always false, the old instant pause stays; the
+    bindings without the Lua = the menu button does nothing.
+- The button is read in doUpdate, which runs before UpdateHID syncs the controllers: one frame late, harmless.
+- A C++ route (a `visceral_menu_*` block in `VR::on_update_hid`'s RE8 section) is possible but would need a custom
+  REFramework for Village; not drafted.
+
+### 4. To check live (the first wear)
+
+1. One flat look: `CLeft` opens the map screen, and where the files are from there `[hypothesis until then]`.
+2. Virtual Desktop: the scope note of 2026-09-27 says VD "only claims a double press or a hold" of the left menu button
+   `[reported 2026-09-27]`. If VD's hold is short, the 0.3 s hold may never reach the game. Watch for the "held 0.3 s" log
+   line in the headset (the OpenXR Simulator running today may not have a menu button at all).
+3. A tap while the pause menu is open sends `CLeft` there; a second 0.3 s hold should close the pause (`CRight` again).
+
+### 5. Worth knowing for RE2 / RE3 (outside this job)
+
+- The named file `visceral-re2-vr/dev-archive/reframework-patch/2026-11-15-re2-re3-shared-layout-menu-and-dodge.patch` does
+  not exist yet; the `visceral_menu_*` block sits only in `D:\ref-76b\src\mods\VR.cpp` (working copy, 16:48), and
+  `D:\ref-76b-re3` has none.
+- That block keeps `|| get_runtime()->handle_pause` on the PAUSE line. RE2 runs OpenXR (its log 2026-11-12: "Initializing
+  OpenXR", no openvr_api.dll) and its bindings file still binds `systembutton`, so every menu PRESS raises `handle_pause`
+  and pauses at once: a tap would pause AND then open the map `[inferred-static]`. The fix there: drop the `handle_pause` term
+  (keep only `visceral_menu_held`), or clear `handle_pause` without using it.
+
+- **Live, the same session (simulator + VR Bench, b134):** tap = the map, tap again = closed, 0.6 s hold = the pause menu, staying open, once the scope mod's fix stood aside (`__visceral_menu_owner`); before that switch a hold paused twice (open + close) because the press still raised the pause signal on the simulator `[verified-live 2026-11-15, simulator, n=1 each]`.

@@ -16,3 +16,7 @@ in the village), the W870 by quick-slot key 1.
 - **The ammo counter rows:** the older "zero until a shot" row is the same fault as the newer "does not update on an
   insert" row (Fable, no more blind refreshes): not touched.
 - Closed by the game's own window (`close_village.py`, 11 s); VR Bench off.
+
+## b134: the menu button (later the same session)
+
+The Quest menu button: tap = the map, held 0.3 s = pause (the bindings send the left menu click to the unused `heal` action; `re8_vr.lua` reads it; the scope mod's left-menu fix only swallows the pause signal while Visceral owns the button). Simulator + VR Bench: tap opened the map, tap closed it, a 0.6 s hold opened the pause menu and it stayed open `[verified-live 2026-11-15, simulator, n=1 each]`. The first try paused twice on a hold (the scope fix and ours): cured by the owner switch. Not known: whether Virtual Desktop passes a single tap of the left menu button (a 2026-09-27 note says it claims double presses and holds).
