@@ -17,8 +17,10 @@
 --   * Esc / Start opens the game's pause menu even over the shop; while we are open we skip that show and use it as "Back".
 --   * app.GUIManager.suicideGUIShop() takes the cards off cleanly.
 --
--- THE SCREENS
---   tabs:  "The Visceral Emporium" over Comfort / Graphics / Settings (the mottos as on the imgui window).
+-- THE SCREENS (2026-11-15: every tab now opens the game's own Gunsmithy, see ALL_GUNSMITHY below; its gun column = the
+-- tab's categories from visceral_re8_emporium_layout.lua, the left stick changes the tab in place. The own pages below
+-- are the fallback.)
+--   tabs:  "VR Options Emporium" over Comfort and Controls / Game Settings / Graphics and Display.
 --   page:  the tab's name over three cards; each card is one setting: its name on top, its value below. Pick changes it
 --          (a tick box flips, a choice steps on, a slider steps up and wraps, a button runs). More than three settings:
 --          two per page and a third card "More..." that turns the page.
@@ -38,11 +40,18 @@ local PER_PAGE_WITH_MORE = 2       -- with more than three settings: two setting
 
 local TITLE = "VR Options Emporium"   -- Tefa 2026-11-04: "the Visceral emporium needs to be called VR Options Emporium"
 local MOTTO = "No one's a stranger to the Emporium"
+-- 2026-11-15 (Tefa: "all the sub menus to look the same, like gunsmithy ... neatly categorized, and has sliders"): three
+-- tabs, every one opens the game's own Gunsmithy; its gun column = the tab's categories, its four rows = the category's
+-- settings. Which setting sits where: visceral_re8_emporium_layout.lua. ALL_GUNSMITHY = false brings back the old
+-- Supplies grid (tab 1) and Duke's Purse table (tab 3).
+local ALL_GUNSMITHY = true
+local SMITHY_CARD = 1              -- the Gunsmithy is the second card (0-based)
 local TABS = {
-    { tab = "comfort", name = "Comfort", motto = "Easy on the stomach!" },
-    { tab = "graphics", name = "Graphics", motto = "A feast for the eyes!" },
-    { tab = "settings", name = "Settings", motto = "Everything in its place!" },
+    { tab = "comfort",  name = "Comfort and Controls", motto = "Easy on the stomach!" },
+    { tab = "game",     name = "Game Settings",        motto = "Everything in its place!" },
+    { tab = "graphics", name = "Graphics and Display", motto = "A feast for the eyes!" },
 }
+local function layout_mod() return rawget(_G, "VISCERAL_EMPORIUM_LAYOUT") end
 local MORE_TITLE = "More..."
 -- the fourth card, the Duke's Kitchen (shown once the game's cooking is unlocked): REFramework's own full menu
 -- (Tefa 2026-11-04: "the kitchen can be reframework full ui")
@@ -93,9 +102,11 @@ local ui = { real_screens = true, open = false, level = "tabs", tab = 1, page = 
              want_back = false, want_pick = nil }
 
 local function entries_for(tab)
+    local lay = layout_mod()
+    if lay then return lay.entries_for(tab) end
     local out = {}
     for _, e in ipairs(_G.VISCERAL_OPTIONS) do
-        if type(e) == "table" and e.tab == tab then out[#out + 1] = e end
+        if type(e) == "table" and not e.hidden and (e.tab == tab or (tab == "game" and e.tab == "settings")) then out[#out + 1] = e end
     end
     table.sort(out, function(a, b) return (a.order or 0) < (b.order or 0) end)
     return out
@@ -432,6 +443,16 @@ do
             end
             L(string.format("pick: mode %s (%s), list says %s -> card %d", tostring(addr), which, tostring(selected_index()), idx))
             if ui.mode_card ~= nil then idx = ui.mode_card end
+            -- 2026-11-15: every tab is the Gunsmithy. The first and third cards do not open their own screens: the pick
+            -- is skipped and the game's own selection is walked to the Gunsmithy card and OK'd there (the same road as
+            -- the left-stick group change, seen on the simulator 2026-11-11), keeping the wanted tab.
+            if ALL_GUNSMITHY and ui.real_screens and ui.level == "tabs" and (v == 1 or v == 3) then
+                ui.smithy_tab = v
+                ui.hop = { card = SMITHY_CARD, frames = 0 }
+                L("card " .. v .. " picked: on to the Gunsmithy with tab " .. TABS[v].name)
+                skipping = true
+                return sdk.PreHookResult.SKIP_ORIGINAL
+            end
             if ui.real_screens and ui.level == "tabs" and v >= 1 and v <= 3 then
                 local this = safe(function() return sdk.to_managed_object(args[2]) end)
                 local ah = this and safe(function() return this:get_field("<assortmentHash>k__BackingField") end)
@@ -439,8 +460,10 @@ do
                     pcall(function() this:set_field("<assortmentHash>k__BackingField", DUKE_STOCK) end)
                 end
                 L(string.format("real screen %d passed through (assortment %s)", v, tostring(ah)))
-                ui.in_real = v
-                ui.tab = v            -- the card IS the group: 1 Comfort, 2 Graphics, 3 Settings
+                ui.in_real = v        -- which of the game's screens is up: 1 Supplies, 2 Gunsmithy, 3 Duke's Purse
+                ui.tab = v            -- the card IS the group (tab)
+                if v == 2 and ui.smithy_tab then ui.tab = ui.smithy_tab end   -- came round from card 1 or 3
+                ui.smithy_tab = nil
                 ui.level = "real"
                 return
             end
@@ -689,20 +712,19 @@ local function all_named(root, name)
     visit(root, 0)
     return out
 end
-local function cust_group()
+-- 2026-11-15: the gun column = the open tab's CATEGORIES (visceral_re8_emporium_layout.lua), not the groups; the left
+-- stick changes the tab in place. The lit gun's place in the column says which category the four rows show.
+local function cust_cat()
     local wi = tonumber(cust_drv and safe(function() return cust_drv:get_field("<currentWeaponIndex>k__BackingField") end)) or 0
-    return math.min(#TABS, wi + 1), wi
+    local lay = layout_mod()
+    local cats = lay and lay.categories(TABS[ui.tab or 1].tab) or {}
+    return cats[wi + 1], wi, #cats
 end
-local function rows_for_group(g)
-    local out = {}
-    for _, e in ipairs(entries_for(TABS[g].tab)) do
-        if e.kind == "slider" or e.kind == "choice" then out[#out + 1] = e end
-    end
-    for _, e in ipairs(entries_for(TABS[g].tab)) do      -- the switches after them, so no row stays empty
-        if e.kind == "check" then out[#out + 1] = e end
-    end
-    return out
+local function cust_rows()
+    local cat = cust_cat()
+    return cat and cat.rows or {}
 end
+local function shown_label(e) return (tostring(e.label or "?"):gsub("^%s+", "")) end
 local function fill_of(e)
     local okg, cur = pcall(e.get or function() return nil end)
     if not okg then cur = nil end
@@ -754,17 +776,17 @@ local function render_cust()
     local view = gui and safe(function() return gui:call("get_View") end)
     if view == nil then return end
     local c = cust_controls(view)
-    local g, wi = cust_group()
-    local rows = wi < #TABS and rows_for_group(g) or {}
-    for _, t in ipairs(c.hdr) do set_text(t, wi < #TABS and TABS[g].name or "") end
-    for _, t in ipairs(c.hdr_desc) do set_text(t, wi < #TABS and TABS[g].motto or "") end
+    local cat = cust_cat()
+    local rows = cat and cat.rows or {}
+    for _, t in ipairs(c.hdr) do set_text(t, TABS[ui.tab or 1].name) end
+    for _, t in ipairs(c.hdr_desc) do set_text(t, cat and cat.name or "") end
     for r = 0, 4 do
         local e = rows[r + 1]
         for _, x in ipairs(c.rows[r]) do
             set_visible(x.row, e ~= nil and r < 4)
             if e then
                 local val = value_text(e)
-                for _, t in ipairs(x.name) do set_text(t, e.label or "?") end
+                for _, t in ipairs(x.name) do set_text(t, shown_label(e)) end
                 for _, t in ipairs(x.lv) do set_text(t, val) end
                 for _, t in ipairs(x.num) do set_text(t, "") end
                 for _, t in ipairs(x.num_up) do set_text(t, "") end
@@ -779,6 +801,36 @@ local function render_cust()
         end
     end
 end
+-- desk command "custdump" (2026-11-15): the Gunsmithy's own fields and its whole control tree to the log, so the gun
+-- column's names can be put on (the column's controls and how many guns it holds are not known yet)
+local CUSTDUMP_MAX_LINES = 1500
+local function cust_dump()
+    if cust_drv == nil then L("custdump: the Gunsmithy is not up"); return end
+    local td = safe(function() return cust_drv:get_type_definition() end)
+    for _, f in ipairs(td and td:get_fields() or {}) do
+        local v = safe(function() return cust_drv:get_field(f:get_name()) end)
+        local shown = (type(v) == "userdata") and type_name(v) or tostring(v)
+        local cnt = (type(v) == "userdata") and safe(function() return v:call("get_Count") end) or nil
+        L("custdump field " .. f:get_name() .. " = " .. shown .. (cnt and (" (count " .. tostring(cnt) .. ")") or ""))
+    end
+    local go = safe(function() return cust_drv:call("get_GameObject") end)
+    local gui = go and safe(function() return go:call("getComponent(System.Type)", sdk.typeof("via.gui.GUI")) end)
+    local view = gui and safe(function() return gui:call("get_View") end)
+    local n = 0
+    local function visit(c, d)
+        if c == nil or d > 16 or n >= CUSTDUMP_MAX_LINES then return end
+        local tn = type_name(c)
+        local text = tn:find("Text") and safe(function() return c:call("get_Message") end) or nil
+        local vis = safe(function() return c:call("get_Visible") end)
+        L("custdump " .. string.rep(". ", d) .. tostring(safe(function() return c:call("get_Name") end)) .. " [" .. tn .. "]"
+          .. (vis == false and " hidden" or "") .. (text and (" '" .. tostring(text) .. "'") or ""))
+        n = n + 1
+        local ch = safe(function() return c:call("get_Child") end)
+        while ch ~= nil do visit(ch, d + 1); ch = safe(function() return ch:call("get_Next") end) end
+    end
+    visit(view, 0)
+    L("custdump: " .. n .. " control(s)")
+end
 do
     local ct = sdk.find_type_definition("app.GUIShopCustomize")
     local function hook(name, pre, post)
@@ -791,9 +843,16 @@ do
     -- the screen itself, caught on its own per-frame call (lateUpdateSetTune runs only once a gun is chosen)
     for _, name in ipairs({ "onLateUpdate", "lateUpdateSetTune", "setupScrollList" }) do
         hook(name, function(args)
-            if ui.open and ui.level == "real" and ui.tab == 2 and cust_drv == nil then
+            if ui.open and ui.level == "real" and ui.in_real == 2 and cust_drv == nil then
                 cust_drv = safe(function() return sdk.to_managed_object(args[2]) end)
                 ui.render_cust_in = 1
+                -- the column holds the player's guns: say whether it is long enough for every tab's categories
+                local guns = cust_drv and safe(function() return cust_drv:get_field("<currentWeapons>k__BackingField") end)
+                          or (cust_drv and safe(function() return cust_drv:get_field("currentWeapons") end))
+                local n = guns and (safe(function() return guns:call("get_Count") end) or safe(function() return guns:get_size() end))
+                local lay = layout_mod()
+                L(string.format("the Gunsmithy is up: %s gun(s) in its column, the tabs need %s", tostring(n),
+                    tostring(lay and lay.most_categories() or "?")))
             end
         end, function(retval)
             -- our words straight back on, the same frame the game laid its own (the jump fix, see cust_controls)
@@ -810,8 +869,7 @@ do
         if not (ui.open and ui.level == "real" and cust_drv) then return end
         -- the lit row from the screen's own cursor (canTune's argument read one row too far, 2026-11-04 20:55)
         local row = tonumber(safe(function() return cust_drv:get_field("<cursorIndex>k__BackingField") end)) or 0
-        local g, wi = cust_group()
-        local e = wi < #TABS and rows_for_group(g)[row + 1] or nil
+        local e = cust_rows()[row + 1]
         if e and os.clock() > (ui.flip_quiet_until or 0) then
             ui.flip_quiet_until = os.clock() + 0.3
             local okg, cur = pcall(e.get or function() return nil end)
@@ -826,6 +884,7 @@ do
                 local v = (tonumber(cur) or lo) + step
                 if v > hi + step * 0.5 then v = lo end
                 pcall(e.set, math.min(hi, v))
+            elseif e.kind == "button" and e.press then pcall(e.press)
             end
             L("stepped on the Gunsmithy: " .. tostring(e.label) .. " -> " .. value_text(e))
             ui.render_cust_in = 1
@@ -938,7 +997,7 @@ do
         return retval
     end)
     hook("onLateUpdate", function(args)
-        if ui.open and ui.level == "real" and sell_drv == nil and ui.tab == 3 then
+        if ui.open and ui.level == "real" and sell_drv == nil and ui.in_real == 3 then
             sell_drv = safe(function() return sdk.to_managed_object(args[2]) end)
         end
     end)
@@ -1075,14 +1134,13 @@ end
 local function lit_entry()
     if ui.level == "real" then
         -- the screen that belongs to the card that was picked (a screen that is still fading out keeps its driver a while)
-        if ui.tab ~= 3 then sell_drv = nil end
-        if cust_drv and ui.tab == 2 then
-            -- the Gunsmithy starts in its gun column (the group); its rows are lit only once a gun is chosen
+        if ui.in_real ~= 3 then sell_drv = nil end
+        if cust_drv and ui.in_real == 2 then
+            -- the Gunsmithy starts in its gun column (the categories); its rows are lit only once a category is chosen
             if not ui.cust_rows then return nil, nil, "the Gunsmithy's gun column" end
             local row = tonumber(safe(function() return cust_drv:get_field("<cursorIndex>k__BackingField") end)) or 0
-            local g, wi = cust_group()
-            return wi < #TABS and rows_for_group(g)[row + 1] or nil, function() ui.render_cust_in = 1 end, "the Gunsmithy"
-        elseif sell_drv and ui.tab == 3 then
+            return cust_rows()[row + 1], function() ui.render_cust_in = 1 end, "the Gunsmithy"
+        elseif sell_drv and ui.in_real == 3 then
             local idx = (tonumber(safe(function() return sell_drv:get_field("<lastIndex>k__BackingField") end)) or 0) + 1
             return sell_rows()[idx], function() ui.sell_tick = 6 end, "the Duke's Purse"
         elseif buy_drv then
@@ -1157,7 +1215,12 @@ local function watch_sticks()
             pad.decide = true   -- into the lit group's rows, as A does
         end
     end
-    if (ldir == "left" or ldir == "right") and ui.level == "real" then
+    if (ldir == "left" or ldir == "right") and ui.level == "real" and ALL_GUNSMITHY and ui.in_real == 2 then
+        -- 2026-11-15: every tab is this same screen, so the tab changes in place (no trip back to the cards)
+        ui.tab = (((ui.tab or 1) - 1 + (ldir == "right" and 1 or -1)) % #TABS) + 1
+        ui.render_cust_in = 1
+        L("left stick " .. ldir .. ": tab -> " .. TABS[ui.tab].name)
+    elseif (ldir == "left" or ldir == "right") and ui.level == "real" then
         local n = #TABS
         local card = ((ui.tab or 1) - 1 + (ldir == "right" and 1 or -1)) % n
         ui.hop = { card = card, frames = 0 }
@@ -1321,6 +1384,11 @@ re.on_frame(function()
                 local e, _, where = lit_entry()
                 L(string.format("where: level %s, tab %s, screen %s, lit card %s, lit setting %s = %s", tostring(ui.level), tostring(ui.tab),
                     tostring(where), tostring(lit_card()), tostring(e and e.label), tostring(e and value_text(e))))
+            elseif line == "custdump" then
+                local okd, errd = pcall(cust_dump); if not okd then L("custdump failed: " .. tostring(errd)) end
+            elseif line:sub(1, 4) == "tab " then   -- "tab 2": the Gunsmithy's tab, as the left stick changes it
+                local t = tonumber(line:sub(5))
+                if t and TABS[t] then ui.tab = t; ui.render_cust_in = 1; L("tab -> " .. TABS[t].name) end
             elseif line == "open" then pcall(open) elseif line == "close" then pcall(close)
             elseif line == "back" then pcall(back) elseif line:sub(1, 5) == "pick " then pcall(pick, tonumber(line:sub(6)) or 0) end
         end
