@@ -5,6 +5,7 @@
 #include "bridge.h"
 #include "reload.h"
 #include "settings.h"
+#include "joints.h"
 
 #include <cmath>
 
@@ -18,6 +19,8 @@ bool g_light = false;      // LT's switch
 bool g_reverse = false;    // the overhand grip: the lens at the little-finger end
 bool g_in_spot = false;    // the left hand is in the left shoulder spot
 int g_logs = 0;
+float g_flip_t = -100.0f;  // when the grip last flipped (the beam's wobble, below)
+int g_flips = 0;
 
 // the spot: the headset's position + the offset turned by its YAW only (Visceral RE2's holster spots, Tefa 2026-10-05:
 // "no tilt please, just left and right turn"). Room space: +X right, +Y up, -Z forward.
@@ -70,9 +73,27 @@ bool beam(Vec3& pos, Quat& rot) {
     const bool want = g_reverse ? !(dot > S::TORCH_FLIP_DOT) : dot < -S::TORCH_FLIP_DOT;
     if (want != g_reverse) {
         g_reverse = want;
+        g_flip_t = joints::now_s();
+        ++g_flips;
         LOGI("%s torch: grip -> %s (thumb end . forward %.2f)", TAG, g_reverse ? "OVERHAND (lens at the little finger)" : "ORDINARY (lens at the thumb)", dot);
     }
-    const Vec3 dir_room = g_reverse ? thumb_end * -1.0f : thumb_end;
+    Vec3 dir_room = g_reverse ? thumb_end * -1.0f : thumb_end;
+    // 2026-11-16 (Tefa: "a little wobble while changing the position between over shoulder and hand held"): for a moment after
+    // the grip flips, the beam swings a few degrees and settles, as a torch shifted in the hand does: a fading sway about a
+    // sideways and an up axis (different speeds, so it is not one clean swing), a little different each flip
+    const float wt = joints::now_s() - g_flip_t;
+    if (S::TORCH_WOBBLE_ON && wt >= 0.0f && wt < S::TORCH_WOBBLE_S) {
+        auto cross = [](Vec3 a, Vec3 b) { return Vec3{a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x}; };
+        auto unit = [](Vec3 v) { const float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z); return l < 1e-5f ? Vec3{0, 0, 0} : v * (1.0f / l); };
+        const Vec3 side = unit(cross(dir_room, Vec3{0, 1, 0}));
+        const Vec3 up = unit(cross(side, dir_room));
+        const float fade = std::exp(-wt / S::TORCH_WOBBLE_FADE_S) * (1.0f - wt / S::TORCH_WOBBLE_S);
+        const float k = 6.2831853f * S::TORCH_WOBBLE_HZ * wt;
+        const float ph = 1.3f * static_cast<float>(g_flips % 5);
+        const float a_up = std::tan(S::TORCH_WOBBLE_DEG * 0.0174533f) * fade * std::sin(k + ph);
+        const float a_side = std::tan(S::TORCH_WOBBLE_DEG * 0.6f * 0.0174533f) * fade * std::sin(k * 1.37f + 2.0f * ph);
+        dir_room = unit(dir_room + up * a_up + side * a_side);
+    }
     // the drawn hand sits praydog's offset ahead of the controller (re8vr.left_hand_position_offset, in the controller's
     // own axes, bridge S_LHAND_OFF): the fist is there, so the lens is measured from it
     Vec3 hand = bridge::hand_pos(bridge::LEFT);

@@ -493,7 +493,13 @@ constexpr float TORCH_SPOT_FWD  = -0.08f;
 constexpr float TORCH_SPOT_ENTER_M = 0.20f;   // Tefa 2026-11-12: "as big as possible" (RE2 / RE3 use the same reach)
 constexpr float TORCH_SPOT_LEAVE_M = 0.26f;
 constexpr float TORCH_LENS_M    = 0.08f;      // from the drawn fist to where the beam starts, along the torch
-constexpr float TORCH_FLIP_DOT  = 0.25f;      // the lens end must point this far past sideways (cos) before the grip flips
+constexpr float TORCH_FLIP_DOT  = 0.25f;
+// 2026-11-16 (Tefa): the beam wobbles a little after the grip flips (over the shoulder <-> held ahead), then settles
+constexpr bool  TORCH_WOBBLE_ON = true;
+constexpr float TORCH_WOBBLE_DEG = 7.0f;      // the first swing, degrees (up / down; sideways 60% of it)
+constexpr float TORCH_WOBBLE_HZ = 5.0f;       // swings a second
+constexpr float TORCH_WOBBLE_FADE_S = 0.15f;  // how fast it dies down
+constexpr float TORCH_WOBBLE_S = 0.5f;        // and over by this long after the flip      // the lens end must point this far past sideways (cos) before the grip flips
 constexpr float TORCH_BUZZ_ENTER_AMP = 0.35f, TORCH_BUZZ_ENTER_SEC = 0.05f;
 constexpr float TORCH_BUZZ_GRAB_AMP  = 0.70f, TORCH_BUZZ_GRAB_SEC  = 0.08f;
 constexpr float TORCH_BUZZ_HZ   = 160.0f;

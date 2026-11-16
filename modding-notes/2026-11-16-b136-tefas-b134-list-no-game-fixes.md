@@ -29,3 +29,11 @@ Only the plugin compiled, Lua syntax-checked (`luac -p`) `[compile-verified 2026
 Not done, waiting on Tefa: 9b (the beam "flip a bit shakily" — a wobble wanted, or a jump to remove?), 9c (a Hand Poser
 line for the torch), 3 (shells slid in with a thumb), 14 (the long-gun block). The builds skip list now has
 `*zones_open.json` (the window's own open-row file was counted as a difference).
+
+## b137: the torch beam's wobble (same day)
+Tefa answered 9b: *"i meant like a little wobble while changing the position between over shoulder and hand held"*. The
+grip flip (`torch.cpp` beam(): ordinary <-> overhand) turned the beam 180 degrees in one frame. Now, for 0.5 s after a
+flip, the beam sways and settles: about 7 degrees up / down and 60% of that sideways at a different pace, 5 swings a
+second, fading fast (`TORCH_WOBBLE_*` in settings.h; worked out: about 4.5 degrees at 0.05 s, 1.8 the other way at
+0.15 s, under 1 by 0.25 s `[verified-numerically 2026-11-16, by hand]`). Compiled, installed, saved as b137. Not run.
+Tefa also confirmed the SH2 medicine report was the right grip (RG).
