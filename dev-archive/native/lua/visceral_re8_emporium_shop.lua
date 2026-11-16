@@ -1138,6 +1138,27 @@ end
 --   left stick left / right  = the next / the previous group, from inside any screen (Back, then the next card, by itself)
 -- While the Emporium is open the right stick does not reach the game (no turning), nor the left stick's sideways half
 -- inside a screen. Each direction repeats while held. The desk can press them too: emporium_cmd.json "stick r up" ...
+-- 2026-11-16 (Tefa, wear of b134: "LS left right changing the whole tab feels bad, has to be coming out of the tab with X and
+-- choosing the other tab, just like using the Duke's emporium, feels better even though takes longer"): the left stick no
+-- longer changes the tab; a short tap of X (on its own, not the X + A hold) is Back, out of the tab to the three cards.
+-- LS_CHANGES_TAB = true brings the left stick's tab change back; X_TAP_BACK = false takes the X tap away.
+local LS_CHANGES_TAB, X_TAP_BACK = false, true
+local x_tap = { down = false, since = 0, spoiled = false }
+local function x_tap_frame(now)   -- true on the frame a short X tap (no A with it) is let go
+    if not X_TAP_BACK or not vrmod or not safe(function() return vrmod:is_hmd_active() end) then x_tap.down = false; return false end
+    local xd, ad = false, false
+    pcall(function()
+        local a = vrmod:get_action_a_button()
+        xd = vrmod:is_action_active(a, vrmod:get_left_joystick()) == true
+        ad = vrmod:is_action_active(a, vrmod:get_right_joystick()) == true
+    end)
+    local tapped = false
+    if xd and not x_tap.down then x_tap.since, x_tap.spoiled = now, false end
+    if xd and ad then x_tap.spoiled = true end   -- part of the X + A open / close hold
+    if not xd and x_tap.down and not x_tap.spoiled and now - x_tap.since < HOLD_S then tapped = true end
+    x_tap.down = xd
+    return tapped
+end
 local STICK_ON, STICK_OFF = 0.6, 0.35              -- pushed this far = a step; back under this = let go
 local STICK_FIRST_S, STICK_REPEAT_S = 0.45, 0.16   -- held: the second step after this long, then one every this long
 local HOP_WAIT_FRAMES, HOP_GIVE_UP_FRAMES = 12, 240   -- group change: frames on the cards before the pick; when to give up
@@ -1249,6 +1270,16 @@ local function watch_sticks()
             pad.decide = true   -- into the lit group's rows, as A does
         end
     end
+    if x_tap_frame(now) then
+        if ui.level == "real" then
+            pad.back = true   -- inside one of the game's screens Back is the GAME's (see back()): one tap of its Cancel button
+            L("X tapped: out of the tab (the game's own Back)")
+        elseif ui.level == "page" then
+            ui.want_back = true
+            L("X tapped: back to the groups")
+        end   -- on the three cards X does nothing (B closes the Emporium there)
+    end
+    if not LS_CHANGES_TAB then return end
     if (ldir == "left" or ldir == "right") and ui.level == "real" and ALL_GUNSMITHY and ui.in_real == 2 then
         -- 2026-11-15: every tab is this same screen, so the tab changes in place (no trip back to the cards)
         ui.tab = (((ui.tab or 1) - 1 + (ldir == "right" and 1 or -1)) % #TABS) + 1

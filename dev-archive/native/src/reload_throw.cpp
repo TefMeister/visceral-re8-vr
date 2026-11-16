@@ -36,6 +36,10 @@ void throw_sample(Vec3 p) {   // every frame the magazine is in the hand: where 
     g_hist[g_hist_n++] = Sample{now_s(), p};
 }
 
+// 2026-11-16 (Tefa: "the mag that came out of the gun still flies out of my hand"): forget the magazine's past places whenever
+// the drawn hand changes owner (docked on the gun -> the controller's), so that jump is never read as a throw
+void throw_reset() { g_hist_n = 0; }
+
 // the speed over the last THROW_WINDOW_SEC (oldest sample still inside it to the newest), capped
 static Vec3 throw_velocity() {
     if (g_hist_n < 2) return Vec3{0, 0, 0};

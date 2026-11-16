@@ -285,6 +285,9 @@ constexpr float ACC_AT_GUN_M = 0.12f;         // LG held with the left controlle
 // 2026-11-11 (twomag.h): two magazines in the left hand
 constexpr bool  TWOMAG_ON = true;
 constexpr float TWOMAG_SWAP_REACH_M = 0.25f;         // LT swaps the magazines with the held one within this of the well
+// 2026-11-16 (Tefa: "after inserting the spare mag with LT, the left hand must not dock again, until LG has been released and
+// let go of the mag in hand"): once the spare is seated, the hand with the old magazine is the controller's at once
+constexpr bool  TWOMAG_FREE_AFTER_SEAT = true;
 constexpr float TWOMAG_UNDOCK_SCALE = 3.0f;          // a hand docked on the seated magazine with a spare leaves it this many zone radii away
 constexpr float TWOMAG_INSERT_REACH_PART = 0.45f;    // of the insert's time: the spare travels from the hand to the bottom of the grip, then up it
 constexpr float TWOMAG_DRAWN_STALE_FRAMES = 3.0f;    // the Lua's "drawn here" older than this is not used

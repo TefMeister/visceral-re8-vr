@@ -41,6 +41,7 @@ local SPOTS = {
 -- and making balls crashed the game three times). 0 = off: the spots as before, no sphere.
 local SEATED_TEST_FWD_M = 0.30   -- the default while the Holster Zones window has never written its file
 local MARKER_R_M = 0.05        -- the marker sphere's radius (the nearest-spot marker while the window is closed)
+local AMMO_OWN_R_M = 0.24      -- the ammo pouch's own size (Andyalpa's ammo_left_trigger_dist), shown until the window sets one
 _G.__visceral_seated_fwd_m = SEATED_TEST_FWD_M
 -- 2026-11-14 (Tefa: "can you make it into an app called holster zones?"): the Holster Zones window
 -- (github.com/TefMeister/holster-zones-vr) writes visceral_re8/holster_zones.json { sitting = { on, fwd }, spots = { key = {
@@ -69,7 +70,10 @@ local function hz_read()
         local extra = {}
         for _, k in ipairs({ "knife", "medicine", "ammo" }) do
             local sp = hz_spot(k)
-            if sp then extra[k == "ammo" and "ammo_left" or k] = { x = hz_num(sp, "x"), y = hz_num(sp, "y"), z = hz_num(sp, "z") } end
+            -- 2026-11-16 (Tefa: the pouch "doesn't have a size slider"): the ammo pouch takes the window's size too (r, metres:
+            -- how close the LEFT hand must come; re8_vr_holster.lua's tick_ammo_left_zone wrapper); knife and medicine keep his
+            if sp then extra[k == "ammo" and "ammo_left" or k] = { x = hz_num(sp, "x"), y = hz_num(sp, "y"), z = hz_num(sp, "z"),
+                                                                  r = k == "ammo" and tonumber(sp.r) or nil } end
         end
         _G.__visceral_holster_extra = extra
     end
@@ -122,7 +126,9 @@ local function dist(a, b) local dx, dy, dz = a.x - b.x, a.y - b.y, a.z - b.z; re
 -- separate body to follow. Instead the spots keep their OWN facing, the way RE2's body turns: it stays put while the head
 -- looks less than SPOT_DEADZONE_DEG away, and once past that it comes round to the head at SPOT_CATCH_DEG_S until it is
 -- within SPOT_SETTLE_DEG (the simulator check: a 25 degree head turn must leave the right hip spot where it was).
-local SPOT_DEADZONE_DEG, SPOT_CATCH_DEG_S, SPOT_SETTLE_DEG = 45.0, 120.0, 5.0
+-- 2026-11-16 (Tefa, b134: "in increments of like 30 degrees when i turn my head far enough left or right, that is actually good,
+-- but it needs to be less than what it is, sometimes i'm looking right and the holster zone still stays where it is"): 45 -> 20
+local SPOT_DEADZONE_DEG, SPOT_CATCH_DEG_S, SPOT_SETTLE_DEG = 20.0, 120.0, 5.0
 local facing = { yaw = nil, t = -1, catching = false, logged = -10 }
 local function wrap(a) while a > math.pi do a = a - 2 * math.pi end; while a < -math.pi do a = a + 2 * math.pi end; return a end
 local function spot_facing(head_yaw)   -- updated once a frame; every spot_pos call in that frame gets the same answer
@@ -211,7 +217,10 @@ local function publish_marker(hmd, rm, lm)
     local now = os.clock()
     for _, z in ipairs(ANDY_ZONES) do
         local w = rawget(_G, z.g)
-        if type(w) == "table" and type(w.x) == "number" and now - (w.t or 0) < 0.5 then spots[#spots + 1] = { p = w, name = z.name, key = z.key } end
+        if type(w) == "table" and type(w.x) == "number" and now - (w.t or 0) < 0.5 then
+            local ex = z.key == "ammo" and (rawget(_G, "__visceral_holster_extra") or {}).ammo_left or nil
+            spots[#spots + 1] = { p = w, name = z.name, key = z.key, r = ex and ex.r or (z.key == "ammo" and AMMO_OWN_R_M or nil) }
+        end
     end
     -- each spot's nearer hand, for the window's live line
     for _, sp in ipairs(spots) do

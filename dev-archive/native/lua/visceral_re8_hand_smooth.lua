@@ -114,7 +114,11 @@ local function new_hand(side, ci)
 end
 local hands = { new_hand("left", 1), new_hand("right", 2) }
 local function default_wanted(h) return (h.side == "right" and cfg.right) or (h.side == "left" and cfg.left) end
+-- 2026-11-16 (Tefa, wear of b134: "the left hand feels a bit sluggish" holding the torch): a left hand holding the torch is
+-- not on a gun, so it follows the controller raw (the guns-only smoothing rule); it was smoothed at the gun's strength.
+local function torch_in_left() local vt = rawget(_G, "__visceral_torch"); return vt ~= nil and vt.hand == true end
 local function wanted(h)
+    if h.side == "left" and torch_in_left() then return false end
     local m = cur_gun and cfg.guns[cur_gun]
     if m == "off" then return false end
     if m == "both" then return true end

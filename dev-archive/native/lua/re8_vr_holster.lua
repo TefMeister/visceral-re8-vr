@@ -11364,6 +11364,22 @@ do
         end
         return pos
     end
+    -- 2026-11-16 (Tefa: the ammo pouch "is a little unknown and doesn't have a size slider"): the Holster Zones window's size
+    -- for the pouch (visceral_re8_holsters.lua hands it over as __visceral_holster_extra.ammo_left.r, metres) replaces his
+    -- trigger distance for this tick only, leaving 10 cm more to leave it; his saved profile is never changed by it.
+    -- (kept in HJ, not a new local: this file's main chunk is at Lua's 200-locals limit)
+    HJ._raw_tick_ammo_left_zone = HJ._raw_tick_ammo_left_zone or HJ.tick_ammo_left_zone
+    HJ.tick_ammo_left_zone = function(P)
+        local raw_tick_ammo = HJ._raw_tick_ammo_left_zone
+        local ex = rawget(_G, "__visceral_holster_extra")
+        local r = type(ex) == "table" and type(ex.ammo_left) == "table" and tonumber(ex.ammo_left.r) or nil
+        if r == nil or r < 0.03 or type(P) ~= "table" then return raw_tick_ammo(P) end
+        local t0, r0 = P.ammo_left_trigger_dist, P.ammo_left_release_dist
+        P.ammo_left_trigger_dist, P.ammo_left_release_dist = r, r + 0.10
+        local ok, err = pcall(raw_tick_ammo, P)
+        P.ammo_left_trigger_dist, P.ammo_left_release_dist = t0, r0
+        if not ok then error(err) end
+    end
 end
 
 return {}

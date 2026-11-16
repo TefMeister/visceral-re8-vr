@@ -602,6 +602,7 @@ void grab_frame() {
         if (g_hand_on_mag && mag_world(mp, mq) && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp) &&
             dist(zones::center(zones::MAG, mp), cp) > zones::radius(zones::MAG) * TWOMAG_UNDOCK_SCALE) {
             g_hand_on_mag = false;
+            throw_reset();   // 2026-11-16
             LOGI("%s reload: the hand with the old magazine taken away from the new one: it leaves the gun", TAG);
         }
         return;
@@ -1025,6 +1026,11 @@ void frame() {
                 magazine_shown(true);
                 fill_magazine();
                 g_hand_on_mag = bridge::held(bridge::S_LGRIP) && g_joint != nullptr;   // 2026-11-15: with the old magazine in the palm too (Tefa)
+                if (TWOMAG_FREE_AFTER_SEAT && twomag::has() == twomag::Has::OLD) {   // 2026-11-16 (Tefa): not with the old one in the palm
+                    g_hand_on_mag = false;
+                    throw_reset();
+                    LOGI("%s reload: the spare seated: the hand with the old magazine is free (no dock until LG is let go)", TAG);
+                }
             }
             break;
         default:

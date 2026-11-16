@@ -1,5 +1,6 @@
 // handstate.cpp -- see handstate.h
 #include "handstate.h"
+#include "twomag.h"
 #include "bridge.h"
 #include "torch.h"
 #include "common.h"
@@ -68,7 +69,7 @@ void frame() {
     // 03:25 (Tefa: "the pistol still has the left hand dock the grip even when mag is out and the gun needs racking"): no
     // two-handed grip while the magazine is out, nor while a rack is still due
     // 2026-10-31 (Tefa: "i want to be able to grip the weapon even if it needs racking"): a rack due no longer vetoes it
-    bridge::put(bridge::S_GRIP_VETO, (reload::hand_on_mag() || reload::hand_near_mag() || reload::mag_out() || (rack::active() && !pump_hold) || (rack::pump_gun() && !pump_hold) || pairs::active() || bridge::lgrip_swallowed() || (torch::in_hand() && long_gun)) ? 1.0f : 0.0f);   // (2026-10-25: a hand pair holds the hand; 2026-11-12: the torch in the hand, long guns: "long weapons cannot be two handed while flashlight is held")
+    bridge::put(bridge::S_GRIP_VETO, (reload::hand_on_mag() || reload::hand_near_mag() || reload::mag_out() || twomag::has() == twomag::Has::OLD || (rack::active() && !pump_hold) || (rack::pump_gun() && !pump_hold) || pairs::active() || bridge::lgrip_swallowed() || (torch::in_hand() && long_gun)) ? 1.0f : 0.0f);   // (2026-11-16: the old magazine still in the hand after a swap, Tefa: "the left hand must not dock again, until LG has been released"; 2026-10-25: a hand pair holds the hand; 2026-11-12: the torch in the hand, long guns: "long weapons cannot be two handed while flashlight is held")
     // the held gun's number for the menu's per-gun settings (ri3046 -> 3046)
     int num = 0;
     for (char c : s.weapon_id) { if (c >= '0' && c <= '9') num = num * 10 + (c - '0'); else if (num > 0) break; }

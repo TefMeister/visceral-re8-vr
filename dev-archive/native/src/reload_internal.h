@@ -49,7 +49,8 @@ int mag_part();
 // ---- the thrown magazine (defined in reload_throw.cpp) --------------------------------------------------------------
 void throw_sample(Vec3 p);                                  // every frame the magazine is in the hand
 void throw_hand_over(Vec3 mag_pos, Quat mag_rot, bool from_hand, int rounds_look = -1);   // it left: hand it to the Lua's copy (rounds_look: 2026-11-11, a magazine that is not the gun's joint, twomag.h)
-bool throw_taken();                                         // the Lua has its copy: the joint's fall can stop
+bool throw_taken();
+void throw_reset();                                         // 2026-11-16: the hand changed owner: no throw speed from the jump                                         // the Lua has its copy: the joint's fall can stop
 void write_scale(Vec3 s);
 void capture_second();
 void pose_shell();
