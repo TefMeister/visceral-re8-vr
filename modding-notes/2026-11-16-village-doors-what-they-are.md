@@ -19,3 +19,18 @@ last save (Ethan at -0.71 -40.31 108.51) `[verified-live 2026-11-16, simulator, 
   the body each frame while it is in its little-open / push states, instead of drawing the joint ourselves.
 NEXT: one run at an unlocked door the player really walks up to (first headset or a walked simulator route), to see A open it
 and whether `OverrideAngle` moves the open door. `MODEL: OPUS`.
+
+## The Duke's gate, used for real (17:2x; Tefa: "the duke's spot behind ethan has an unlocked gate, about 15m up the steps") `[verified-live 2026-11-16, simulator, n=1]`
+- `sm81_077_StudioGate_00_DoubleDoor_BreakLock` (an `app.DoorDoubleBehavior` holding two child `Door`s, each an
+  `app.DoorBehavior`, plus chain padlocks). Ethan walked there by `tools/sim/walk_to.py` (the left stick only; the view
+  turned with the simulator's head, since the right stick's turn overshoots by hundreds of degrees): 15 m, up the steps, 8 steps.
+- **A opened the left leaf all the way, 0 -> 90 degrees in ~1.6 s** (states 396010129 shut -> 887278378 opening -> 3232296810
+  open; `DestAngle` -90; `NowAngle` stayed at its shut -1.4). A gate opens fully, unlike a door's 20-degree crack.
+- `IsOverrideAngle` / `OverrideAngle` changed nothing in the open state either (as on a shut door): presumably read only in
+  the push states.
+- **Our own write of the leaf joint (`DoorJoint`, `_00`) at LateUpdateBehavior + BeginRendering held it at 20 degrees**, and
+  after we stopped it STAYED at 20: once open, the game no longer writes the leaf. So in Village the game's own angle cannot
+  be read back from the joint while we draw it: the door's STATE (shut / opening / open / push / closing) has to tell us
+  when the game opens and closes it (state hashes to name first).
+- The leaf lies along the hinge's local +X (sound points at x 0.5, mesh centre x 0.41-0.44): `LEAF_SIDE` +1, as in RE3.
+NEXT (Opus): port `doorpush` to Village's plugin using the door's states and `DoorJoint`; the touch-A through `re8_vr.lua`'s pad.
