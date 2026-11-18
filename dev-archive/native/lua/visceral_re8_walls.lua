@@ -160,7 +160,7 @@ end
 
 -- ===== each frame =====
 local hit_log_t = { 0, 0 }
-local GEN = (rawget(_G, "__visceral_walls_gen") or 0) + 1   -- a copy loaded again by hand (dofile) takes over; the old one stops
+local GEN = {}   -- this copy's own token: a copy loaded again by hand (dofile) takes over and the old one stops
 rawset(_G, "__visceral_walls_gen", GEN)
 local muz = { gun = -1, local_ = nil, prev_hand = nil, prev_q = nil, prev_plane = nil, tilt = 0.0, axis = nil, prev_tilt_q = nil }   -- the gun's muzzle in the hand's frame
 local function update()
