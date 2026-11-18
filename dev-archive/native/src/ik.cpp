@@ -10,6 +10,7 @@
 #include "reload.h"
 #include "sleephands.h"
 #include "smooth.h"
+#include "walls.h"
 
 namespace vn::ik {
 
@@ -19,6 +20,7 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     auto* ik = (MO*)argv[1];
     const auto& s = player::now();
     if (ik != s.ik_right && ik != s.ik_left) return REFRAMEWORK_HOOK_CALL_ORIGINAL;   // not a player hand
+    walls::on_ik(ik);      // 2026-11-18: FIRST, the hand stopped at a wall (everything below starts from there)
     recoil::on_ik(ik);
     reload::on_ik(ik);
     rack::on_ik(ik);

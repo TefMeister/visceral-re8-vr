@@ -604,6 +604,24 @@ local function update_pad_device(device)
             vz_pad.crouch_frames = vz_pad.crouch_frames - 1
         end
     end
+    -- 2026-11-18: a hand touched a shut door (the plugin's doors.cpp, bridge slot 266 counts each touch): A for the game,
+    -- held a few pad updates like the crouch pulse; the plugin then draws the door 1 degree open and the hands push it
+    do
+        local vb = rawget(_G, "visceral_re8_bridge")
+        local seq = vb and vb.ready() and vb.r(266) or nil
+        if seq ~= nil and seq >= 0 and seq < 1e6 then
+            if vz_pad.door_seq == nil then vz_pad.door_seq = seq
+            elseif seq ~= vz_pad.door_seq then
+                vz_pad.door_seq = seq
+                vz_pad.door_frames = 6
+                log.info("[visceral-re8] a hand touched a shut door -> A for the game")
+            end
+        end
+        if (vz_pad.door_frames or 0) > 0 then
+            cur_button = cur_button | via.hid.GamePadButton.Decide | via.hid.GamePadButton.RDown
+            vz_pad.door_frames = vz_pad.door_frames - 1
+        end
+    end
 
     if vrmod:is_action_active(action_joystick_click, left_joystick) then
         cur_button = cur_button | via.hid.GamePadButton.LStickPush

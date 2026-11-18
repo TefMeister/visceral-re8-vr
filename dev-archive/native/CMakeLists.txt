@@ -10,6 +10,8 @@ add_library(visceral_re8_native SHARED
     src/plugin.cpp
     src/armstretch.cpp
     src/sleephands.cpp
+    src/walls.cpp
+    src/doors.cpp
     src/equipguard.cpp
     src/common.cpp
     src/bridge.cpp

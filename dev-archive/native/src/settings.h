@@ -504,4 +504,28 @@ constexpr float TORCH_BUZZ_ENTER_AMP = 0.35f, TORCH_BUZZ_ENTER_SEC = 0.05f;
 constexpr float TORCH_BUZZ_GRAB_AMP  = 0.70f, TORCH_BUZZ_GRAB_SEC  = 0.08f;
 constexpr float TORCH_BUZZ_HZ   = 160.0f;
 
+// walls.cpp (2026-11-18, Tefa: "see if you can get the hand to collide with walls"); the ray itself and its switches are
+// lua/visceral_re8_walls.lua's (walls.json)
+constexpr bool  WALLS_ON = true;
+constexpr int   WALLS_STALE_FRAMES = 3;       // a wall last seen longer ago than this many frames is gone
+constexpr float WALLS_MAX_PUSH_M = 0.60f;     // a hand further than this past the plane is not at this wall (a stale or other plane)
+
+// doors.cpp (2026-11-18): doors and gates pushed by the hand and the body; RE2 / RE3's doorpush numbers (2026-11-16)
+constexpr bool  DOORS_ON = true;
+constexpr bool  DOORS_TOUCH_OPENS = true;     // the hand pressing on a shut leaf presses A for it
+constexpr float DOORS_INITIAL_DEG = 1.0f;     // how far a door is drawn open when the game opens it (Tefa: "1 degree")
+constexpr float DOORS_MAX_DEG = 92.0f;        // never drawn further than this
+constexpr float DOORS_LEAF_M = 1.3f;          // the leaf's width from the hinge (a gate's leaf is wider than RE2's 1.0 m doors) [hypothesis]
+constexpr float DOORS_LEAF_SIDE = 1.0f;       // the leaf lies along the hinge's +X (read on the Duke's gate 2026-11-16)
+constexpr float DOORS_HAND_R = 0.10f;         // the hand's reach around the wrist, metres
+constexpr float DOORS_BODY_R = 0.32f;         // the body's, around the player's position
+constexpr float DOORS_SCAN_S = 0.5f;          // how often the near leaves are looked for
+constexpr float DOORS_SCAN_M = 3.0f;          // and how close they must be, across the floor
+constexpr float DOORS_SCAN_UP_M = 1.5f;       // and up or down
+constexpr float DOORS_RELEASE_M = 8.0f;       // an open leaf further than this is let go (left as drawn)
+constexpr int   DOORS_MAX_LEAVES = 4;         // leaves handled at once (a gate has two)
+constexpr float DOORS_TOUCH_COOLDOWN_S = 1.5f;
+constexpr float DOORS_OPEN_SEEN_DEG = 0.5f;   // the game's own angle above this = the game has the door open
+constexpr const wchar_t* DOORS_HINGE = L"_00";
+
 } // namespace vn::settings

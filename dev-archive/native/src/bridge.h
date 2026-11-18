@@ -139,6 +139,15 @@ enum Slot : int {
     // state (0 = the plugin's torch is not running; else 4 + 1 in the hand + 2 light on + 8 the beam place below is good),
     // 245-247 where the beam starts (world), 248-251 its turn (world x y z w; local -Z = the way it shines)
     S_TORCH = 244, S_TORCH_POS = 245, S_TORCH_ROT = 248,
+    // 2026-11-18 (Tefa: "see if you can get the hand to collide with walls"), WRITTEN BY lua/visceral_re8_walls.lua: per hand,
+    // S_FRAME + 1 of the frame the wall in front of it was last seen (stale = no wall), then a point ON the hand's stop plane
+    // (world, already the hand's radius off the wall) and the plane's normal (world, pointing back toward the player). walls.cpp
+    // keeps the IK target on the player's side of that plane.
+    S_WALL_L_ON = 252, S_WALL_L_P = 253, S_WALL_L_N = 256,
+    S_WALL_R_ON = 259, S_WALL_R_P = 260, S_WALL_R_N = 263,
+    // 2026-11-18 (doors.cpp): WRITTEN BY THE PLUGIN, +1 per "the hand touched a shut door: press A for the game"; re8_vr.lua's
+    // pad then holds the game's Decide button for a few pad updates (its crouch pulse's way)
+    S_DOOR_PRESS_SEQ = 266,
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,
