@@ -29,6 +29,7 @@ local cfg = {
     shoulder_down = 0.18,   -- the ray starts this far below the camera
     shoulder_side = 0.17,   -- and this far out to the hand's own side
     min_reach = 0.20,       -- a hand nearer the shoulder than this is never checked
+    max_reach = 1.50,       -- nor one further than this (2026-11-18, simulator: while a save loads the hand sits 130 m away)
 }
 local function load_cfg()
     local okf, fh = pcall(io.open, FILE, "r")
@@ -54,7 +55,9 @@ pcall(function()
     for k, v in pairs(layers) do names[#names + 1] = tostring(k) .. "=" .. tostring(v) end
     table.sort(names)
     L("the game's collision layers: " .. table.concat(names, ", "))
-    for _, want in ipairs({ "Terrain", "Static", "Stage", "Ground", "Wall", "Bullet" }) do
+    -- 2026-11-18, simulator: a ray from the head straight down hit the floor on Bullet (12) and Default (0, 8 hits), and
+    -- NOTHING on Terrain (1) `[verified-live 2026-11-18, simulator, n=1]`: Bullet, the thrown magazine's layer
+    for _, want in ipairs({ "Bullet" }) do
         if layers[want] ~= nil then LAYER, LAYER_NAME = layers[want], want; break end
     end
     L("the hands' rays use the layer " .. LAYER_NAME)
@@ -159,7 +162,7 @@ local function update()
             local shoulder = add(add(cam, v(0, -cfg.shoulder_down, 0)), mul(right, (side == 1 and -1 or 1) * cfg.shoulder_side))
             local d = sub(hand, shoulder)
             local dl = len(d)
-            if dl >= cfg.min_reach then
+            if dl >= cfg.min_reach and dl <= cfg.max_reach then
                 local dir = mul(d, 1 / dl)
                 local h = ray(shoulder, add(hand, mul(dir, cfg.hand_r)))
                 if h then

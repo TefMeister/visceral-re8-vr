@@ -81,7 +81,7 @@ bool hand_world(int i, Vec3& out) {
     if (player::motion_joint(i == 0 ? "l_arm_wrist" : "r_arm_wrist", out, q)) return true;
     if (!bridge::flag(bridge::S_HANDS_W_OK)) return false;
     out = bridge::view_vec3(i == 0 ? bridge::S_LHAND_W : bridge::S_RHAND_W);
-    return bridge::has(out.x);
+    return std::isfinite(out.x) && std::isfinite(out.z);   // world metres: not bridge::has(), which stops at 499
 }
 bool player_pos(Vec3& out) { return get_v3(XFORM, player::now().tf, "get_Position", out); }
 

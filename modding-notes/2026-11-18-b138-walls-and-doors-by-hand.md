@@ -33,3 +33,17 @@ What Tefa saw was the plain game: the 2026-11-16 door work had only been read on
 - Aiming with a gun stopped at a wall: the shot may still come from where the controller is (praydog's aim).
 - The game opens gates from far away (Tefa); now they only crack 1 degree until pushed. Whether the body can still walk
   through a 1-degree gate (as in RE2, where the game's collision follows its own angle) is for the first run.
+
+## The simulator run, same evening: b139 `[verified-live 2026-11-18, simulator, n=1 each]`
+- **The gate:** walking up to the Duke's gate, the game swung both leaves open by itself (what Tefa saw: the game's own
+  push, 8 then 51 degrees); both were held at **1 degree**. Ethan's body in the gateway pushed one leaf to **17 degrees**,
+  the left hand swept forward pushed the other to **41 degrees**. The right hand down the middle touched neither leaf.
+- **The walls, two faults found and fixed in b139:** (1) the `Terrain` layer hits nothing (a ray straight down from the
+  head: Terrain 0 hits, Bullet 1, Default 8): the rays now use `Bullet`, the thrown magazine's; (2) the plugin's freshness
+  check used `bridge::has()`, which calls anything from 499 up "no value": the frame count passes that within seconds, so
+  the wall stop stood down every frame. Fixed: plain finite checks. With both fixed, the right hand stopped at the
+  mausoleum wall (`st10_167_MausoleumArea_Etc`), 7-12 cm short of where it would have gone, bare-handed and with the LEMI.
+- The gate's leaves are named `Door` under `sm81_077_StudioGate_00_DoubleDoor_BreakLock`: skipped as walls, as meant.
+- While a save loads the hand sits ~130 m away: a 1.5 m reach cap now.
+- Test trap: a VR Bench controller held perfectly still goes "asleep" after 20 frames (sleephands.cpp) and the hand drops
+  to the hip; `tools/sim/hands_live.py` holds the pose with a 2 mm wobble.

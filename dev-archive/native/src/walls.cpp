@@ -23,10 +23,12 @@ void on_ik(MO* ik) {
     if (side < 0) return;
     const bridge::Slot on = side == 0 ? bridge::S_WALL_L_ON : bridge::S_WALL_R_ON;
     const float stamp = bridge::view(on), frame = bridge::view(bridge::S_FRAME);
-    if (!bridge::has(stamp) || !bridge::has(frame) || stamp < frame + 1.0f - (float)WALLS_STALE_FRAMES) return;   // no wall lately
+    // (not bridge::has(): it calls anything from 499 up "no value", and the frame count passes that a few seconds in;
+    // the first simulator run, 2026-11-18, stood down every frame for it)
+    if (!std::isfinite(stamp) || !std::isfinite(frame) || stamp < 0.5f || stamp < frame + 1.0f - (float)WALLS_STALE_FRAMES) return;   // no wall lately
     const Vec3 p = bridge::view_vec3(side == 0 ? bridge::S_WALL_L_P : bridge::S_WALL_R_P);
     Vec3 n = bridge::view_vec3(side == 0 ? bridge::S_WALL_L_N : bridge::S_WALL_R_N);
-    if (!bridge::has(p.x) || !bridge::has(n.x)) return;
+    if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z) || !std::isfinite(n.x)) return;   // world metres may pass 499 too
     const float nl = std::sqrt(dot(n, n));
     if (nl < 0.5f) return;
     n = n * (1.0f / nl);

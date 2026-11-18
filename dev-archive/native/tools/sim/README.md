@@ -6,7 +6,9 @@ and Village on Single Frame Multipass (Two Frame Sequential freezes on the first
 - `drive.sh`: launch on the simulator and drive to gameplay (A, A, left stick up, A, wait, A). Writes `pid.txt`.
 - `keys.py <pid> [keys]`: bring the game forward (it pauses when not in front) and tap keys; 1-4 take out quick-slot guns.
 - `vb.py press <hand> <button> [sec]`, `stick.py <hand> <x> <y>`: VR Bench buttons and sticks.
-- `hands.py rx ry rz ryaw rpitch [lx ly lz lyaw lpitch]`: hold both controllers still (room metres, degrees).
+- `hands.py rx ry rz ryaw rpitch [lx ly lz lyaw lpitch]`: hold both controllers still (room metres, degrees). ⚠️ Perfectly
+  still = "asleep" after 20 frames (sleephands.cpp: the hand drops to the hip); for any hand test use
+- `hands_live.py <seconds> <same numbers>`: the same pose kept alive with a 2 mm wobble (2026-11-18).
 - `walk.py <zone>`: walk the left controller to a grip zone by the game's own hand_cm (zones_state.json);
   `walk.py squeeze|trigger <0|1>` keeps the pose and presses.
 - `stroke.py <m> [steps] [hold]`: pull the left controller back along the gun and home (a rack / pump).
