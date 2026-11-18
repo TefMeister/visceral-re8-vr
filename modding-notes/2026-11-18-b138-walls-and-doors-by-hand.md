@@ -59,3 +59,21 @@ On the simulator, F2 aimed level at the mausoleum wall from a hand 0.55 m out: "
 hand 48-91 cm back, and a ray from the eye to the drawn muzzle then hit nothing; the same muzzle point on 5 samples (no
 flicker). Open: a hand sent back this far may look odd up close (a real arm would raise or tuck the gun): Tefa's look
 decides whether it wants a tilt instead past some distance. The gate's leaves are not walls, so a muzzle passes into them.
+
+## b141: the gun turns at the wrist instead; the gun pushes doors `[verified-live 2026-11-18, simulator, n=1 each]`
+Tefa: *"instead of pushing the hand back, can right hand stay put and the weapon angle away from the wall and the hand at
+the wrist just follows. and is it possible to use a gun to push a door open"*.
+- **The tilt:** on a muzzle hit, `visceral_re8_walls.lua` finds the smallest turn (2-degree steps, up to 80) of the barrel
+  away from the wall and a little up (the wall's normal across the barrel, plus half of "up" across it; a head-on wall:
+  straight up) that keeps the muzzle 3 cm off the wall; eased in at 720 deg/s, out at 240. The turn goes through bridge
+  267-271 to `walls.cpp`, which puts it on the right hand's IK target rotation (before it), once per placing of the target
+  (a target that already carries the turn it wrote is left alone, since the game can solve an arm twice a frame). The hand
+  stays put; only past 80 degrees does it also slide back for the rest.
+- Found on the way: `re8vr.last_right_hand_rotation` is NOT unit length (e.g. -0.36 -0.63 -0.48 1.00); normalised before
+  use (b140 learned and predicted with it unnormalised; its test passed regardless). A copy of the script loaded again by
+  hand (dofile) now takes over from the old one (`__visceral_walls_gen`).
+- Simulator, F2 aimed into the mausoleum wall three ways (controller yaw -180 / -165 / -150): muzzle in the wall "no" each
+  time (`tools/sim/q_muzzle_wall.lua`), the hand moved 0.00 m, the gun turned 46 / 54 / 38 degrees, pitched up.
+- **The gun pushes doors:** the drawn muzzle (bridge 272-275) and the barrel's middle push leaves like the wrists (5 cm reach)
+  and can press A on a shut one. With the hand held still by the body, sweeping the rifle across pushed a gate leaf from 40
+  to 50 degrees (`tools/sim/q_gate_leaves.lua` reads every near leaf's angle).

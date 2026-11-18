@@ -27,8 +27,8 @@ struct Leaf {
     bool wrote = false;
     float game = 0.0f;        // the game's own angle, last seen written (unsigned degrees)
     float sign = 0.0f;        // which way the game turns the joint to open it
-    float hand_prev[2] = {0, 0};
-    bool hand_prev_ok[2] = {false, false};
+    float hand_prev[4] = {0, 0, 0, 0};             // per pusher: the two wrists, the muzzle, the barrel's middle
+    bool hand_prev_ok[4] = {false, false, false, false};
 };
 Leaf g_leaves[DOORS_MAX_LEAVES];
 float g_last_scan = -10.0f, g_last_touch = -10.0f, g_log_t = -10.0f;
@@ -84,6 +84,28 @@ bool hand_world(int i, Vec3& out) {
     return std::isfinite(out.x) && std::isfinite(out.z);   // world metres: not bridge::has(), which stops at 499
 }
 bool player_pos(Vec3& out) { return get_v3(XFORM, player::now().tf, "get_Position", out); }
+
+// what pushes a door: the two wrists, and (2026-11-18, Tefa: "is it possible to use a gun to push a door open") the gun's
+// muzzle and the middle of its barrel, from the drawn muzzle visceral_re8_walls.lua hands over (bridge S_MUZZLE_W)
+struct Pusher { Vec3 p; float r; };
+int pushers(Pusher out[4]) {
+    int n = 0;
+    Vec3 w[2];
+    bool ok[2];
+    for (int i = 0; i < 2; ++i) {
+        ok[i] = hand_world(i, w[i]);
+        if (ok[i]) out[n++] = {w[i], DOORS_HAND_R};
+    }
+    const float stamp = bridge::view(bridge::S_MUZZLE_ON), frame = bridge::view(bridge::S_FRAME);
+    if (DOORS_GUN_PUSHES && player::now().weapon != nullptr && std::isfinite(stamp) && std::isfinite(frame) && stamp >= 0.5f && stamp >= frame - 2.0f) {
+        const Vec3 m = bridge::view_vec3(bridge::S_MUZZLE_W);
+        if (std::isfinite(m.x) && std::isfinite(m.y) && std::isfinite(m.z)) {
+            out[n++] = {m, DOORS_GUN_R};
+            if (ok[1] && dist(m, w[1]) < 1.5f) out[n++] = {(m + w[1]) * 0.5f, DOORS_GUN_R};
+        }
+    }
+    return n;
+}
 
 bool locked(MO* comp) { return call_direct<bool>(comp, "IsLocked", false); }
 
@@ -154,11 +176,13 @@ void frame() {
     // a hand pressing on a shut leaf, moving into it: A for the game
     for (Leaf& d : g_leaves) {
         if (d.comp == nullptr || d.active) continue;
-        for (int i = 0; i < 2; ++i) {
-            Vec3 hp;
+        Pusher ps[4];
+        const int np = pushers(ps);
+        for (int i = 0; i < np; ++i) {
+            const Vec3 hp = ps[i].p;
             float a, r;
-            if (!hand_world(i, hp) || !angle_of(d, hp, a, r)) { d.hand_prev_ok[i] = false; continue; }
-            const float m = std::asin(std::fmin(1.0f, DOORS_HAND_R / std::fmax(r, DOORS_HAND_R))) / DEG;
+            if (!angle_of(d, hp, a, r)) { d.hand_prev_ok[i] = false; continue; }
+            const float m = std::asin(std::fmin(1.0f, ps[i].r / std::fmax(r, ps[i].r))) / DEG;
             const bool touching = r >= 0.12f && r <= DOORS_LEAF_M && std::fabs(a) <= m;
             const bool closing_in = d.hand_prev_ok[i] && std::fabs(a) < std::fabs(d.hand_prev[i]);
             d.hand_prev[i] = a;
@@ -168,7 +192,7 @@ void frame() {
                 if (locked(d.comp)) { say("a hand on a LOCKED door (%.2f m from the hinge): no A", r); return; }
                 g_press_seq += 1.0f;
                 bridge::put(bridge::S_DOOR_PRESS_SEQ, g_press_seq);
-                say("a hand on a shut door (%.2f m from the hinge): A for the game", r);
+                say(i < 2 ? "a hand on a shut door (%.2f m from the hinge): A for the game" : "the gun on a shut door (%.2f m from the hinge): A for the game", r);
                 return;
             }
         }
@@ -191,7 +215,7 @@ void late_point() {
                 d.active = true;
                 d.sign = raw < 0.0f ? -1.0f : 1.0f;
                 d.drawn = DOORS_INITIAL_DEG;
-                d.hand_prev_ok[0] = d.hand_prev_ok[1] = false;
+                for (bool& b : d.hand_prev_ok) b = false;
                 say("the game opened a door (it turns %.0f): drawn at %.0f deg, the hands and the body push it from here", d.sign, DOORS_INITIAL_DEG);
             } else {
                 d.wrote = false;   // never drawn while shut: the next read is the game's own again
@@ -208,11 +232,13 @@ void late_point() {
             continue;
         }
         // the hands: a hand that crossed the leaf since last frame, or is on it, pushes it to just past itself
-        for (int i = 0; i < 2; ++i) {
-            Vec3 hp;
+        Pusher ps[4];
+        const int np = pushers(ps);
+        for (int i = 0; i < np; ++i) {
+            const Vec3 hp = ps[i].p;
             float a, r;
-            if (!hand_world(i, hp) || !angle_of(d, hp, a, r) || r < 0.12f || r > DOORS_LEAF_M + DOORS_HAND_R) { d.hand_prev_ok[i] = false; continue; }
-            const float m = std::asin(std::fmin(1.0f, DOORS_HAND_R / r)) / DEG;
+            if (!angle_of(d, hp, a, r) || r < 0.12f || r > DOORS_LEAF_M + ps[i].r) { d.hand_prev_ok[i] = false; continue; }
+            const float m = std::asin(std::fmin(1.0f, ps[i].r / r)) / DEG;
             const bool crossed = d.hand_prev_ok[i] && d.hand_prev[i] <= d.drawn + m && a + m > d.drawn;
             const bool on_it = std::fabs(a - d.drawn) <= m;
             if ((crossed || on_it) && a + m > d.drawn && a + m < DOORS_MAX_DEG + 20.0f) d.drawn = std::fmin(DOORS_MAX_DEG, a + m);

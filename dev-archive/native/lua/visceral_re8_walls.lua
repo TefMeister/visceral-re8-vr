@@ -22,6 +22,8 @@ local function safe(f) local ok, v = pcall(f); if ok then return v end end
 local FILE = "visceral_re8/walls.json"
 local S_FRAME, S_GRIPPING_WEAPON, S_WEAPON_NUM = 0, 36, 97
 local SLOTS = { { on = 252, p = 253, n = 256 }, { on = 259, p = 260, n = 263 } }   -- left, right
+local S_TILT_Q, S_TILT_ON = 267, 271        -- the gun's turn at the wrist (world x y z w), its stamp (src/bridge.h S_WALL_TILT_*)
+local S_MUZZLE_W, S_MUZZLE_ON = 272, 275    -- the drawn muzzle (world), its stamp, for doors.cpp (S_MUZZLE_W)
 local cfg = {
     enabled = true,
     with_gun = true,        -- the hand holding a gun stops too (the gun with it)
@@ -32,6 +34,11 @@ local cfg = {
     max_reach = 1.50,       -- nor one further than this (2026-11-18, simulator: while a save loads the hand sits 130 m away)
     muzzle = true,          -- the gun's muzzle stops at the wall too, the hand giving way (Tefa 2026-11-18)
     muzzle_r = 0.03,        -- the muzzle stops this far off the wall (m)
+    muzzle_tilt = true,     -- the gun turns at the wrist away from the wall (Tefa 2026-11-18); false = the hand slides back
+    tilt_max = 80,          -- the steepest turn (deg); past it the hand also slides back
+    tilt_up = 0.5,          -- how much "up" is mixed into the way the gun turns away (a head-on wall: straight up)
+    tilt_in_dps = 720,      -- how fast the gun turns away (deg/s)
+    tilt_out_dps = 240,     -- and comes back
     max_push = 1.20,        -- the furthest a hand is ever sent back (walls.cpp WALLS_MAX_PUSH_M, the same number)
 }
 local function load_cfg()
@@ -139,6 +146,11 @@ local function qrot(q, p)   -- rotate p by the unit quaternion q
 end
 
 local function qconj(q) return { x = -q.x, y = -q.y, z = -q.z, w = q.w } end
+local function qmul(a, b)   -- a * b: b first, then a
+    return { x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y, y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+             z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w, w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z }
+end
+local function cross(a, b) return v(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x) end
 local function facing(n, dir)   -- the hit's normal, unit length, on the player's side (against the ray)
     if n == nil or len(n) < 0.5 then n = mul(dir, -1) end
     n = mul(n, 1 / len(n))
@@ -148,8 +160,11 @@ end
 
 -- ===== each frame =====
 local hit_log_t = { 0, 0 }
-local muz = { gun = -1, local_ = nil, prev_hand = nil, prev_q = nil, prev_plane = nil }   -- the gun's muzzle in the hand's frame
+local GEN = (rawget(_G, "__visceral_walls_gen") or 0) + 1   -- a copy loaded again by hand (dofile) takes over; the old one stops
+rawset(_G, "__visceral_walls_gen", GEN)
+local muz = { gun = -1, local_ = nil, prev_hand = nil, prev_q = nil, prev_plane = nil, tilt = 0.0, axis = nil, prev_tilt_q = nil }   -- the gun's muzzle in the hand's frame
 local function update()
+    if rawget(_G, "__visceral_walls_gen") ~= GEN then return end
     local b = rawget(_G, "visceral_re8_bridge")
     if not cfg.enabled or b == nil or not b.ready() then return end
     local re8vr = rawget(_G, "re8vr")
@@ -165,7 +180,7 @@ local function update()
     right = mul(right, 1 / rl)
     local gun_num = b.r(S_WEAPON_NUM)
     local gun = gun_num > 0.5
-    if gun_num ~= muz.gun then muz.gun, muz.local_ = gun_num, nil end   -- a new gun: its muzzle is learned again
+    if gun_num ~= muz.gun then muz.gun, muz.local_, muz.tilt, muz.prev_tilt_q = gun_num, nil, 0.0, nil end   -- a new gun: its muzzle is learned again
     for side = 1, 2 do
         local hp = side == 1 and re8vr.last_left_hand_position or re8vr.last_right_hand_position
         local skip = hp == nil or type(hp.x) ~= "number"
@@ -190,28 +205,41 @@ local function update()
                     offer(add(h.p, mul(n, cfg.hand_r)), n, "hand")
                 end
             end
-            -- (2) the gun in the right hand (2026-11-18, Tefa: "see if long guns also stop at the wall, i mean that even the tip
-            -- of the gun doesn't go in the wall and bends with the hand naturally inwards"): where its muzzle WOULD be with the
-            -- hand where the player holds it, a ray from the hand to there; a hit = the hand's stop plane moved back by the
-            -- gun's own length, so the muzzle stops at the wall and the hand (and the arm) give way
+            -- (2) the gun in the right hand. 2026-11-18, Tefa: "see if long guns also stop at the wall, i mean that even the tip
+            -- of the gun doesn't go in the wall"; then (b141): "instead of pushing the hand back, can right hand stay put and the
+            -- weapon angle away from the wall and the hand at the wrist just follows". So: where the muzzle WOULD be with the hand
+            -- where the player holds it; a ray from the hand to there; on a hit the gun turns at the wrist, away from the wall
+            -- and a little up, just far enough for the muzzle to stay off it (eased in and out). Only when even tilt_max is not
+            -- enough does the hand also slide back for the rest.
             if side == 2 and gun and cfg.with_gun and cfg.muzzle then
                 local hr = re8vr.last_right_hand_rotation
                 local mp = re8vr.last_muzzle_pos
                 local q = hr and type(hr.w) == "number" and { x = hr.x, y = hr.y, z = hr.z, w = hr.w } or nil
-                -- learn where the muzzle sits in the hand's own frame, from last frame's drawn muzzle and last frame's
-                -- hand as it was drawn (moved by last frame's plane the same way walls.cpp moved it)
+                -- (2026-11-18, simulator: re8vr.last_right_hand_rotation is NOT unit length, e.g. -0.36 -0.63 -0.48 1.00;
+                -- the turns below assume a unit one, so it is made one)
+                if q then
+                    local ql = math.sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w)
+                    if ql > 1e-6 then q = { x = q.x / ql, y = q.y / ql, z = q.z / ql, w = q.w / ql } else q = nil end
+                end
+                local now = os.clock()
+                local dt = math.min(0.1, math.max(0.0, now - (muz.t or now)))
+                muz.t = now
+                -- learn where the muzzle sits in the hand's own frame, from last frame's drawn muzzle and last frame's hand
+                -- as it was drawn (moved by last frame's plane and turned by last frame's tilt, as walls.cpp did)
                 if q and mp and type(mp.x) == "number" and muz.prev_hand and muz.prev_q then
                     local drawn = muz.prev_hand
                     if muz.prev_plane then
                         local pd = dot(sub(drawn, muz.prev_plane.p), muz.prev_plane.n)
                         if pd < 0 and pd > -cfg.max_push then drawn = sub(drawn, mul(muz.prev_plane.n, pd)) end
                     end
-                    local l = qrot(qconj(muz.prev_q), sub(v(mp.x, mp.y, mp.z), drawn))
+                    local drawn_q = muz.prev_tilt_q and qmul(muz.prev_tilt_q, muz.prev_q) or muz.prev_q
+                    local l = qrot(qconj(drawn_q), sub(v(mp.x, mp.y, mp.z), drawn))
                     local ll = len(l)
                     if ll > 0.05 and ll < 1.3 then
                         muz.local_ = muz.local_ and add(mul(muz.local_, 0.8), mul(l, 0.2)) or l   -- eased: the drawn arm lags a frame
                     end
                 end
+                local want = 0.0   -- the tilt wanted this frame (radians)
                 if q and muz.local_ then
                     local barrel = qrot(q, muz.local_)
                     local bl = len(barrel)
@@ -220,11 +248,59 @@ local function update()
                         local h = ray(hand, add(add(hand, barrel), mul(bdir, cfg.muzzle_r)))
                         if h then
                             local n = facing(h.n, bdir)
-                            offer(sub(add(h.p, mul(n, cfg.muzzle_r)), barrel), n, "muzzle")
+                            if cfg.muzzle_tilt then
+                                -- away from the wall, and a little up (a head-on wall: up)
+                                local up = v(0, 1, 0)
+                                local nperp = sub(n, mul(bdir, dot(n, bdir)))
+                                local uperp = sub(up, mul(bdir, dot(up, bdir)))
+                                local u = add(nperp, mul(uperp, cfg.tilt_up))
+                                if len(u) < 1e-3 then u = uperp end
+                                if len(u) > 1e-3 then
+                                    u = mul(u, 1 / len(u))
+                                    local need = cfg.muzzle_r - dot(sub(hand, h.p), n)   -- dot(turned barrel, n) must reach this
+                                    local found = nil
+                                    for deg = 0, cfg.tilt_max, 2 do
+                                        local t = math.rad(deg)
+                                        if dot(add(mul(barrel, math.cos(t)), mul(u, bl * math.sin(t))), n) >= need then found = t; break end
+                                    end
+                                    want = found or math.rad(cfg.tilt_max)
+                                    local ax = cross(bdir, u)
+                                    if len(ax) > 1e-3 then muz.axis = mul(ax, 1 / len(ax)) end
+                                    if found == nil then   -- even the steepest tilt is not enough: the hand gives way for the rest
+                                        local t = want
+                                        local bt = add(mul(barrel, math.cos(t)), mul(u, bl * math.sin(t)))
+                                        offer(sub(add(h.p, mul(n, cfg.muzzle_r)), bt), n, "muzzle")
+                                    end
+                                    muz.why = "tilt"
+                                end
+                            else
+                                offer(sub(add(h.p, mul(n, cfg.muzzle_r)), barrel), n, "muzzle")
+                            end
                         end
                     end
                 end
+                -- ease the tilt toward what is wanted (fast in, slower out), and hand it to walls.cpp
+                local rate = math.rad(want > (muz.tilt or 0) and cfg.tilt_in_dps or cfg.tilt_out_dps)
+                muz.tilt = muz.tilt or 0.0
+                if want > muz.tilt then muz.tilt = math.min(want, muz.tilt + rate * dt) else muz.tilt = math.max(want, muz.tilt - rate * dt) end
+                muz.prev_tilt_q = nil
+                if muz.tilt > 1e-3 and muz.axis then
+                    local hs = math.sin(muz.tilt * 0.5)
+                    local tq = { x = muz.axis.x * hs, y = muz.axis.y * hs, z = muz.axis.z * hs, w = math.cos(muz.tilt * 0.5) }
+                    b.w(S_TILT_Q, tq.x); b.w(S_TILT_Q + 1, tq.y); b.w(S_TILT_Q + 2, tq.z); b.w(S_TILT_Q + 3, tq.w)
+                    b.w(S_TILT_ON, b.r(S_FRAME) + 1.0)   -- LAST
+                    muz.prev_tilt_q = tq
+                    if now - (muz.log_t or 0) > 2.0 then
+                        muz.log_t = now
+                        L(string.format("the gun's muzzle meets a wall: the gun turns %.0f deg at the wrist", math.deg(muz.tilt)))
+                    end
+                end
                 muz.prev_hand, muz.prev_q = hand, q
+                -- the drawn muzzle for doors.cpp: a gun pushes doors too (Tefa 2026-11-18)
+                if mp and type(mp.x) == "number" then
+                    b.w(S_MUZZLE_W, mp.x); b.w(S_MUZZLE_W + 1, mp.y); b.w(S_MUZZLE_W + 2, mp.z)
+                    b.w(S_MUZZLE_ON, b.r(S_FRAME) + 1.0)
+                end
             end
             local s = SLOTS[side]
             if best then

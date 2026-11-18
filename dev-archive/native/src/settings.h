@@ -527,5 +527,7 @@ constexpr int   DOORS_MAX_LEAVES = 4;         // leaves handled at once (a gate 
 constexpr float DOORS_TOUCH_COOLDOWN_S = 1.5f;
 constexpr float DOORS_OPEN_SEEN_DEG = 0.5f;   // the game's own angle above this = the game has the door open
 constexpr const wchar_t* DOORS_HINGE = L"_00";
+constexpr bool  DOORS_GUN_PUSHES = true;      // 2026-11-18 (Tefa): the gun's muzzle and barrel push doors too
+constexpr float DOORS_GUN_R = 0.05f;          // their reach, metres
 
 } // namespace vn::settings
