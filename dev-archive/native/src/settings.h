@@ -508,7 +508,7 @@ constexpr float TORCH_BUZZ_HZ   = 160.0f;
 // lua/visceral_re8_walls.lua's (walls.json)
 constexpr bool  WALLS_ON = true;
 constexpr int   WALLS_STALE_FRAMES = 3;       // a wall last seen longer ago than this many frames is gone
-constexpr float WALLS_MAX_PUSH_M = 0.60f;     // a hand further than this past the plane is not at this wall (a stale or other plane)
+constexpr float WALLS_MAX_PUSH_M = 1.20f;     // a hand further than this past the plane is not at this wall (2026-11-18: 1.2, was 0.6: a long gun's muzzle stop sends the hand back up to its length; the Lua's max_push is the same)
 
 // doors.cpp (2026-11-18): doors and gates pushed by the hand and the body; RE2 / RE3's doorpush numbers (2026-11-16)
 constexpr bool  DOORS_ON = true;

@@ -47,3 +47,15 @@ What Tefa saw was the plain game: the 2026-11-16 door work had only been read on
 - While a save loads the hand sits ~130 m away: a 1.5 m reach cap now.
 - Test trap: a VR Bench controller held perfectly still goes "asleep" after 20 frames (sleephands.cpp) and the hand drops
   to the hip; `tools/sim/hands_live.py` holds the pose with a 2 mm wobble.
+
+## b140: the gun's muzzle stops at the wall too `[verified-live 2026-11-18, simulator, n=1]`
+Tefa: *"see if long guns also stop at the wall, i mean that even the tip of the gun doesn't go in the wall and bends with
+the hand naturally inwards"*. `visceral_re8_walls.lua` learns where the muzzle sits in the right hand's own frame (last
+frame's drawn muzzle against last frame's hand as walls.cpp moved it, eased), predicts the muzzle from where the player
+holds the hand now, and casts hand -> muzzle; a hit gives the hand a stop plane moved back by the gun's own length, so the
+muzzle stops 3 cm off the wall and the hand gives way (the arm bends; the docked left hand follows the gun). The hand's own
+plane and the muzzle's: whichever needs the hand further back wins. walls.cpp's push limit 0.6 -> 1.2 m (a rifle's length).
+On the simulator, F2 aimed level at the mausoleum wall from a hand 0.55 m out: "the right gun's muzzle meets a wall", the
+hand 48-91 cm back, and a ray from the eye to the drawn muzzle then hit nothing; the same muzzle point on 5 samples (no
+flicker). Open: a hand sent back this far may look odd up close (a real arm would raise or tuck the gun): Tefa's look
+decides whether it wants a tilt instead past some distance. The gate's leaves are not walls, so a muzzle passes into them.

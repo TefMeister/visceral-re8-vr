@@ -30,6 +30,9 @@ local cfg = {
     shoulder_side = 0.17,   -- and this far out to the hand's own side
     min_reach = 0.20,       -- a hand nearer the shoulder than this is never checked
     max_reach = 1.50,       -- nor one further than this (2026-11-18, simulator: while a save loads the hand sits 130 m away)
+    muzzle = true,          -- the gun's muzzle stops at the wall too, the hand giving way (Tefa 2026-11-18)
+    muzzle_r = 0.03,        -- the muzzle stops this far off the wall (m)
+    max_push = 1.20,        -- the furthest a hand is ever sent back (walls.cpp WALLS_MAX_PUSH_M, the same number)
 }
 local function load_cfg()
     local okf, fh = pcall(io.open, FILE, "r")
@@ -135,8 +138,17 @@ local function qrot(q, p)   -- rotate p by the unit quaternion q
     return v(p.x + w * tx + (uy * tz - uz * ty), p.y + w * ty + (uz * tx - ux * tz), p.z + w * tz + (ux * ty - uy * tx))
 end
 
+local function qconj(q) return { x = -q.x, y = -q.y, z = -q.z, w = q.w } end
+local function facing(n, dir)   -- the hit's normal, unit length, on the player's side (against the ray)
+    if n == nil or len(n) < 0.5 then n = mul(dir, -1) end
+    n = mul(n, 1 / len(n))
+    if dot(n, dir) > 0 then n = mul(n, -1) end
+    return n
+end
+
 -- ===== each frame =====
 local hit_log_t = { 0, 0 }
+local muz = { gun = -1, local_ = nil, prev_hand = nil, prev_q = nil, prev_plane = nil }   -- the gun's muzzle in the hand's frame
 local function update()
     local b = rawget(_G, "visceral_re8_bridge")
     if not cfg.enabled or b == nil or not b.ready() then return end
@@ -151,7 +163,9 @@ local function update()
     local rl = len(right)
     if rl < 1e-3 then return end
     right = mul(right, 1 / rl)
-    local gun = b.r(S_WEAPON_NUM) > 0.5
+    local gun_num = b.r(S_WEAPON_NUM)
+    local gun = gun_num > 0.5
+    if gun_num ~= muz.gun then muz.gun, muz.local_ = gun_num, nil end   -- a new gun: its muzzle is learned again
     for side = 1, 2 do
         local hp = side == 1 and re8vr.last_left_hand_position or re8vr.last_right_hand_position
         local skip = hp == nil or type(hp.x) ~= "number"
@@ -159,6 +173,12 @@ local function update()
             or (side == 1 and b.r(S_GRIPPING_WEAPON) > 0.5)   -- the left hand on the gun goes with the gun
         if not skip then
             local hand = v(hp.x, hp.y, hp.z)
+            local best = nil   -- { p, n, d, why }: the plane that needs the hand furthest back
+            local function offer(p, n, why)
+                local d = dot(sub(hand, p), n)
+                if best == nil or d < best.d then best = { p = p, n = n, d = d, why = why } end
+            end
+            -- (1) the hand itself: a ray from about the shoulder to the hand
             local shoulder = add(add(cam, v(0, -cfg.shoulder_down, 0)), mul(right, (side == 1 and -1 or 1) * cfg.shoulder_side))
             local d = sub(hand, shoulder)
             local dl = len(d)
@@ -166,21 +186,58 @@ local function update()
                 local dir = mul(d, 1 / dl)
                 local h = ray(shoulder, add(hand, mul(dir, cfg.hand_r)))
                 if h then
-                    local n = h.n
-                    if n == nil or len(n) < 0.5 then n = mul(dir, -1) end
-                    n = mul(n, 1 / len(n))
-                    if dot(n, dir) > 0 then n = mul(n, -1) end   -- the side facing the player
-                    local stop = add(h.p, mul(n, cfg.hand_r))
-                    local s = SLOTS[side]
-                    b.w(s.p, stop.x); b.w(s.p + 1, stop.y); b.w(s.p + 2, stop.z)
-                    b.w(s.n, n.x); b.w(s.n + 1, n.y); b.w(s.n + 2, n.z)
-                    b.w(s.on, b.r(S_FRAME) + 1.0)   -- LAST, after the numbers
-                    if os.clock() - hit_log_t[side] > 2.0 then
-                        hit_log_t[side] = os.clock()
-                        L(string.format("the %s hand meets a wall %.2f m from the shoulder (the hand is %.2f m out)", side == 1 and "left" or "right", len(sub(h.p, shoulder)), dl))
-                    end
+                    local n = facing(h.n, dir)
+                    offer(add(h.p, mul(n, cfg.hand_r)), n, "hand")
                 end
             end
+            -- (2) the gun in the right hand (2026-11-18, Tefa: "see if long guns also stop at the wall, i mean that even the tip
+            -- of the gun doesn't go in the wall and bends with the hand naturally inwards"): where its muzzle WOULD be with the
+            -- hand where the player holds it, a ray from the hand to there; a hit = the hand's stop plane moved back by the
+            -- gun's own length, so the muzzle stops at the wall and the hand (and the arm) give way
+            if side == 2 and gun and cfg.with_gun and cfg.muzzle then
+                local hr = re8vr.last_right_hand_rotation
+                local mp = re8vr.last_muzzle_pos
+                local q = hr and type(hr.w) == "number" and { x = hr.x, y = hr.y, z = hr.z, w = hr.w } or nil
+                -- learn where the muzzle sits in the hand's own frame, from last frame's drawn muzzle and last frame's
+                -- hand as it was drawn (moved by last frame's plane the same way walls.cpp moved it)
+                if q and mp and type(mp.x) == "number" and muz.prev_hand and muz.prev_q then
+                    local drawn = muz.prev_hand
+                    if muz.prev_plane then
+                        local pd = dot(sub(drawn, muz.prev_plane.p), muz.prev_plane.n)
+                        if pd < 0 and pd > -cfg.max_push then drawn = sub(drawn, mul(muz.prev_plane.n, pd)) end
+                    end
+                    local l = qrot(qconj(muz.prev_q), sub(v(mp.x, mp.y, mp.z), drawn))
+                    local ll = len(l)
+                    if ll > 0.05 and ll < 1.3 then
+                        muz.local_ = muz.local_ and add(mul(muz.local_, 0.8), mul(l, 0.2)) or l   -- eased: the drawn arm lags a frame
+                    end
+                end
+                if q and muz.local_ then
+                    local barrel = qrot(q, muz.local_)
+                    local bl = len(barrel)
+                    if bl > 0.05 then
+                        local bdir = mul(barrel, 1 / bl)
+                        local h = ray(hand, add(add(hand, barrel), mul(bdir, cfg.muzzle_r)))
+                        if h then
+                            local n = facing(h.n, bdir)
+                            offer(sub(add(h.p, mul(n, cfg.muzzle_r)), barrel), n, "muzzle")
+                        end
+                    end
+                end
+                muz.prev_hand, muz.prev_q = hand, q
+            end
+            local s = SLOTS[side]
+            if best then
+                b.w(s.p, best.p.x); b.w(s.p + 1, best.p.y); b.w(s.p + 2, best.p.z)
+                b.w(s.n, best.n.x); b.w(s.n + 1, best.n.y); b.w(s.n + 2, best.n.z)
+                b.w(s.on, b.r(S_FRAME) + 1.0)   -- LAST, after the numbers
+                if os.clock() - hit_log_t[side] > 2.0 and best.d < 0 then
+                    hit_log_t[side] = os.clock()
+                    L(string.format("the %s %s meets a wall: the hand goes %.0f cm back", side == 1 and "left" or "right",
+                        best.why == "muzzle" and "gun's muzzle" or "hand", -best.d * 100))
+                end
+            end
+            if side == 2 then muz.prev_plane = best and { p = best.p, n = best.n } or nil end
         end
     end
 end
