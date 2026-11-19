@@ -512,7 +512,19 @@ constexpr float WALLS_MAX_PUSH_M = 1.20f;     // a hand further than this past t
 
 // doors.cpp (2026-11-18): doors and gates pushed by the hand and the body; RE2 / RE3's doorpush numbers (2026-11-16)
 constexpr bool  DOORS_ON = true;
-constexpr bool  DOORS_TOUCH_OPENS = true;     // the hand pressing on a shut leaf presses A for it
+constexpr bool  DOORS_TOUCH_OPENS = true;     // the hand pressing on a shut leaf opens it (2026-11-19: the Lua calls the game's own
+                                              // InteractDoor.StartInteractDoor, A's path, so the door's sound starts at the touch)
+// 2026-11-19: app.DoorBehavior.get_doorState = the murmur hash (via.murmur_hash.calc32) of the state's name, read on the
+// simulator. ⚠️ the 2026-11-16 note called 396010129 "shut": it is PUSH (the walk-in push had put the gate there)
+constexpr uint32_t DOORS_STATE_CLOSED = 474011919u;
+constexpr uint32_t DOORS_STATE_LOCKED = 3401490761u;
+constexpr uint32_t DOORS_STATE_LITTLE_OPEN = 3407536511u;   // the game's 20-degree crack, starting
+constexpr uint32_t DOORS_STATE_LITTLE_OPENED = 171654102u;  // ... held (what the hand's StartInteractDoor gives a gate)
+constexpr uint32_t DOORS_STATE_OPENING = 887278378u;
+constexpr uint32_t DOORS_STATE_OPENED = 3232296810u;
+constexpr uint32_t DOORS_STATE_PUSH = 396010129u;
+constexpr uint32_t DOORS_STATE_CLOSING = 3360157036u;
+constexpr float DOORS_SHUT_HOLD_S = 0.3f;     // the state Closed this long = the game has shut it
 constexpr float DOORS_INITIAL_DEG = 1.0f;     // how far a door is drawn open when the game opens it (Tefa: "1 degree")
 constexpr float DOORS_MAX_DEG = 92.0f;        // never drawn further than this
 constexpr float DOORS_LEAF_M = 1.3f;          // the leaf's width from the hinge (a gate's leaf is wider than RE2's 1.0 m doors) [hypothesis]

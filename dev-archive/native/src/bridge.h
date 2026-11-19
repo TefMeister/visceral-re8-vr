@@ -145,8 +145,9 @@ enum Slot : int {
     // keeps the IK target on the player's side of that plane.
     S_WALL_L_ON = 252, S_WALL_L_P = 253, S_WALL_L_N = 256,
     S_WALL_R_ON = 259, S_WALL_R_P = 260, S_WALL_R_N = 263,
-    // 2026-11-18 (doors.cpp): WRITTEN BY THE PLUGIN, +1 per "the hand touched a shut door: press A for the game"; re8_vr.lua's
-    // pad then holds the game's Decide button for a few pad updates (its crouch pulse's way)
+    // 2026-11-18 (doors.cpp): WRITTEN BY THE PLUGIN, +1 per "the hand touched a shut door"; since 2026-11-19 (b143)
+    // lua/visceral_re8_doors.lua then calls the game's own InteractDoor.StartInteractDoor on the leaf whose hinge is at
+    // S_DOOR_TOUCH_P (276-278, world; written just before the count), instead of re8_vr.lua pressing A
     S_DOOR_PRESS_SEQ = 266,
     // 2026-11-18 (b141, Tefa: "instead of pushing the hand back, can right hand stay put and the weapon angle away from the
     // wall and the hand at the wrist just follows"), WRITTEN BY lua/visceral_re8_walls.lua: 267-270 the turn to put on the
@@ -155,6 +156,7 @@ enum Slot : int {
     // 2026-11-18 (b141, Tefa: "is it possible to use a gun to push a door open"), WRITTEN BY lua/visceral_re8_walls.lua: the
     // drawn muzzle (world), 275 its stamp; doors.cpp pushes with it and with the barrel's middle
     S_MUZZLE_W = 272, S_MUZZLE_ON = 275,
+    S_DOOR_TOUCH_P = 276,     // 276-278, see S_DOOR_PRESS_SEQ (2026-11-19, b143)
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

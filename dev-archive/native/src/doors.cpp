@@ -27,6 +27,10 @@ struct Leaf {
     bool wrote = false;
     float game = 0.0f;        // the game's own angle, last seen written (unsigned degrees)
     float sign = 0.0f;        // which way the game turns the joint to open it
+    float rest = 0.0f;        // the leaf's own local yaw when we first saw it shut (signed degrees): put back when the game shuts it
+    float shut_since = -1.0f; // when the game's door state was first seen Closed again while we draw it (-1 = not)
+    bool seen_shut = false;   // seen Closed since we took it: only then is an open the game's NEW open (2026-11-19: a door left
+                              // open earlier in the playthrough, Opened at -90, would otherwise be "opened" and snapped to 1 deg)
     float hand_prev[4] = {0, 0, 0, 0};             // per pusher: the two wrists, the muzzle, the barrel's middle
     bool hand_prev_ok[4] = {false, false, false, false};
 };
@@ -108,6 +112,13 @@ int pushers(Pusher out[4]) {
 }
 
 bool locked(MO* comp) { return call_direct<bool>(comp, "IsLocked", false); }
+// 2026-11-19: the door's own state (app.DoorBehavior.get_doorState, a name hash), the only sure "is it shut" in Village:
+// the game stops writing an open leaf, and shuts it at whatever angle it last wrote (b142 in the headset: a leaf the game had
+// shut stayed "drawn" at 1.5 degrees and kept being pushed, then the next open was missed)
+uint32_t door_state(MO* comp) { return call_direct<uint32_t>(comp, "get_doorState", 0u); }
+bool state_open(uint32_t st) {
+    return st == DOORS_STATE_LITTLE_OPEN || st == DOORS_STATE_LITTLE_OPENED || st == DOORS_STATE_OPENING || st == DOORS_STATE_OPENED || st == DOORS_STATE_PUSH;
+}
 
 void scan() {
     Vec3 pp;
@@ -160,7 +171,8 @@ void scan() {
             d.tf = call_ptr(call_ptr(best[j], "get_GameObject"), "get_Transform");
             d.hinge = joint_by_name(d.tf, DOORS_HINGE);
             if (d.hinge == nullptr) { say("a door leaf with no joint _00: left alone"); d = Leaf{}; break; }
-            d.game = std::fabs(yaw_of_local(d.hinge));
+            d.rest = yaw_of_local(d.hinge);
+            d.game = std::fabs(d.rest);
             say("a door leaf %.1f m away (%.0f leaves in the scene), its angle %.1f deg", best_d[j], (float)k, d.game);
             break;
         }
@@ -190,9 +202,14 @@ void frame() {
             if (touching && closing_in) {
                 g_last_touch = t;
                 if (locked(d.comp)) { say("a hand on a LOCKED door (%.2f m from the hinge): no A", r); return; }
+                Vec3 h;
+                if (!get_v3(JOINT, d.hinge, "get_Position", h)) return;
+                bridge::put(bridge::S_DOOR_TOUCH_P, h.x);
+                bridge::put((bridge::Slot)(bridge::S_DOOR_TOUCH_P + 1), h.y);
+                bridge::put((bridge::Slot)(bridge::S_DOOR_TOUCH_P + 2), h.z);
                 g_press_seq += 1.0f;
                 bridge::put(bridge::S_DOOR_PRESS_SEQ, g_press_seq);
-                say(i < 2 ? "a hand on a shut door (%.2f m from the hinge): A for the game" : "the gun on a shut door (%.2f m from the hinge): A for the game", r);
+                say(i < 2 ? "a hand on a shut door (%.2f m from the hinge): the game opens it now" : "the gun on a shut door (%.2f m from the hinge): the game opens it now", r);
                 return;
             }
         }
@@ -210,10 +227,21 @@ void late_point() {
         const bool game_wrote = !d.wrote || std::fabs(raw - d.written) > 0.05f;
         const float prev = d.game;
         if (game_wrote) d.game = std::fabs(raw);
+        const uint32_t st = door_state(d.comp);
+        const bool st_shut = st == DOORS_STATE_CLOSED || st == DOORS_STATE_LOCKED;
         if (!d.active) {
-            if (game_wrote && d.game > DOORS_OPEN_SEEN_DEG) {
+            const bool st_open = state_open(st);
+            if (st_shut) d.seen_shut = true;
+            if (!d.seen_shut) { d.wrote = false; continue; }   // found open (or not yet known): the game's, left alone
+            if (game_wrote && d.game <= DOORS_OPEN_SEEN_DEG && !st_open) d.rest = raw;   // still shut: its own resting angle
+            if ((game_wrote && d.game > DOORS_OPEN_SEEN_DEG) || st_open) {
                 d.active = true;
-                d.sign = raw < 0.0f ? -1.0f : 1.0f;
+                // which way: the game's own target angle (DestAngle, e.g. -90 on the Duke's gate's left leaf; read 2026-11-19),
+                // else the way the game has started turning it
+                const float* dest = field_ptr<float>(d.comp, "DestAngle");
+                if (dest != nullptr && std::isfinite(*dest) && std::fabs(*dest) > 1.0f) d.sign = *dest < 0.0f ? -1.0f : 1.0f;
+                else d.sign = raw - d.rest < -0.05f ? -1.0f : raw - d.rest > 0.05f ? 1.0f : (d.sign != 0.0f ? d.sign : 1.0f);
+                d.shut_since = -1.0f;
                 d.drawn = DOORS_INITIAL_DEG;
                 for (bool& b : d.hand_prev_ok) b = false;
                 say("the game opened a door (it turns %.0f): drawn at %.0f deg, the hands and the body push it from here", d.sign, DOORS_INITIAL_DEG);
@@ -224,11 +252,16 @@ void late_point() {
         }
         // the game closing it (its own angle falling): ours goes down with it once it is under ours; shut = done
         if (game_wrote && d.game < prev - 0.05f && d.game < d.drawn) d.drawn = d.game;
-        if (game_wrote && d.game < 0.2f) {
-            say("the game shut the door: ours too");
+        // shut: the game's angle back at rest, or its state Closed for a moment (the state goes first, the angle may never come)
+        const float now = now_s();
+        if (st_shut) { if (d.shut_since < 0.0f) d.shut_since = now; } else d.shut_since = -1.0f;
+        if ((game_wrote && d.game < 0.2f) || (d.shut_since >= 0.0f && now - d.shut_since >= DOORS_SHUT_HOLD_S)) {
+            say("the game shut the door: ours too (back to its own %.1f deg)", d.rest);
+            set_local_yaw(d, d.rest);
             d.active = false;
             d.drawn = 0.0f;
             d.wrote = false;
+            d.shut_since = -1.0f;
             continue;
         }
         // the hands: a hand that crossed the leaf since last frame, or is on it, pushes it to just past itself
