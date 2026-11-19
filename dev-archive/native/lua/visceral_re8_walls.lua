@@ -39,6 +39,11 @@ local cfg = {
     tilt_up = 0.5,          -- how much "up" is mixed into the way the gun turns away (a head-on wall: straight up)
     tilt_in_dps = 720,      -- how fast the gun turns away (deg/s)
     tilt_out_dps = 240,     -- and comes back
+    fingers = true,         -- the fingertips stop at the wall too (2026-11-19, Tefa: "sometimes the hand goes through a little")
+    finger_r = 0.02,        -- the fingertip stops this far off the wall (m)
+    finger_tip = 1.15,      -- the fingertip lies this much further out than the middle finger's last joint, from the wrist
+    sweep = true,           -- a wall only stops the hand when the hand's own path crossed it (2026-11-19, Tefa: "sometimes it
+                            -- stays out too much": reaching round a corner, the shoulder's line crossed the corner but the hand never did)
     max_push = 1.20,        -- the furthest a hand is ever sent back (walls.cpp WALLS_MAX_PUSH_M, the same number)
 }
 local function load_cfg()
@@ -163,8 +168,20 @@ local hit_log_t = { 0, 0 }
 local GEN = {}   -- this copy's own token: a copy loaded again by hand (dofile) takes over and the old one stops
 rawset(_G, "__visceral_walls_gen", GEN)
 local muz = { gun = -1, local_ = nil, prev_hand = nil, prev_q = nil, prev_plane = nil, tilt = 0.0, axis = nil, prev_tilt_q = nil }   -- the gun's muzzle in the hand's frame
+local sweep_state = { { }, { } }   -- per hand: drawn = where it was drawn last frame, frame = which frame that was
+local frame_no = 0
+local HAND_J = { { "L_Hand", "L_MiddleF3" }, { "R_Hand", "R_MiddleF3" } }
+local function finger_reach(re8vr, side)   -- wrist -> middle fingertip of the drawn hand (world), or nil
+    return safe(function()
+        local tf = re8vr.player:call("get_Transform")
+        local a = tf:call("getJointByName", HAND_J[side][1]):call("get_Position")
+        local b2 = tf:call("getJointByName", HAND_J[side][2]):call("get_Position")
+        return mul(v(b2.x - a.x, b2.y - a.y, b2.z - a.z), cfg.finger_tip)
+    end)
+end
 local function update()
     if rawget(_G, "__visceral_walls_gen") ~= GEN then return end
+    frame_no = frame_no + 1
     local b = rawget(_G, "visceral_re8_bridge")
     if not cfg.enabled or b == nil or not b.ready() then return end
     local re8vr = rawget(_G, "re8vr")
@@ -200,9 +217,45 @@ local function update()
             if dl >= cfg.min_reach and dl <= cfg.max_reach then
                 local dir = mul(d, 1 / dl)
                 local h = ray(shoulder, add(hand, mul(dir, cfg.hand_r)))
+                -- 2026-11-19 the hand's own path: from where it was DRAWN last frame to where the player holds it now. The
+                -- shoulder's line crossing something is not enough (round a corner the hand is in free air): the path must
+                -- cross something too. No path yet (the first frame, a jump of the tracking) = the shoulder's word alone.
+                local st = sweep_state[side]
+                if h and cfg.sweep and st.drawn and st.frame == frame_no - 1 then
+                    local step = sub(hand, st.drawn)
+                    local sl = len(step)
+                    if sl > 0.005 and sl < 0.6 then
+                        local sdir = mul(step, 1 / sl)
+                        if not ray(st.drawn, add(hand, mul(sdir, cfg.hand_r))) then
+                            h = nil
+                            if os.clock() - (st.log_t or 0) > 2.0 then st.log_t = os.clock(); L("a wall between the shoulder and the " .. (side == 1 and "left" or "right") .. " hand, but the hand's own path is clear: not stopped") end
+                        end
+                    end
+                end
                 if h then
                     local n = facing(h.n, dir)
                     offer(add(h.p, mul(n, cfg.hand_r)), n, "hand")
+                end
+                -- 2026-11-19 the fingertips: the drawn hand reaches ~18 cm past the wrist this script stops. Where the middle
+                -- fingertip lay from the wrist last frame (the drawn joints), carried to where the hand is held now; a ray wrist
+                -- -> fingertip; a hit sets the hand's plane back by the finger's reach into the wall.
+                if cfg.fingers then
+                    local f = finger_reach(re8vr, side)
+                    local fl = f and len(f) or 0
+                    if fl > 0.05 and fl < 0.30 then
+                        local fdir = mul(f, 1 / fl)
+                        -- from where the WRIST will be drawn (already stopped by the plane above), not from where the
+                        -- controller is: that can be inside the wall, and a ray that starts inside one hits nothing
+                        local from = hand
+                        if best and best.d < 0 then from = sub(hand, mul(best.n, best.d)) end
+                        local fh = ray(from, add(add(from, f), mul(fdir, cfg.finger_r)))
+                        if fh then
+                            local n = facing(fh.n, fdir)
+                            -- the hand's plane: the wrist's own stop, set back by how far the fingers reach into the wall
+                            local reach_in = cfg.finger_r - dot(sub(add(from, f), fh.p), n)   -- > 0: the fingertip is this far past its stop
+                            if reach_in > 0 then offer(add(from, mul(n, reach_in)), n, "fingers") end
+                        end
+                    end
                 end
             end
             -- (2) the gun in the right hand. 2026-11-18, Tefa: "see if long guns also stop at the wall, i mean that even the tip
@@ -302,6 +355,12 @@ local function update()
                     b.w(S_MUZZLE_ON, b.r(S_FRAME) + 1.0)
                 end
             end
+            -- where the hand is drawn this frame (walls.cpp's own rule), for the next frame's path
+            do
+                local drawn = hand
+                if best and best.d < 0 and best.d > -cfg.max_push then drawn = sub(hand, mul(best.n, best.d)) end
+                sweep_state[side].drawn, sweep_state[side].frame = drawn, frame_no
+            end
             local s = SLOTS[side]
             if best then
                 b.w(s.p, best.p.x); b.w(s.p + 1, best.p.y); b.w(s.p + 2, best.p.z)
@@ -309,8 +368,8 @@ local function update()
                 b.w(s.on, b.r(S_FRAME) + 1.0)   -- LAST, after the numbers
                 if os.clock() - hit_log_t[side] > 2.0 and best.d < 0 then
                     hit_log_t[side] = os.clock()
-                    L(string.format("the %s %s meets a wall: the hand goes %.0f cm back", side == 1 and "left" or "right",
-                        best.why == "muzzle" and "gun's muzzle" or "hand", -best.d * 100))
+                    L(string.format("the %s %s at a wall: the hand goes %.0f cm back", side == 1 and "left" or "right",
+                        best.why == "muzzle" and "gun's muzzle" or best.why == "fingers" and "fingertips" or "hand", -best.d * 100))
                 end
             end
             if side == 2 then muz.prev_plane = best and { p = best.p, n = best.n } or nil end

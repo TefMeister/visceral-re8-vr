@@ -51,3 +51,21 @@ talisman door (already open) stayed at +-90.
 - Locked doors: no touch, so no rattle when a hand brushes one. Tefa may want the rattle.
 - Not yet seen: an ordinary house door (Village's doors crack open 20 degrees; the gate went to LittleOpened too).
 - The walls' finickiness (Tefa: sometimes in a little, sometimes too far out): not looked at yet.
+
+## Second half, 10:1x-10:2x (Fable, /lm, simulator): b144, the walls less finicky `[ID RE8-002]`
+Tefa on b142: "sometimes the hand goes through a little, sometimnes it stays out too much".
+- **Through a little** `[verified-live 2026-11-19, simulator, n=1 per pose]`: `visceral_re8_walls.lua` stopped only the wrist
+  (praydog's hand position = the drawn `L_Hand` / `R_Hand` joint); the middle fingertip (`L_MiddleF3` x 1.15) lies ~18 cm on.
+  New: a ray from the STOPPED wrist to the fingertip; a hit sets the hand's plane back by the fingers' reach. First try cast
+  from the controller's position, which is inside the wall: a ray that starts inside a wall hits nothing (kept as a lesson).
+  Stone wall by the Duke's gate, left hand pushed 35-40 cm past it, each joint's own distance to the surface
+  (`tools/sim/q_hand_wall.lua`): flat hand wrist +2.2 / tip +0.6 cm; fingers 40 deg into the wall: tip -8.1 cm before,
+  +3.1 cm after (wrist +10.4); fingers 40 deg away: +2.9 / +7.4 (unchanged).
+- **Out too much** `[inferred-static; logged once live, not staged]`: the only test was "the line shoulder -> hand crosses
+  something", true for a hand reaching round a corner or past a post. New: when that line is crossed, the hand's own path
+  (where it was drawn last frame -> where it is held now) must be crossed too; no path yet = the shoulder's word alone.
+- Simulator traps found: VR Bench controllers are in ROOM space (a push along -Z only suits head yaw 0; `tools/sim/hand_push.py
+  <head yaw>` pushes along the view); `q_wall_scan.lua` falls back to layer 2 when `__visceral_wall_layer` is unset, and layer 2
+  shows walls the hand rays (Bullet, 12) do not have: set the global to 12 first. The walker (`walk_to.py`) cannot reach the
+  shaman's house door (a straight line, 3 m lower): an ordinary door is still unseen on b143 / b144.
+- New tools: `tools/sim/hand_push.py`, `q_hand_wall.lua`, `q_doors_near.lua` (every leaf within 45 m: locked, state, name).
