@@ -5,6 +5,7 @@
   spot is our reload's ammo pouch, and his RE2 RELOADED and RE7 VR Reloaded are the reference our manual reload was built from.
   Andyalpa handed all of his Village work to Tefa to carry on, which is why his pack's files are in this repo.
 - **praydog** — REFramework, its plugin API, and the Resident Evil Village VR layer (`re8_vr.lua`).
+- **[alphaZomega (alphazolam)](https://github.com/alphazolam)** — [EMV Engine](https://github.com/alphazolam/EMV-Engine) (MIT), whose poser (freeze a joint, pose it by its local angles, re-apply it after the animation has run) is what our Hand Poser is modelled on; this mod's finger poses on the guns and at the grip spots come from that tool. Studied and written fresh; none of its code is included.
 - **Capcom** — Resident Evil Village. You need your own copy of the game; this project contains none of its files.
 - The REFramework and RE modding communities, for the knowledge this builds on.
 
