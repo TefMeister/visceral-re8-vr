@@ -43,3 +43,8 @@ GitHub issue on this repo and we will correct it as soon as possible.
 - **The Khronos Group**, OpenXR 1.1 reference page for `xrSyncActions` — https://registry.khronos.org/OpenXR/specs/1.1/man/html/xrSyncActions.html
 - **praydog**, REFramework source (`OpenXR.cpp`, `VR.cpp`) and nightly 01439, incl. PR #1893 by **Dimcirui** — https://github.com/praydog/REFramework
 - **h1nt36r2**, RE2IVR (installer settings) — https://github.com/h1nt36r2/Resident-Evil-2-Remake-VR
+
+## Sources (2026-11-21)
+
+- **PureDark**, REFramework fork with Alternate Frame Warping (RE9_AFW and PRAGMATA_AFW releases, the RE9AFW, RE4RAFW and RE4AFW_CPPVRMod branches) — https://github.com/PureDark/REFramework
+- **praydog**, REFramework nightlies 01440 and 01441 (#1895 reported by **Riesu**) — https://github.com/praydog/REFramework
