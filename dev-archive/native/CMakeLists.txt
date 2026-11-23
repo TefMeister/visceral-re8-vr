@@ -29,6 +29,7 @@ add_library(visceral_re8_native SHARED
     src/pairs.cpp
     src/reload_pose.cpp
     src/rack.cpp
+    src/whichpart.cpp
     src/rack_right.cpp
     src/gate.cpp
     src/drumrounds.cpp

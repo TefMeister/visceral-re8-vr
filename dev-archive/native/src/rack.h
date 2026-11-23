@@ -36,6 +36,10 @@ void* slide_joint();          // this frame's slide / pump / bolt joint (ghostha
 const char* part_name();      // "slide" | "pump" | "bolt"
 
 // the right hand on the bolt (2026-11-01, rack_right.h holds the gesture, the gun and the hands; the bolt is this one)
+bool part_reach(float& d, float& r);   // whichpart.cpp (2026-11-23): the left controller's distance from the slide / pump / bolt zone's middle, and its reach; false = none to take
+bool grip_reach(float& d, float& r);   // the same for the front grip zone (as smooth.cpp publishes it)
+bool due_now();                        // a rack is due or a bolt is mid-cycle (not: merely empty)
+bool long_gun();                       // not a pistol
 bool bolt_wants_left(float mag_dist_m = -1.0f);       // 2026-11-01: a rack is due and the left hand is in the bolt zone: the magazine leaves it to the bolt
 bool bolt_free();             // a bolt gun whose bolt nobody holds (the right hand may work it any time)
 void right_take();            // the right hand has the bolt: the pull is read from the right controller

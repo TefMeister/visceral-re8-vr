@@ -9,6 +9,7 @@
 #include "player.h"
 #include "rack_right.h"
 #include "reload.h"
+#include "whichpart.h"
 #include "settings.h"
 #include "weapons.h"
 #include "json_mini.h"
@@ -424,6 +425,27 @@ bool bolt_free() { return RELOAD_ON && bolt() && g_joint != nullptr && g_have_re
 // time: an empty F2 could not be reloaded): when the gun is only EMPTY (parked: a rack would do nothing, it needs a magazine)
 // the bolt wins only if the hand is nearer to it than to the magazine (mag_dist_m, from reload.cpp). A round waiting for the
 // rack, or a bolt mid-cycle, wins as before.
+bool part_reach(float& d, float& r) {
+    if (!RELOAD_ON || !rackable() || g_joint == nullptr || g_hand_on || g_right) return false;
+    r = joint_grab_m();
+    d = 99.0f;
+    if (near_joint(d)) { if (g_near_left) r = zones::radius(zones::SLIDE_LEFT); return true; }   // (a pistol's left-side sphere answers with its own reach)
+    return true;   // d is set whenever the joint and the hand could be read; outside the zone it is simply > r
+}
+bool grip_reach(float& d, float& r) {
+    const int s = bridge::S_ZONES + (int)zones::GRIP * 5;
+    const float x = bridge::view((bridge::Slot)(s + 0)), y = bridge::view((bridge::Slot)(s + 1)), z = bridge::view((bridge::Slot)(s + 2)),
+                rr = bridge::view((bridge::Slot)(s + 3)), on = bridge::view((bridge::Slot)(s + 4));
+    if (!bridge::has(x) || !bridge::has(rr) || !bridge::has(on) || on < 0.5f || rr <= 0.0f) return false;
+    Vec3 lp, c;
+    if (!bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) return false;
+    c.x = x; c.y = y; c.z = z;
+    d = dist(c, lp);
+    r = rr;
+    return true;
+}
+bool due_now() { return rackable() && (g_needed || g_bstate != 0 || g_turn > 0.0f); }
+bool long_gun() { return g_w != nullptr && g_w->shape != weapons::Shape::PISTOL; }
 bool bolt_wants_left(float mag_dist_m) {
     if (!bolt_free() || !(g_needed || g_parked || g_bstate != 0 || g_turn > 0.0f)) return false;
     float d = 0.0f;
@@ -567,7 +589,9 @@ void frame() {
         // good in theory but is actually distracting"): off. A hand that came from the grip waits for LG to be let go again
         constexpr bool RACK_FROM_GRIP_ZONE = false;
         const bool from_zone = RACK_FROM_GRIP_ZONE && due && bridge::pressed(bridge::S_LGRIP) && in_grip_zone();
-        const bool want = lg && !reload::hand_on_mag() && (!reload::hand_near_mag() || bolt_wants_left()) && (!g_from_grip || from_zone);   // (2026-10-25: the magazine first; 2026-11-01: but a due bolt wins)
+        // 2026-11-23 (whichpart.h): the magazine and the front grip keep the hand when their middle is nearer for its size
+        const whichpart::Part wp = whichpart::nearest();
+        const bool want = lg && !reload::hand_on_mag() && wp != whichpart::MAG && wp != whichpart::GRIP && (!g_from_grip || from_zone);   // (2026-10-25: the magazine first; 2026-11-01: but a due bolt wins)
         if (want) {
             float off = 99.0f;
             bool is_near = g_joint != nullptr ? near_joint(off) : on_gun_line(off);

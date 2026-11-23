@@ -3,6 +3,8 @@
 # Stops with a picture path if the title is not showing. 2026-11-23.
 S="$(cd "$(dirname "$0")" && pwd)"; G="/c/Steam/steamapps/common/Resident Evil Village BIOHAZARD VILLAGE"; N="${1:-6}"
 VB="$HOME/github-backups/_lanes-next-wt/plugins/lanes/tools/vrbench"
+# 2026-11-23: the desk headset had gone to sleep once and the game started flat: ask first (waits up to 3 minutes for it).
+python "$S/headset_up.py" 180 || { echo "HEADSET NOT STREAMING: nothing launched"; exit 4; }
 python "$VB/vrbench.py" start "$(cygpath -w "$G/re8.exe")" | tail -1
 powershell -NoProfile -Command "\$env:SteamAppId='1196590'; Start-Process -FilePath '$(cygpath -w "$G")\re8.exe' -WorkingDirectory '$(cygpath -w "$G")'"
 # 2026-11-23: REFramework's own start-up can deadlock (its log ends in "Suspending <thread>" lines with fewer "Resuming" ones, the

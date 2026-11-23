@@ -34,5 +34,5 @@ for v in want:
     f = os.path.join(os.environ.get("TEMP", "."), "_turn_%s.png" % v)
     os.environ["SNAP_BOX"] = os.environ.get("STAGE_BOX", "0.15 0.1 0.85 0.9")
     print(subprocess.run([py, os.path.join(HERE, "snap.py"), f, "%s %s from the %s%s" % (gun, zone, v, " LG+LT" if LT else " LG")], capture_output=True, text=True).stdout.strip()); tiles.append(f)
-setp(left=PARK, squeeze=0.0, trigger=0.0)
-if tiles: subprocess.run([py, os.path.join(HERE, "sheet.py"), out, "3"] + tiles)
+if not os.environ.get("TURN_STAY"): setp(left=PARK, squeeze=0.0, trigger=0.0)   # TURN_STAY=1: the hand stays on the part after the last view (to pose it, then snap.py)
+if tiles: subprocess.run([py, os.path.join(HERE, "sheet.py"), out, os.environ.get("TURN_COLS", str(min(len(tiles), 6)))] + tiles)   # one row per zone

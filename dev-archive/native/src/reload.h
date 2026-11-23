@@ -30,6 +30,7 @@ int mag_rounds_out();    // 2026-11-05: the rounds in the magazine that is out o
 bool round_in_hand();    // a shell / round is in the left hand
 bool hand_on_mag();
 bool left_at_gun();      // 2026-11-11 (accuracy.cpp): the left hand is on the gun: docked on the magazine, the game's own grip, or LG held at the well
+bool mag_reach(float& d, float& r);   // whichpart.cpp (2026-11-23): the left controller's distance from the seated magazine zone's middle, and its reach
 bool hand_near_mag();     // the left hand within MAG_GRAB_M of the seated magazine (the rack and the grip keep off)      // the left hand holds the magazine going in, or seated, until LG is let go
 float pouch_dist(bridge::Hand h);   // 2026-11-01: a hand's distance from our left-hip pouch spot (m)
 bool on_rail();          // b099: a handgun magazine on the grip's line (THE GRIP'S RAIL), carried by the hand

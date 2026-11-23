@@ -12,6 +12,7 @@
 #include "gate.h"
 #include "pairs.h"
 #include "rack.h"
+#include "whichpart.h"
 #include "rack_right.h"
 #include "settings.h"
 #include "twomag.h"
@@ -629,7 +630,9 @@ void grab_frame() {
         const float d = dist(zones::center(zones::MAG, mp), cp), need = zones::radius(zones::MAG);   // the zone (zones.json) over MAG_GRAB_M
         if (!spare) LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, need);
         if (d > need) return;
-        if (rack::bolt_wants_left(d)) { LOGI("%s reload: the hand is near the bolt too and a rack is due: the bolt takes it, not the magazine", TAG); return; }
+        // 2026-11-23 (whichpart.h): inside more than one zone, the part whose middle is nearest for its size takes the hand
+        const whichpart::Part wp = whichpart::nearest();
+        if (wp != whichpart::MAG && wp != whichpart::NONE) { LOGI("%s reload: the hand is nearer the %s (for its size): that takes it, not the magazine", TAG, whichpart::name(wp)); return; }
         g_hand_on_mag = true;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s reload: the left hand on the seated magazine (%.3f m from it)%s: %s", TAG, d, spare ? ", a spare in it" : "", pistol_mag() ? "right B releases it into the hand" : "LT pulls it out");
@@ -910,6 +913,15 @@ void mag_hand_frame() {   // UpdateBehavior: let go after the seat frees the han
     }
 }
 } // namespace
+bool mag_reach(float& d, float& r) {
+    if (!managed_now() || g_w->reload != Reload::MAG || g_joint == nullptr || g_st != St::SEATED) return false;
+    Vec3 mp, cp;
+    Quat mq;
+    if (!mag_world(mp, mq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return false;
+    d = dist(zones::center(zones::MAG, mp), cp);
+    r = zones::radius(zones::MAG);
+    return true;
+}
 bool hand_near_mag() {
     if (!managed_now() || g_w->reload != Reload::MAG || g_joint == nullptr || g_st != St::SEATED) return false;
     const auto& s = player::now();
