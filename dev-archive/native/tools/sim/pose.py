@@ -4,7 +4,9 @@ and spot the hand is at, and keeps UNDO. Tefa 2026-11-23: "please use all the po
 no longer writes pose files itself (the first version of this morning did).
 Short joint names: I1 I2 I3 M1.. R1.. P1.. T1 T2 T3 = L_IndexF1 ... L_Thumb3 (prefix r for the right hand: rI1).
 RV_GAME_DIR picks another game's folder (RE2 / RE3 name their fingers l_hand_index_0 ...: give those names in full).
-Prints the window's answer: which pose file it went to, how many joints were set, any joint it did not know."""
+Prints the window's answer: which pose file it went to, how many joints were set, any joint it did not know.
+2026-11-23 (Hand Poser's new inputs): `unset=J1,J2,...` takes those rows out of the pose in the window (`unset=left` = every left-hand
+row the window holds); `save_as=any` also keeps the hand at the spot as "any gun @ <spot>", every gun's fall-back there."""
 import json, os, sys, time
 GAME = os.environ.get("RV_GAME_DIR", r"C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE")
 D = os.path.join(GAME, "reframework", "data", "hand_poser")
@@ -15,18 +17,26 @@ def full(k):
     side = "L_"
     if k[0] == "r" and len(k) == 3: side, k = "R_", k[1:]
     return (side + F[k[0]] + k[1] if len(k) == 2 and k[0] in F else k) + ax
-sets, boxes, ask = {}, {"mag": {}, "spare": {}, "dock": {}}, False   # dock.y=1.5 dock.rz=-20 = the LEFT HAND, DOCKED box (the wrist on the gun); a bare `dock` asks what it shows   # mag.y=3.5 = the MAGAZINE IN HAND box; spare.x=3 spare.rz=20 = the spare's place
+sets, boxes, ask, unset, save_as = {}, {"mag": {}, "spare": {}, "dock": {}}, False, [], None   # dock.y=1.5 dock.rz=-20 = the LEFT HAND, DOCKED box (the wrist on the gun); a bare `dock` asks what it shows   # mag.y=3.5 = the MAGAZINE IN HAND box; spare.x=3 spare.rz=20 = the spare's place
 for a in sys.argv[1:]:
     if a == "dock": ask = True; continue
+    if a.startswith("unset="):
+        v = a.split("=", 1)[1]
+        if v == "left":   # every left-hand row the window holds (its state.json lists them)
+            v = ",".join(n for n in json.load(open(os.path.join(D, "state.json"))).get("angles", {}) if n.lower().startswith("l_"))
+        unset += [full(x) for x in v.split(",") if x]; continue
+    if a == "save_as=any": save_as = "any gun"; continue
     k, v = a.split("="); v = [float(x) for x in v.split(",")]
     if k.split(".")[0] in boxes: boxes[k.split(".")[0]][k.split(".")[1]] = v[0]
     else: sets[full(k)] = v if len(v) == 3 else v[0]
-if not sets and not any(boxes.values()) and not ask: print(__doc__); sys.exit(1)
+if not sets and not any(boxes.values()) and not ask and not unset and not save_as: print(__doc__); sys.exit(1)
 seq = int(time.time() * 1000) % 2000000000
 tmp = os.path.join(D, "remote.json.tmp")
 msg = {"seq": seq, "set": sets}
 msg.update({k: v for k, v in boxes.items() if v})
 if ask and not boxes["dock"]: msg["dock"] = {}
+if unset: msg["unset"] = unset
+if save_as: msg["save_as"] = save_as
 with open(tmp, "w") as f: json.dump(msg, f)
 os.replace(tmp, os.path.join(D, "remote.json"))
 t0 = time.time()
