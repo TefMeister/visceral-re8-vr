@@ -115,3 +115,6 @@ each racking part, `magdock.sh` for a long gun's magazine. A charging handle on 
 - W870 and M1897: the pump is held from below, in both stages: looks right, not touched.
 - NOT looked at: the Handcannon (drum, hammer, rounds), the Wolfsbane (one pose file: free), the GM 79 (no pose files), the
   shells in the hand, a long gun's magazine carried and going in, the right hand anywhere.
+- Handcannon, pictured later (`ri3116-handcannon-hammer-and-drum.jpg`): with LG at the hammer ("handle") the left hand is drawn
+  hanging UNDER the grip, fingers down, not on the hammer; at the drum it is mostly behind the gun. NOT changed (Tefa tuned
+  this gun in the headset on 2026-10-27 / 11-01, and the robot's hold differs from a wearer's): to be looked at worn.
