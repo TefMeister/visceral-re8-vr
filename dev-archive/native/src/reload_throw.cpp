@@ -29,6 +29,11 @@ float g_seq = 0.0f;   // the last SEQ handed over
 } // namespace
 
 void throw_sample(Vec3 p) {   // every frame the magazine is in the hand: where it is
+    // 2026-11-23 (robot hands, the hand held still 1.5 s, then LG let go: "speed 2.50 m/s", 2.58, 2.83, 5.52 on four tries;
+    // Tefa 2026-11-15: "the mag that came out of the gun still flies out of my hand"): the DRAWN hand jumps when its owner
+    // or its pose changes at the let-go, and that jump was read as a throw. The speed is the CONTROLLER's now (room space,
+    // turned into the world in throw_velocity), which only moves when the player's hand does
+    p = bridge::hand_pos(bridge::LEFT);
     if (g_hist_n == THROW_SAMPLES) {
         for (int i = 1; i < THROW_SAMPLES; ++i) g_hist[i - 1] = g_hist[i];
         --g_hist_n;
@@ -51,6 +56,8 @@ static Vec3 throw_velocity() {
     Vec3 v = (last.p - g_hist[k].p) * (1.0f / dt);
     const float sp = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     if (sp > THROW_MAX_SPEED) v = v * (THROW_MAX_SPEED / sp);
+    Vec3 w;
+    if (bridge::room_dir_to_world(v, w)) v = w;   // 2026-11-23: the samples are the controller's, in the room
     return v;
 }
 
