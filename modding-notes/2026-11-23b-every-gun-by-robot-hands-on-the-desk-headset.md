@@ -126,3 +126,16 @@ to follow the pull distance (today a pose changes with the spot, eased by time):
   brings it across the palm `[measured on a free hand held side-on, 8 pictures]`. Coarse: judged from one camera angle.
   The spare's place in the docked stage looks wrong (it hangs under the wrist, not between index and thumb): it has
   sliders now (SPARE MAGAZINE box) and is left at its old numbers for Tefa's eye in the headset.
+- **Pump shotguns pass:** 2 shells from the pouch, "one in by this LT press, 1 left in the hand", then the pump is asked for;
+  the pump cycle throws the shell `[verified-live 2026-11-23, robot, n=1 each: W870, M1897]`.
+- **The Handcannon was never broken; the readout was.** For a gun with nothing to rack the zones script measured the hand's
+  distance from the WRIST (the IK target), the dock test (`pairs.cpp`) from the CONTROLLER: 8.1 cm apart `[measured live]`.
+  So Grip Zones (and `walk.py`) said "inside" where LG did nothing; the drum took the hand only 3-9 cm above that spot
+  (`tools/sim/dockscan.py`). `visceral_re8_zones.lua` now measures from the controller (the file is in the game; it is part
+  of the next build). After it: handle and drum both dock at the walker's spot, LG + LT + a drag toward the gun's left opens
+  the drum ("cylinder OPEN (dragged open)"), 5 rounds from the pouch, one per LT, 3 loaded `[verified-live, n=1]`.
+  The same readout fault applied to the Wolfsbane's handle and the GM 79's insert point.
+- My check's own faults, fixed in `guncheck.py`: it hid every `pairs:` line (so docks looked dead), pressed LT on a long
+  gun's seated magazine (which pulls it), and looked for shells only at an `insert` zone.
+- Still not run by robot: the Wolfsbane's firing and loading gate, the GM 79 (no grenade rounds in the case), the hands on
+  every gun but the LEMI, RE2 and RE3.

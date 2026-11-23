@@ -25,7 +25,7 @@ steps = [a for a in flags if a not in ("long", "pics")] or ["zones", "fire", "ma
 PID = open(os.path.join(HERE, "pid.txt")).read().strip()
 tiles, report = [], []
 SKIP = ("freehand probe", "gunreport", "smooth]", "forearm:", "accuracy: both", "accuracy: one", "pad:", "holsters]", "dockreport",
-        "whitepoint", "armstretch", "mag2] check", "sounds]", "game's reload skipped", "pairs:", "mesh parts", "ammo:",
+        "whitepoint", "armstretch", "mag2] check", "sounds]", "game's reload skipped", "pairs: left hand area", "mesh parts", "ammo:",
         "dockpose", "smooth:", "sound:", "fingers:", "shellclip", "magdisp", "recoil:", "accuracy: shot", "accuracy: the left", "mag2]", "magthrow]", "rides along")
 BACK = (hv.RX, 0.0, hv.RZ)            # the gun points to the view's left, so "back along the gun" is the view's right
 
