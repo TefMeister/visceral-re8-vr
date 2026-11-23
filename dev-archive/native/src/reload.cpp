@@ -294,6 +294,9 @@ void hand_checks() {
         return;
     }
     if (g_round_in_hand && (g_w->breech == weapons::Breech::CYLINDER || shells::port_gun())) return;   // docked on the drum / the shell port (2026-11-02), LT puts each in
+    // b149: the GM 79's next round, taken early: it goes in by itself only at an OPEN and EMPTY barrel (a spent case is swapped
+    // with LT at the insert point, breech.cpp insert_lt; a live grenade still in there is taken out with LT first)
+    if (g_round_in_hand && g_w->breech == weapons::Breech::BREAK && (!breech::is_open() || breech::spent() || (player::capacity() > 0 && player::loaded() + g_stash >= player::capacity()))) return;
     if (mag && twomag::has() == twomag::Has::SPARE) {   // 2026-11-11: two in the hand: the old one does not go back in; LT swaps them
         if (TWOMAG_AUTO_SWAP) {   // 2026-11-15: or the hand brings them to the well, after it left the well zone once
             const float dd = dock_dist();
@@ -656,7 +659,11 @@ void pouch_grab() {
     if (gate::here()) return;   // 2026-11-01 (Tefa): the Wolfsbane's rounds come from the pouch by the RIGHT hand (gate.cpp)
     if (g_w->reload == Reload::ROUND) {
         if (g_round_in_hand) return;
-        if (!breech::loading_allowed()) {   // 2026-10-19: a revolver / the GM 79 takes rounds only while it is open
+        // 2026-11-23 (b149; Tefa: "grenade launcher also needs the mag1 and mag2 like the pistols, so grenade 2 can already be in hand
+        // while grenade 1 is still in the launcher"): the GM 79's next round may be taken while it is still closed, and while a
+        // grenade or its spent case is still in the barrel; it goes in only at the open barrel (LT swaps it with a spent case)
+        const bool brk = g_w->breech == weapons::Breech::BREAK;
+        if (!brk && !breech::loading_allowed()) {   // 2026-10-19: a revolver takes rounds only while it is open
             LOGI("%s reload: %s is closed: open it first (revolver: LG + LT on the drum and drag it out; GM 79: a flick down, right B, or LT on the front grip)", TAG, g_id.c_str());
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
             return;
@@ -678,7 +685,7 @@ void pouch_grab() {
             LOGI("%s reload: %d round(s) in the left hand for the drum (carried %d)", TAG, n, player::reserve());
             return;
         }
-        if (!supply() || (cap > 0 && player::loaded() + g_stash >= cap)) {
+        if (!supply() || (!brk && cap > 0 && player::loaded() + g_stash >= cap)) {
             LOGI("%s reload: nothing to take (carried %d, loaded %d of %d)", TAG, player::reserve(), player::loaded() + g_stash, cap);
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
             return;

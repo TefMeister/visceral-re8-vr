@@ -1,0 +1,236 @@
+[2026-11-23 14:49:11.521] [REFramework] [info] REFramework entry
+[2026-11-23 14:49:11.521] [REFramework] [info] Commit hash: 76298bd9796b2b32e67133ff0360a7993c2e1482
+[2026-11-23 14:49:11.521] [REFramework] [info] Tag: v1.5.9.1
+[2026-11-23 14:49:11.521] [REFramework] [info] Commits past tag: 671
+[2026-11-23 14:49:11.521] [REFramework] [info] Branch: pd-upscaler
+[2026-11-23 14:49:11.521] [REFramework] [info] Total commits: 2429
+[2026-11-23 14:49:11.521] [REFramework] [info] Build date: 11.03.2026
+[2026-11-23 14:49:11.521] [REFramework] [info] Build time: 19:31
+[2026-11-23 14:49:11.521] [REFramework] [info] Game name: re8
+[2026-11-23 14:49:11.521] [REFramework] [info] Game Module Addr: 7ff6f2620000
+[2026-11-23 14:49:11.521] [REFramework] [info] Game Module Size: d110000
+[2026-11-23 14:49:11.521] [REFramework] [info] Current game path: C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE
+[2026-11-23 14:49:11.521] [REFramework] [info] Preallocated buffer: 7ff6f2610f80
+[2026-11-23 14:49:11.521] [REFramework] [info] [IntegrityCheckBypass]: Fixing VirtualProtect...
+[2026-11-23 14:49:11.521] [REFramework] [info] [IntegrityCheckBypass]: NtProtectVirtualMemory already setup!
+[2026-11-23 14:49:11.521] [REFramework] [info] Attempting to hook 0x7fff06588460->0x7ffe2965c5f0
+[2026-11-23 14:49:11.521] [REFramework] [info] Hook init successful 0x7fff06588460->0x7ffe2965c5f0
+[2026-11-23 14:49:11.553] [REFramework] [info] [IntegrityCheckBypass]: VirtualProtect called
+[2026-11-23 14:49:11.553] [REFramework] [info] Hooked 7fff06588460->7ffe2965c5f0
+[2026-11-23 14:49:11.553] [REFramework] [info] [IntegrityCheckBypass]: Hooked VirtualProtect!
+[2026-11-23 14:49:11.553] [REFramework] [info] Getting OS version information...
+[2026-11-23 14:49:11.553] [REFramework] [info] OS Version Information
+[2026-11-23 14:49:11.553] [REFramework] [info] 	Major Version: 10
+[2026-11-23 14:49:11.553] [REFramework] [info] 	Minor Version: 0
+[2026-11-23 14:49:11.553] [REFramework] [info] 	Build Number: 26300
+[2026-11-23 14:49:11.553] [REFramework] [info] 	Platform Id: 2
+[2026-11-23 14:49:11.553] [REFramework] [info] Disclaimer: REFramework does not send this information to the developers or any other third party.
+[2026-11-23 14:49:11.553] [REFramework] [info] This information is only used to help with the development of REFramework.
+[2026-11-23 14:49:11.553] [REFramework] [info] Registering LdrRegisterDllNotification callback...
+[2026-11-23 14:49:11.553] [REFramework] [info] LdrRegisterDllNotification callback registered successfully
+[2026-11-23 14:49:11.553] [REFramework] [info] [REFramework] Waiting for D3D12...
+[2026-11-23 14:49:11.679] [REFramework] [info] LdrRegisterDllNotification: Loaded: dxcore.dll
+[2026-11-23 14:49:11.680] [REFramework] [info] LdrRegisterDllNotification: Loaded: DEVOBJ.dll
+[2026-11-23 14:49:11.681] [REFramework] [info] LdrRegisterDllNotification: Loaded: WINTRUST.dll
+[2026-11-23 14:49:11.681] [REFramework] [info] LdrRegisterDllNotification: Loaded: MSASN1.dll
+[2026-11-23 14:49:11.682] [REFramework] [info] LdrRegisterDllNotification: Loaded: uxtheme.dll
+[2026-11-23 14:49:11.684] [REFramework] [info] LdrRegisterDllNotification: Loaded: NSI.dll
+[2026-11-23 14:49:11.685] [REFramework] [info] LdrRegisterDllNotification: Loaded: dhcpcsvc6.DLL
+[2026-11-23 14:49:11.685] [REFramework] [info] LdrRegisterDllNotification: Loaded: dhcpcsvc.DLL
+[2026-11-23 14:49:11.686] [REFramework] [info] LdrRegisterDllNotification: Loaded: DSPARSE.dll
+[2026-11-23 14:49:11.686] [REFramework] [info] LdrRegisterDllNotification: Loaded: DNSAPI.dll
+[2026-11-23 14:49:11.712] [REFramework] [info] LdrRegisterDllNotification: Loaded: MSCTF.dll
+[2026-11-23 14:49:11.714] [REFramework] [info] LdrRegisterDllNotification: Loaded: clbcatq.dll
+[2026-11-23 14:49:11.720] [REFramework] [info] LdrRegisterDllNotification: Loaded: textinputframework.dll
+[2026-11-23 14:49:11.724] [REFramework] [info] LdrRegisterDllNotification: Loaded: Oleacc.dll
+[2026-11-23 14:49:11.728] [REFramework] [info] LdrRegisterDllNotification: Loaded: wintypes.dll
+[2026-11-23 14:49:11.728] [REFramework] [info] LdrRegisterDllNotification: Loaded: CoreUIComponents.dll
+[2026-11-23 14:49:11.732] [REFramework] [info] LdrRegisterDllNotification: Loaded: Windows.Storage.dll
+[2026-11-23 14:49:11.901] [REFramework] [info] LdrRegisterDllNotification: Loaded: steam_api64.dll
+[2026-11-23 14:49:11.901] [REFramework] [info] LdrRegisterDllNotification: DLL loaded from game directory: C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\steam_api64.dll
+[2026-11-23 14:49:11.938] [REFramework] [info] LdrRegisterDllNotification: Loaded: gameoverlayrenderer64.dll
+[2026-11-23 14:49:12.012] [REFramework] [info] LdrRegisterDllNotification: Loaded: d3d12.dll
+[2026-11-23 14:49:12.020] [REFramework] [info] LdrRegisterDllNotification: Loaded: D3D12Core.dll
+[2026-11-23 14:49:12.022] [REFramework] [info] LdrRegisterDllNotification: Loaded: resourcepolicyclient.dll
+[2026-11-23 14:49:12.024] [REFramework] [info] LdrRegisterDllNotification: Loaded: directxdatabasehelper.dll
+[2026-11-23 14:49:12.042] [REFramework] [info] D3D12 loaded
+[2026-11-23 14:49:12.042] [REFramework] [info] [Thread.cpp:78] Locking loader lock...
+[2026-11-23 14:49:12.065] [REFramework] [info] [Thread.cpp:42] Suspending 6400
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 17920
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 2840
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 17024
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 21960
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 24264
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 14612
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 4732
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 24500
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 18648
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 23660
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 15776
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 15936
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 13856
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 3436
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 15888
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:42] Suspending 2396
+[2026-11-23 14:49:12.066] [REFramework] [info] [Thread.cpp:87] Unlocked loader lock.
+[2026-11-23 14:49:12.066] [REFramework] [info] [IntegrityCheckBypass]: Scanning RE8...
+[2026-11-23 14:49:12.104] [REFramework] [error] [IntegrityCheckBypass]: Could not find sussy_constant usage!
+[2026-11-23 14:49:12.138] [REFramework] [error] [IntegrityCheckBypass]: Could not find sussy_result_2!
+[2026-11-23 14:49:12.197] [REFramework] [error] [IntegrityCheckBypass]: Could not find sussy_result_3!
+[2026-11-23 14:49:12.214] [REFramework] [error] [IntegrityCheckBypass]: Could not find sussy_result_4!
+[2026-11-23 14:49:12.214] [REFramework] [info] [IntegrityCheckBypass]: Searching for stack destroyer...
+[2026-11-23 14:49:12.214] [REFramework] [info] [IntegrityCheckBypass]: Patched stack destroyer!
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 6400
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 17920
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 2840
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 17024
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 21960
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 24264
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 14612
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 4732
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 24500
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 18648
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 23660
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 15776
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 15936
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 13856
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 3436
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 15888
+[2026-11-23 14:49:12.214] [REFramework] [info] [Thread.cpp:62] Resuming 2396
+[2026-11-23 14:49:12.214] [REFramework] [info] [PluginLoader] Module path C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\re8.exe
+[2026-11-23 14:49:12.214] [REFramework] [info] [PluginLoader] Actual dir: C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE
+[2026-11-23 14:49:12.214] [REFramework] [info] [PluginLoader] Creating directories C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\reframework\plugins
+[2026-11-23 14:49:12.214] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvldumdx.dll
+[2026-11-23 14:49:12.215] [REFramework] [info] [PluginLoader] Created directory for plugins: C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\reframework\plugins
+[2026-11-23 14:49:12.215] [REFramework] [info] [PluginLoader] Loading plugins...
+[2026-11-23 14:49:12.217] [REFramework] [info] LdrRegisterDllNotification: Loaded: cryptsp.dll
+[2026-11-23 14:49:12.217] [REFramework] [info] LdrRegisterDllNotification: Loaded: D3DCOMPILER_47.dll
+[2026-11-23 14:49:12.217] [REFramework] [info] LdrRegisterDllNotification: Loaded: re_scope_vr.dll
+[2026-11-23 14:49:12.218] [REFramework] [info] LdrRegisterDllNotification: Loaded: cryptnet.dll
+[2026-11-23 14:49:12.218] [REFramework] [info] [PluginLoader] Loaded C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\reframework\plugins\re_scope_vr.dll
+[2026-11-23 14:49:12.221] [REFramework] [info] LdrRegisterDllNotification: Loaded: visceral_re8_native.dll
+[2026-11-23 14:49:12.221] [REFramework] [info] LdrRegisterDllNotification: Loaded: wldp.dll
+[2026-11-23 14:49:12.221] [REFramework] [info] [PluginLoader] Loaded C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\reframework\plugins\visceral_re8_native.dll
+[2026-11-23 14:49:12.221] [REFramework] [info] [VM::update_pointers] Updating...
+[2026-11-23 14:49:12.222] [REFramework] [info] LdrRegisterDllNotification: Loaded: drvstore.dll
+[2026-11-23 14:49:12.225] [REFramework] [info] Found startup patch at 7ff6f71fe640
+[2026-11-23 14:49:12.247] [REFramework] [info] LdrRegisterDllNotification: Loaded: rsaenh.dll
+[2026-11-23 14:49:12.251] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvgpucomp64.dll
+[2026-11-23 14:49:12.257] [REFramework] [info] LdrRegisterDllNotification: Loaded: NvMessageBus.dll
+[2026-11-23 14:49:12.270] [REFramework] [info] [VM::update_pointers] s_type_db_offset: 35d8
+[2026-11-23 14:49:12.270] [REFramework] [info] [VM::update_pointers] s_static_tbl_offset: 35a8
+[2026-11-23 14:49:12.270] [REFramework] [info] [VM::update_pointers] TDB Version: 69
+[2026-11-23 14:49:12.270] [REFramework] [info] [VM::update_pointers] TDB: 7ff6fb507480
+[2026-11-23 14:49:12.270] [REFramework] [info] [VM::update_pointers] s_global_context: 7ff6feac72b0
+[2026-11-23 14:49:12.270] [REFramework] [info] [VM::update_pointers] s_get_thread_context: 7ff6f678d960
+[2026-11-23 14:49:12.270] [REFramework] [info] [VM::update_pointers] method_inside_invoke_tbl: 7ff6f275d220
+[2026-11-23 14:49:12.271] [REFramework] [info] LdrRegisterDllNotification: Loaded: NvMemMapStoragex.dll
+[2026-11-23 14:49:12.278] [REFramework] [info] [VM::update_pointers] ptr_inside_invoke_tbl: 7ff6fa9b0d58
+[2026-11-23 14:49:12.278] [REFramework] [info] [VM::update_pointers] s_invoke_tbl: 7ff6fa9b0c90
+[2026-11-23 14:49:12.278] [REFramework] [info] VM initialized, waiting for renderer to initialize...
+[2026-11-23 14:49:12.284] [REFramework] [info] Renderer type found manually @ 7ff6fbd87e40
+[2026-11-23 14:49:12.294] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvwgf2umx.dll
+[2026-11-23 14:49:12.304] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvspcap64.dll
+[2026-11-23 14:49:12.306] [REFramework] [info] LdrRegisterDllNotification: Loaded: profapi.dll
+[2026-11-23 14:49:12.307] [REFramework] [info] LdrRegisterDllNotification: Loaded: ntmarta.dll
+[2026-11-23 14:49:12.318] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvldumdx.dll
+[2026-11-23 14:49:12.347] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvgpucomp64.dll
+[2026-11-23 14:49:12.353] [REFramework] [info] LdrRegisterDllNotification: Loaded: NvMessageBus.dll
+[2026-11-23 14:49:12.358] [REFramework] [info] LdrRegisterDllNotification: Loaded: NvMemMapStoragex.dll
+[2026-11-23 14:49:12.380] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvwgf2umx.dll
+[2026-11-23 14:49:12.450] [REFramework] [info] Found renderer @ 152823c5590 (type: 7ff6fbd87e40), waiting for first frame...
+[2026-11-23 14:49:12.450] [REFramework] [info] Renderer has get_RenderFrame function
+[2026-11-23 14:49:12.454] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvppex.dll
+[2026-11-23 14:49:12.464] [REFramework] [info] LdrRegisterDllNotification: Loaded: USERENV.dll
+[2026-11-23 14:49:12.464] [REFramework] [info] LdrRegisterDllNotification: Loaded: D3DSCache.dll
+[2026-11-23 14:49:12.472] [REFramework] [info] LdrRegisterDllNotification: Loaded: dxilconv.dll
+[2026-11-23 14:49:12.484] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvapi64.dll
+[2026-11-23 14:49:12.488] [REFramework] [info] LdrRegisterDllNotification: Loaded: nvapi64_impl.dll
+[2026-11-23 14:49:12.756] [REFramework] [info] LdrRegisterDllNotification: Loaded: wbemcomn.dll
+[2026-11-23 14:49:12.756] [REFramework] [info] LdrRegisterDllNotification: Loaded: wbemprox.dll
+[2026-11-23 14:49:12.759] [REFramework] [info] LdrRegisterDllNotification: Loaded: wbemsvc.dll
+[2026-11-23 14:49:12.762] [REFramework] [info] LdrRegisterDllNotification: Loaded: fastprox.dll
+[2026-11-23 14:49:12.763] [REFramework] [info] LdrRegisterDllNotification: Loaded: amsi.dll
+[2026-11-23 14:49:12.764] [REFramework] [info] LdrRegisterDllNotification: Loaded: MpOav.dll
+[2026-11-23 14:49:13.001] [REFramework] [info] LdrRegisterDllNotification: Loaded: Microsoft.Internal.WarpPal.dll
+[2026-11-23 14:49:13.001] [REFramework] [info] LdrRegisterDllNotification: Loaded: dcomp.dll
+[2026-11-23 14:49:13.002] [REFramework] [info] LdrRegisterDllNotification: Loaded: dwmapi.dll
+[2026-11-23 14:49:13.113] [REFramework] [info] Render frame: 1
+[2026-11-23 14:49:13.114] [REFramework] [info] Hooking D3D12
+[2026-11-23 14:49:13.114] [REFramework] [info] LdrRegisterDllNotification: Loaded: MMDevApi.dll
+[2026-11-23 14:49:13.114] [REFramework] [info] Creating dummy device
+[2026-11-23 14:49:13.116] [REFramework] [info] LdrRegisterDllNotification: Loaded: AUDIOSES.DLL
+[2026-11-23 14:49:13.117] [REFramework] [info] Dummy device: 153d34945e0
+[2026-11-23 14:49:13.117] [REFramework] [info] Creating dummy DXGI factory
+[2026-11-23 14:49:13.118] [REFramework] [info] Creating dummy command queue
+[2026-11-23 14:49:13.118] [REFramework] [info] LdrRegisterDllNotification: Loaded: Windows.UI.dll
+[2026-11-23 14:49:13.150] [REFramework] [info] Creating dummy swapchain
+[2026-11-23 14:49:13.150] [REFramework] [info] Trying swapchain attempt 0
+[2026-11-23 14:49:13.162] [REFramework] [info] Created dummy swapchain on attempt 0
+[2026-11-23 14:49:13.162] [REFramework] [info] Querying dummy swapchain
+[2026-11-23 14:49:13.163] [REFramework] [error] Failed to get type info: unknown exception
+[2026-11-23 14:49:13.163] [REFramework] [info] Finding command queue offset
+[2026-11-23 14:49:13.163] [REFramework] [info] Found command queue offset: 140
+[2026-11-23 14:49:13.163] [REFramework] [info] Initializing hooks
+[2026-11-23 14:49:13.163] [REFramework] [info] [Streamline] Hooking Streamline
+[2026-11-23 14:49:13.163] [REFramework] [error] [Streamline] Failed to get sl.dlss_g.dll module handle
+[2026-11-23 14:49:13.163] [REFramework] [info] [PointerHook.cpp:25] [PointerHook] Hooking 7fff019b42e0->7fff018e84c0 to 7ffe295db300
+[2026-11-23 14:49:13.163] [REFramework] [info] [PointerHook.cpp:25] [PointerHook] Hooking 7fff019b2e80->7fff0190c430 to 7ffe295d90a0
+[2026-11-23 14:49:13.173] [REFramework] [info] Hooked DirectX 12
+[2026-11-23 14:49:13.263] [REFramework] [info] Attempting to initialize DirectX 12
+[2026-11-23 14:49:13.263] [REFramework] [info] [D3D12] Creating DXTK graphics memory...
+[2026-11-23 14:49:13.264] [REFramework] [info] [D3D12] Creating command allocator...
+[2026-11-23 14:49:13.265] [REFramework] [info] [D3D12] Creating RTV descriptor heap...
+[2026-11-23 14:49:13.265] [REFramework] [info] [D3D12] Creating SRV descriptor heap...
+[2026-11-23 14:49:13.265] [REFramework] [info] [D3D12] Creating render targets...
+[2026-11-23 14:49:13.265] [REFramework] [info] [D3D12] Swapchain buffer count: 3
+[2026-11-23 14:49:13.265] [REFramework] [info] [D3D12] Back buffer format is 28
+[2026-11-23 14:49:13.266] [REFramework] [info] [D3D12] Initializing ImGui...
+[2026-11-23 14:49:13.266] [REFramework] [info] Initializing WindowsMessageHook
+[2026-11-23 14:49:13.266] [REFramework] [info] [Thread.cpp:78] Locking loader lock...
+[2026-11-23 14:49:13.274] [REFramework] [info] [WindowFilter] Encountered new window: Resident Evil Village
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 6400
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 17920
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 2840
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 17024
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 21960
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 24264
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 14612
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 4732
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 24500
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 23660
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15776
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15936
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 13856
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 3436
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15888
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 20544
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 11616
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 2560
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 12580
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 13772
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 8088
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 2764
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 7260
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 20524
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 4952
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15048
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 4392
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 1292
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15056
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 3224
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 12752
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15084
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 20988
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 13468
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 27660
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15632
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 14512
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 24064
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 27232
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 15524
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 16820
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 27460
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 14976
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 13708
+[2026-11-23 14:49:13.308] [REFramework] [info] [Thread.cpp:42] Suspending 23804

@@ -300,6 +300,11 @@ bool drop_casing() { if (!cover_gun() || g_spent_n <= 0) return false; --g_spent
 
 void insert_lt() {
     if (!here() || g_w->breech != Breech::BREAK) return;
+    if (!g_open && reload::round_in_hand()) {   // b149 (Tefa 2026-11-23, grenade 2 in the hand while grenade 1 is still in): the hand that
+        // holds the next round cannot take the front grip, so its LT at the insert point breaks the barrel open; the next LT swaps
+        set_open(true, "LT at the insert point, the next round in the hand");
+        return;
+    }
     if (!g_open) {
         bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s breech: LT at the insert point: the barrel is closed: open it first", TAG);
