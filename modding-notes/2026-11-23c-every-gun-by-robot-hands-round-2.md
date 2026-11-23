@@ -187,3 +187,57 @@ gun 3023
   due wins); **the Dragoon's magazine centre lies inside its charging-handle zone, and the SYG-12's well and charging handle
   are 4.4 cm apart**: the two guns where a hand meant for one part can be given the other. Pistols: the magazine and both
   slide zones do not reach each other (gaps 0.2 to 7 cm). Not changed today.
+
+## Evening: "the 360 view for the robot", second pass (Tefa's name and brief)
+
+Tefa: go over every gun again with the 360 view: mechanics, hands landing with LG, blends, no clipping, fingers close to the
+gun, "right hand index finger on the trigger, right hand other 3 fingers gripping the handle. index finger moving with RT press",
+and a new design for the grenade launcher (quoted in `breech.cpp`). What got done, and what did not.
+
+### b152 / b153: the GM 79's latch, hand-moved barrel and gravity `[verified-live 2026-11-23, robot, n=2 to 3 per step]`
+
+- **Right B is the thumb on the latch** ("add a thumb flick ... like wolfsbane does"): the thumb goes onto the latch and stays
+  while B is held (at least 0.25 s), and flicks on release; only then the latch changes. Two right-hand spots for Hand Poser
+  (5 "thumb on the latch", 6 "the latch flicked open"), both posed by numbers: the gun's `Lever` joint is the latch
+  (0, 5.1, 6.5 cm in the gun's frame); the thumb's tip reaches to 1.9 cm behind it (a thumb is not longer).
+- **Latch shut:** LG + LT on the barrel is refused ("the latch is shut: right B first"), the top hold (the insert point) is
+  not offered, the pouch still gives the next round (b149).
+- **Latch open:** a flick down lets the barrel fall open; LG + LT on the barrel (the front grip from below, or the top hold)
+  moves it with the hand (the hand's way straight down against the gun hand, 12.6 cm for the whole swing); let go part way
+  ("let go at 48%") it falls open by itself; pushed back up to shut, or a flick up, shuts it and the latch shuts with it.
+  Firing is refused while the latch is open or the barrel hangs.
+- The first cut measured the pull along the gun hand's own axis: nothing moved (that axis lies sideways in this hold). It is
+  measured straight down now, as the fall is.
+- b153 = b152 + the front grip kept again as a hold FROM BELOW (hand up under the barrel just ahead of the receiver, fingers
+  curled: `tools/sim/gripkeep.py 90 0 90 6 8`), picture `ri3023-gm79-front-grip-from-below.jpg`. Three first tries left the
+  hand flat beside the barrel. NOT done: a posed TOP hold, the `Lever` part turning with the flick, the thumb's poses judged
+  from a good angle (the right-hand pictures of a long gun put the hand at the frame's edge).
+
+### The right hand: a closed grip on every gun, and the trigger finger
+
+- **Eight guns showed a flat, open right hand lying along the grip** (F2, WCX, Dragoon, SYG-12, W870, M1897, Handcannon,
+  Wolfsbane; the GM 79 too): they had no right-hand pose, and the mod's "firm grip" only holds a hand after that gun's first
+  shot of a session. The six pistols' kept grip (index in the guard, three fingers wrapped) sent to each through the window;
+  pictures before and after beside this note. Coarse: one grip for every handle shape.
+- **Hand Poser lost such a change**: a right-hand finger moved while the left hand was at one of its spots was filed in that
+  spot's pose, which nothing reads. Fixed in the app (`Pose.cs SaveOtherHandToGun`).
+- **The index finger bends on RT, every gun** (`righthand.cpp trigger_pull`, the last write of the frame): rest 32 / 15 / 42
+  degrees, RT 36 / 35 / 52, released 32 / 15 / 42 `[measured on LEMI, F2, Handcannon, GM 79]`. It goes by time (0.07 s):
+  **the loader gives no trigger travel**, pressed or not only (looked for on `vrmod` and on the game's pad device, whose
+  `AnalogR` stays 0). Following the squeeze needs the loader changed.
+  Three dead ends on the way, kept here so nobody repeats them: Hand Poser's own "trigger pulled" pose is computed but
+  never shows in Village (some later write wins; not found which); a built pose in the script was wiped by its own
+  two-second re-read; and BeginRendering comes twice a frame on Two Frame Sequential, so a bend applied to what stands doubled.
+  The plugin's firm grip now leaves the index finger alone while RT is down and the thumb alone on the GM 79's latch.
+
+### The left hand with the 360 view (`tools/sim/pass360.sh`)
+
+- LEMI (magazine, slide, slide from the left): all three read as sensible holds from the right, below and front.
+- **F2: the hand does not always land on the part aimed at.** Walked to the magazine's middle and to the front grip's, LG gave
+  the bolt-from-the-left hold in two of three approaches (the zones sit inside each other: see the zone table above), and
+  that hold ("slide from the left", "ready on slide from the left") was an open hand floating over the scope: given the closed
+  grip. The landing itself is NOT fixed: it is the zone layout and the which-part-wins rule, on the board.
+- NOT run with the 360 view: WCX, Dragoon, SYG-12, both shotguns, both revolvers, the other five pistols, every blend
+  between stages, and any check for fingers passing through the gun (there is no measure for that yet: it is judged by eye).
+- RE2 and RE3 were not gone over again this evening: their mechanics ran this afternoon, and their fingers are the game's
+  animation until the build job on RE2's board is done.

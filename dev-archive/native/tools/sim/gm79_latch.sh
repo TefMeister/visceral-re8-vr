@@ -3,7 +3,8 @@
 # B and a flick down, a flick up. Needs the save loaded, keep.py, HV_HEAD. Prints the mod's lines per step.
 S="$(cd "$(dirname "$0")" && pwd)"; cd "$S"; G="/c/Steam/steamapps/common/Resident Evil Village BIOHAZARD VILLAGE"
 echo "equip ri3023" > "$G/reframework/data/finger_rec/command.txt"; sleep 7; python keys.py $(cat pid.txt)>/dev/null
-FG="left=0.30,0.24,0.81,0,60"; PK="left=-0.25,-0.30,0.30,0,0"; K="breech:\|hands:\|pairs:.*insert"
+FG="left=0.30,0.24,0.81,0,60"   # (the front grip spot kept on 2026-11-23 morning; re-kept from below that evening: use frame.py grip and the zone instead)
+PK="left=-0.25,-0.30,0.30,0,0"; K="breech:\|hands:\|pairs:.*insert"
 st() { python step.py "$@" | grep "$K"; }
 python step.py right=0.30,0.0,0.70,90,90 $PK squeeze=0 trigger=0 rtrigger=0 rb=0 wait=1.2 >/dev/null
 echo "--- 1 LG+LT at the front grip, latch shut"; python step.py $FG wait=0.8 >/dev/null; st squeeze=1 wait=0.8; st trigger=1 wait=0.5; st trigger=0 squeeze=0 wait=0.5
