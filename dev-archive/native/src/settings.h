@@ -208,6 +208,9 @@ constexpr float BREAK_LEVER_M = 0.18f;             // b152: the hand on the barr
 constexpr float BREAK_FALL_PER_S2 = 14.0f;         // b152: a barrel let go falls open: its speed-up, in whole swings per second squared (0.38 s from shut)
 constexpr float BREAK_FLICK_START_PER_S = 2.0f;    // b152: a flick down starts it with this speed (swings per second)
 constexpr float BREAK_LATCH_FLICK_SEC = 0.25f;     // b152: right B: the thumb is on the latch this long before it flicks (as the Wolfsbane's lift before its cover)
+constexpr float BREAK_LATCH_DEG = 28.0f;           // 2026-11-23: the latch part (the gun's `Lever` joint) turns this far when flicked open
+constexpr float BREAK_LATCH_AXIS[3] = {0.0f, 1.0f, 0.0f};   // ... about this axis of its own (set by eye from the six views)
+constexpr float BREAK_LATCH_TURN_SEC = 0.08f;      // ... in this long
 constexpr float BREAK_SHUT_PART = 0.06f;           // b152: let go this close to shut, it clicks shut instead of falling
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;

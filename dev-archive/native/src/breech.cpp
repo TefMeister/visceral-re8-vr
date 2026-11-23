@@ -501,9 +501,35 @@ void frame() {
     if (BREECH_FLICK_ON) flick();
 }
 
+// 2026-11-23 (the 360 view's list: "its `Lever` joint turning with the flick"): the GM 79's latch part itself turns when the thumb
+// flicks it open and back when the latch shuts (it stood still while the thumb flicked beside it)
+void lever_point() {
+    static MO* tf = nullptr;
+    static MO* lever = nullptr;
+    static Quat rest{0, 0, 0, 1};
+    static bool ok = false;
+    static float k = 0.0f, last = -1.0f;
+    const auto& s = player::now();
+    if (s.weapon_tf != tf) {
+        tf = s.weapon_tf; k = 0.0f;
+        lever = tf != nullptr ? joints::joint_by_name(tf, L"Lever") : nullptr;
+        ok = lever != nullptr && joints::get_q(joints::JOINT, lever, "get_LocalRotation", rest);
+        LOGI("%s breech: %s latch part (Lever) %s", TAG, g_id.c_str(), ok ? "found: it turns with the flick" : "NOT found: the latch does not move");
+    }
+    const float now = now_s(), dt = last < 0.0f ? 0.0f : std::fmin(0.1f, now - last);
+    last = now;
+    const float step = BREAK_LATCH_TURN_SEC > 0.0f ? dt / BREAK_LATCH_TURN_SEC : 1.0f;
+    k = g_latch ? std::fmin(1.0f, k + step) : std::fmax(0.0f, k - step);
+    if (!ok || k <= 0.0f) return;
+    const float h = BREAK_LATCH_DEG * k * 3.14159265f / 360.0f, sh = std::sin(h);
+    Quat q = qnorm(qmul(rest, Quat{BREAK_LATCH_AXIS[0] * sh, BREAK_LATCH_AXIS[1] * sh, BREAK_LATCH_AXIS[2] * sh, std::cos(h)}));
+    joints::set_any(joints::JOINT, lever, "set_LocalRotation", &q);
+}
+
 void pose_point() {
     const bool lid = gate_gun();   // 2026-11-01 22:4x: the M1851's cover swings the same way the GM 79's barrel does
     if (!here() || (g_w->breech != Breech::BREAK && !lid)) return;
+    if (!lid) lever_point();
     const auto& s = player::now();
     if (g_carrier == nullptr && s.weapon_tf != nullptr) {
         g_carrier = joints::joint_by_name(s.weapon_tf, lid ? L"Lid" : L"Carrier");

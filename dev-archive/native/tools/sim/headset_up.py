@@ -7,7 +7,7 @@ import ctypes, glob, os, sys, time
 LOADERS = glob.glob("C:/Steam/steamapps/common/Resident Evil Village BIOHAZARD VILLAGE/openxr_loader.dll") + \
           glob.glob("C:/Steam/steamapps/common/*/openxr_loader.dll")
 NAMES = {0: "XR_SUCCESS", -2: "XR_ERROR_RUNTIME_FAILURE", -9: "XR_ERROR_EXTENSION_NOT_PRESENT", -10: "XR_ERROR_RUNTIME_UNAVAILABLE",
-         -51: "XR_ERROR_FORM_FACTOR_UNAVAILABLE", -50: "XR_ERROR_FORM_FACTOR_UNSUPPORTED"}
+         -35: "XR_ERROR_FORM_FACTOR_UNAVAILABLE", -34: "XR_ERROR_FORM_FACTOR_UNSUPPORTED"}
 
 class AppInfo(ctypes.Structure):
     _fields_ = [("applicationName", ctypes.c_char * 128), ("applicationVersion", ctypes.c_uint32),
