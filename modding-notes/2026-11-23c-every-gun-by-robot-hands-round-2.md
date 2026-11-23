@@ -67,3 +67,51 @@ Two Frame Sequential, VR Bench's hands, nobody wearing it). Tefa is away; questi
   magazine (M -45 / -105 / -45 and so on); "spare in hand, magazine still in the gun" has the other fingers half open.
 - NOT judged: whether the thumb really touches the spare (its real size is a guess), the look from the wearer's eye, anything
   about feel. Tefa's "hand travels on to the bottom of mag1" is the docked spot's own glide (unchanged).
+
+## The other five slide pistols (carried through the window)
+
+`tools/sim/carry.sh ri3046 <guns>`: the LEMI's pose of each reload stage sent again through the Hand Poser window with each gun
+held at the same stage (M1911, V61, S.T.A.K.E, Samurai Edge, USM-AI): spare far (19), docked (17), pulled (18), out (16), and
+without a spare "ready on magazine" and "magazine in hand". Sheets beside this note. On the Samurai Edge and the USM-AI the
+magazine was already out at 70 % of the LEMI's pull length, so "pulling the magazine out" was not caught there: it falls back to
+"magazine in hand" (not looked into: do those two have a shorter line, or does B drop the magazine straight out?).
+The LEMI's slide grips (over the top, and from the left) were pictured and left as Tefa tuned them.
+
+## b149, b150: the GM 79's next grenade (Tefa, this afternoon)
+
+"grenade launcher also needs the mag1 and mag2 like the pistols, so grenade 2 can already be in hand while grenade 1 is still in
+the launcher". Before: the pouch refused a round while the barrel was closed ("is closed: open it first") or loaded. Now
+(`reload.cpp pouch_grab`, `breech.cpp insert_lt`): the pouch gives the GM 79's next round whatever the barrel's state; the
+round never goes into a closed or occupied barrel by itself; with it in the hand, LT at the insert point breaks the barrel
+open (that hand cannot take the front grip), the next LT swaps the spent case for it; LG let go throws the case. Run: fire,
+pouch with the launcher closed, LT "barrel OPEN (LT at the insert point, the next round in the hand)", LT "swapped them", let
+go, close at the front grip, fire `[verified-live 2026-11-23, robot, n=1]`. NOT run: a LIVE grenade still in the barrel (LT
+should take it out to the carried ammo, then the round in the hand goes in). b150 = b149 without the testing switch
+`hand_poser/blend_preview.json`.
+
+## The loader's start-up hang (Tefa: "game is hung i think, only black")
+
+One start of ten hung in REFramework's own start-up, before our code: the log ends in `Suspending <thread>` lines after
+`Locking loader lock...` (62 paused, 17 resumed; a good start 76 and 76), the window black and not answering. Kept:
+`dev-archive/recon/2026-11-23-startup-hang/`. `drive_real_slot.sh` spots it (the log still for 25 s with threads paused)
+and starts once more by itself; KNOWN.md has the signature; the State-o-matiC rule is a row on the fault list.
+
+## The long guns' hands, with the part brought to the middle of the picture (Tefa's idea, this afternoon)
+
+"can you angle hands in front of the camera so you can have a look at whatever angle you need for long guns and just in
+general". `tools/sim/frame.py <zone> yaw= pitch= roll= at=`: turns the gun as asked and slides it until the named grip zone
+sits where wanted in the camera's view (it reads every zone in the camera's frame, `q_zonehv.lua`); `strokes.py` uses it for
+each racking part, `magdock.sh` for a long gun's magazine. A charging handle on the gun's right side is looked at with
+`view=right`.
+
+- **F2: with LT held on the bolt the hand was flat and open above the bolt knob.** Fingers closed round it through the
+  window ("slide" and "slide at the back"); picture `ri3042-f2-bolt-closed-grip.jpg`.
+- **WCX, Dragoon, SYG-12: the same open hand at the charging handle**: the F2's closed grip sent to their "slide" pose
+  (picture). Their "slide at the back" was not reached by the robot's pull (it keeps the pose in hand).
+- **WCX, Dragoon, SYG-12: the hand "on the magazine" was drawn 15 cm in front of it, open.** Their docked wrist for the
+  magazine was one untuned placeholder from build 32 (z 15 cm, y 3 cm, the same for all; the F2's had been tuned by Tefa:
+  0.6 / 5.7 / 5.1). Set through the docked box from the F2's numbers (the SYG-12 2.2 cm up instead of 5.7), fingers curled
+  ("ready on magazine"); picture.
+- W870 and M1897: the pump is held from below, in both stages: looks right, not touched.
+- NOT looked at: the Handcannon (drum, hammer, rounds), the Wolfsbane (one pose file: free), the GM 79 (no pose files), the
+  shells in the hand, a long gun's magazine carried and going in, the right hand anywhere.
