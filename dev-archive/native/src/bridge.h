@@ -157,6 +157,7 @@ enum Slot : int {
     // drawn muzzle (world), 275 its stamp; doors.cpp pushes with it and with the barrel's middle
     S_MUZZLE_W = 272, S_MUZZLE_ON = 275,
     S_DOOR_TOUCH_P = 276,     // 276-278, see S_DOOR_PRESS_SEQ (2026-11-19, b143)
+    S_MAG_PULL = 279,         // WRITTEN BY THE PLUGIN (pairs.cpp) for Hand Poser (2026-11-23, b148): 0 = no magazine on the grip's line; 1 + u while one is (u: 0 seated .. 1 at the bottom of the grip, reload.cpp rail_frame). The Lua array must be 280 long (visceral_re8_bridge.lua N): install both together
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

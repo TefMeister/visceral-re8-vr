@@ -70,6 +70,11 @@ const char* st_name(St s) {
 }
 
 bool g_hand_on_mag = false;       // seated with LG still held since the insert (the hand stays on the magazine)
+// b148: where the docked left hand's IK target sat against the seated magazine (see hand_on_mag_pose)
+bool g_dockrel_ok = false, g_dockrel_spare = false;
+std::string g_dockrel_gun;
+Vec3 g_dockrel_p{};
+Quat g_dockrel_q{0, 0, 0, 1};
 float g_last_grab = -10.0f, g_last_dock = -10.0f;
 bool g_rail_auto = false;         // 2026-11-14: the magazine travels up the grip's line by itself (PISTOL_AUTO_SEAT)
 bool g_well_armed = true;         // 2026-11-14: off from coming out of the bottom until the hand has left the well zone
@@ -566,7 +571,7 @@ void pull_out() {
     g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
     g_lt_to_seat = true;     // it goes back in only on a fresh LT press at the well (hand_checks)
     g_same_mag = true;
-    shellclip::play(g_id, "mag_out");   // 2026-11-04: the game's own finger movement for the magazine coming out (shellclip.h)
+    shellclip::play(g_id, "mag_out", (MAG_RAIL_ON && pistol_mag()) ? shellclip::RIGHT : shellclip::BOTH);   // 2026-11-23 (b148): on a pistol the LEFT fingers are Hand Poser's during the pull (its pose follows the pull distance, S_MAG_PULL); the clip keeps the right hand   // 2026-11-04: the game's own finger movement for the magazine coming out (shellclip.h)
     if (MAG_RAIL_ON && pistol_mag()) rail_enter(0.0f, "released (B): it moves only along the grip until it is out");
     else set_state(St::IN_HAND, pistol_mag() ? "released (B) into the left hand" : "pulled out by hand (LT)");
     ghosthand::event("mag", "start");
@@ -767,6 +772,18 @@ bool mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && (g_st
 bool round_in_hand() { return managed_now() && g_round_in_hand; }
 float pouch_dist(bridge::Hand h) { return dist(bridge::hand_pos(h), pouch_spot()); }
 bool on_rail() { return managed_now() && g_st == St::RAIL; }
+float rail_out() { return on_rail() ? g_rail_u : -1.0f; }
+bool mag_moving() { return managed_now() && g_w->reload == Reload::MAG && g_joint != nullptr && (g_st == St::RAIL || g_st == St::INSERT); }
+void note_docked_target(const Vec3& tp, const Quat& tq) {
+    Vec3 mp;
+    Quat mq;
+    if (!managed_now() || g_st != St::SEATED || !mag_world(mp, mq)) return;
+    const Quat inv = qinv(qnorm(mq));
+    g_dockrel_p = rotate(inv, tp - mp);
+    g_dockrel_q = qnorm(qmul(inv, qnorm(tq)));
+    if (!g_dockrel_ok || g_dockrel_gun != g_id) LOGI("%s reload: the docked hand on %s's seated magazine noted (%.3f %.3f %.3f from it): a pull starts from there", TAG, g_id.c_str(), g_dockrel_p.x, g_dockrel_p.y, g_dockrel_p.z);
+    g_dockrel_ok = true; g_dockrel_gun = g_id;
+}
 // 2026-11-14 (Hand Poser's spare-magazine lines): the gun's own magazine is in the left hand / seated in the gun
 bool gun_mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && g_st == St::IN_HAND; }
 bool gun_mag_seated() { return managed_now() && g_w->reload == Reload::MAG && g_st == St::SEATED; }
@@ -823,14 +840,43 @@ bool mag_world(Vec3& p, Quat& q) {
     q = qnorm(qmul(qnorm(rq), g_magrel_rot));
     return true;
 }
+// 2026-11-23 (b148; Tefa, the LEMI's spare swap: "hand smoothly travels on to the bottom of the mag1 ... as i'm taking the mag out,
+// Ethans middle finger and thumb close more around it ... the other smooth transition that doesn't change the position of mag2"):
+// the hand on a MOVING magazine (the grip's line, the push home) goes from where it was DOCKED on the seated magazine (kept
+// below, measured from the last frame it sat there, dockpose.cpp's offsets included) to the exact hold it has once the magazine is
+// out (hold_rel), by how far out the magazine is. No flip at the B press, none when it leaves the grip.
+Quat slerp_short(Quat a, Quat b, float t) {
+    float c = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    if (c < 0.0f) { b = Quat{-b.x, -b.y, -b.z, -b.w}; c = -c; }
+    if (c > 0.9995f) return qnorm(Quat{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t});
+    const float th = std::acos(c), sn = std::sin(th), fa = std::sin((1.0f - t) * th) / sn, fb = std::sin(t * th) / sn;
+    return qnorm(Quat{a.x * fa + b.x * fb, a.y * fa + b.y * fb, a.z * fa + b.z * fb, a.w * fa + b.w * fb});
+}
 bool hand_on_mag_pose(Vec3& tp, Quat& tq) {   // where the IK target goes so the hand joint holds the magazine (held_pose undone)
     Vec3 mp;
     Quat mq;
     if (!mag_world(mp, mq)) return false;
-    const Quat hold = quat_from_ypr(MAG_HOLD[3], MAG_HOLD[4], MAG_HOLD[5]);
-    const Quat hq = qnorm(qmul(qnorm(mq), qinv(hold)));
-    tp = mp - rotate(hq, Vec3{MAG_HOLD[0], MAG_HOLD[1], MAG_HOLD[2]});
-    tq = g_tq_ok ? qnorm(qmul(hq, qinv(g_tq_off))) : hq;
+    mq = qnorm(mq);
+    if (g_st == St::SEATED) {   // seated: the built-in hold as ever (dockpose.cpp's spot numbers were tuned on top of this one)
+        const Quat hold = quat_from_ypr(MAG_HOLD[3], MAG_HOLD[4], MAG_HOLD[5]);
+        const Quat hq = qnorm(qmul(mq, qinv(hold)));
+        tp = mp - rotate(hq, Vec3{MAG_HOLD[0], MAG_HOLD[1], MAG_HOLD[2]});
+        tq = g_tq_ok ? qnorm(qmul(hq, qinv(g_tq_off))) : hq;
+        return true;
+    }
+    Vec3 ho;
+    Quat hr;
+    hold_rel(ho, hr);
+    const Quat hq = qnorm(qmul(mq, qinv(hr)));
+    const Vec3 bp = mp - rotate(hq, ho);
+    const Quat bq = g_tq_ok ? qnorm(qmul(hq, qinv(g_tq_off))) : hq;
+    tp = bp; tq = bq;
+    if (g_dockrel_ok && g_dockrel_gun == g_id) {
+        const float out = g_st == St::RAIL ? rail_u() : 1.0f - std::fmin(1.0f, (now_s() - g_t0) / RELOAD_INSERT_SEC);   // 0 seated .. 1 out
+        const float k = ease(out < 0.0f ? 0.0f : out > 1.0f ? 1.0f : out);
+        tp = lerp(mp + rotate(mq, g_dockrel_p), bp, k);
+        tq = slerp_short(qnorm(qmul(mq, g_dockrel_q)), bq, k);
+    }
     return true;
 }
 void measure_target_turn() {

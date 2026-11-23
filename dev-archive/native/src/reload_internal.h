@@ -41,6 +41,7 @@ Vec3 mag_out_pos();
 Quat quat_from_ypr(float yaw, float pitch, float roll);
 bool from_weapon_local(Vec3 lpos, Quat lrot, Vec3& world, Quat& wrot);
 bool held_pose(Vec3& pos, Quat& rot);
+void hold_rel(Vec3& off, Quat& rot);   // b148: the magazine in the hand joint's frame, this gun's box included
 void magazine_shown(bool show);
 void mag_part_shown(bool show);
 void hide_mag_part();

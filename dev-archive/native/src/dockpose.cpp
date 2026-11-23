@@ -8,6 +8,7 @@
 #include "player.h"
 #include "settings.h"
 #include "rack.h"
+#include "reload.h"
 #include "shellclip.h"
 #include "smooth.h"
 #include "zones.h"
@@ -138,6 +139,9 @@ void on_ik(MO* ik) {
     const Pose want = wanted(gun, spot);
     int& last = left ? g_last_spot : g_last_spot_r;
     Pose& cur = left ? g_cur : g_cur_r;
+    // b148: a magazine on the grip's line / being pushed home: reload.cpp's hand_on_mag_pose carries the hand from its docked place
+    // to the exact hold by the pull distance; nothing is added here (the spot's numbers would be added twice)
+    if (left && reload::mag_moving()) { cur = Pose{}; g_ride = false; last = spot; g_shown_q = Quat{0, 0, 0, 1}; return; }
     if (spot != last) {
         if (docked(spot) && !zero(want)) LOGI("%s dockpose: gun %d spot %d (%s hand): wrist %.3f %.3f %.3f m, %.1f %.1f %.1f deg", TAG, gun, spot, left ? "left" : "right", want.x, want.y, want.z, want.rx, want.ry, want.rz);
         if (left && DOCK_POSE_RIDES_GLIDE && smooth::easing()) {
@@ -165,7 +169,12 @@ void on_ik(MO* ik) {
     Pose tot = cur;
     float hn[6]{};
     if (shellclip::hand_nudge(left, hn)) { tot.x += hn[0]; tot.y += hn[1]; tot.z += hn[2]; tot.rx += hn[3]; tot.ry += hn[4]; tot.rz += hn[5]; }
-    if (zero(tot)) return;
+    const bool on_mag = left && (spot == 4 || spot == 17) && !riding;   // b148: reload.cpp starts a pull from where the hand sat
+    if (zero(tot)) {
+        Vec3 np; Quat nq;
+        if (on_mag && player::get_pose(field_obj(ik, "Target"), np, nq)) reload::note_docked_target(np, nq);
+        return;
+    }
     MO* target = field_obj(ik, "Target");
     Vec3 lp;
     Quat lq, gq;
@@ -198,6 +207,7 @@ void on_ik(MO* ik) {
         }
     }
     player::set_pose(target, pos, qnorm(qmul(turn, lq)));
+    if (on_mag) reload::note_docked_target(pos, qnorm(qmul(turn, lq)));
 }
 
 } // namespace vn::dockpose

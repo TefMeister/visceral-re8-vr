@@ -269,6 +269,7 @@ void frame() {
             if (area == 0.0f && READY_ONLY_NAMED) spot = 15.0f;   // near the gun but in no named area: free
         }
         bridge::put(bridge::S_LEFT_SPOT, spot);
+        { const float u = reload::rail_out(); bridge::put(bridge::S_MAG_PULL, u >= 0.0f ? 1.0f + u : 0.0f); }   // 2026-11-23 (b148): Hand Poser blends the pull pose by this
         static float last_area = -1.0f;
         if (area != last_area) { last_area = area; LOGI("%s pairs: left hand area %d", TAG, (int)area); }
         bridge::put(bridge::S_LEFT_AREA, area);

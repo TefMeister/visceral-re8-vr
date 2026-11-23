@@ -33,7 +33,10 @@ bool left_at_gun();      // 2026-11-11 (accuracy.cpp): the left hand is on the g
 bool hand_near_mag();     // the left hand within MAG_GRAB_M of the seated magazine (the rack and the grip keep off)      // the left hand holds the magazine going in, or seated, until LG is let go
 float pouch_dist(bridge::Hand h);   // 2026-11-01: a hand's distance from our left-hip pouch spot (m)
 bool on_rail();          // b099: a handgun magazine on the grip's line (THE GRIP'S RAIL), carried by the hand
+float rail_out();        // 2026-11-23 (b148): how far down the grip's line the magazine is, 0 seated .. 1 at the bottom; -1 = not on the line
 bool gun_mag_in_hand();  // 2026-11-14: the gun's own magazine is in the left hand (out of the gun)
+bool mag_moving();       // b148: the magazine is on the grip's line or being pushed home: reload.cpp places the left hand all by itself (dockpose.cpp keeps off)
+void note_docked_target(const Vec3& tp, const Quat& tq);   // b148: dockpose.cpp, each frame the left hand sits docked on the seated magazine: where its IK target ended up
 bool gun_mag_seated();   // 2026-11-14: the gun's own magazine is seated
 bool in_pouch();         // the left hand is in the ammo spot
 void on_racked();        // rack.cpp: the slide / pump cycled: rounds waiting for it go in

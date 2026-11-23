@@ -102,7 +102,10 @@ if "fire" in steps:
     for i in range(40):
         m2 = log_mark(); press("rtrigger", 0.15)
         t = "\n".join(log_since(m2, 40))
-        if "accuracy: shot" in open(LOG, "rb").read()[m2:].decode("utf-8", "replace"): n += 1
+        new = open(LOG, "rb").read()[m2:].decode("utf-8", "replace")
+        # 2026-11-23: a revolver logs no "accuracy: shot" (the Wolfsbane "fired 0" while its drum went 2 -> 1 -> 0): its drum count
+        # going down and the GM 79's own line count as shots too
+        if "accuracy: shot" in new or "GM 79 fired" in new or any(l.split("loaded ")[1][0:6].replace(" ", "").split("->")[0] > l.split("-> ")[1][0:1] for l in new.splitlines() if "drumrounds: loaded " in l and "-> " in l): n += 1
         elif "refused" in t or i > n + 2: break
     stage("fired until it stopped: %d shots" % n, m)
     for key in zones()[0]:

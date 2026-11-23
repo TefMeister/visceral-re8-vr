@@ -15,16 +15,18 @@ def full(k):
     side = "L_"
     if k[0] == "r" and len(k) == 3: side, k = "R_", k[1:]
     return (side + F[k[0]] + k[1] if len(k) == 2 and k[0] in F else k) + ax
-sets, boxes = {}, {"mag": {}, "spare": {}}   # mag.y=3.5 = the MAGAZINE IN HAND box; spare.x=3 spare.rz=20 = the spare's place
+sets, boxes, ask = {}, {"mag": {}, "spare": {}, "dock": {}}, False   # dock.y=1.5 dock.rz=-20 = the LEFT HAND, DOCKED box (the wrist on the gun); a bare `dock` asks what it shows   # mag.y=3.5 = the MAGAZINE IN HAND box; spare.x=3 spare.rz=20 = the spare's place
 for a in sys.argv[1:]:
+    if a == "dock": ask = True; continue
     k, v = a.split("="); v = [float(x) for x in v.split(",")]
     if k.split(".")[0] in boxes: boxes[k.split(".")[0]][k.split(".")[1]] = v[0]
     else: sets[full(k)] = v if len(v) == 3 else v[0]
-if not sets and not any(boxes.values()): print(__doc__); sys.exit(1)
+if not sets and not any(boxes.values()) and not ask: print(__doc__); sys.exit(1)
 seq = int(time.time() * 1000) % 2000000000
 tmp = os.path.join(D, "remote.json.tmp")
 msg = {"seq": seq, "set": sets}
 msg.update({k: v for k, v in boxes.items() if v})
+if ask and not boxes["dock"]: msg["dock"] = {}
 with open(tmp, "w") as f: json.dump(msg, f)
 os.replace(tmp, os.path.join(D, "remote.json"))
 t0 = time.time()
@@ -33,7 +35,9 @@ while time.time() - t0 < 6:
         a = json.load(open(os.path.join(D, "remote_done.json")))
         if a.get("seq") == seq:
             print("%s: %d joint(s) set in pose '%s' (%d held)%s" % ("ok" if a.get("ok") else "NOT SET", a.get("set", 0), a.get("pose", ""),
-                  a.get("held", 0), (" | " + a["note"]) if a.get("note") else "")); sys.exit(0 if a.get("ok") else 1)
+                  a.get("held", 0), (" | " + a["note"]) if a.get("note") else ""))
+            if ask or boxes["dock"]: print("dock: " + json.dumps(a.get("dock")))
+            sys.exit(0 if a.get("ok") else 1)
     except Exception: pass
     time.sleep(0.15)
 print("NO ANSWER in 6 s: is the Hand Poser window open and connected to this game (green top line)?"); sys.exit(2)

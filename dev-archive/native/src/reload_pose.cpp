@@ -99,6 +99,17 @@ HoldExtra hold_extra() {
 }
 } // namespace
 
+// 2026-11-23 (b148): the same hold as numbers of its own: the magazine in the hand JOINT's frame (place, turn), with this gun's
+// MAGAZINE IN HAND box. hand_on_mag_pose (reload.cpp) undoes exactly this on the grip's line, so the magazine sits in the hand
+// there the way it does once it is out (before, only the built-in hold was undone: the wrist flipped at the B press and again
+// when the magazine left the grip)
+void hold_rel(Vec3& off, Quat& rot) {
+    const Quat base = quat_from_ypr(MAG_HOLD[3], MAG_HOLD[4], MAG_HOLD[5]);
+    const HoldExtra e = hold_extra();
+    off = Vec3{MAG_HOLD[0], MAG_HOLD[1], MAG_HOLD[2]} + rotate(base, Vec3{e.x, e.y, e.z});
+    rot = qnorm(qmul(base, quat_from_ypr(e.yaw, e.pitch, e.roll)));
+}
+
 bool held_pose(Vec3& pos, Quat& rot) {   // the magazine in the left hand: the hand joint plus the hold
     Vec3 hp;
     Quat hr;
