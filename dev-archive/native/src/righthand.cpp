@@ -1,6 +1,7 @@
 // righthand.cpp -- see righthand.h
 #include "righthand.h"
 #include "bridge.h"
+#include "breech.h"
 #include "fingers.h"
 #include "gate.h"
 #include "joints.h"
@@ -108,6 +109,7 @@ struct Firm {
     std::map<std::string, std::array<Quat, N>> kept;
     std::string gun;
     float caught_for = -1.0f;   // the shot already read
+    float rt_t = -1.0f;         // when RT was last down
     float k = 0.0f, last_t = -1.0f;
     Quat target[N] = {};
     bool have[N] = {};
@@ -123,12 +125,22 @@ struct Firm {
         const float t = now_s(), dt = last_t < 0.0f ? 0.0f : std::fmin(0.1f, t - last_t);
         last_t = t;
         if (!FIRM_GRIP_ON || id.empty() || !find(skel)) { k = 0.0f; return; }
+        // 2026-11-23 (b152; Tefa: "index finger moving with RT press on the trigger"): the firm grip held the index finger too, after
+        // Hand Poser had bent it for the pull, so the trigger finger never moved once a gun had fired. While RT is down, and
+        // FIRM_TRIGGER_FREE_S after, the three index joints (the first three of RIGHT) are not held and not read into the kept grip
+        if (bridge::held(bridge::S_RTRIG)) rt_t = t;
+        const bool trigger_free = rt_t >= 0.0f && t - rt_t < FIRM_TRIGGER_FREE_S;
         const float shot = recoil::last_shot_s();
         if (shot > 0.0f && shot != caught_for && t - shot >= FIRM_CAPTURE_S && t - shot < FIRM_CAPTURE_S + 0.5f) {
             caught_for = shot;
             std::array<Quat, N> q{};
             bool ok = true;
             for (int i = 0; i < N && ok; ++i) ok = joint[i] != nullptr && get_q(JOINT, joint[i], "get_LocalRotation", q[i]);
+            if (ok && trigger_free) {   // the index finger is mid-pull: keep the one read before, or wait for a shot with RT let go
+                auto old = kept.find(id);
+                if (old == kept.end()) ok = false;
+                else for (int i = 0; i < 3; ++i) q[i] = old->second[i];
+            }
             if (ok) {
                 const bool first = kept.find(id) == kept.end();
                 kept[id] = q;
@@ -143,6 +155,7 @@ struct Firm {
         const float u = ease(k);
         for (int i = 0; i < N; ++i) {
             Quat cur;
+            if (trigger_free && i < 3) continue;   // the trigger finger is Hand Poser's during a pull
             if (joint[i] == nullptr || !get_q(JOINT, joint[i], "get_LocalRotation", cur)) continue;
             target[i] = nlerp(qnorm(cur), qnorm(it->second[i]), u);
             have[i] = true;
@@ -167,7 +180,7 @@ void render_point() {
     g_right.render(s.tf, RIGHT_STILL_ON && play && s.weapon == nullptr, "held still: no weapon out (the relaxed rest pose)");
     const bool right_free = play && s.gun != nullptr && !rack_right::active() && !gate::right_at_cover() && !gate::right_lifted() &&
                             !shellclip::playing_right() && !bridge::flag(bridge::S_IS_RELOADING);
-    g_firm.render(s.tf, s.gun != nullptr ? s.weapon_id : std::string(), right_free);
+    g_firm.render(s.tf, s.gun != nullptr ? s.weapon_id : std::string(), right_free && breech::latch_right_spot() == 0);   // b152: nor while the thumb is on / has flicked the GM 79's latch (Hand Poser's two latch poses)
     // 2026-11-01 23:3x (Tefa: "left hand is still animating while walking"): the left fingers the same, whenever the left hand
     // is free: not gripping or holding anything, no Hand Poser on it, and not opening toward a part (fingers.cpp)
     // (2026-11-02: the game's own "gripping" flag left out: it flickers while LG is up, the game docking the free hand)
@@ -178,6 +191,41 @@ void render_point() {
     g_left.render(s.tf, LEFT_STILL_ON && play && left_free, "held still: the left hand is free (the relaxed rest pose)", s.weapon == nullptr);
 }
 
-void begin_render() { g_right.again(); g_left.again(); g_firm.again(); }
+// 2026-11-23 (b152; Tefa: "right hand index finger on the trigger ... index finger moving with RT press on the trigger"): the trigger
+// finger's pull is made HERE, the last write of the frame, on every gun: while RT is down the three index joints are bent a little
+// further (TRIGGER_PULL_DEG, about each joint's own z: Village's right-hand bend) on top of whatever pose stands, eased over
+// TRIGGER_PULL_S. (Hand Poser's own "trigger pulled" pose never showed in Village: its write was not the last one. The loader gives
+// no trigger travel, pressed or not only, so the finger goes by time, not by the squeeze.)
+void trigger_pull() {
+    static float k = 0.0f, last = -1.0f;
+    static MO* tf = nullptr;
+    static MO* jt[3] = {};
+    static Quat base[3] = {};          // the finger as it stood at this frame's first call: BeginRendering comes twice a frame on
+    static float base_frame = -1.0f;   // Two Frame Sequential, and bending what was already bent doubled the pull (measured)
+    const auto& s = player::now();
+    const float t = now_s(), dt = last < 0.0f ? 0.0f : std::fmin(0.1f, t - last);
+    last = t;
+    const bool play = bridge::live() && bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
+    const bool want = TRIGGER_PULL_ON && play && s.gun != nullptr && bridge::held(bridge::S_RTRIG) && !rack_right::active() && !gate::right_at_cover();
+    const float step = TRIGGER_PULL_S > 0.0f ? dt / TRIGGER_PULL_S : 1.0f;
+    k = want ? std::fmin(1.0f, k + step) : std::fmax(0.0f, k - step);
+    if (k <= 0.0f || s.tf == nullptr) return;
+    if (s.tf != tf) { tf = s.tf; for (auto& j : jt) j = nullptr; }
+    const float u = ease(k);
+    const float frame = bridge::view(bridge::S_FRAME);
+    const bool fresh = frame != base_frame;
+    base_frame = frame;
+    for (int i = 0; i < 3; ++i) {
+        if (jt[i] == nullptr) jt[i] = joint_by_name(tf, RIGHT[i]);
+        Quat cur;
+        if (jt[i] == nullptr || !get_q(JOINT, jt[i], "get_LocalRotation", cur)) continue;
+        if (fresh) base[i] = qnorm(cur);
+        const float h = TRIGGER_PULL_DEG[i] * u * 3.14159265f / 360.0f;
+        Quat q = qnorm(qmul(base[i], Quat{0, 0, std::sin(h), std::cos(h)}));
+        set_any(JOINT, jt[i], "set_LocalRotation", &q);
+    }
+}
+
+void begin_render() { g_right.again(); g_left.again(); g_firm.again(); trigger_pull(); }
 
 } // namespace vn::righthand

@@ -18,9 +18,11 @@ F = {"I": "IndexF", "M": "MiddleF", "R": "RingF", "P": "PinkyF", "T": "Thumb"}
 def full(k):
     j, ax = k.split("."); return side + "_" + F[j[0]] + j[1], "xyz".index(ax)
 def shape():
-    o = subprocess.run([py, os.path.join(HERE, "rv.py"), "-f", os.path.join(HERE, "q_wrist.lua")], capture_output=True, text=True).stdout
+    # SOLVE_Q=q_gunframe.lua: the points in the GUN's frame instead of the wrist's (a thumb onto a latch, a hammer)
+    o = subprocess.run([py, os.path.join(HERE, "rv.py"), "-f", os.path.join(HERE, os.environ.get("SOLVE_Q", "q_wrist.lua"))], capture_output=True, text=True).stdout
     d = {}
     for l in o.splitlines():
+        if l.startswith("gun "): continue
         p = l.split()
         if len(p) >= 4:
             d[p[0]] = [float(x) for x in p[1:4]]
@@ -33,6 +35,8 @@ def err(d):
         s += w * sum((d[k][i] - t[i]) ** 2 for i in range(3)); n += w
     return (s / n) ** 0.5
 st = json.load(open(os.path.join(GAME, "reframework", "data", "hand_poser", "state.json")))["angles"]
+if any(full(v)[0] not in st for v in vars_):   # the window is not reading these joints yet (no row): a harmless set makes the rows
+    print("joints not in the window yet: send them once with pose.py / rcopy.py first: %s" % sorted({full(v)[0] for v in vars_ if full(v)[0] not in st})); sys.exit(1)
 ang = {v: st[full(v)[0]][full(v)[1]] for v in vars_}
 def put(a):
     if os.environ.get("RV_SIDE"): pass

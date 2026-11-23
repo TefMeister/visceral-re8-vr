@@ -96,7 +96,7 @@ bool dock_applies(zones::Key k) {
     case zones::HANDLE: return w->shape == weapons::Shape::PISTOL && w->reload != weapons::Reload::NONE;
     // 2026-11-01 23:5x (Tefa: "the drum grab can actually completely go then, as it is not openable at all"): not on the Wolfsbane
     case zones::DRUM: return w->breech == weapons::Breech::CYLINDER && std::strcmp(w->id, settings::GATE_GUN) != 0;
-    case zones::INSERT: return w->breech == weapons::Breech::BREAK;
+    case zones::INSERT: return w->breech == weapons::Breech::BREAK && breech::latch_open();   // b152 (Tefa): the hand goes on top of the barrel only once right B has opened the latch
     case zones::WELL: return shells::port_gun();
     default: return false;
     }
@@ -289,7 +289,7 @@ void frame() {
     }
     // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
     // (2026-11-08: 4 = the right hand on the bolt from the click at the back until it is home, as the left's 11)
-    bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? (rack::right_on() && rack::at_back() ? 4.0f : 2.0f) : gate::right_lifted() ? 3.0f : 0.0f);   // 3: over the hammer (2026-11-06)
+    bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? (rack::right_on() && rack::at_back() ? 4.0f : 2.0f) : gate::right_lifted() ? 3.0f : (float)breech::latch_right_spot());   // 3: over the hammer (2026-11-06); 5 / 6: the GM 79's latch: the thumb on it, then flicked open (b152)
 
     // 2026-10-30 (Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it"): the gun's
     // pair whose activation sphere the left hand is nearest (measured in its own radii) is handed to the zones script, which
@@ -310,6 +310,7 @@ void frame() {
 
 bool active() { return g_active >= 0 || g_dock >= 0; }
 
+bool docked_on(zones::Key k) { return g_dock >= 0 && DOCKS[g_dock].key == k; }   // b152: breech.cpp, the hand on the GM 79's barrel
 bool part_center(zones::Key k, Vec3& c, float& r) {
     for (int i = 0; i < NDOCKS; ++i) if (DOCKS[i].key == k && g_dock_on[i]) { c = g_dock_c[i]; r = g_dock_r[i]; return true; }
     return false;

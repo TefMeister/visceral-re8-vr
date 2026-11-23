@@ -18,6 +18,7 @@ bool active();     // the left hand belongs to a pair now
 // where the hand lands, in the gun hand's frame (rp, rq = the gun hand's IK target), and its turn there; false = no pair
 bool landing(const Vec3& rp, const Quat& rq, Vec3& rel, Quat& qrel);
 // 2026-10-27: a built-in part's centre (world) and size this frame (zones::HANDLE / DRUM / INSERT); false = not on this gun
+bool docked_on(zones::Key k);   // b152: the left hand is docked on this part right now
 bool part_center(zones::Key k, Vec3& c, float& r);
 
 } // namespace vn::pairs

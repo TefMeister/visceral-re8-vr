@@ -19,6 +19,9 @@ bool here();                // the gun in hand opens to load
 bool is_open();
 bool loading_allowed();     // not a breech gun, or it is open
 bool blocks_fire();         // a breech gun that is open
+bool latch_open();          // b152: the GM 79's latch is open (right B): the hand may go on top of the barrel, LG + LT moves it
+int latch_right_spot();     // b152: the right hand's spot for the latch: 5 the thumb on it (the flick under way), 6 flicked open, 0 none
+float break_open_part();    // b152: how far the GM 79's barrel hangs open, 0 shut .. 1 fully
 // 2026-10-27 (Tefa): the revolver's drum opens only with LG at the drum (pairs.cpp's DRUM dock), never with right B or a
 // flick; while the hand holds the drum each LT puts a round in, and the LT after it is full closes it (a flick closes it too).
 // The GM 79: LG + LT at the insert point takes out what is in the barrel, a live grenade (back to the carried ammo) or the

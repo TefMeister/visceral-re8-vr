@@ -203,6 +203,11 @@ constexpr float DRUM_TILT_DEG = 30.0f;
 // 2026-11-01 (Tefa: "did you also do the grenade launcher opened positions"): the GM 79's barrel ("Carrier", the joint its
 // barrel, sight and muzzles hang from) tips muzzle-down about its own X when open; 40 deg found live on the simulator
 constexpr float BREAK_OPEN_DEG = 40.0f;
+constexpr float BREAK_LEVER_M = 0.18f;             // b152: the hand on the barrel sits about this far from the hinge: its way down turns the barrel
+constexpr float BREAK_FALL_PER_S2 = 14.0f;         // b152: a barrel let go falls open: its speed-up, in whole swings per second squared (0.38 s from shut)
+constexpr float BREAK_FLICK_START_PER_S = 2.0f;    // b152: a flick down starts it with this speed (swings per second)
+constexpr float BREAK_LATCH_FLICK_SEC = 0.25f;     // b152: right B: the thumb is on the latch this long before it flicks (as the Wolfsbane's lift before its cover)
+constexpr float BREAK_SHUT_PART = 0.06f;           // b152: let go this close to shut, it clicks shut instead of falling
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;
 // 2026-11-09 (Tefa: "left wrist really needs to turn with the forearm ... my wrist in game is whanged into a prezel"): the
@@ -484,6 +489,10 @@ constexpr float SLEEP_EASE_OUT_S = 0.12f;        // back to the woken controller
 constexpr bool  FIRM_GRIP_ON = true;
 constexpr float FIRM_CAPTURE_S = 0.12f;          // the right fingers are read this long after a shot (the firing hold)
 constexpr float FIRM_EASE_S = 0.15f;             // into / out of the held grip
+constexpr float FIRM_TRIGGER_FREE_S = 0.25f;      // b152: after RT is let go the firm grip leaves the index finger this long (Hand Poser eases it back)
+constexpr bool  TRIGGER_PULL_ON = true;            // b152: the right index finger bends on RT (righthand.cpp trigger_pull)
+constexpr float TRIGGER_PULL_DEG[3] = {4.0f, 20.0f, 10.0f};   // b152: the extra bend at the knuckle, middle and tip joint when RT is down
+constexpr float TRIGGER_PULL_S = 0.07f;            // b152: the pull's and the release's time
 
 // torch.cpp -- the torch you hold (2026-11-12, Tefa; Visceral RE2's numbers for the left shoulder spot)
 constexpr bool  TORCH_ON = true;

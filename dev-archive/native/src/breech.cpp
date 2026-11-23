@@ -1,5 +1,7 @@
 // breech.cpp -- see breech.h.
 #include "breech.h"
+#include "pairs.h"
+#include "zones.h"
 #include "bridge.h"
 #include "drumrounds.h"
 #include "gate.h"
@@ -39,6 +41,23 @@ MO* g_carrier = nullptr;       // 2026-11-01: the GM 79's barrel joint (the M185
 Quat g_carrier_rest{0, 0, 0, 1};
 bool g_carrier_ok = false;
 float g_swing = 0.0f, g_swing_t = -1.0f;
+// 2026-11-23 (b152, Tefa's design for the GM 79): "right thumb flicking the grenade launcher lock open with B, then flick down after
+// opens the launcher, flick up closes it and closes the latch with the barrel closing - to open with LG + LT, B is needed to first
+// open the latch, then LG+LT makes it openable, and openable with motion - LG from the bottom puts the hand on the weapon from
+// below - LG on the top puts hand on the top, only when latch is opened with B, and can push the launcher open that way with LG+LT
+// again. it's gravity based so letting go of LG mid pull/push open just lets go of the barrel and it falls down".
+// g_ang: how far the barrel hangs open (0 shut .. 1 fully); the left hand moves it while LG + LT are held on the barrel with the
+// latch open (the hand's way down from the gun hand, over BREAK_LEVER_M); let go part way, it falls open (BREAK_FALL_PER_S2).
+bool g_latch = false;            // the latch is open (right B, the barrel shut)
+float g_ang = 0.0f, g_ang_v = 0.0f, g_ang_t = -1.0f;
+bool g_was_part_open = false;
+// 2026-11-23 (Tefa: "please add a thumb flick to grenade launcher open like wolfsbane does"): right B sends the thumb onto the latch
+// (the right hand's spot 5, a Hand Poser pose), and BREAK_LATCH_FLICK_SEC later it flicks: the latch changes, the click sounds, and the
+// thumb goes to its flicked place (spot 6) for as long as the latch is open; shutting runs the same the other way
+float g_flick_t = -1.0f;         // when right B started the thumb's flick (-1 = none under way)
+bool g_flick_to = false;         // what the latch becomes at the flick
+int g_move = 0;                  // 0 at rest, 1 the left hand moves it, 2 falling open, 3 swinging shut (a flick up)
+float g_drive_ref = 0.0f, g_drive_ang0 = 0.0f;
 Quat g_prev{0, 0, 0, 1};
 bool g_have_prev = false;
 float g_prev_t = 0.0f;
@@ -173,7 +192,10 @@ void flick() {
 bool here() { return RELOAD_ON && BREECH_ON && g_w != nullptr && g_w->breech != Breech::NONE && bridge::live(); }
 bool is_open() { return here() && g_open; }
 bool loading_allowed() { return !here() || g_open; }
-bool blocks_fire() { return is_open(); }
+bool blocks_fire() { return is_open() || (here() && g_w->breech == Breech::BREAK && (g_ang > 0.02f || g_latch)); }   // b152: nor with the latch open
+bool latch_open() { return here() && g_w->breech == Breech::BREAK && g_latch; }
+int latch_right_spot() { return !here() || g_w->breech != Breech::BREAK ? 0 : g_flick_t >= 0.0f ? 5 : g_latch ? 6 : 0; }   // the right hand's Hand Poser spot: 5 the thumb on the latch, 6 flicked open
+float break_open_part() { return here() && g_w->breech == Breech::BREAK ? g_ang : 0.0f; }
 bool spent() { return here() && g_w->breech == Breech::BREAK && g_spent; }
 bool spent_in_hand() { return here() && g_w->breech == Breech::BREAK && g_spent_in_hand; }
 bool hold_round() { return here() && g_w->breech == Breech::BREAK && g_open && g_hold_round; }
@@ -300,14 +322,11 @@ bool drop_casing() { if (!cover_gun() || g_spent_n <= 0) return false; --g_spent
 
 void insert_lt() {
     if (!here() || g_w->breech != Breech::BREAK) return;
-    if (!g_open && reload::round_in_hand()) {   // b149 (Tefa 2026-11-23, grenade 2 in the hand while grenade 1 is still in): the hand that
-        // holds the next round cannot take the front grip, so its LT at the insert point breaks the barrel open; the next LT swaps
-        set_open(true, "LT at the insert point, the next round in the hand");
-        return;
-    }
-    if (!g_open) {
-        bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
-        LOGI("%s breech: LT at the insert point: the barrel is closed: open it first", TAG);
+    if (!g_open) {   // b152: at a barrel that is not open LT is the hand moving it (break_frame), or a refusal while the latch is shut
+        if (!g_latch) {
+            bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s breech: LT at the insert point: the latch is shut: right B first", TAG);
+        }
         return;
     }
     if (g_spent) {   // 2026-11-02 (Tefa): it comes out INTO the left hand; with a live round already in the hand, one LT swaps them
@@ -338,6 +357,86 @@ void insert_lt() {
     LOGI("%s breech: a live grenade taken out (loaded %d)", TAG, player::loaded());
 }
 
+// b152: the GM 79, every frame (see g_latch above)
+float left_down_m() {   // how far the left controller is BELOW the gun hand, straight down (m; room space: y is up). Down is gravity's
+    // way, as the barrel's fall is; the gun hand's own axes lie any way the gun is held (the first cut used them: no pull was seen)
+    return bridge::hand_pos(bridge::RIGHT).y - bridge::hand_pos(bridge::LEFT).y;
+}
+bool left_on_barrel() { return bridge::flag(bridge::S_GRIPPING_WEAPON) || pairs::docked_on(zones::INSERT); }
+void break_frame() {
+    const float now = now_s();
+    const float dt = g_ang_t < 0.0f ? 0.0f : std::fmin(0.05f, now - g_ang_t);
+    g_ang_t = now;
+    const float raw = turn_rate();
+    g_rate = g_rate + (raw - g_rate) * BREECH_FLICK_FOLLOW;
+    const bool shut = g_ang <= 0.001f;
+    // right B: the thumb flicks the latch, only with the barrel shut
+    if (bridge::pressed(bridge::S_RB)) {
+        if (shut && g_flick_t < 0.0f) {
+            g_flick_t = now; g_flick_to = !g_latch;
+            LOGI("%s breech: right B: the thumb goes onto the latch (%.2f s), then flicks it %s", TAG, BREAK_LATCH_FLICK_SEC, g_flick_to ? "open" : "shut");
+        } else if (shut) {
+        } else LOGI("%s breech: right B: the latch cannot shut while the barrel hangs open (%.0f%%)", TAG, g_ang * 100.0f);
+    }
+    // the thumb stays on the latch for as long as B is held (at least BREAK_LATCH_FLICK_SEC) and flicks when it is let go: a short
+    // press is the quick flick, a held B shows the thumb resting on the latch (which is also how its pose can be looked at and set)
+    if (g_flick_t >= 0.0f && now - g_flick_t >= BREAK_LATCH_FLICK_SEC && !bridge::held(bridge::S_RB)) {
+        g_flick_t = -1.0f;
+        if (g_ang <= 0.001f) {
+            g_latch = g_flick_to;
+            click();
+            bridge::rumble(bridge::RIGHT, BREECH_BUZZ_AMP, BREECH_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s breech: right B: the thumb flicks the latch %s%s", TAG, g_latch ? "OPEN" : "shut", g_latch ? ": a flick down, or LG + LT on the barrel and a pull, opens it" : "");
+        }
+    }
+    // the left hand moves the barrel: LG + LT held on it, the latch open (not at a fully open barrel's insert point: LT loads there)
+    const bool both = bridge::held(bridge::S_LGRIP) && bridge::held(bridge::S_LTRIG) && left_on_barrel();
+    const bool at_open_insert = g_ang >= 0.999f && pairs::docked_on(zones::INSERT) && !bridge::flag(bridge::S_GRIPPING_WEAPON);
+    if (g_move != 1 && both && bridge::pressed(bridge::S_LTRIG)) {
+        if (!g_latch) {
+            bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            LOGI("%s breech: LG + LT on the barrel: the latch is shut: right B first", TAG);
+        } else if (!at_open_insert) {
+            g_move = 1; g_drive_ref = left_down_m(); g_drive_ang0 = g_ang; g_ang_v = 0.0f;
+            LOGI("%s breech: LG + LT on the barrel, the latch open: the hand moves it (from %.0f%% open)", TAG, g_ang * 100.0f);
+        }
+    }
+    if (g_move == 1) {
+        if (both) {
+            const float travel = BREAK_LEVER_M * BREAK_OPEN_DEG * 3.14159265f / 180.0f;   // the hand's way for the whole swing
+            const float a = g_drive_ang0 + (left_down_m() - g_drive_ref) / travel;
+            g_ang = a < 0.0f ? 0.0f : a > 1.0f ? 1.0f : a;
+        } else if (g_ang <= BREAK_SHUT_PART) {
+            g_move = 3;   // let go almost shut: it clicks shut
+        } else {
+            g_move = g_ang >= 0.999f ? 0 : 2; g_ang_v = 0.0f;
+            if (g_move == 2) LOGI("%s breech: the barrel let go at %.0f%%: it falls open", TAG, g_ang * 100.0f);
+        }
+    }
+    // a flick of the gun hand: down lets a latched-open barrel fall, up swings an open one shut
+    if (BREECH_FLICK_ON && now - g_last_flip >= BREECH_FLICK_COOLDOWN_SEC && g_move != 1) {
+        if (g_latch && shut && g_rate <= -BREECH_FLICK_DEG_S) { g_move = 2; g_ang_v = BREAK_FLICK_START_PER_S; g_last_flip = now; LOGI("%s breech: a flick down, the latch open: the barrel falls open", TAG); }
+        else if (g_ang > 0.5f && g_rate >= BREECH_FLICK_DEG_S) { g_move = 3; g_last_flip = now; LOGI("%s breech: a flick up: the barrel swings shut", TAG); }
+    }
+    if (g_move == 2) {   // falling open
+        g_ang_v += BREAK_FALL_PER_S2 * dt;
+        g_ang = std::fmin(1.0f, g_ang + g_ang_v * dt);
+        if (g_ang >= 1.0f) { g_move = 0; g_ang_v = 0.0f; }
+    } else if (g_move == 3) {   // swinging shut
+        g_ang = std::fmax(0.0f, g_ang - (BREAK_SWING_SEC > 0.0f ? dt / BREAK_SWING_SEC : 1.0f));
+        if (g_ang <= 0.0f) g_move = 0;
+    }
+    // what the rest of the mod asks: open = hanging fully open (rounds go in, cases come out); shut = the latch shuts with it
+    if (!g_open && g_ang >= 0.999f) set_open(true, "it hangs fully open");
+    if (g_ang <= 0.001f && g_move != 1 && (g_open || g_was_part_open)) {
+        if (g_open) set_open(false, "the barrel shut: the latch shuts with it");
+        else LOGI("%s breech: the barrel shut again: the latch shuts with it", TAG);
+        g_latch = false;
+    }
+    if (g_move != 1) g_was_part_open = g_ang > 0.001f;
+    else if (g_ang > 0.001f) g_was_part_open = true;
+}
+
 void frame() {
     const std::string id = weapons::canonical(player::now().weapon_id);
     if (id != g_id) {
@@ -345,6 +444,7 @@ void frame() {
         g_w = weapons::find(id);
         g_open = false;   // a gun comes out of the inventory closed
         g_carrier = nullptr; g_carrier_ok = false; g_swing = 0.0f; g_swing_t = -1.0f;
+        g_flick_t = -1.0f; g_latch = false; g_ang = 0.0f; g_ang_v = 0.0f; g_ang_t = -1.0f; g_move = 0; g_was_part_open = false;
         g_spent = false;
         g_spent_in_hand = false;
         g_hold_round = false;
@@ -388,10 +488,7 @@ void frame() {
     // 2026-11-01 (Tefa: "please disable B opening and closing the grenade launcher"): right B no longer opens or closes it
     // (it comes back with the semi-immersive and automatic reload modes, ideas/fresh)
     // the GM 79 with the left hand on its front grip: LT opens / closes it (2026-10-27)
-    if (g_w->breech == Breech::BREAK && bridge::flag(bridge::S_GRIPPING_WEAPON) && bridge::held(bridge::S_LGRIP) && bridge::pressed(bridge::S_LTRIG)) {
-        set_open(!g_open, "LT with the left hand on the front");
-        return;
-    }
+    if (g_w->breech == Breech::BREAK) { break_frame(); return; }   // b152: the latch, the hand on the barrel, gravity
     if (gate_gun()) {   // 2026-11-01 22:4x: right B opens the M1851's cover; gate.cpp loads it and shuts it (Tefa's plan, 22:5x)
         if (bridge::pressed(bridge::S_RB)) {
             if (gate::holding()) gate::close_request("right B");   // the right hand back to the grip first, then the thumb shuts it
@@ -425,6 +522,7 @@ void pose_point() {
     const float sec = lid ? (timings::has(timings::COVER_SWING_S) ? timings::v(timings::COVER_SWING_S) : g_lid_sec) : BREAK_SWING_SEC;   // 2026-11-07: timings.json wins over lid_swing.json when set
     const float step = sec > 0.0f ? dt / sec : 1.0f;
     g_swing = want > g_swing ? std::fmin(want, g_swing + step) : std::fmax(want, g_swing - step);
+    if (!lid) g_swing = g_ang;   // b152: the GM 79's barrel hangs where the hand, the fall or the flick has it
     if (g_swing <= 0.0f) return;   // shut: the animation's own pose stands
     const float h = (lid ? g_lid_deg : BREAK_OPEN_DEG) * g_swing * 3.14159265f / 360.0f, sh = std::sin(h);
     const Vec3 ax = lid ? g_lid_axis : Vec3{1, 0, 0};
