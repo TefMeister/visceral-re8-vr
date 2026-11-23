@@ -6,7 +6,7 @@ case "$1" in re2) G="/c/Steam/steamapps/common/RESIDENT EVIL 2  BIOHAZARD RE2"; 
 [ -f "$G/$EXE" ] || { echo "no $EXE in $G"; exit 1; }
 VB="$HOME/github-backups/_lanes-next-wt/plugins/lanes/tools/vrbench"
 python "$VB/vrbench.py" start "$(cygpath -w "$G/$EXE")" | tail -1
-powershell -NoProfile -Command "\$env:SteamAppId='$APP'; Start-Process -FilePath '$(cygpath -w "$G")\$EXE' -WorkingDirectory '$(cygpath -w "$G")'"
+powershell -NoProfile -Command "\$env:SteamAppId='$APP'; Start-Process -FilePath '$(cygpath -w "$G/$EXE")' -WorkingDirectory '$(cygpath -w "$G")'"
 sleep 8; n=0; until grep -aq "textures have been setup" "$G/re2_framework_log.txt" 2>/dev/null || [ $n -ge 60 ]; do sleep 2; n=$((n+1)); done
 grep -aq "textures have been setup" "$G/re2_framework_log.txt" || echo "NO 'textures have been setup' after 2 minutes: Suspending $(grep -ac Suspending "$G/re2_framework_log.txt") / Resuming $(grep -ac Resuming "$G/re2_framework_log.txt") (unequal = the loader's start-up hang)"
 sleep 25; P=$(tasklist | grep -i "$EXE" | awk '{print $2}' | head -1); echo $P > "$S/pid.txt"; echo "pid $P"
