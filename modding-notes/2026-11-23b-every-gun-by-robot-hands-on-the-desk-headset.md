@@ -57,3 +57,44 @@ pouch and the torch spot take no SITTING shift, the medicine reach is 16 cm, the
 5. The LEMI's Hand Poser files, dock poses, magazine hold and slide hand were copied to the five other slide pistols
    where they had none (330 pose files), as a start for Tefa's fine-tuning.
 6. Newly given guns arrive empty (0 loaded), and only 1 of 6 ammo stacks went in (the case is full).
+
+## Later the same morning (b145)
+
+- **b145 installed** (`builds.py`: reload/v0.1.0-b145): the throw fix. Run: LG let go with a still hand now hands the
+  magazine over at **0.04 and 0.05 m/s** (LEMI spare swap, F2 magazine) `[verified-live 2026-11-23, n=2]`.
+- **The all-guns save: slot 6, written by the game's own typewriter** (the Altar save loaded from the Load Game list,
+  `q_giveall.lua` gave 9 guns + 4 of 6 ammo stacks to the 7 it had, A at the typewriter, slot 6) `[verified-live
+  2026-11-23: the list showed slot 6 NO DATA before, both save files written 10:33; not loaded back yet]`.
+  ⚠️ The scripted save (`StartSave` + `SaveAppSlotPrepare` + `SaveAppSlotRequest`) writes a `data006Slot.bin` the game's
+  list shows as NO DATA: it lacks the slot's header (`SaveViaStart` takes a `SaveFileDetail`). Use a typewriter.
+  "Continue" loads the autosave, not the newest slot.
+- **Main menu by robot stick: a push of 0.1 s moves TWO rows** (Continue -> New Game: the Difficulty screen came up
+  twice; nothing was confirmed the second time, the first time a new game's intro ran on a black screen and was closed
+  before any autosave). `flick.py <dir> [n]` pushes 30 ms = one row. Load Game: A (title), flick up 2 = New Game, flick
+  down 1 = Load Game, A, flick down n, A, A (Yes), 35 s, A. VR Bench's B did not back out of the Difficulty screen.
+
+## Every gun, mechanics (guncheck.py; `[verified-live 2026-11-23, n=1]` unless said)
+
+| gun | zones that took the hand | reload | rack | open |
+| --- | --- | --- | --- | --- |
+| LEMI | mag, well, slide, slide-left | B out, LT in, spare swap | both sides, after emptying too | - |
+| M1911, V61, S.T.A.K.E, Samurai Edge | mag, well; slide ONLY after the LEMI's zone layout was copied (M1911 re-run; the other three not re-run) | B out, LT in, spare swap, "trigger refused until the rack" after | M1911 both sides | re-run V61, S.T.A.K.E, Samurai Edge |
+| USM-AI | mag, well, slide, slide-left (with the copied layout) | all, 17 rounds | both sides, "was needed: it fires again" | - |
+| F2 | mag, well, grip; bolt zone takes the MAGAZINE when no rack is due (by design, 12.7 cm apart) | LT pulls it out, drop | not reached (my step order pulled the magazine first) | bolt after a real empty, pouch magazine in |
+| WCX, Dragoon, SYG-12 | mag, well | LT pulls it out, drop | not reached (same) | slide zone, pouch magazine in |
+| W870, M1897 | pump (well: "too far" from the pump, right) | not run (the step looks for an insert zone; shells go in at `well`) | pump cycle complete, hand stays on | shells from the pouch |
+| Wolfsbane | handle (palm on the hammer) | not run (its own loading-gate flow) | - | fire + gate loading by robot |
+| Handcannon | handle and drum: NO log line at LG or LG + LT | "is closed: open it first" at the pouch | - | ⚠️ why the drum / hammer do not answer the robot hand (the walker measures the drawn hand, the dock the controller: try `feel.py`) |
+| GM 79 | insert found | pouch gave nothing (no grenade rounds in the case) | - | rounds, the break |
+| Rocket Pistol | no zones (none expected) | - | - | - |
+
+Newly given guns are empty, so "fire until empty" fired 0 on them; the LEMI fired 12, the USM-AI 17.
+
+## Hands (the big ask): where it stands
+
+Not done. What exists now: a view that shows the hand under the grip (roll -70), `pose.py` + `look.py` for a
+write-and-look loop, one first curled pose (LEMI "ready on magazine"), and the LEMI's poses copied to the other five
+slide pistols. Still to pose per gun: "spare in hand, docked on the magazine" (17), "pulling the magazine out" (18),
+"two magazines in hand" (16), "magazine in hand" (13); the thumb's axes are not understood yet (Thumb2 / Thumb3 `y` +50
+changed little on screen). Tefa's wish that the middle finger and thumb close as the magazine comes out needs the pose
+to follow the pull distance (today a pose changes with the spot, eased by time): a small change in `hand_poser.lua`.

@@ -68,6 +68,8 @@ def work_zone(key, tag=""):
     at = walk_to(key)
     if at is None: return
     m = log_mark(); setp(squeeze=1.0); stage("%s'%s' LG" % (tag, key), m)
+    if LONG and key in ("mag", "well"):   # on a long gun LT pulls the magazine out: that is the `mag` step's job
+        m = log_mark(); setp(squeeze=0.0); stage("%s'%s' let go" % (tag, key), m, 0.5); return
     m = log_mark(); setp(trigger=1.0); stage("%s'%s' LG+LT" % (tag, key), m)
     if key in STROKE:
         d = 0.18 if key == "pump" else 0.11
@@ -105,6 +107,17 @@ if "fire" in steps:
     stage("fired until it stopped: %d shots" % n, m)
     for key in zones()[0]:
         if key in STROKE: work_zone(key, "after firing: ")
+if "mag" in steps and LONG and "mag" in zones()[0]:
+    at = walk_to("mag")
+    m = log_mark(); setp(squeeze=1.0); time.sleep(0.6); setp(trigger=1.0); time.sleep(0.5); setp(trigger=0.0); stage("long mag: LG, LT pulls it out", m)
+    m = log_mark(); move_left([0, -0.15, 0], 6); time.sleep(1.2); setp(squeeze=0.0); stage("long mag: taken 15 cm down, held still, LG let go", m)
+    m = log_mark(); setp(left=POUCH); time.sleep(0.9); setp(squeeze=1.0); stage("long mag: LG at the pouch", m)
+    m = log_mark(); setp(left=[at[0], at[1] - 0.12, at[2]] + at[3:]); time.sleep(0.8); move_left([0, 0.12, 0], 6); stage("long mag: brought up to the well", m, 1.3)
+    m = log_mark(); press("trigger", 0.4); stage("long mag: LT at the well", m, 1.0)
+    m = log_mark(); setp(squeeze=0.0); stage("long mag: let go", m)
+    for key in zones()[0]:
+        if key in STROKE: work_zone(key, "after the reload: ")
+    steps = [s for s in steps if s not in ("mag", "spare")]
 if "mag" in steps and "mag" in zones()[0]:
     walk_to("mag")
     m = log_mark(); setp(squeeze=1.0); time.sleep(0.6); press("rb"); stage("mag: LG then B", m)
