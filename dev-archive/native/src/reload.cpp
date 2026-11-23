@@ -621,7 +621,7 @@ void grab_frame() {
         const float d = dist(zones::center(zones::MAG, mp), cp), need = zones::radius(zones::MAG);   // the zone (zones.json) over MAG_GRAB_M
         if (!spare) LOGI("%s reload: LG pressed with the magazine seated: the hand %.3f m from it (grabs within %.2f)", TAG, d, need);
         if (d > need) return;
-        if (rack::bolt_wants_left()) { LOGI("%s reload: the hand is near the bolt too and a rack is due: the bolt takes it, not the magazine", TAG); return; }
+        if (rack::bolt_wants_left(d)) { LOGI("%s reload: the hand is near the bolt too and a rack is due: the bolt takes it, not the magazine", TAG); return; }
         g_hand_on_mag = true;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s reload: the left hand on the seated magazine (%.3f m from it)%s: %s", TAG, d, spare ? ", a spare in it" : "", pistol_mag() ? "right B releases it into the hand" : "LT pulls it out");

@@ -420,10 +420,16 @@ float travel() { return g_travel; }
 bool bolt_free() { return RELOAD_ON && bolt() && g_joint != nullptr && g_have_rest && !g_hand_on && !g_right; }
 // 2026-11-01 (Tefa: "yes": when a rack is due and the hand is near both, the bolt wins over the magazine). On the F2 the
 // magazine sits right under the bolt and their zones overlap; the magazine took the hand first (reload runs before rack).
-bool bolt_wants_left() {
+// 2026-11-23 (robot hands, the F2 empty: LG at the magazine, 13 cm from the bolt, "the bolt takes it, not the magazine", every
+// time: an empty F2 could not be reloaded): when the gun is only EMPTY (parked: a rack would do nothing, it needs a magazine)
+// the bolt wins only if the hand is nearer to it than to the magazine (mag_dist_m, from reload.cpp). A round waiting for the
+// rack, or a bolt mid-cycle, wins as before.
+bool bolt_wants_left(float mag_dist_m) {
     if (!bolt_free() || !(g_needed || g_parked || g_bstate != 0 || g_turn > 0.0f)) return false;
     float d = 0.0f;
-    return near_joint(d);
+    if (!near_joint(d)) return false;
+    const bool only_empty = g_parked && !g_needed && g_bstate == 0 && g_turn <= 0.0f;
+    return !(only_empty && mag_dist_m >= 0.0f && mag_dist_m <= d);
 }
 void right_take() {
     g_right = true;
