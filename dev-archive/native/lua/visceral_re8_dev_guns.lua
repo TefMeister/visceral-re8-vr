@@ -91,4 +91,32 @@ re.on_draw_ui(function()
     imgui.tree_pop()
 end)
 
-L("loaded (REFramework menu: 'Visceral RE8: every gun')")
+-- 2026-11-23 (/lm, Tefa: "please create a save in each game on a free slot with all weapons available"): the save in slot 6
+-- keeps 11 of the 16: the five bonus-shop guns (USM-AI, Rocket Pistol, Handcannon PZ, Dragoon, WCX) are gone again after
+-- every load, also with room in the case (two saves, a bigger case in between) [verified-live 2026-11-23, n=3 loads]. So the
+-- missing guns are given again by themselves a few seconds after any save has loaded (with ammo only when a gun was
+-- added, so the stacks do not grow at every load). Off: delete reframework/data/visceral_re8/dev_guns_auto.txt (made on the
+-- first run); the button still works.
+local AUTO_FILE = "visceral_re8/dev_guns_auto.txt"
+local auto_on = json.load_file(AUTO_FILE) ~= nil
+if not auto_on and json.load_file("visceral_re8/dev_guns_auto_made.txt") == nil then
+    json.dump_file(AUTO_FILE, { on = true }); json.dump_file("visceral_re8/dev_guns_auto_made.txt", { made = true }); auto_on = true
+end
+local seen_inv, since, frame = nil, 0, 0
+re.on_frame(function()
+    frame = frame + 1
+    if not auto_on or frame % 30 ~= 0 then return end
+    local im = sdk.get_managed_singleton("app.InventoryManager")
+    local inv = im and safe(function() return im:call("get_activeInventory") end)
+    local player = rawget(_G, "re8vr") and re8vr.player
+    if inv == nil or player == nil then seen_inv, since = nil, 0 return end
+    local addr = safe(function() return inv:get_address() end)
+    if addr ~= seen_inv then seen_inv, since = addr, frame return end   -- a new inventory = a save was loaded: wait a little
+    if since == 0 or frame - since < 300 then return end
+    since = 0
+    local have, missing = owned_guns(inv), 0
+    for _, g in ipairs(GUNS) do if not have[g[1]] then missing = missing + 1 end end
+    if missing > 0 then L(missing .. " gun(s) missing after the load: given again by themselves"); pcall(give_all, true) end
+end)
+
+L("loaded (REFramework menu: 'Visceral RE8: every gun'; auto-give after a load: " .. tostring(auto_on) .. ")")
