@@ -15,14 +15,17 @@ def full(k):
     side = "L_"
     if k[0] == "r" and len(k) == 3: side, k = "R_", k[1:]
     return (side + F[k[0]] + k[1] if len(k) == 2 and k[0] in F else k) + ax
-sets = {}
+sets, boxes = {}, {"mag": {}, "spare": {}}   # mag.y=3.5 = the MAGAZINE IN HAND box; spare.x=3 spare.rz=20 = the spare's place
 for a in sys.argv[1:]:
     k, v = a.split("="); v = [float(x) for x in v.split(",")]
-    sets[full(k)] = v if len(v) == 3 else v[0]
-if not sets: print(__doc__); sys.exit(1)
+    if k.split(".")[0] in boxes: boxes[k.split(".")[0]][k.split(".")[1]] = v[0]
+    else: sets[full(k)] = v if len(v) == 3 else v[0]
+if not sets and not any(boxes.values()): print(__doc__); sys.exit(1)
 seq = int(time.time() * 1000) % 2000000000
 tmp = os.path.join(D, "remote.json.tmp")
-with open(tmp, "w") as f: json.dump({"seq": seq, "set": sets}, f)
+msg = {"seq": seq, "set": sets}
+msg.update({k: v for k, v in boxes.items() if v})
+with open(tmp, "w") as f: json.dump(msg, f)
 os.replace(tmp, os.path.join(D, "remote.json"))
 t0 = time.time()
 while time.time() - t0 < 6:

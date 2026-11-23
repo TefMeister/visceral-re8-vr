@@ -51,6 +51,7 @@ local function load_cfg()
         end
     end
 end
+local cfg_reload_n = 0
 local function save_cfg() pcall(json.dump_file, FILE, cfg) end
 load_cfg()
 local test = { front = false, rounds = nil }
@@ -356,6 +357,10 @@ local function update(point)
         end
         return
     end
+    -- 2026-11-23: the file is read again twice a second while a magazine copy is drawn, so the spare's place can be set from
+    -- outside (Hand Poser's remote input writes mag2.json) and seen at once; before, only this script's own menu sliders did
+    cfg_reload_n = (cfg_reload_n or 0) + 1
+    if cfg_reload_n % 45 == 0 then load_cfg() end
     local role = math.floor(b.r(S_ROLE) + 0.5)
     local g = role == 1 and cfg.spare or cfg.old
     set_look(copy, math.floor(b.r(S_ROUNDS) + 0.5))
