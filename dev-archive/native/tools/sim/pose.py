@@ -1,29 +1,36 @@
-"""pose.py "<gun> @ <spot>" [from="<other pose name>"] [Joint=x,y,z | Joint.z=v ...] -- write / change one Hand Poser pose file
-(degrees, the app's own format) in BOTH places: the app's folder (%APPDATA%/HandPoserVR/re8/guns, the master) and the game's copy
-(reframework/data/hand_poser/guns). A new file starts from from= (default: the gun's own pose, left hand joints only).
-Short joint names: I1 I2 I3 M1.. R1.. P1.. T1 T2 T3 = L_IndexF1 ... L_Thumb3 (prefix r: for the right hand, e.g. rI1).
-The game re-reads a pose when the gun or the hand's spot changes (2026-11-23)."""
-import json, os, sys
-A = os.path.join(os.environ["APPDATA"], "HandPoserVR", "re8", "guns")
-G = r"C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE\reframework\data\hand_poser\guns"
+"""pose.py [Joint=x,y,z | Joint.z=v ...] -- pose the hand THROUGH the Hand Poser window (its remote input, hand-poser-vr
+app/Remote.cs, 2026-11-23): the window must be open and connected; it sends the pose to the game, autosaves it under the gun
+and spot the hand is at, and keeps UNDO. Tefa 2026-11-23: "please use all the poser family tools for all this": this script
+no longer writes pose files itself (the first version of this morning did).
+Short joint names: I1 I2 I3 M1.. R1.. P1.. T1 T2 T3 = L_IndexF1 ... L_Thumb3 (prefix r for the right hand: rI1).
+RV_GAME_DIR picks another game's folder (RE2 / RE3 name their fingers l_hand_index_0 ...: give those names in full).
+Prints the window's answer: which pose file it went to, how many joints were set, any joint it did not know."""
+import json, os, sys, time
+GAME = os.environ.get("RV_GAME_DIR", r"C:\Steam\steamapps\common\Resident Evil Village BIOHAZARD VILLAGE")
+D = os.path.join(GAME, "reframework", "data", "hand_poser")
 F = {"I": "IndexF", "M": "MiddleF", "R": "RingF", "P": "PinkyF", "T": "Thumb"}
 def full(k):
+    ax = ""
+    if "." in k: k, ax = k.split("."); ax = "." + ax
     side = "L_"
-    if k[0] == "r": side, k = "R_", k[1:]
-    return side + F[k[0]] + k[1] if len(k) == 2 and k[0] in F else k
-name = sys.argv[1]; path = os.path.join(G, name + ".json")
-args = sys.argv[2:]; src = None
-for a in list(args):
-    if a.startswith("from="): src = a[5:]; args.remove(a)
-if os.path.exists(path) and src is None: d = json.load(open(path))
-else:
-    base = json.load(open(os.path.join(G, (src or name.split(" @ ")[0]) + ".json")))
-    d = {"game": "re8", "character": "pl1000", "joints": {k: v for k, v in base["joints"].items() if k.startswith("L_")}}
-for a in args:
-    k, v = a.split("=")
-    if "." in k:
-        k, ax = k.split("."); d["joints"].setdefault(full(k), [0, 0, 0])["xyz".index(ax)] = float(v)
-    else: d["joints"][full(k)] = [float(x) for x in v.split(",")]
-for folder in (A, G):
-    with open(os.path.join(folder, name + ".json"), "w") as f: json.dump(d, f)
-print("wrote", name, "(%d joints)" % len(d["joints"]))
+    if k[0] == "r" and len(k) == 3: side, k = "R_", k[1:]
+    return (side + F[k[0]] + k[1] if len(k) == 2 and k[0] in F else k) + ax
+sets = {}
+for a in sys.argv[1:]:
+    k, v = a.split("="); v = [float(x) for x in v.split(",")]
+    sets[full(k)] = v if len(v) == 3 else v[0]
+if not sets: print(__doc__); sys.exit(1)
+seq = int(time.time() * 1000) % 2000000000
+tmp = os.path.join(D, "remote.json.tmp")
+with open(tmp, "w") as f: json.dump({"seq": seq, "set": sets}, f)
+os.replace(tmp, os.path.join(D, "remote.json"))
+t0 = time.time()
+while time.time() - t0 < 6:
+    try:
+        a = json.load(open(os.path.join(D, "remote_done.json")))
+        if a.get("seq") == seq:
+            print("%s: %d joint(s) set in pose '%s' (%d held)%s" % ("ok" if a.get("ok") else "NOT SET", a.get("set", 0), a.get("pose", ""),
+                  a.get("held", 0), (" | " + a["note"]) if a.get("note") else "")); sys.exit(0 if a.get("ok") else 1)
+    except Exception: pass
+    time.sleep(0.15)
+print("NO ANSWER in 6 s: is the Hand Poser window open and connected to this game (green top line)?"); sys.exit(2)
