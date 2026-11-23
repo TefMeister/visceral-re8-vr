@@ -98,3 +98,31 @@ slide pistols. Still to pose per gun: "spare in hand, docked on the magazine" (1
 "two magazines in hand" (16), "magazine in hand" (13); the thumb's axes are not understood yet (Thumb2 / Thumb3 `y` +50
 changed little on screen). Tefa's wish that the middle finger and thumb close as the magazine comes out needs the pose
 to follow the pull distance (today a pose changes with the spot, eased by time): a small change in `hand_poser.lua`.
+
+## Afternoon (same day, Tefa: "please use all the poser family tools for all this, and tweak the tools themselves")
+
+- **The poser tools take input from outside now** (nobody at the mouse): Hand Poser `remote.json` (joints, the MAGAZINE IN
+  HAND box, the new SPARE MAGAZINE box; hand-poser-vr 04da823, 1bc5139), Grip Zones `zones_remote.json` (grip-zones-vr
+  730ffff). `tools/sim/pose.py` and `zone.py` send them; the windows must be open (minimised is fine, and it has to be:
+  opened, they sit on top of the game and `shot.py` photographs them instead).
+- **b146** (builds store reload/v0.1.0-b146): (1) the F2 empty could not be reloaded: LG at the magazine, 13 cm from the
+  bolt, always went to the bolt ("a rack is due" was also true for a merely empty gun). Now on an EMPTY gun the nearer part
+  wins; a round waiting for the rack or a bolt mid-cycle wins as before. Run: magazine out, pouch magazine in, 6 rounds,
+  "trigger refused until the rack" `[verified-live 2026-11-23, robot, n=1]`. (2) `visceral_re8_mag2.lua` reads `mag2.json`
+  again twice a second while a magazine copy is drawn `[verified-live, twelve places set from outside and seen]`.
+- **The all-guns save keeps 11 guns.** USM-AI, Rocket Pistol, Handcannon, Dragoon and WCX (the bonus-shop guns) are gone
+  after every load, also with a bigger case `[verified-live 2026-11-23, n=3 loads]`. The case itself can be made bigger for
+  good: one more "case extension" item (id 269218988, `createAndAddItem`, then `Inventory.restoreExtendLevel()`): 13x8 ->
+  14x9, kept by the save. `visceral_re8_dev_guns.lua` (testing only) now gives the missing guns again by itself 10 s after
+  any load (16 guns counted after a load `[verified-live, n=2]`); off: delete `visceral_re8/dev_guns_auto.txt`.
+- **Slide pistols:** V61, S.T.A.K.E and Samurai Edge re-run: both slide spheres take the hand and rack `[n=1 each]`, so all
+  five work with the LEMI's layout.
+- **Long guns:** WCX and Dragoon pass (slide, magazine out with LT, pouch magazine in, then the rack is asked for). SYG-12:
+  its slide zone sat 5 cm from the magazine's and the magazine always won; through the Grip Zones window the magazine zone
+  went 8 cm down and to 9 cm (well 9 cm): the handle is taken, "was needed: it fires again" `[verified-live, n=1]`.
+- **The LEMI's reload stages have a first pose each, set through the Hand Poser window:** ready on magazine, magazine,
+  spare in hand (19), spare docked (17), pulling out (18), two in hand (16), magazine in hand (13). Fingers: `z` negative
+  curls (F1 -45..-80, F2 -50..-85, F3 -25..-48); the thumb: `Thumb2.y` / `Thumb3.y` positive bends it, `Thumb1.z` toward 0
+  brings it across the palm `[measured on a free hand held side-on, 8 pictures]`. Coarse: judged from one camera angle.
+  The spare's place in the docked stage looks wrong (it hangs under the wrist, not between index and thumb): it has
+  sliders now (SPARE MAGAZINE box) and is left at its old numbers for Tefa's eye in the headset.
