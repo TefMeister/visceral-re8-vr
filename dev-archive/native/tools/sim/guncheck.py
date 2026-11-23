@@ -133,8 +133,8 @@ if "spare" in steps and "mag" in zones()[0]:
     m = log_mark(); move_left([0, -0.16, 0], 8); stage("spare: old magazine pulled out", m)
     m = log_mark(); setp(trigger=1.0); time.sleep(0.3); move_left([0, 0.16, 0], 8); stage("spare: LT, back up to the gun", m, 1.2)
     m = log_mark(); setp(trigger=0.0); time.sleep(0.3); move_left([0, -0.12, 0], 6); time.sleep(1.5); setp(squeeze=0.0); stage("spare: hand away, held still 1.5 s, LG let go", m)
-if "rounds" in steps and any(k in zones()[0] for k in ("insert", "drum")):
-    key = "insert" if "insert" in zones()[0] else "drum"
+if "rounds" in steps and (any(k in zones()[0] for k in ("insert", "drum")) or ("well" in zones()[0] and "mag" not in zones()[0])):
+    key = "insert" if "insert" in zones()[0] else "drum" if "drum" in zones()[0] else "well"   # a shotgun's shells go in at `well`
     at = walk_to(key)
     m = log_mark(); setp(left=POUCH); time.sleep(0.9); setp(squeeze=1.0); stage("rounds: LG at the pouch", m)
     if at:

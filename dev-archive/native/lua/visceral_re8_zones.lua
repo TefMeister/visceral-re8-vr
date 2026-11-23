@@ -333,12 +333,28 @@ local function write_state(b)
     local hx, hy, hz, _, hon = live(b, 3)
     -- 2026-11-01: a gun with nothing to rack (a revolver) has no hand point from the plugin: the drawn left hand's own place
     -- (its IK target) stands in, so the drum and the handle get a hand distance too
+    -- 2026-11-23 (robot hands, the Handcannon: its drum took the hand only 3-9 cm ABOVE the place where this distance read 0): the
+    -- IK target is the WRIST, the plugin's dock test (pairs.cpp) measures the CONTROLLER, about 6 cm away, so Grip Zones showed
+    -- "inside" where LG did nothing. The left controller's own place in the world is used now (the camera is the headset in the
+    -- world, as bridge.cpp's world_from_room); the wrist only if that cannot be read.
     if (hon or 0) <= 0.5 then
-        pcall(function()
-            local t = rawget(_G, "re8vr") and re8vr.left_hand_ik_transform
-            local p = t and t:call("get_Position")
-            if p then hx, hy, hz, hon = p.x, p.y, p.z, 1 end
+        local got = pcall(function()
+            local cam = sdk.get_primary_camera()
+            local ct = cam:call("get_GameObject"):call("get_Transform")
+            local cp, cr = ct:call("get_Position"), ct:call("get_Rotation")
+            local idx = vrmod:get_controllers()
+            local hm, lm = vrmod:get_transform(0), vrmod:get_transform(idx and idx[1] or 1)
+            local q = cr * hm:to_quat():inverse()
+            local w = cp + q * Vector3f.new(lm[3].x - hm[3].x, lm[3].y - hm[3].y, lm[3].z - hm[3].z)
+            hx, hy, hz, hon = w.x, w.y, w.z, 1
         end)
+        if not got or (hon or 0) <= 0.5 then
+            pcall(function()
+                local t = rawget(_G, "re8vr") and re8vr.left_hand_ik_transform
+                local p = t and t:call("get_Position")
+                if p then hx, hy, hz, hon = p.x, p.y, p.z, 1 end
+            end)
+        end
     end
     for _, z in ipairs(ZONES) do
         if z.key ~= "hand" then
