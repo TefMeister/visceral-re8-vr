@@ -118,3 +118,72 @@ each racking part, `magdock.sh` for a long gun's magazine. A charging handle on 
 - Handcannon, pictured later (`ri3116-handcannon-hammer-and-drum.jpg`): with LG at the hammer ("handle") the left hand is drawn
   hanging UNDER the grip, fingers down, not on the hammer; at the drum it is mostly behind the gun. NOT changed (Tefa tuned
   this gun in the headset on 2026-10-27 / 11-01, and the robot's hold differs from a wearer's): to be looked at worn.
+
+## Six views of a gun, and the zones by numbers (Tefa's second idea, this afternoon)
+
+"can you also see guns from straight on, barrel pointed towards the camera, from bottom view and top view, so you have a clear
+360 look at the weapon and all the hand poses on it, and where the grip zones start and end and overlap?"
+
+- `tools/sim/turntable.py <ri id> <zone> <sheet> [lt] [long]`: the gun turned six ways (left, right, muzzle-on, from behind,
+  from above, from below), each time with the named zone in the middle of the picture and the left hand taken onto it.
+  First sheet: `ri3046-lemi-six-views-hand-on-magazine.jpg`. Not yet run on the other guns and stages.
+- `tools/sim/zonemap.py` (the game running, the gun in hand): every zone's reach and, per pair, how far apart the centres are
+  and how much the two balls overlap. ⚠️ `zones.json` cannot be used for this: it holds slider offsets, not places (my first
+  table from it was wrong and was thrown away). Read live on 2026-11-23, build 151 `[measured]`:
+
+```
+gun 3046
+   mag        reach 10.9 cm
+   well       reach  9.0 cm
+   slide      reach 12.0 cm
+   slide-left reach 10.9 cm
+   mag        / well         7.4 cm apart, overlap 12.5 cm (mag centre in well) (well centre in mag)
+   slide      / slide-left   7.4 cm apart, overlap 15.5 cm (slide centre in slide-left) (slide-left centre in 
+gun 3042
+   mag        reach 14.0 cm
+   well       reach 16.0 cm
+   bolt       reach 14.0 cm
+   grip       reach 12.8 cm
+   mag        / well         0.2 cm apart, overlap 29.8 cm (mag centre in well) (well centre in mag)
+   mag        / bolt        13.1 cm apart, overlap 14.9 cm (mag centre in bolt) (bolt centre in mag)
+   well       / bolt        13.0 cm apart, overlap 17.0 cm (well centre in bolt) (bolt centre in well)
+gun 3049
+   mag        reach 12.0 cm
+   well       reach 16.0 cm
+   slide      reach 14.1 cm
+   mag        / well         0.1 cm apart, overlap 27.9 cm (mag centre in well) (well centre in mag)
+gun 3125
+   mag        reach 12.0 cm
+   well       reach 16.0 cm
+   slide      reach 14.1 cm
+   mag        / well         0.1 cm apart, overlap 27.9 cm (mag centre in well) (well centre in mag)
+   mag        / slide       12.5 cm apart, overlap 13.6 cm (mag centre in slide)
+   well       / slide       12.5 cm apart, overlap 17.6 cm (well centre in slide) (slide centre in well)
+gun 3048
+   mag        reach  9.0 cm
+   well       reach  9.0 cm
+   slide      reach 14.1 cm
+   mag        / well         8.1 cm apart, overlap 9.9 cm (mag centre in well) (well centre in mag)
+   mag        / slide       12.1 cm apart, overlap 11.0 cm (mag centre in slide)
+   well       / slide        4.4 cm apart, overlap 18.7 cm (well centre in slide) (slide centre in well)
+gun 3021
+   well       reach  8.1 cm
+   pump       reach  7.1 cm
+gun 3036
+   well       reach  9.4 cm
+   pump       reach 13.3 cm
+gun 3116
+   handle     reach  8.0 cm
+   drum       reach  6.0 cm
+gun 3008
+   handle     reach  8.0 cm
+gun 3023
+   grip       reach 10.0 cm
+   insert     reach  7.0 cm
+```
+
+  (only the pairs where one zone's centre lies inside the other are listed; reach = the ball's radius.) Read with the rules in
+  mind: the F2's bolt and magazine sit inside each other (the b146 rule decides: on an empty gun the nearer part wins, a rack
+  due wins); **the Dragoon's magazine centre lies inside its charging-handle zone, and the SYG-12's well and charging handle
+  are 4.4 cm apart**: the two guns where a hand meant for one part can be given the other. Pistols: the magazine and both
+  slide zones do not reach each other (gaps 0.2 to 7 cm). Not changed today.
