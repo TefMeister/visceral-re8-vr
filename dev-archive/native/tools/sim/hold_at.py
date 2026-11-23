@@ -26,5 +26,8 @@ if plain: setp(squeeze=1.0); time.sleep(1.0)
 if stage in ("docked", "mag"): sys.exit()
 setp(rb=1); time.sleep(0.4); setp(rb=0); time.sleep(0.8)
 if "pull" in stage:
-    pc = float(stage.split("pull")[1])   # pull92 / magpull92; setp(left=down(9.0 * pc / 100.0 + 0.3)); time.sleep(1.0); sys.exit()
+    # pull92 / magpull92. 2026-11-23 evening: the next two steps sat INSIDE this comment since b148, so every pull<n> pulled
+    # all the way out (the "pull 0" on the LEMI, Samurai Edge and USM-AI was this, not the guns). pull_probe.py reads every frame.
+    pc = float(stage.split("pull")[1])
+    setp(left=down(9.0 * pc / 100.0 + 0.3)); time.sleep(1.0); sys.exit()
 setp(left=down(14)); time.sleep(1.2)

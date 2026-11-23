@@ -425,8 +425,15 @@ bool bolt_free() { return RELOAD_ON && bolt() && g_joint != nullptr && g_have_re
 // time: an empty F2 could not be reloaded): when the gun is only EMPTY (parked: a rack would do nothing, it needs a magazine)
 // the bolt wins only if the hand is nearer to it than to the magazine (mag_dist_m, from reload.cpp). A round waiting for the
 // rack, or a bolt mid-cycle, wins as before.
+// may the left hand take the part NOW (the frame code's may_rack; one place for both). A bolt with nothing to do may not.
+static bool may_take_now() {
+    return pump() || (RACK_SLIDE_ANY_TIME && !bolt()) || g_parked || g_needed || pose_lock() || (bolt() && (g_bstate != 0 || g_turn > 0.0f));   // a bolt mid-cycle can always be taken
+}
 bool part_reach(float& d, float& r) {
-    if (!RELOAD_ON || !rackable() || g_joint == nullptr || g_hand_on || g_right) return false;
+    // b157 (2026-11-23, robot, the F2 with its bolt home and nothing due): LG between the magazine and the bolt, nearer the bolt:
+    // the magazine stood back for the bolt ("nearer the bolt: that takes it"), the bolt was not allowed to take a hand with
+    // nothing to do, and the press did nothing at all. A part that may not take the hand now is not offered to the choice.
+    if (!RELOAD_ON || !rackable() || g_joint == nullptr || g_hand_on || g_right || !may_take_now()) return false;
     r = joint_grab_m();
     d = 99.0f;
     if (near_joint(d)) { if (g_near_left) r = zones::radius(zones::SLIDE_LEFT); return true; }   // (a pistol's left-side sphere answers with its own reach)
@@ -549,7 +556,7 @@ void frame() {
 
     const bool play = bridge::flag(bridge::S_CAN_USE_HANDS) && !bridge::flag(bridge::S_CUTSCENE);
     const bool lg = bridge::held(bridge::S_LGRIP), lt = bridge::held(bridge::S_LTRIG), lock = pose_lock();
-    const bool may_rack = pump() || (RACK_SLIDE_ANY_TIME && !bolt()) || g_parked || g_needed || lock || (bolt() && (g_bstate != 0 || g_turn > 0.0f));   // a bolt mid-cycle can always be taken
+    const bool may_rack = may_take_now();   // (lock is pose_lock(), read inside too)
     if (!lt) g_spent = false;
     if (!lg) g_from_grip = false;
     else if (bridge::flag(bridge::S_GRIPPING_WEAPON)) g_from_grip = true;
