@@ -555,4 +555,10 @@ constexpr const wchar_t* DOORS_HINGE = L"_00";
 constexpr bool  DOORS_GUN_PUSHES = true;      // 2026-11-18 (Tefa): the gun's muzzle and barrel push doors too
 constexpr float DOORS_GUN_R = 0.05f;          // their reach, metres
 
+// 2026-11-24 (Tefa: SHOW a numbered hand spot without doing it, showspot.cpp)
+constexpr float SHOW_STALE_S = 5.0f;          // no heartbeat from Hand Poser for this long: the real hands come back
+constexpr float SHOW_READ_EVERY_S = 0.2f;     // how often show.json's time is looked at
+constexpr float SHOW_SAVE_EVERY_S = 3.0f;     // the recorded places are written at most this often, when changed
+constexpr float SHOW_MOVE_REC_M = 0.004f;     // a real place moved less than this is not worth a new record
+
 } // namespace vn::settings

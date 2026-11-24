@@ -8,6 +8,7 @@
 #include "rack_right.h"
 #include "recoil.h"
 #include "reload.h"
+#include "showspot.h"
 #include "sleephands.h"
 #include "smooth.h"
 #include "walls.h"
@@ -27,6 +28,7 @@ int pre_calc(int argc, void** argv, REFrameworkTypeDefinitionHandle*, unsigned l
     smooth::on_ik(ik);   // eases the left hand when whoever places it changes
     rack_right::on_ik(ik); // 2026-11-01: the right hand on the bolt, the left hand holding the front
     gate::on_ik(ik);       // 2026-11-01: the Wolfsbane held by the left hand while the right hand loads it
+    showspot::on_ik(ik);   // 2026-11-24: record the real place at a spot, or put a SHOWN hand there (Hand Poser's SPOTS)
     dockpose::on_ik(ik);   // LAST (2026-10-28; last since 2026-11-02, Tefa: "on the wolfsbane hammer ... tuning sliders does nothing"):
                            // the docked spot's wrist from Dock Poser, on top of whoever placed the hand
     sleephands::on_ik(ik); // 2026-11-09: after even that: a sleeping controller's hand rests by the hip
