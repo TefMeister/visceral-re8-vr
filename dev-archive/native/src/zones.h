@@ -38,6 +38,5 @@ void clear(Key k);                                         // not shown this fra
 // false = none shown
 bool nearest_grab(const Vec3& p, Key& key, float& radii);
 bool area_of(const Vec3& p, Key& key);   // 2026-11-09: the shown zone the point is inside (any kind), for Hand Poser
-bool shown_center(Key k, Vec3& c);       // 2026-11-24: the zone's middle as published this frame (false = not shown), for showspot.cpp
 
 } // namespace vn::zones

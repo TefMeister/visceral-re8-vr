@@ -47,7 +47,6 @@
 #include "ik.h"
 #include "player.h"
 #include "pairs.h"
-#include "showspot.h"
 #include "rack.h"
 #include "rack_right.h"
 #include "equipguard.h"
@@ -87,7 +86,6 @@ void on_frame() {
     dryfire::frame();                                  // 2026-10-30: the empty click on RT (after reload + rack: they say if it fires)
     smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
     torch::frame();                                    // 2026-11-12: the torch you hold (torch.h), before handstate reads it
-    showspot::frame();                                 // 2026-11-24: Hand Poser's SHOW (showspot.h), before pairs reports the spots
     pairs::frame();                                    // the numbered hand pairs, after rack (pairs.h): the slide / bolt takes an LG first
     ammo_hud::frame();
     recoil::frame();

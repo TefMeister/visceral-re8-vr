@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(visceral_re8_native SHARED
     src/plugin.cpp
-    src/showspot.cpp
     src/armstretch.cpp
     src/sleephands.cpp
     src/walls.cpp

@@ -202,13 +202,6 @@ bool nearest_grab(const Vec3& p, Key& key, float& radii) {
 }
 // 2026-11-09: every zone shown for the gun in hand, the slide's left side, the drum and the insert point included (pairs.cpp, the
 // left hand's area for Hand Poser); only zones the hand is inside (radii <= 1) count
-bool shown_center(Key k, Vec3& c) {
-    const int s = first_slot(k);
-    if (bridge::view((bridge::Slot)(s + 4)) <= 0.5f || bridge::view((bridge::Slot)(s + 3)) <= 0.001f) return false;
-    c = {bridge::view((bridge::Slot)(s + 0)), bridge::view((bridge::Slot)(s + 1)), bridge::view((bridge::Slot)(s + 2))};
-    return true;
-}
-
 bool area_of(const Vec3& p, Key& key) {
     static const Key ALL[] = {MAG, WELL, PART, GRIP, HANDLE, DRUM, INSERT, SLIDE_LEFT};
     float q = 99.0f;

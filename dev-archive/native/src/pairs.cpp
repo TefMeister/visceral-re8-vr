@@ -1,6 +1,5 @@
 // pairs.cpp -- see pairs.h
 #include "pairs.h"
-#include "showspot.h"
 #include "bridge.h"
 #include "joints.h"
 #include "json_mini.h"
@@ -269,8 +268,6 @@ void frame() {
             else if (reload::hand_near_mag()) area = 10.0f + (float)zones::MAG;
             if (area == 0.0f && READY_ONLY_NAMED) spot = 15.0f;   // near the gun but in no named area: free
         }
-        // 2026-11-24: a SHOWN left hand (Hand Poser's SPOTS, showspot.h) reports the shown spot, so Dock Poser and Hand Poser follow it
-        if (showspot::shown(true).on) { spot = (float)showspot::shown(true).spot; area = (float)showspot::shown(true).area; }
         bridge::put(bridge::S_LEFT_SPOT, spot);
         { const float u = reload::rail_out(); bridge::put(bridge::S_MAG_PULL, u >= 0.0f ? 1.0f + u : 0.0f); }   // 2026-11-23 (b148): Hand Poser blends the pull pose by this
         static float last_area = -1.0f;
@@ -286,14 +283,12 @@ void frame() {
         zones::Key k = zones::MAG;
         if ((gate::gun_rot(gq) || rack_right::gun_rot(gq)) && bridge::room_to_world(bridge::hand_pos(bridge::RIGHT), hp) && zones::area_of(hp, k))
             area = 10.0f + (float)k;
-        if (showspot::shown(false).on) area = (float)showspot::shown(false).area;   // 2026-11-24: a SHOWN right hand
         static float last_r = -1.0f;
         if (area != last_r) { last_r = area; LOGI("%s pairs: right hand area %d", TAG, (int)area); }
         bridge::put(bridge::S_RIGHT_AREA, area);
     }
     // 2026-11-02: the right hand's spot too: 1 = at the Wolfsbane's cover (gate.cpp), 2 = on the rifle's bolt (rack_right.cpp)
     // (2026-11-08: 4 = the right hand on the bolt from the click at the back until it is home, as the left's 11)
-    if (showspot::shown(false).on) bridge::put(bridge::S_RIGHT_SPOT, (float)showspot::shown(false).spot); else   // 2026-11-24: SHOWN
     bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? (rack::right_on() && rack::at_back() ? 4.0f : 2.0f) : gate::right_lifted() ? 3.0f : (float)breech::latch_right_spot());   // 3: over the hammer (2026-11-06); 5 / 6: the GM 79's latch: the thumb on it, then flicked open (b152)
 
     // 2026-10-30 (Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it"): the gun's
