@@ -31,6 +31,9 @@ enum Key {
     INSERT_PUSH_S,     // then pushed in
     HELD_FOLLOW_S,     // the gun in the left hand follows it with this smoothing
     LOAD_EASE_S,       // the hand eased between the drum and the loading place
+    TWOMAG_WAIT_S,     // b162: two magazines: the wait between the old one coming out and the new one starting in (reload.cpp)
+    TWOMAG_IN_S,       // ...the new one's travel up the grip
+    TWOMAG_STOP_PCT,   // ...how far in it stops (per cent); the hand pushes the rest
     KEY_COUNT
 };
 

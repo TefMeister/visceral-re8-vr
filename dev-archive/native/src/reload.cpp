@@ -16,6 +16,7 @@
 #include "rack_right.h"
 #include "settings.h"
 #include "sleephands.h"
+#include "timings.h"
 #include "twomag.h"
 #include "weapons.h"
 #include "zones.h"
@@ -248,9 +249,10 @@ bool rail_measured();                                                  // ...its
 bool rail_possible();                                                  // b161: ...it could go on now (below)
 bool left_in_holster() { const float v = bridge::view(bridge::S_LEFT_HOLSTER); return bridge::has(v) && v > 0.5f; }
 // 2026-11-11 (twomag.h): LT with both magazines in the hand: the spare goes in by itself, the old one stays in the hand
-void swap_in() {
+void twomag_auto_travel();   // below, beside the rail's own numbers
+void swap_in(bool by_itself = false) {
     const float d = dock_dist(), now = now_s();
-    if (d > TWOMAG_SWAP_REACH_M) {
+    if (!by_itself && d > TWOMAG_SWAP_REACH_M) {
         bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s reload: LT with two magazines in the hand, %.3f m from the well: bring them within %.2f", TAG, d, TWOMAG_SWAP_REACH_M);
         return;
@@ -265,7 +267,9 @@ void swap_in() {
     // 2026-11-15 (Tefa): onto the grip's line with the hand docked on it, up it, then a small push with LT still held; the old one
     // stays in the palm (was: INSERT, the spare going in by itself from where it was drawn)
     (void)from; (void)sp; (void)sq;
-    rail_enter(1.0f, "LT: the spare onto the grip's line, the old magazine in the palm", true);
+    rail_enter(1.0f, by_itself ? "the old magazine is out: the spare goes onto the grip's line by itself, the old one in the palm"
+                               : "LT: the spare onto the grip's line, the old magazine in the palm", true);
+    if (by_itself) twomag_auto_travel();
     if (!rail_measured()) { set_state(St::INSERT, "LT: the spare goes in (no grip line measured)"); insert_from(from, sp, sq); }
     ghosthand::value("mag_closest_m", d);
     ghosthand::event("mag", "done");
@@ -301,6 +305,7 @@ void hand_checks() {
     // with LT at the insert point, breech.cpp insert_lt; a live grenade still in there is taken out with LT first)
     if (g_round_in_hand && g_w->breech == weapons::Breech::BREAK && (!breech::is_open() || breech::spent() || (player::capacity() > 0 && player::loaded() + g_stash >= player::capacity()))) return;
     if (mag && twomag::has() == twomag::Has::SPARE) {   // 2026-11-11: two in the hand: the old one does not go back in; LT swaps them
+        if (TWOMAG_AUTO_IN) { swap_in(true); return; }   // b162: no LT: the spare starts in the frame the old one is in the hand
         if (TWOMAG_AUTO_SWAP) {   // 2026-11-15: or the hand brings them to the well, after it left the well zone once
             const float dd = dock_dist();
             if (!g_well_armed && dd > dock_need() * PISTOL_REARM) { g_well_armed = true; LOGI("%s reload: two in the hand, away from the well: brought back, the spare goes in", TAG); }
@@ -465,6 +470,8 @@ Quat g_magrel_rot{0, 0, 0, 1};
 bool g_rail_ok = false;
 float g_rail_u0 = 0.0f, g_rail_u = 0.0f, g_rail_max = 0.0f;
 float g_rail_t = 0.0f;            // 2026-11-14: the last frame the magazine travelled up the line by itself
+// b162: the travel by itself: where it stops (share of the line left), how long it takes, and when it may start
+float g_rail_stop_u = PISTOL_PUSH_LEFT_U, g_rail_auto_sec = PISTOL_AUTO_SEAT_SEC, g_rail_wait_until = 0.0f;
 Vec3 g_rail_c0{};                 // the left controller where the rail began, in the right hand target's frame
 bool rail_ctrl(Vec3& rel) {       // the left controller in the right hand target's frame
     Vec3 rp, cp;
@@ -480,6 +487,16 @@ float rail_len(Vec3& axis) {      // the grip's line, top to bottom, and its len
     return n;
 }
 bool rail_measured() { return g_rail_ok; }
+// b162: the two-magazine travel's own numbers (timings.h rows, tuned in the Animation & Timing window), set after rail_enter
+void twomag_auto_travel() {
+    float pct = timings::v(timings::TWOMAG_STOP_PCT);
+    pct = pct < 5.0f ? 5.0f : pct > 95.0f ? 95.0f : pct;
+    g_rail_stop_u = 1.0f - pct / 100.0f;
+    g_rail_auto_sec = timings::v(timings::TWOMAG_IN_S);
+    g_rail_wait_until = now_s() + std::fmax(0.0f, timings::v(timings::TWOMAG_WAIT_S));
+    LOGI("%s reload: two magazines: the new one waits %.2f s, travels %.2f s and stops %.0f%% in; the push seats it", TAG,
+         timings::v(timings::TWOMAG_WAIT_S), g_rail_auto_sec, pct);
+}
 bool g_rail_pinned = false;       // b160: Animation & Timing holds a frame of the followed clip: the magazine waits at its point
 bool g_rail_frozen = false;       // b161: Hand Freeze holds the left hand: the magazine stays where it is
 bool rail_possible() { Vec3 c; return g_magrel_ok && rail_ctrl(c); }   // b161: the grip's line is measured and the hand readable
@@ -495,6 +512,7 @@ void rail_enter(float u, const char* why, bool auto_seat) {
     g_rail_max = 0.0f;
     g_rail_auto = auto_seat && g_rail_ok;
     g_rail_t = now_s();
+    g_rail_stop_u = PISTOL_PUSH_LEFT_U; g_rail_auto_sec = PISTOL_AUTO_SEAT_SEC; g_rail_wait_until = 0.0f;   // b162: swap_in sets its own after this
     g_hand_on_mag = false;
     set_state(St::RAIL, why);
     if (!g_rail_ok) LOGW("%s reload: %s: the grip's line is not measured yet: the magazine goes straight into the hand", TAG, g_id.c_str());
@@ -541,13 +559,14 @@ void rail_frame() {
     if (g_rail_auto) {   // 2026-11-15: up the grip by itself to PISTOL_PUSH_LEFT_U short of the top; then the hand's own push (below)
         const float dt = now - g_rail_t;
         g_rail_t = now;
-        g_rail_u = std::fmax(PISTOL_PUSH_LEFT_U, g_rail_u - dt * (1.0f - PISTOL_PUSH_LEFT_U) / PISTOL_AUTO_SEAT_SEC);
-        if (g_rail_u <= PISTOL_PUSH_LEFT_U + 1e-4f) {
+        if (now < g_rail_wait_until) return;   // b162: the old magazine gets clear first
+        g_rail_u = std::fmax(g_rail_stop_u, g_rail_u - dt * (1.0f - g_rail_stop_u) / std::fmax(0.01f, g_rail_auto_sec));
+        if (g_rail_u <= g_rail_stop_u + 1e-4f) {
             g_rail_auto = false;
             g_rail_u0 = g_rail_u;
             g_rail_max = MAG_RAIL_MOVED;   // the travel counts as moved: the small push is enough to seat it
             g_rail_ok = g_rail_ok && rail_ctrl(g_rail_c0);   // the push is measured from where the controller is now
-            LOGI("%s reload: the magazine travelled up the grip: push it the last %.0f%% in", TAG, PISTOL_PUSH_LEFT_U * 100.0f);
+            LOGI("%s reload: the magazine travelled up the grip: push it the last %.0f%% in", TAG, g_rail_stop_u * 100.0f);
         }
         return;
     }
@@ -562,6 +581,8 @@ void rail_frame() {
         g_last_dock = now;   // no snapping straight back on at the well
         g_well_armed = false;   // 2026-11-14: and not back in by itself until the hand has left the well zone
         set_state(St::IN_HAND, "out of the bottom of the grip");
+        // b162: with a spare in the hand the new one starts in at once, by itself (settings.h TWOMAG_AUTO_IN); no LT
+        if (TWOMAG_AUTO_IN && twomag::has() == twomag::Has::SPARE) swap_in(true);
         return;
     }
     if (raw <= MAG_RAIL_SEAT_U && g_rail_max >= MAG_RAIL_MOVED) {   // pushed home

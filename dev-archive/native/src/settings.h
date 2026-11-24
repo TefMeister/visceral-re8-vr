@@ -303,6 +303,15 @@ constexpr float ACC_AT_GUN_M = 0.12f;         // LG held with the left controlle
 // 2026-11-11 (twomag.h): two magazines in the left hand
 constexpr bool  TWOMAG_ON = true;
 constexpr float TWOMAG_SWAP_REACH_M = 0.25f;         // LT swaps the magazines with the held one within this of the well
+// b162 (2026-11-25, Tefa: "once it is pulled out, game takes over hand control - that animation i have to be able to fine tune -
+// and places the mag2 a half way into chamber automatically after mag1 has fully come out. player needs to push the mag2 fully
+// into the mag"; and of LT: "it made it too complicated and confusing in battle"): the moment the gun's magazine is out of the
+// bottom with a spare in the hand, the spare goes onto the grip's line by itself, waits, travels up and stops; the hand's push
+// seats it. No LT anywhere in the two-magazine reload. The three numbers are rows of timings.h (the Animation & Timing window).
+constexpr bool  TWOMAG_AUTO_IN = true;
+constexpr float TWOMAG_AUTO_WAIT_SEC = 0.10f;        // the old magazine clear of the grip before the new one starts up
+constexpr float TWOMAG_AUTO_IN_SEC = 0.35f;          // the new one's travel up the grip
+constexpr float TWOMAG_AUTO_STOP_PCT = 50.0f;        // how far in it stops, per cent of the grip's line (the push does the rest)
 // 2026-11-16 (Tefa: "after inserting the spare mag with LT, the left hand must not dock again, until LG has been released and
 // let go of the mag in hand"): once the spare is seated, the hand with the old magazine is the controller's at once
 constexpr bool  TWOMAG_FREE_AFTER_SEAT = true;

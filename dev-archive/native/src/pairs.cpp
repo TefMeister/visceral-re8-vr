@@ -187,7 +187,7 @@ void frame() {
         g_active = -1;
     }
     // a fresh LG inside an activation sphere; the slide / pump / bolt and the magazine come first (their own zones)
-    if (g_active < 0 && g_dock < 0 && ok && play && bridge::pressed(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !reload::session_active()) {
+    if (g_active < 0 && g_dock < 0 && ok && play && bridge::pressed(bridge::S_LGRIP) && !rack::active() && !reload::hand_on_mag() && !reload::session_active() && !reload::mag_in_hand()) {
         Vec3 lp;
         if (bridge::room_to_world(bridge::hand_pos(bridge::LEFT), lp)) {
             for (int i = 0; i < NDOCKS && !reload::round_in_hand(); ++i) {   // a round in hand goes into the gun, not onto a dock
@@ -237,6 +237,8 @@ void frame() {
     else if (twomag::has() == twomag::Has::SPARE && reload::gun_mag_in_hand()) spot = 16.0f;
     else if (twomag::has() == twomag::Has::SPARE && reload::hand_on_mag()) spot = reload::on_rail() ? 18.0f : 17.0f;
     else if (twomag::has() == twomag::Has::SPARE && reload::gun_mag_seated()) spot = 19.0f;
+    // b162: the old magazine in the palm while the new one goes in (by itself, then the push): its own spot, 21, so its pose can be tuned
+    else if (twomag::has() == twomag::Has::OLD && reload::hand_on_mag()) spot = 21.0f;
     else if (reload::hand_on_mag()) spot = reload::on_rail() ? 13.0f : 4.0f;   // b099: on the grip's line it is carried (13)   // on the seated magazine (the grip look), and again while LT pushes one in
     // 2026-11-08 (Tefa: "holding LG to grip the mag, so it looks like holding the grip in game, then pressing B makes the hand actually
     // move under the mag, pressing it in with LT changes the hand to go back on the grip"): a magazine carried in the left hand (after

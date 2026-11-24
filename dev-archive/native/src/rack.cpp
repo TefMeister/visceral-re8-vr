@@ -579,7 +579,8 @@ void frame() {
         bolt_step(g_armed);
         return;
     }
-    if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch()) {
+    // b162 (Tefa: the hand with the old magazine "will not dock in any point of the gun until LG has released mag1"): not with a magazine in it
+    if (!g_hand_on && play && may_rack && !g_spent && !reload::session_active() && !reload::in_pouch() && !reload::mag_in_hand()) {
         // Tefa 2026-10-18: "suppress weapon docking on the handle when the slide needs racking": with a rack due, the left
         // grip held near the gun always takes the slide (our IK target wins over the VR layer's grip dock); with none due
         // the hand is never put on the slide (may_rack above), so the grip dock is left alone

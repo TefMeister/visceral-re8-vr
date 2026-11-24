@@ -39,6 +39,9 @@ const Row ROWS[KEY_COUNT] = {
     {"insert_push_s", DRUM_INSERT_PUSH_S, "s", "then it is pushed in"},
     {"held_follow_s", GATE_HELD_FOLLOW_SEC, "s", "the gun in the left hand follows it with this smoothing (0 = raw)"},
     {"load_ease_s", DRUM_LOAD_EASE_SEC, "s", "the hand eases between the drum and the loading place"},
+    {"twomag_wait_s", TWOMAG_AUTO_WAIT_SEC, "s", "two magazines: the pause after the old one is out, before the new one starts in"},
+    {"twomag_in_s", TWOMAG_AUTO_IN_SEC, "s", "two magazines: the new one travels up the grip by itself"},
+    {"twomag_stop_pct", TWOMAG_AUTO_STOP_PCT, "%", "two magazines: how far in the new one stops (you push the rest)"},
 };
 float g_val[KEY_COUNT];
 bool g_set[KEY_COUNT];
