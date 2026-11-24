@@ -375,7 +375,7 @@ local function publish(l, r)
     pcall(function() b.w(S_LEFT_HOLSTER, l); b.w(S_RIGHT_HOLSTER, r) end)
     if l ~= told[1] or r ~= told[2] then
         told[1], told[2] = l, r
-        local nm = function(i) return i > 0 and SPOTS[i].name or "none" end
+        local nm = function(i) return i == 5 and "first aid" or i == 6 and "map" or (i > 0 and SPOTS[i] and SPOTS[i].name) or "none" end
         L(string.format("holster spot for Hand Poser: left hand %s, right hand %s", nm(l), nm(r)))
     end
 end
@@ -407,6 +407,9 @@ re.on_pre_application_entry("UpdateBehavior", function()
         local lspot = lm ~= nil and which_spot(pos_of(lm), hmd, inside_l) or 0
         local rspot = 0
         for i, s in ipairs(SPOTS) do if inside[s.name] and rspot == 0 then rspot = i end end   -- last frame's (updated below)
+        -- 2026-11-24 (Tefa: "F for first aid med"): the right hand at the first-aid spot (re8_vr_holster.lua's medicine zone, a
+        -- right-hand zone) is spot 5 for Hand Poser; 6 = the map is kept for when Village gets a map spot (it has none yet)
+        if rspot == 0 and rawget(_G, "__vr_in_medicine_zone") == true then rspot = 5 end
         publish(lspot, rspot)
     end
     local hand = pos_of(rm)
