@@ -141,7 +141,25 @@ void on_ik(MO* ik) {
     Pose& cur = left ? g_cur : g_cur_r;
     // b148: a magazine on the grip's line / being pushed home: reload.cpp's hand_on_mag_pose carries the hand from its docked place
     // to the exact hold by the pull distance; nothing is added here (the spot's numbers would be added twice)
-    if (left && reload::mag_moving()) { cur = Pose{}; g_ride = false; last = spot; g_shown_q = Quat{0, 0, 0, 1}; return; }
+    if (left && reload::mag_moving()) {
+        cur = Pose{}; g_ride = false; last = spot; g_shown_q = Quat{0, 0, 0, 1};
+        // b160 (Tefa, the LEMI "step by step"): only the WHOLE HAND move keyed into the clip that follows the pull (Animation &
+        // Timing's six sliders), in the gun's own axes at the wrist, on top of where reload.cpp put the hand on the magazine
+        float hn[6]{};
+        if (!reload::on_rail() || !shellclip::hand_nudge(true, hn)) return;   // (pushing home, INSERT: as before, nothing added)
+        MO* target = field_obj(ik, "Target");
+        Vec3 lp;
+        Quat lq, gq;
+        if (target == nullptr || !player::get_pose(target, lp, lq)) return;
+        if (!(gate::gun_rot(gq) || rack_right::gun_rot(gq) || zones::gun_rot(gq))) {
+            Vec3 gp;
+            if (s.weapon_tf == nullptr || !player::get_pose(s.weapon_tf, gp, gq)) return;
+        }
+        gq = qnorm(gq);
+        const Quat turn = qnorm(qmul(qmul(gq, euler_q(hn[3], hn[4], hn[5])), qinv(gq)));
+        player::set_pose(target, lp + rotate(gq, Vec3{hn[0], hn[1], hn[2]}), qnorm(qmul(turn, qnorm(lq))));
+        return;
+    }
     if (spot != last) {
         if (docked(spot) && !zero(want)) LOGI("%s dockpose: gun %d spot %d (%s hand): wrist %.3f %.3f %.3f m, %.1f %.1f %.1f deg", TAG, gun, spot, left ? "left" : "right", want.x, want.y, want.z, want.rx, want.ry, want.rz);
         if (left && DOCK_POSE_RIDES_GLIDE && smooth::easing()) {

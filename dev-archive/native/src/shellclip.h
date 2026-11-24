@@ -56,7 +56,15 @@ void pulse(const std::vector<std::wstring>& joints, float ax, float ay, float az
 // The whole-hand move of the clip playing on a hand right now (metres, degrees, already scaled by the blend); false = none.
 // dockpose.cpp (the last writer on the IK target) adds it on top of whoever placed the hand.
 bool hand_nudge(bool left, float out[6]);
-void frame();                           // UpdateBehavior pre: the test file, the relative switch, scrub.json, clips_state.json
+// 2026-11-24 (b160, Tefa, the LEMI's magazine coming out "step by step"): a clip FOLLOWED by a distance instead of a clock.
+// follow() every frame while it should follow (u 0 = the clip's first frame .. 1 = its last, along the edited time); it starts
+// (blended in from the hand's pose) on the first call and keeps going until unfollow() (blends out). A frame held by the
+// Animation & Timing window wins over it; when the hold is let go the following takes over again from the held pose.
+void follow(const std::string& gun_id, const char* event, int hands, float u);
+void unfollow();                        // every followed play blends out (cheap; safe to call each frame)
+// the window holds a frame of this clip: u = where that frame sits (0 first .. 1 last, along the edited time); false = no hold
+bool held_progress(const std::string& gun_id, const char* event, float& u);
+void frame();                          // UpdateBehavior pre: the test file, the relative switch, scrub.json, clips_state.json
 void render_point();                    // PrepareRendering post, after every other finger writer
 void begin_render();                    // BeginRendering pre, after every other finger writer
 bool playing();                         // any hand

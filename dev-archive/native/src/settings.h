@@ -124,6 +124,12 @@ constexpr float MAG_SEAT_READ_SEC = 0.5f;
 constexpr float MAG_RAIL_SEAT_U = 0.08f;       // pushed up to within this much of the top (of the line) = seated
 constexpr float MAG_RAIL_MOVED = 0.25f;        // ...but only after it moved this much on the line (no instant re-seat on B)
 constexpr float MAG_RAIL_LEAVE_EXTRA = 0.25f;  // one put on at the bottom leaves only this much past the bottom (no flicker)
+// b160 (2026-11-24, Tefa, the LEMI: "i need to be able to tune the fingers on the way from being docked on the bottom of the mag,
+// then B pressed to release it all the way to until it lands on my hand ... step by step"): on these guns the LEFT hand follows
+// the game's own mag_out finger movement by HOW FAR the magazine is down the grip (halfway out = the clip's middle), not by time,
+// so Animation & Timing tunes it frame by frame (whole hand and fingers); a frame held there also holds the magazine at that
+// point, LG may be let go meanwhile (reload.cpp rail_frame). Hand Poser stands aside for the left hand (bridge slot 186).
+constexpr const char* MAG_PULL_FOLLOWS_CLIP[] = {"ri3046"};   // short ids: ri3046 = LEMI
 constexpr float RELOAD_GRAB_COOLDOWN_SEC = 0.45f;   // Andyalpa's ammo_left_cooldown
 // where a magazine / shell goes in, from the right controller in the room: pistols at the hand, long guns ahead of it
 constexpr float DOCK_PISTOL_M = 0.24f;           // left controller this close to the right one = in (0.13 never reached in

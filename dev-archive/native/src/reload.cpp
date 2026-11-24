@@ -467,7 +467,14 @@ float rail_len(Vec3& axis) {      // the grip's line, top to bottom, and its len
     return n;
 }
 bool rail_measured() { return g_rail_ok; }
+bool g_rail_pinned = false;       // b160: Animation & Timing holds a frame of the followed clip: the magazine waits at its point
+bool pull_by_clip() {             // b160 (settings.h MAG_PULL_FOLLOWS_CLIP): this gun's left hand follows mag_out by the pull
+    if (!MAG_RAIL_ON || !pistol_mag()) return false;
+    for (const char* id : MAG_PULL_FOLLOWS_CLIP) if (g_id.rfind(id, 0) == 0) return true;
+    return false;
+}
 void rail_enter(float u, const char* why, bool auto_seat) {
+    g_rail_pinned = false;
     g_rail_ok = g_magrel_ok && rail_ctrl(g_rail_c0);
     g_rail_u0 = g_rail_u = u;
     g_rail_max = 0.0f;
@@ -481,6 +488,26 @@ void rail_enter(float u, const char* why, bool auto_seat) {
 void rail_frame() {
     const float now = now_s();
     if (!g_rail_ok) { set_state(St::IN_HAND, "no rail: into the hand"); g_last_dock = now; return; }
+    // b160 (Tefa: tune the fingers "step by step" on the way out): a frame of the followed clip held by the Animation & Timing
+    // window puts the magazine (and the hand on it) at that frame's point and keeps it there, LG held or not, so the hand can be
+    // tuned standing still; stepping the frame moves the magazine with it. The hold let go: the pull goes on from that point,
+    // measured from where the controller is then (LG not held by then = it slides out, as ever).
+    float hu = 0.0f;
+    if (pull_by_clip() && shellclip::held_progress(g_id, "mag_out", hu)) {
+        if (!g_rail_pinned) LOGI("%s reload: the Animation & Timing window holds a frame: the magazine waits %.0f%% down the grip", TAG, hu * 100.0f);
+        g_rail_pinned = true;
+        g_rail_auto = false;
+        g_rail_u = hu;
+        return;
+    }
+    if (g_rail_pinned) {
+        g_rail_pinned = false;
+        g_rail_u0 = g_rail_u;
+        g_rail_max = 0.0f;   // a hold let go near the top does not count as pushed home
+        Vec3 c0;
+        if (rail_ctrl(c0)) g_rail_c0 = c0;
+        LOGI("%s reload: the window let the frame go: the pull goes on from %.0f%% down the grip", TAG, g_rail_u * 100.0f);
+    }
     if (!bridge::held(bridge::S_LGRIP)) {   // let go in the grip: it slides the rest of the way out and falls
         LOGI("%s reload: LG let go with the magazine %.0f%% down the grip: it slides out", TAG, g_rail_u * 100.0f);
         set_state(St::SLIDE_OUT, "let go in the grip");
@@ -1064,7 +1091,7 @@ void frame() {
     // 2026-10-24 (Tefa: "left hand on the mag does seem to fight the game at first, as it starts throwing the gun and hands
     // around"): the grip script took the two-handed grip with LG held at the gun and steered the gun at the hand
     bridge::put(bridge::S_GRIP_VETO, (hand_on_mag() || gate::owns_left()) ? 1.0f : 0.0f);   // (2026-11-01: or the Wolfsbane held, gate.cpp)
-    if (g_w == nullptr || g_gun == nullptr) return;
+    if (g_w == nullptr || g_gun == nullptr) { shellclip::unfollow(); return; }
 
     if (g_w->reload == Reload::MAG) {
         const float t = now_s() - g_t0;
@@ -1101,6 +1128,9 @@ void frame() {
         default:
             break;
         }
+        // b160: the LEMI's left fingers follow the game's mag_out movement by how far down the grip the magazine is
+        if (g_st == St::RAIL && pull_by_clip()) shellclip::follow(g_id, "mag_out", shellclip::LEFT, g_rail_u);
+        else shellclip::unfollow();
         mag_hand_frame();
         twomag_frame();
         grab_frame();
@@ -1110,7 +1140,7 @@ void frame() {
             if (g_joint != nullptr && b_catch_near()) { g_hand_on_mag = true; pull_out(); }   // 2026-11-07: into the held hand
             else begin_drop();
         }
-    }
+    } else shellclip::unfollow();   // b160
     if (in_pouch() && bridge::pressed(bridge::S_LGRIP)) pouch_grab();
 }
 

@@ -69,8 +69,11 @@ struct Play {
     // 2026-11-07: HELD on one edited frame by the Animation & Timing window (scrub.json): no clock, the frame it says
     bool held = false;
     int held_frame = 0;
-    float release_t = -1.0f;                  // the hold let go: blends out from here
-    float blend = 0.0f;                       // how much of the clip is on the hand right now (0..1), for hand_nudge()
+    float release_t = -1.0f;                  // the hold let go: blends out from here (also: a followed play let go)
+    // 2026-11-24 (b160): FOLLOWED by a distance (follow()): the frame comes from follow_u, not the clock
+    bool follow = false;
+    float follow_u = 0.0f;
+    float blend = 0.0f;                      // how much of the clip is on the hand right now (0..1), for hand_nudge()
     std::array<float, 6> hand_now{};          // this frame's whole-hand move, scaled by blend
     float frame_now = 0.0f;                   // the edited frame being shown (fractional while playing)
     float time_now = 0.0f;                    // 2026-11-08: the edited time being shown (for part())
@@ -509,6 +512,38 @@ bool hand_nudge(bool left, float out[6]) {
     return false;
 }
 
+void follow(const std::string& gun_id, const char* event, int hands, float u) {
+    static std::map<std::string, bool> refused;   // a clip that cannot follow (missing, or not on that hand): said once, not tried each frame
+    const std::string gun = short_id(gun_id), key = gun + "_" + event;
+    Play* p = play_on(key, (hands & LEFT) != 0);
+    if (p == nullptr) p = play_on(key, (hands & RIGHT) != 0);
+    if (p != nullptr && p->held && p->release_t < 0.0f) return;   // the window holds a frame: it wins
+    if (p != nullptr && p->follow && p->release_t < 0.0f) { p->follow_u = u; return; }
+    if (refused[key]) return;
+    if (!start(gun, event, hands, false, 0, "it follows how far the magazine is out")) { refused[key] = true; return; }
+    g_plays.back().follow = true;
+    g_plays.back().follow_u = u;
+    LOGI("%s shellclip: %s follows the pull (now %.0f%% out)", TAG, key.c_str(), u * 100.0f);
+}
+
+void unfollow() {
+    for (auto& p : g_plays)
+        if (p.follow && p.release_t < 0.0f) { p.release_t = now_s(); LOGI("%s shellclip: %s: no longer followed (blends out)", TAG, p.what.c_str()); }
+}
+
+bool held_progress(const std::string& gun_id, const char* event, float& u) {
+    const std::string key = short_id(gun_id) + "_" + event;
+    for (const auto& p : g_plays) {
+        if (p.pulse || p.key != key || p.clip == nullptr || !p.held || p.release_t >= 0.0f) continue;
+        const Clip& c = *p.clip;
+        const size_t k = std::clamp((size_t)p.held_frame, (size_t)0, c.frames.size() - 1);
+        const float len = c.t.back();
+        u = len > 0.0f ? std::clamp(c.t[k] / len, 0.0f, 1.0f) : 0.0f;
+        return true;
+    }
+    return false;
+}
+
 void frame() {
     // 2026-11-05 (Tefa: "the fingers don't move at all, not even a little"): Hand Poser held the docked hand's saved pose over the
     // clip; it now reads this slot and lets go of that hand while a clip plays (hand-poser-vr hand_poser.lua)
@@ -588,6 +623,13 @@ void render_point() {
             in = std::fmin(1.0f, t / bl);
             out = p.release_t < 0.0f ? 1.0f : std::fmax(0.0f, 1.0f - (now - p.release_t) / bl);
             if (p.release_t >= 0.0f && out <= 0.0f) { LOGI("%s shellclip: %s: hold over", TAG, p.what.c_str()); g_plays.erase(g_plays.begin() + pi); continue; }
+        } else if (p.follow) {   // b160: the frame by the distance follow() gave (no clock); let go = blend out from there
+            const float ft = std::clamp(p.follow_u, 0.0f, 1.0f) * len;
+            sample(c, ft, pose, hand, p.frame_now);
+            p.time_now = ft;
+            in = std::fmin(1.0f, t / bl);
+            out = p.release_t < 0.0f ? 1.0f : std::fmax(0.0f, 1.0f - (now - p.release_t) / bl);
+            if (p.release_t >= 0.0f && out <= 0.0f) { LOGI("%s shellclip: %s: following over", TAG, p.what.c_str()); g_plays.erase(g_plays.begin() + pi); continue; }
         } else {
             if (t >= len + bl) {   // done: the other finger code takes the hand back from the next frame
                 LOGI("%s shellclip: %s finished", TAG, p.what.c_str());
