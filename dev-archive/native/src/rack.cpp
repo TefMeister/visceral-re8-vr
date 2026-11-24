@@ -11,6 +11,7 @@
 #include "reload.h"
 #include "whichpart.h"
 #include "settings.h"
+#include "sleephands.h"
 #include "weapons.h"
 #include "json_mini.h"
 #include "zones.h"
@@ -645,6 +646,21 @@ void frame() {
         }
     }
     if (bolt() && !g_hand_on && g_bstate == 3) { bolt_step(false); return; }   // home: it turns down by itself, hand or not
+    // b161 (2026-11-24, Tefa: "hand freeze just freezes the hand on the part, same with sliders, pump handles and other moving weapon
+    // parts"): while Hand Freeze (or Window View's controller mode) holds the left hand on the slide / pump, the part stays where it
+    // is with the hand on it, whatever the buttons do; unfrozen, the travel carries on from there, measured from the hand then
+    static bool frozen_was = false;
+    if (g_hand_on && !bolt() && sleephands::held_still(0)) {
+        if (!frozen_was) LOGI("%s rack: the left hand is frozen: the %s stays %.0f%% back with the hand on it", TAG, part(), g_travel * 100.0f);
+        frozen_was = true;
+        return;
+    }
+    if (frozen_was) {
+        frozen_was = false;
+        if (g_hand_on && g_armed && g_auto == 0)
+            g_base = along_gun() + (!g_pulled ? g_travel * RACK_PULL_M : g_max_pull - (1.0f - g_travel) * RACK_RETURN_M);
+        LOGI("%s rack: the left hand unfrozen: the %s carries on from %.0f%% back", TAG, part(), g_travel * 100.0f);
+    }
     if (g_hand_on && bolt()) {
         if (!play) { hand_off("cutscene / hands not free"); return; }
         if (!lg && !lock) { hand_off("LG let go"); return; }

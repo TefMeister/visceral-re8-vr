@@ -15,6 +15,7 @@
 #include "whichpart.h"
 #include "rack_right.h"
 #include "settings.h"
+#include "sleephands.h"
 #include "twomag.h"
 #include "weapons.h"
 #include "zones.h"
@@ -244,6 +245,7 @@ bool supply() { const int r = player::reserve(); return player::unlimited() || r
 
 void rail_enter(float u, const char* why, bool auto_seat = false);   // THE GRIP'S RAIL, below
 bool rail_measured();                                                  // ...its line is measured (below)
+bool rail_possible();                                                  // b161: ...it could go on now (below)
 bool left_in_holster() { const float v = bridge::view(bridge::S_LEFT_HOLSTER); return bridge::has(v) && v > 0.5f; }
 // 2026-11-11 (twomag.h): LT with both magazines in the hand: the spare goes in by itself, the old one stays in the hand
 void swap_in() {
@@ -338,6 +340,17 @@ void hand_checks() {
             return;
         }
         g_lt_to_seat = false;   // the held LT is the seat press here
+    }
+    // b161 (2026-11-24, Tefa: "ejecting a mag, then getting a new mag from the pouch, hand should travel wit the mag to the chamber
+    // and go in a little, then need a final hand push from the player"): a FRESH handgun magazine brought to the well goes onto the
+    // grip's line the way the same one does with LT held: up by itself with the hand on it, PISTOL_PUSH_LEFT_U short of the top,
+    // and the hand's push seats it (filled from the carried ammo then). No LT. No measured line yet: straight in, as before.
+    if (mag && pistol_mag() && !g_lt_to_seat && PISTOL_FRESH_NEEDS_PUSH && PISTOL_AUTO_SEAT && MAG_RAIL_ON &&
+        twomag::has() == twomag::Has::NONE && rail_possible()) {
+        g_last_dock = now;
+        rail_enter(1.0f, "a fresh magazine at the well: it travels up the grip, a small push seats it", true);
+        magazine_shown(true);
+        return;
     }
     // 03:21 and 03:53 (the log: "insert at 0.001 m", later "insert at 0.126 m", the frame after every pull-out: the magazine seated
     // itself again at once). Tefa 2026-10-25: "LT must be pressed again for it to go back in". So a magazine pulled out by hand
@@ -468,13 +481,15 @@ float rail_len(Vec3& axis) {      // the grip's line, top to bottom, and its len
 }
 bool rail_measured() { return g_rail_ok; }
 bool g_rail_pinned = false;       // b160: Animation & Timing holds a frame of the followed clip: the magazine waits at its point
+bool g_rail_frozen = false;       // b161: Hand Freeze holds the left hand: the magazine stays where it is
+bool rail_possible() { Vec3 c; return g_magrel_ok && rail_ctrl(c); }   // b161: the grip's line is measured and the hand readable
 bool pull_by_clip() {             // b160 (settings.h MAG_PULL_FOLLOWS_CLIP): this gun's left hand follows mag_out by the pull
     if (!MAG_RAIL_ON || !pistol_mag()) return false;
     for (const char* id : MAG_PULL_FOLLOWS_CLIP) if (g_id.rfind(id, 0) == 0) return true;
     return false;
 }
 void rail_enter(float u, const char* why, bool auto_seat) {
-    g_rail_pinned = false;
+    g_rail_pinned = g_rail_frozen = false;
     g_rail_ok = g_magrel_ok && rail_ctrl(g_rail_c0);
     g_rail_u0 = g_rail_u = u;
     g_rail_max = 0.0f;
@@ -500,13 +515,22 @@ void rail_frame() {
         g_rail_u = hu;
         return;
     }
-    if (g_rail_pinned) {
-        g_rail_pinned = false;
+    // b161 (Tefa: "i really need hand freeze to work on the mag too to freeze it, so it then travels from that point backwards and
+    // forwards when i tune the animations and timing frame by frame"): while Hand Freeze (or Window View's controller mode) holds the
+    // left hand, the magazine stays where it is on the grip, LG held or not; a frame held in Animation & Timing (above) still moves it
+    if (sleephands::held_still(0)) {
+        if (!g_rail_frozen) LOGI("%s reload: the left hand is frozen: the magazine stays %.0f%% down the grip", TAG, g_rail_u * 100.0f);
+        g_rail_frozen = true;
+        g_rail_auto = false;
+        return;
+    }
+    if (g_rail_pinned || g_rail_frozen) {   // the pull goes on from here, measured from where the controller is now
+        LOGI("%s reload: %s: the pull goes on from %.0f%% down the grip", TAG, g_rail_pinned ? "the window let the frame go" : "the left hand unfrozen", g_rail_u * 100.0f);
+        g_rail_pinned = g_rail_frozen = false;
         g_rail_u0 = g_rail_u;
-        g_rail_max = 0.0f;   // a hold let go near the top does not count as pushed home
+        g_rail_max = 0.0f;   // let go near the top does not count as pushed home
         Vec3 c0;
         if (rail_ctrl(c0)) g_rail_c0 = c0;
-        LOGI("%s reload: the window let the frame go: the pull goes on from %.0f%% down the grip", TAG, g_rail_u * 100.0f);
     }
     if (!bridge::held(bridge::S_LGRIP)) {   // let go in the grip: it slides the rest of the way out and falls
         LOGI("%s reload: LG let go with the magazine %.0f%% down the grip: it slides out", TAG, g_rail_u * 100.0f);

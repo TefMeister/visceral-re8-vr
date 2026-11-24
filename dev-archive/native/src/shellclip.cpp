@@ -519,6 +519,10 @@ void follow(const std::string& gun_id, const char* event, int hands, float u) {
     if (p == nullptr) p = play_on(key, (hands & RIGHT) != 0);
     if (p != nullptr && p->held && p->release_t < 0.0f) return;   // the window holds a frame: it wins
     if (p != nullptr && p->follow && p->release_t < 0.0f) { p->follow_u = u; return; }
+    // b161 (the b160 log, 22:51:24: the window held ri3046 "grip" on the left hand and the following took the hand straight back,
+    // ending that hold): a hold of ANY clip on the hand by the window wins; the following waits until it is let go
+    for (const auto& o : g_plays)
+        if (!o.pulse && o.held && o.release_t < 0.0f && (((hands & LEFT) != 0 && o.left) || ((hands & RIGHT) != 0 && o.right))) return;
     if (refused[key]) return;
     if (!start(gun, event, hands, false, 0, "it follows how far the magazine is out")) { refused[key] = true; return; }
     g_plays.back().follow = true;

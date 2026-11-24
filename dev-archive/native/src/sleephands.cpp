@@ -89,6 +89,8 @@ bool rest_world(int side, Vec3& out) {
 }
 } // namespace
 
+bool held_still(int side) { return held_on_purpose(side); }
+
 void frame() {
     if (!SLEEP_HANDS_ON) return;
     const float t = now_s();

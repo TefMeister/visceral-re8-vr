@@ -14,5 +14,10 @@ namespace vn::sleephands {
 
 void frame();          // UpdateBehavior pre (after the bridge Lua wrote this frame's controller poses): asleep or not, the ease
 void on_ik(MO* ik);    // ik.cpp, LAST: a sleeping hand's target moved to its rest beside the hip
+// 2026-11-24 (b161, Tefa: "i really need hand freeze to work on the mag too to freeze it ... so hand freeze just freezes the hand on
+// the part, same with sliders, pump handles and other moving weapon parts"): Hand Freeze holds this hand (or Window View's
+// controller mode holds the game's hands). side 0 left, 1 right. reload.cpp (the magazine on the grip) and rack.cpp (slide,
+// pump) keep their part where it is meanwhile.
+bool held_still(int side);
 
 } // namespace vn::sleephands

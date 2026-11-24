@@ -106,6 +106,9 @@ constexpr float PISTOL_AUTO_SEAT_SEC = 0.15f;
 // on it, then needs a small push to go in all the way"): the travel stops this share of the grip's line short of the top; the hand
 // pushes the rest (two magazines in the hand: the same, with LT held)
 constexpr float PISTOL_PUSH_LEFT_U = 0.30f;
+// b161 (2026-11-24, Tefa: "getting a new mag from the pouch, hand should travel wit the mag to the chamber and go in a little, then
+// need a final hand push from the player"): a fresh one from the pouch does the same travel and push (no LT); false = it seats by itself
+constexpr bool  PISTOL_FRESH_NEEDS_PUSH = true;
 constexpr float PISTOL_REARM = 1.3f;
 // 2026-11-15 (Tefa: "can the spare mag follow hand as well when going back in, with the mag that just came out still in my palm?"):
 // with two magazines in the hand, the spare goes in when the hand brings them to the well (once the hand has left the well zone
