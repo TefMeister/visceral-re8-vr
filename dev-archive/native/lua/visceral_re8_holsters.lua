@@ -75,6 +75,10 @@ local function hz_read()
             if sp then extra[k == "ammo" and "ammo_left" or k] = { x = hz_num(sp, "x"), y = hz_num(sp, "y"), z = hz_num(sp, "z"),
                                                                   r = k == "ammo" and tonumber(sp.r) or nil } end
         end
+        -- b164: the pouch is the left hip holster spot now (LEFT_GRIP_DOES below); Andyalpa's own ammo zone is held at its smallest
+        -- (3 cm, re8_vr_holster.lua's tick_ammo_left_zone wrapper) so its buzz no longer marks a second, lower pouch
+        extra.ammo_left = extra.ammo_left or { x = 0, y = 0, z = 0 }
+        extra.ammo_left.r = 0.03
         _G.__visceral_holster_extra = extra
     end
     if now - hz.open_t >= HZ_OPEN_EVERY_S then
@@ -366,7 +370,13 @@ local S_LEFT_HOLSTER, S_RIGHT_HOLSTER = 214, 215
 -- spot"; "yeas please on the holsters"): a hand registers at a holster spot only where its grip does something there. The right
 -- grip takes a gun out at all four; LG does nothing at any of them today, so the left hand registers at none. When LG gets a job
 -- at a spot, set that spot true here
-local LEFT_GRIP_DOES = { ["right shoulder"] = false, ["right hip"] = false, ["left hip"] = false, ["left shoulder"] = false }
+-- b164 (2026-11-25, Tefa: "make the ammo pouch follow the same spot as the left hip weapon holster, RG when using it as a holster
+-- won't do any harm and LG won't use it as a wepon holster, right now ammo pouch is sitting too low and is too small"): the left
+-- hip is the ammo pouch for the left hand (LG there takes a magazine, shells or rounds: the plugin's reload, bridge slot 214 = 3),
+-- with the same place and size as the right hand's left-hip holster; a tick in the left hand on entering it
+local LEFT_GRIP_DOES = { ["right shoulder"] = false, ["right hip"] = false, ["left hip"] = true, ["left shoulder"] = false }
+local POUCH_SPOT = 3   -- the left hip, in the SPOTS order
+local pouch_was = false
 local inside_l = {}
 local told = { -1, -1 }
 local function publish(l, r)
@@ -405,6 +415,10 @@ re.on_pre_application_entry("UpdateBehavior", function()
         local lm = ctrls[1] and safe(function() return vrmod:get_transform(ctrls[1]) end)
         pcall(publish_marker, hmd, rm, lm)
         local lspot = lm ~= nil and which_spot(pos_of(lm), hmd, inside_l) or 0
+        if (lspot == POUCH_SPOT) ~= pouch_was then   -- b164: a tick in the left hand on finding the pouch
+            pouch_was = lspot == POUCH_SPOT
+            if pouch_was then buzz(vrmod:get_left_joystick(), BUZZ_ENTER) end   -- (always: the old pouch zone buzzed too; the holsters' BUZZ_ON_ENTER stays off)
+        end
         local rspot = 0
         for i, s in ipairs(SPOTS) do if inside[s.name] and rspot == 0 then rspot = i end end   -- last frame's (updated below)
         -- 2026-11-24 (Tefa: "F for first aid med"): the right hand at the first-aid spot (re8_vr_holster.lua's medicine zone, a

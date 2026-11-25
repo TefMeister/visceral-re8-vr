@@ -909,7 +909,14 @@ void note_docked_target(const Vec3& tp, const Quat& tq) {
 // 2026-11-14 (Hand Poser's spare-magazine lines): the gun's own magazine is in the left hand / seated in the gun
 bool gun_mag_in_hand() { return managed_now() && g_w->reload == Reload::MAG && g_st == St::IN_HAND; }
 bool gun_mag_seated() { return managed_now() && g_w->reload == Reload::MAG && g_st == St::SEATED; }
-bool in_pouch() { return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours; }
+// b164 (2026-11-25, Tefa: "make the ammo pouch follow the same spot as the left hip weapon holster"): the left hand at the left-hip
+// holster spot (visceral_re8_holsters.lua, bridge slot 214 = 3, its size from the Holster Zones window); Andyalpa's ammo zone and
+// our own spot only while that script is not reporting
+bool in_pouch() {
+    const float v = bridge::view(bridge::S_LEFT_HOLSTER);
+    if (bridge::has(v)) return v > 2.5f && v < 3.5f;
+    return bridge::flag(bridge::S_IN_AMMO_ZONE) || g_pouch_ours;
+}
 
 
 
