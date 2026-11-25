@@ -1,0 +1,2 @@
+# 2026-11-26 Tefa: only the head tilts up and down; the game and the sticks turn left and right only
+VR_DecoupledPitch=true

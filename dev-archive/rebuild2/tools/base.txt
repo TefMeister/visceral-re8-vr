@@ -1,0 +1,9 @@
+reframework/autorun/re8_vr.lua
+reframework/autorun/utility/GameObject.lua
+reframework/autorun/utility/ManagedObjectDict.lua
+reframework/autorun/utility/RE2.lua
+reframework/autorun/utility/RE4.lua
+reframework/autorun/utility/RE7.lua
+reframework/autorun/utility/RE8.lua
+reframework/autorun/utility/Statics.lua
+reframework/autorun/vr/VRControllerManager.lua
