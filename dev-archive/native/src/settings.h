@@ -109,6 +109,17 @@ constexpr float PISTOL_PUSH_LEFT_U = 0.30f;
 // b161 (2026-11-24, Tefa: "getting a new mag from the pouch, hand should travel wit the mag to the chamber and go in a little, then
 // need a final hand push from the player"): a fresh one from the pouch does the same travel and push (no LT); false = it seats by itself
 constexpr bool  PISTOL_FRESH_NEEDS_PUSH = true;
+// b168 (2026-11-25, Tefa's clip "mag insert hand jitter RE8", frames 189-197 and 339-347: "see if anything can be done to smooth out
+// the hand's jumping ... so it looks like there is always hand contact with the mag when being inserted"): at the well the magazine
+// jumped from the hand to the bottom of the grip in ONE frame (12-14 cm, log 12:31:06-12:31:14 "gap 0.117-0.138 m") and started up
+// it, while the hand glided after it empty over 0.15 s (smooth.cpp) and closed on it at the end. Now the magazine stays in the hand
+// for that glide (drawn from the hand, blended onto the bottom of the grip) and only then starts up the grip. false = b167.
+constexpr bool  RAIL_CARRY_ON = true;
+constexpr float RAIL_CARRY_SEC = 0.17f;           // the hand's glide onto the magazine (SMOOTH_DOCK_SEC 0.15) and a frame or so
+// b168 (same clip): going IN, the left fingers also followed the LEMI's magazine-OUT clip (b160, meant for the pull), starting at
+// "96% out" = the open hand of the pull's end, so the hand opened on the way in and snapped shut as the magazine rose. Only a pull
+// (the rail entered from the seat) follows the clip now; going in, the hand keeps the pose it carried the magazine with.
+constexpr bool  INSERT_NO_PULL_CLIP = true;
 constexpr float PISTOL_REARM = 1.3f;
 // 2026-11-15 (Tefa: "can the spare mag follow hand as well when going back in, with the mag that just came out still in my palm?"):
 // with two magazines in the hand, the spare goes in when the hand brings them to the well (once the hand has left the well zone

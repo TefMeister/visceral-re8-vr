@@ -366,11 +366,24 @@ void pose_joint() {
         }
         write_local(lerp(mag_out_pos(), g_rest_pos, ease(t / RELOAD_INSERT_SEC)), g_rest_rot);
         return;
-    case St::RAIL:   // b096: only along the grip, as far as the hand has drawn it (reload.cpp rail_frame)
+    case St::RAIL: {   // b096: only along the grip, as far as the hand has drawn it (reload.cpp rail_frame)
         mag_part_shown(true);
         write_scale(g_rest_scale);
+        // b168: going in, while the hand still glides onto the bottom of the grip, the magazine is drawn in the hand and eased onto
+        // the grip's bottom by the glide's progress, so it arrives there with the hand instead of jumping ahead of it
+        const float c = rail_carry();
+        Vec3 wp, lp;
+        Quat wr, lr;
+        if (c >= 0.0f && held_pose(wp, wr) && to_weapon_local(wp, wr, lp, lr)) {
+            const float k = ease(c);
+            Quat b = g_rest_rot;
+            if (lr.x * b.x + lr.y * b.y + lr.z * b.z + lr.w * b.w < 0.0f) b = {-b.x, -b.y, -b.z, -b.w};
+            write_local(lerp(lp, mag_out_pos(), k), qnorm({lr.x + (b.x - lr.x) * k, lr.y + (b.y - lr.y) * k, lr.z + (b.z - lr.z) * k, lr.w + (b.w - lr.w) * k}));
+            return;
+        }
         write_local(lerp(g_rest_pos, mag_out_pos(), rail_u()), g_rest_rot);
         return;
+    }
     }
 }
 

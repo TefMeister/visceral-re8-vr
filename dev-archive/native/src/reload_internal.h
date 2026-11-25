@@ -13,6 +13,7 @@ enum class St { SEATED, SLIDE_OUT, FALL, OUT, IN_HAND, HAND_FALL, INSERT, RAIL }
 // ---- the state (defined in reload.cpp) ------------------------------------------------------------------------------
 extern St g_st;
 float rail_u();   // b096: how far down the grip a magazine on the rail sits, 0 seated .. 1 at the bottom (reload.cpp)
+float rail_carry();   // b168: the hand's glide onto a magazine going in, 0..1, while it is still drawn in the hand; -1 = not (reload.cpp)
 extern const weapons::Weapon* g_w;
 extern std::string g_id;
 extern MO* g_gun;

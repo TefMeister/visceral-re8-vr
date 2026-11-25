@@ -247,6 +247,7 @@ bool supply() { const int r = player::reserve(); return player::unlimited() || r
 void rail_enter(float u, const char* why, bool auto_seat = false);   // THE GRIP'S RAIL, below
 bool rail_measured();                                                  // ...its line is measured (below)
 bool rail_possible();                                                  // b161: ...it could go on now (below)
+void rail_carry_from_hand();                                           // b168: ...the magazine stays in the gliding hand first (below)
 bool left_in_holster() { const float v = bridge::view(bridge::S_LEFT_HOLSTER); return bridge::has(v) && v > 0.5f; }
 // 2026-11-11 (twomag.h): LT with both magazines in the hand: the spare goes in by itself, the old one stays in the hand
 void twomag_auto_travel();   // below, beside the rail's own numbers
@@ -355,6 +356,7 @@ void hand_checks() {
             }
             g_lt_to_seat = false;
             rail_enter(1.0f, "LT held at the well: it travels up the grip, a small push seats it", true);
+            rail_carry_from_hand();
             return;
         }
         const bool lt = bridge::held(bridge::S_LTRIG), deep = d <= dock_need() * (1.0f - PISTOL_INSERT_PUSH);
@@ -374,6 +376,7 @@ void hand_checks() {
         g_last_dock = now;
         twomag::went_in();   // b163: two in the hand: the one behind stays in the palm
         rail_enter(1.0f, "a fresh magazine at the well: it travels up the grip, a small push seats it", true);
+        rail_carry_from_hand();
         magazine_shown(true);
         return;
     }
@@ -492,6 +495,8 @@ float g_rail_u0 = 0.0f, g_rail_u = 0.0f, g_rail_max = 0.0f;
 float g_rail_t = 0.0f;            // 2026-11-14: the last frame the magazine travelled up the line by itself
 // b162: the travel by itself: where it stops (share of the line left), how long it takes, and when it may start
 float g_rail_stop_u = PISTOL_PUSH_LEFT_U, g_rail_auto_sec = PISTOL_AUTO_SEAT_SEC, g_rail_wait_until = 0.0f;
+float g_rail_carry_t0 = -1.0f;    // b168 (settings.h RAIL_CARRY_ON): the magazine rides in the gliding hand since then; < 0 = not
+bool g_rail_in = false;           // b168: the rail was entered from the hand (going in), not from the seat (a pull)
 Vec3 g_rail_c0{};                 // the left controller where the rail began, in the right hand target's frame
 bool rail_ctrl(Vec3& rel) {       // the left controller in the right hand target's frame
     Vec3 rp, cp;
@@ -533,10 +538,20 @@ void rail_enter(float u, const char* why, bool auto_seat) {
     g_rail_auto = auto_seat && g_rail_ok;
     g_rail_t = now_s();
     g_rail_stop_u = PISTOL_PUSH_LEFT_U; g_rail_auto_sec = PISTOL_AUTO_SEAT_SEC; g_rail_wait_until = 0.0f;   // b162: swap_in sets its own after this
+    g_rail_carry_t0 = -1.0f;
+    g_rail_in = u > 0.5f;
     g_hand_on_mag = false;
     set_state(St::RAIL, why);
     if (!g_rail_ok) LOGW("%s reload: %s: the grip's line is not measured yet: the magazine goes straight into the hand", TAG, g_id.c_str());
     if (u > 0.5f) { bridge::rumble(bridge::LEFT, RELOAD_INSERT_BUZZ_AMP, RELOAD_INSERT_BUZZ_SEC, RELOAD_BUZZ_HZ); bridge::sfx(bridge::SFX_MAG_IN); }
+}
+// b168 (settings.h RAIL_CARRY_ON): a magazine brought to the well from the hand waits at the bottom of the grip while the hand glides
+// onto it (smooth.cpp, SMOOTH_DOCK_SEC), drawn in the hand meanwhile (reload_pose.cpp, rail_carry), so it never leaves the hand
+void rail_carry_from_hand() {
+    if (!RAIL_CARRY_ON || !g_rail_auto) return;
+    g_rail_carry_t0 = now_s();
+    g_rail_wait_until = std::fmax(g_rail_wait_until, g_rail_carry_t0 + RAIL_CARRY_SEC);
+    LOGI("%s reload: the magazine stays in the hand while the hand glides onto the bottom of the grip (%.2f s), then travels up", TAG, RAIL_CARRY_SEC);
 }
 void rail_frame() {
     const float now = now_s();
@@ -893,6 +908,14 @@ void post_reload_request(void** ret, REFrameworkTypeDefinitionHandle, unsigned l
 }
 } // namespace
 namespace detail { float rail_u() { return g_rail_u; } }   // b096: for pose_joint (reload_pose.cpp)
+namespace detail {   // b168: how far the hand's glide onto a magazine going in has come, 0..1; -1 = not carrying it (reload_pose.cpp)
+float rail_carry() {
+    if (g_st != St::RAIL || g_rail_carry_t0 < 0.0f) return -1.0f;
+    const float c = (now_s() - g_rail_carry_t0) / RAIL_CARRY_SEC;
+    if (c >= 1.0f) { g_rail_carry_t0 = -1.0f; return -1.0f; }
+    return c < 0.0f ? 0.0f : c;
+}
+}
 
 bool managed_now() { return RELOAD_ON && g_w != nullptr && g_w->reload != Reload::NONE && g_gun != nullptr && bridge::live(); }
 bool mag_out() { return managed_now() && g_w->reload == Reload::MAG && g_st != St::SEATED; }
@@ -1228,7 +1251,7 @@ void frame() {
             break;
         }
         // b160: the LEMI's left fingers follow the game's mag_out movement by how far down the grip the magazine is
-        if (g_st == St::RAIL && pull_by_clip()) shellclip::follow(g_id, "mag_out", shellclip::LEFT, g_rail_u);
+        if (g_st == St::RAIL && pull_by_clip() && !(INSERT_NO_PULL_CLIP && g_rail_in)) shellclip::follow(g_id, "mag_out", shellclip::LEFT, g_rail_u);
         else shellclip::unfollow();
         mag_hand_frame();
         twomag_frame();
