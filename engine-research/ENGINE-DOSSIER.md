@@ -204,3 +204,32 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   (keep only `visceral_menu_held`), or clear `handle_pause` without using it.
 
 - **Live, the same session (simulator + VR Bench, b134):** tap = the map, tap again = closed, 0.6 s hold = the pause menu, staying open, once the scope mod's fix stood aside (`__visceral_menu_owner`); before that switch a hold paused twice (open + close) because the press still raised the pause signal on the simulator `[verified-live 2026-11-15, simulator, n=1 each]`.
+
+## §9 Meshes we make at run time (2026-11-25, /lm, flat)
+
+- `via.render.Mesh.setMesh` takes `via.render.MeshResourceHolder` and `set_Material` takes
+  `via.render.MeshMaterialResourceHolder`: `sdk.create_resource(kind, path):add_ref():create_holder(kind .. "Holder")`.
+  A bare resource is refused (b171's "the object took no mesh") `[verified-live 2026-11-25, n=2]`.
+- A material file's first load takes some seconds; until it is in, the mesh shows the engine's dark checker pattern.
+  Load every material a script may swap to once the player is in play `[verified-live 2026-11-25, n=1]`.
+- On the title screen the guns' textures, and even the GM 79's own mesh from the pak, never became ready
+  `[verified-live 2026-11-25, n=1]`.
+- Item ids are the murmur3 name hash (UTF-16LE, seed 0xFFFFFFFF) of short names: ammo `ri20xx` (ri2042 = 1927571624, the
+  GM 79's explosive round), the GM 79 `ri3023` = 2576167331. A gun's rounds are listed in its inventory item's
+  `<spec>k__BackingField.Weapon.IncludableItems`: the GM 79 takes 1927571624 (explosive) and 1583016682 (flash)
+  `[measured 2026-11-25]`.
+
+## Inbox drained 2026-11-25 (/lm)
+
+- Gold Digger 2026-11-21: a second crash spot, `re8.exe+0x49F5794` reading address 0x220 (a null pointer), run of
+  2026-11-14 22:46, not written up before; `[hypothesis]` a game object already gone during a load, the same family as
+  the holster-marker crash at `+0x415879c`. Ghost Hand's hand-lag reports of 2026-11-14 / 11-17 (7-12 frames behind) may
+  mix world and room spaces, as the 11-16 report warns: numbers not trusted.
+- Gold Digger 2026-11-25: only b164 froze that night (02:34 and 02:43 runs); the other "Present no longer called" runs were
+  normal quits. A caught access violation in `via.Joint.set_Rotation` on the first VR frame (2026-11-23 10:24) right after
+  the zones script's gun-turn line `[hypothesis]`: a joint written before the body is ready; low.
+- /gr 2026-11-25, weakened by /gs the same day (its Supersedes line): REFramework's kananlib heap-lock start-up deadlock
+  (fixed upstream 2026-11-17, our `pd-upscaler` 76298bd lacks it) stays a known hazard, but the two b164 freezes do not
+  show its sign (Suspending 81 = Resuming 81). The b163 / b164 changes and the newer `hand_poser.lua` stay the first
+  suspects. Flat runs of b171 and b172 on 2026-11-25 (both carry b163 / b164) played without freezing `[measured, n=2,
+  flat only]`.

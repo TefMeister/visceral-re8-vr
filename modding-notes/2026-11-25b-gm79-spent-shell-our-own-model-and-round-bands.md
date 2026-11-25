@@ -70,3 +70,30 @@ round there while we draw a spent one (it should not: state 2 is only set when t
 
 - RE2 and RE3 grenade launchers the same way (Tefa: *"use these shell designs in the other games as well, re2 and re3, not
   re7 for now"*): their own case extracted, the same band and soot; acid and mine and flame colours already in the file.
+
+## 2026-11-25 evening, /lm (Build PC, Opus): the flat test; b172 and b173
+
+The game was driven entirely from behind (window off the screen, pretend pad, pictures from the window itself).
+
+- **b171 drew nothing** `[verified-live 2026-11-25, n=1]`: the mesh file loaded, then `spent: the object took no mesh`.
+  `via.render.Mesh.setMesh` takes `via.render.MeshResourceHolder`, `set_Material` takes
+  `via.render.MeshMaterialResourceHolder` (read from the running game's type info); the script passed the resource.
+- **With holders** (made by hand through the eval script, in play) the spent shell shows: the right size, the game's
+  metal, the scorched black mouth, the base rim and grooves; 3 materials ready; the flash file works as well. In the
+  factory's dark the band reads only as a faint line (`[hypothesis]` brighter `base_color` values may be wanted: Tefa's call
+  in the headset).
+- A material file's **first load takes some seconds**, and until it is in, the mesh shows the engine's dark checker pattern.
+  On the **title screen** the guns' textures (and even the GM 79's own mesh from the pak) never became ready: such objects
+  are tested in play.
+- **The flash round's id, measured without a headset**: the GM 79's inventory item lists the rounds it takes
+  (`<spec>k__BackingField.Weapon.IncludableItems`): 1927571624 explosive (short name ri2042), **1583016682 flash**; the save
+  holds 3 flash rounds. Item ids are the name hash of `ri20xx` short names (table in the game's KNOWN.md).
+- **b172** (f36c9c1): `resource()` returns holders; every round colour is loaded once the player is in play; a failed make is
+  retried a second later instead of every frame; `shell_bands.json` flash = [1583016682] (copied into the game by hand:
+  `build.sh` never overwrites a settings file). Flat `[verified-live 2026-11-25, n=1]`: every mesh and colour file `loaded`,
+  `spent: our object made`, `band: our object made`, `the flash band`, no errors.
+- **b173**: the test mode shows only the kind asked for (b172 left the spent shell up when switched to `band`).
+
+Not established: the GM 79 itself (fire, open, pull with and without a live round in the hand, the bands on live
+rounds): that is headset-hand logic (`breech.cpp`), so it needs VR. The robot tools for it bring the game window to the
+front (`vb.py`'s presses, `keys.py`), and equipping the GM 79 in VR goes by number keys, so it was not done from behind.
