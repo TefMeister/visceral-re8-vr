@@ -319,7 +319,9 @@ local function update(point)
     else
         show(objs.spent, false)
     end
-    hide_game_round(shows == 2 and objs.spent ~= nil and objs.spent.shown)
+    -- b178 (RE8-078: a joint set at BeginRendering stops the engine drawing other things anew): the game's case is shrunk or put
+    -- back only at the earlier points, never at "begin"
+    if point ~= "begin" then hide_game_round(shows == 2 and objs.spent ~= nil and objs.spent.shown) end
     -- the band on the live round
     if shows == 1 and jp then
         local o = get("band", gun)

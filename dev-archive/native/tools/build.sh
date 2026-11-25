@@ -5,6 +5,9 @@
 #   bash dev-archive/native/tools/build.sh             build only
 #   bash dev-archive/native/tools/build.sh --deploy    build, back up every game file it touches, install
 #   bash dev-archive/native/tools/build.sh --undo DIR  put a --deploy backup back (DIR = the folder --deploy printed)
+#   bash dev-archive/native/tools/build.sh --deploy --lift   ... then the lift test (tools/sim/lifttest.sh, b178): launches the
+#                                                     game flat on Tefa's lift save; FAIL = a joint set at the last drawing step
+#                                                     again (RE8-078). /lm only (it launches the game); /pd deploys without it
 # A deploy never overwrites a saved settings file (reframework/data/...): those are the player's, copied only if absent.
 # Roll back by hand at any time: the v1.1.5 zip + deleting the files listed in the backup's ADDED.txt.
 set -euo pipefail
@@ -109,3 +112,5 @@ for p in "${PORTED[@]}"; do
 done
 echo "deployed; backup + ADDED.txt in: $BK"
 echo "undo:  bash dev-archive/native/tools/build.sh --undo \"$BK\""
+python "$HERE/tools/check_begin_joints.py" "$(cygpath -w "$GAME/reframework/autorun")"   # b178: guard 1 against the lift glitch (RE8-078)
+if [ "${2:-}" = "--lift" ]; then bash "$HERE/tools/sim/lifttest.sh" deploy || exit 1; fi
