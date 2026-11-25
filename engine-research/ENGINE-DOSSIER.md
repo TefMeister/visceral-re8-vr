@@ -224,6 +224,13 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   back by `addItem` goes to a hidden stack the carried count ignores `[verified-live 2026-11-25, n=1 each]`.
 - In Duke's area the game keeps guns away: a gun equipped there comes out the moment the player steps out `[seen 2026-11-25]`.
 
+- **A via.Joint written at BeginRendering stops the engine drawing other things anew** `[measured 2026-11-25, flat, n=2 + 2
+  controls]`: on Tefa's lift save Duke stood frozen while his animation ran (moving platforms and guns wrong too) whenever our
+  plugin wrote any joint there; PrepareRendering writes alone are fine. b177 writes none at BeginRendering. Found by one launch
+  per guess with `off.txt` (plugin parts and phases off without a rebuild) and `tools/sim/liftrun.sh` + `regiondiff.py`.
+- A mesh must name the same materials, in the same order, as its mdf2, or the engine takes none (the checker pattern)
+  `[verified-live 2026-11-25, flat, n=1]`.
+
 ## Inbox drained 2026-11-25 (/lm)
 
 - Gold Digger 2026-11-21: a second crash spot, `re8.exe+0x49F5794` reading address 0x220 (a null pointer), run of
