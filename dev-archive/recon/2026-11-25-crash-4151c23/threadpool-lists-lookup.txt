@@ -1,0 +1,239 @@
+>>> ThreadPoolList
+  app.ThreadPoolList`1<app.FadeManager.FadeOutUnit>
+  System.Collections.Generic.IReadOnlyCollection`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.InteractRequestOrder>
+  app.ThreadPoolList`1<app.SpawnInstancePool.RequestInfo>
+  System.Collections.Generic.Dictionary`2.ValueCollection.Enumerator<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.PropsMotionDestructRequest>
+  System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<System.UInt32>
+  System.Collections.Generic.IReadOnlyCollection`1<System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.InteractBasic>
+  System.Collections.Generic.ICollection`1<System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.Em1060ForbidGrappleZone>
+  System.Collections.Generic.IList`1<System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>
+  System.Collections.Generic.IReadOnlyCollection`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.Em1400.Em1400Think>
+  app.ThreadPoolList`1<app.TutorialManager.UnrequestUnit>
+  app.ThreadPoolList`1<app.MadTerritoryCollupseEnvironmentEffect>
+  app.ThreadPoolList`1<app.EnemyRayCastManager.RequestRemoveParam>
+  app.ThreadPoolList`1<app.ItemSpawnInfoHolder.RequestItemSpawnInfoDrop>
+  app.ThreadPoolList`1<app.Em1500GrappleForbidZone>
+  System.IEquatable`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.MercenariesEnemyGenerateManager.ReservedInfo>
+  System.Array.InternalEnumerator`1<System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.DoorBehavior>
+  app.ThreadPoolList`1<app.EnemyConfigure>
+  app.ThreadPoolList`1<app.PropsSpawnInfoHolder.PropsSpawnInfoNearAreaRequestUnit>
+  app.ThreadPoolList`1<app.Em1240.Em1240AthleticsPoint>
+  System.Collections.Generic.IList`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1[[app.LevelFlowManagedObject, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]][]
+  app.ThreadPoolList`1<app.MadTerritoryMarker>
+  app.ThreadPoolList`1<app.Spawn.SpawnOrder>
+  app.ThreadPoolList`1<app.SimpleResistController.RequestChange>
+  app.ThreadPoolList`1<app.PropsCameraOverlappingDispSwitcherMarker>
+  app.ThreadPoolList`1<System.Object>
+  app.ThreadPoolList`1<app.TutorialManager.RequestUnit>
+  app.ThreadPoolList`1<app.Em1030BlackBoard.VanishBreakParts>
+  app.ThreadPoolList`1<app.Spawn.SpawnInfo>
+  app.ThreadPoolList`1<app.Em1320.Em1320MovePoint>
+  System.Collections.Generic.Dictionary`2.ValueCollection.Enumerator<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.IEnumerator`1<System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  System.Array.InternalEnumerator`1<System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  System.Collections.Generic.IReadOnlyCollection`1<System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.ItemSpawnInfoHolder.ItemSpawnInfoNearAreaRequestUnit>
+  System.Collections.Generic.Dictionary`2.KeyCollection.Enumerator<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<!0>
+  app.ThreadPoolList`1<System.Int32>
+  app.ThreadPoolList`1<app.EnemyRayCastManager.UpdateUnit>
+  app.ThreadPoolList`1<app.MercenariesScoreManager.ScoreRequestParam>
+  app.ThreadPoolList`1<app.MercenariesEnemyManager.HealthGaugeController>
+  app.ThreadPoolList`1<app.ItemSpawnInfoActivateUnit>
+  app.ThreadPoolList`1<app.SpawnInfoBelongSceneObserver.ObserveRefreshRoomList>
+  app.ThreadPoolList`1<app.ItemSetPrefabHolder>
+  app.ThreadPoolList`1<app.Spawn.PropsSpawnInfo>
+  System.Collections.Generic.ICollection`1<System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  System.Collections.Generic.IEnumerator`1<System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.IGUIDriver>
+  System.Collections.Generic.Dictionary`2.Entry[[System.String, mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[app.ThreadPoolList`1[[app.LevelFlowManagedObject, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]], mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]][]
+  app.ThreadPoolList`1<app.FadeManager.FadeInUnit>
+  app.ThreadPoolList`1<app.DoorRequestOrder>
+  System.Collections.Generic.IReadOnlyCollection`1<System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.PreLoadNextChapterResourceKey.Value>
+  app.ThreadPoolList`1<app.AimAssistController>
+  System.Array.InternalEnumerator`1<System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.NavigationController>
+  app.ThreadPoolList`1<app.EnvVillageSceneManager.Request>
+  app.ThreadPoolList`1<app.ExplodeController>
+  app.ThreadPoolList`1<app.AttackHitterResult>
+  app.ThreadPoolList`1<via.navigation.AIMap>
+  System.Collections.Generic.KeyValuePair`2[[System.String, mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[app.ThreadPoolList`1[[app.LevelFlowManagedObject, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]], mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]][]
+  System.Collections.Generic.ICollection`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.PointSelectManager.RequestInfo>
+  app.ThreadPoolList`1<app.Em1302.OrderType>
+  app.ThreadPoolList`1<app.SaveDataSection_Base>
+  app.ThreadPoolList`1<app.MadTerritoryInfectionSensor>
+  app.ThreadPoolList`1<app.MercenariesExtraItemBase>
+  System.Collections.Generic.IEqualityComparer`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Array.InternalEnumerator`1<System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.Em1240.Em1240ArrowPool.RequestInfo>
+  app.ThreadPoolList`1<app.EnemyRayCastManager.RequestUpdateRangeParam>
+  System.Collections.Generic.IEnumerator`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.AsyncLoadManager.TargetAsset>
+  System.Collections.Generic.IEnumerable`1<System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.Em1240.Em1240DefensePos>
+  app.ThreadPoolList`1<app.PhysicsManager.CastRayRequest>
+  System.Collections.Generic.Dictionary`2.Enumerator<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.Em1371.Em1371Think>
+  System.Collections.Generic.IEnumerable`1<System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  System.Collections.Generic.IReadOnlyDictionary`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.KeyValuePair`2[[System.UInt32, mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[app.ThreadPoolList`1[[app.DoorStateSetManager.DoorStateSetRequestParam, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]], mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]][]
+  app.ThreadPoolList`1<app.WitchEscapePointGroup>
+  System.Collections.Generic.IEnumerator`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.ICollection`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.Em1060HidePoint>
+  System.Collections.Generic.IReadOnlyList`1<System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1[[T, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  System.Collections.Generic.IReadOnlyList`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.metro.MetroManager.MetroSearchQuery>
+  app.ThreadPoolList`1<app.GroupMadTerritory>
+  app.ThreadPoolList`1<app.Em1302.OrderRequest>
+  app.ThreadPoolList`1<app.EnemyManager.DeadInfo>
+  System.Collections.Generic.ICollection`1<System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.AttackPermitManager.ReturnInfo>
+  app.ThreadPoolList`1<app.Em1032JetMoveZoneGroup>
+  app.ThreadPoolList`1<app.MercenariesTimeController.AdditionalTimeParam>
+  System.Collections.Generic.Dictionary`2.KeyCollection.Enumerator<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1[[app.DoorStateSetManager.DoorStateSetRequestParam, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]][]
+  app.ThreadPoolList`1<app.AttackPermitManager.RequestInfo>
+  System.IEquatable`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.Em1060Pillar>
+  app.ThreadPoolList`1<app.Spawn.EnemySpawnInfo>
+  System.Collections.Generic.Dictionary`2.KeyCollection<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.Dictionary`2.ValueCollection<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.IEnumerable`1<System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.ArrowPool.RequestInfo>
+  app.ThreadPoolList`1<System.Guid>
+  app.ThreadPoolList`1<app.ThinkSetRequest>
+  System.Collections.Generic.IEnumerable`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.Dictionary`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.Em1600GrappleForbidZone>
+  app.ThreadPoolList`1<app.ItemCore.InstanceWork>
+  app.ThreadPoolList`1<app.SpawnInstancePool.ClearInfo>
+  System.Collections.Generic.ObjectEqualityComparer`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.MercenariesEnemyManager.DeadEnemyParam>
+  System.Collections.Generic.Dictionary`2.Enumerator<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.PlayerHealthPointController.HealthPointParam>
+  app.ThreadPoolList`1<app.IDummyMadCoreReferenceContainer>
+  System.Collections.Generic.IEnumerable`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.Dictionary`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.ComboParam>
+  app.ThreadPoolList`1<app.SpawnInfoBelongSceneObserver.ObserveRequestRegisterUnit>
+  app.ThreadPoolList`1<app.PropsRequestOrderUnit>
+  app.ThreadPoolList`1<app.Em1240.Em1240Think>
+  app.ThreadPoolList`1<app.PhysicsManager.CastSphereRequest>
+  app.ThreadPoolList`1<app.NavigationManager.EffectorControl>
+  System.Collections.Generic.IList`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<via.GameObject>
+  app.ThreadPoolList`1<app.MercenariesEnemyManager.DamageIconRequest>
+  app.ThreadPoolList`1<app.WitchTerritoryGroup>
+  System.Collections.Generic.IReadOnlyList`1<System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.MaterialZone>
+  app.ThreadPoolList`1<app.GenerateController>
+  app.ThreadPoolList`1<app.Em1032.Em1032Think>
+  System.Collections.Generic.IReadOnlyList`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.Inventory.SafetyWork>
+  app.ThreadPoolList`1<app.Em1400.Em1400PlayerTargetLostZone>
+  System.Collections.Generic.IReadOnlyCollection`1<System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  System.Collections.Generic.Dictionary`2.Entry[[System.UInt32, mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null],[app.ThreadPoolList`1[[app.DoorStateSetManager.DoorStateSetRequestParam, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]], mscorlib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]][]
+  System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Array.InternalEnumerator`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.IEnumerator`1<System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  System.Collections.Generic.IReadOnlyList`1<System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.Spawn.ItemSpawnInfo>
+  app.ThreadPoolList`1<app.SimpleResistController.RequestReset>
+  System.Collections.Generic.Dictionary`2.Entry<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.Em1060CallFriendGenerator>
+  app.ThreadPoolList`1<app.NavigationManager.AvoidNodeInfo>
+  System.Collections.Generic.EqualityComparer`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.IList`1<System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.Pl4000.Pl4000AttractController.Attraction>
+  System.Array.InternalEnumerator`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.IReadOnlyDictionary`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.GameEventSetting>
+  app.ThreadPoolList`1<app.ActivateObjectActionManager.ActivateObjectData>
+  app.ThreadPoolList`1<app.VibrationTask>
+  app.ThreadPoolList`1<app.EffectSphereCollider.Requester>
+  app.ThreadPoolList`1<app.InteractHierarchical>
+  app.ThreadPoolList`1<app.Em1390.Em1390Think>
+  System.Collections.Generic.IEnumerator`1<System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.ISyncable>
+  app.ThreadPoolList`1<app.Em1000FriendlyAttackZone.FriendlyAttackParam>
+  app.ThreadPoolList`1<app.AbilityRequestParam>
+  app.ThreadPoolList`1<app.GameEventTriggerManager.RequestUnit>
+  app.ThreadPoolList`1<System.Single>
+  app.ThreadPoolList`1<app.Ch10GiftItemSpawnInfoHolder.RequestGiftItemSpawnInfoDrop>
+  System.Collections.Generic.IDictionary`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  app.ThreadPoolList`1<app.GUIRequest>
+  app.ThreadPoolList`1<app.FsmStateManager.FsmStateData>
+  app.ThreadPoolList`1<app.Em1240.IEm1240Status>
+  app.ThreadPoolList`1<app.DeadBodyPool>
+  app.ThreadPoolList`1<app.ItemSpawnMarker>
+  app.ThreadPoolList`1<app.Deworm.DewormWorm>
+  app.ThreadPoolList`1<app.Enemy.IEnemyOrderRequest>
+  app.ThreadPoolList`1<app.Em1060ForbidDeadZone>
+  System.Collections.Generic.ObjectEqualityComparer`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.IList`1<System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.SaveMarker>
+  System.Collections.Generic.IList`1<System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  System.Collections.Generic.IDictionary`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  app.ThreadPoolList`1<app.Em1060JumpAttackZoneGroup>
+  app.ThreadPoolList`1<app.GUIRogueLei.LeiRequest>
+  app.ThreadPoolList`1<app.ICollidersImplement.CollidersHandler>
+  System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.Dictionary`2.ValueCollection<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.IEqualityComparer`1<app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.Dictionary`2.KeyCollection<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>
+  System.Collections.Generic.ICollection`1<System.Collections.Generic.KeyValuePair`2<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  System.Collections.Generic.IReadOnlyList`1<System.Collections.Generic.Dictionary`2.Entry<System.String,app.ThreadPoolList`1<app.LevelFlowManagedObject>>>
+  app.ThreadPoolList`1<app.ItemSpawnOverrideBigDataManager.RequestUnit>
+  app.ThreadPoolList`1<app.Em1301.Em1301Core.OrderedRequestSetCollider.Request>
+  System.Collections.Generic.EqualityComparer`1<app.ThreadPoolList`1<app.LevelFlowManagedObject>>
+  System.Collections.Generic.IEnumerable`1<System.Collections.Generic.KeyValuePair`2<System.UInt32,app.ThreadPoolList`1<app.DoorStateSetManager.DoorStateSetRequestParam>>>
+  app.ThreadPoolList`1<app.LevelFlowManagedObject>
+  app.ThreadPoolList`1<via.Folder>
+  app.ThreadPoolList`1<app.ItemSetSeparetorActivatorManager.ItemSetSeparetorActivatorRequestUnit>
+  app.ThreadPoolList`1<app.ActivateObjectActionManager.ActivateOwnerObjectData>
+
+>>> ThreadPoolDictionary
+  app.ThreadPoolDictionary`2<System.UInt32,app.ComboDataContainer.ComboData>
+  app.ThreadPoolDictionary`2<System.Guid,app.ObjectiveData>
+  app.ThreadPoolDictionary`2<!0,!1>
+  app.ThreadPoolDictionary`2[[K, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null],[V, application, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]
+  app.ThreadPoolDictionary`2<System.Int32,System.Single>
+  app.ThreadPoolDictionary`2<System.String,app.Em1370.VoiceHistoryRecorder.VoiceRecord>
+  app.ThreadPoolDictionary`2<System.String,via.Folder>
+
+>>> type:app.ThreadPoolMergeExecutor
+== app.ThreadPoolMergeExecutor
+  System.Void lateUpdate()
+  System.Void merge()
+  System.Void .ctor()
+  field System.Collections.Generic.HashSet`1<System.Action> merge_func @0x50
+
+>>> type:app.ThreadPoolMergeHelper
+== app.ThreadPoolMergeHelper
+  System.Void doAwake()
+  System.Void doOnDestroy()
+  System.Int32 registerFunction(System.Action func)
+  System.Void unregisterFunction(System.Action func, System.Int32 index)
+  System.Void .ctor()
+  field System.Int32 index @0x54
+  field app.ThreadPoolMergeExecutor[] executor @0x58
+  field System.UInt32 MaxWorker @0x60
+  field System.Object lock_obj @0x68
+
+>>> member:ThreadPoolList
+  nothing
+
