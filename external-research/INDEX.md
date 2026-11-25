@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-11-21 — CHECK-IN.** The Emporium's AFW item: PureDark's frame warping exists for RE Engine in his REFramework fork (RE9, Pragmata, RE4 remake builds) but not for Village, needs DLSS on and uses the numpad; REFramework nightlies 01440 and 01441 (a DD2 exit crash, a start-up deadlock in kananlib) are master only; one topic.
+**Last `/gr` pass: 2026-11-25 — CHECK-IN.** Inbox empty. For the b164 freeze: kananlib (REFramework's helper) fixed a thread-freezing deadlock on the process heap lock on 11-17 (nightly 01441); our `pd-upscaler` 76298bd lacks it. Nightly 01451 (11-23) is a build fix only.
+
+_Previous: **Last `/gr` pass: 2026-11-21 — CHECK-IN.** The Emporium's AFW item: PureDark's frame warping exists for RE Engine in his REFramework fork (RE9, Pragmata, RE4 remake builds) but not for Village, needs DLSS on and uses the numpad; REFramework nightlies 01440 and 01441 (a DD2 exit crash, a start-up deadlock in kananlib) are master only; one topic._
 
 _Previous: **Last `/gr` pass: 2026-11-11 — CHECK-IN.** The connector dead end (dossier §1): the same "exception in reframework_plugin_required_version" line is publicly reported on an ordinary nightly (#1739) and was cured by installing the .NET 10 Desktop Runtime, so it points at the .NET runtime failing to start, not at our `76298bd` build; one topic, pointer in `engine-research/inbox/` and in visceral-re2-vr's (same build). REFramework otherwise quiet since 11-07 (no nightly after 01438, `pd-upscaler` unchanged since 2026-10-11)._
 
@@ -12,6 +14,7 @@ Status tags: 🆕 new · 👀 being looked at · ✅ used / confirmed · ❌ dea
 
 | Date | Topic | Status | Summary |
 | --- | --- | --- | --- |
+| 2026-11-25 | [A thread-freezing deadlock fixed in REFramework's helper library (11-17), not in our build](topics/2026-11-25-kananlib-heap-lock-fix-startup-hang.md) | 🆕 | For the b164 freeze: a frozen thread holding the heap lock hangs the next allocation, "an intermittent REFramework startup hang in a game that was loading"; our March build predates the fix. A suspect, not the answer. |
 | 2026-11-21 | [PureDark's frame warping (AFW) exists for RE Engine, in his REFramework fork, but not for Village](topics/2026-11-21-puredarks-afw-exists-for-re-engine-but-not-for-village.md) | 🆕 | For the Emporium's AFW item: pre-release builds for RE9 (beta.6, 2026-07-09) and Pragmata, an RE4 remake branch, nothing for RE8; needs DLSS or DLAA on, about 500 MB more video memory, debug keys on the numpad; PureDark's add-on, his permission. Keep the item hidden; ask him if wanted. |
 | 2026-11-14 | ["Failed to sync actions: XR_SESSION_NOT_FOCUSED" is REFramework logging a focus change, not a fault](topics/2026-11-14-failed-to-sync-actions-session-not-focused-is-a-focus-change-not-a-fault.md) | 🆕 | A success code from the OpenXR spec, logged as an error; all controller input reads inactive while unfocused. A few lines = harmless; a line every frame = worth a note. Same for RE2 and RE3. |
 | 2026-11-11 | [The connector's "exception in reframework_plugin_required_version" is the .NET runtime failing to start, not the build](topics/2026-11-11-the-dotnet-connector-error-is-a-runtime-start-failure-not-the-build.md) | 🆕 | Same line on nightly 01371 in Pragmata (#1739), fixed there by the .NET 10 Desktop Runtime; the failing function only writes 1.15.0, so the throw is the mixed managed DLL starting .NET. Check `dotnet --list-runtimes` and the zip's files before calling the connector dead on `76298bd`. Pointer in `engine-research/inbox/`. |

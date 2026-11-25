@@ -48,3 +48,8 @@ GitHub issue on this repo and we will correct it as soon as possible.
 
 - **PureDark**, REFramework fork with Alternate Frame Warping (RE9_AFW and PRAGMATA_AFW releases, the RE9AFW, RE4RAFW and RE4AFW_CPPVRMod branches) — https://github.com/PureDark/REFramework
 - **praydog**, REFramework nightlies 01440 and 01441 (#1895 reported by **Riesu**) — https://github.com/praydog/REFramework
+
+## Sources (2026-11-25)
+
+- **cursey**, kananlib commit 114de171 "Thread: Fix heap lock oversight" (2026-11-17) — https://github.com/cursey/kananlib/commit/114de171
+- **praydog**, REFramework "Deps: Update kananlib (fix startup deadlock when freezing threads)" (2026-11-17), nightlies 01441 and 01451 — https://github.com/praydog/REFramework
