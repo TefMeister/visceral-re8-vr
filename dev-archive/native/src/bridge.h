@@ -158,6 +158,11 @@ enum Slot : int {
     S_MUZZLE_W = 272, S_MUZZLE_ON = 275,
     S_DOOR_TOUCH_P = 276,     // 276-278, see S_DOOR_PRESS_SEQ (2026-11-19, b143)
     S_MAG_PULL = 279,         // WRITTEN BY THE PLUGIN (pairs.cpp) for Hand Poser (2026-11-23, b148): 0 = no magazine on the grip's line; 1 + u while one is (u: 0 seated .. 1 at the bottom of the grip, reload.cpp rail_frame). The Lua array must be 280 long (visceral_re8_bridge.lua N): install both together
+    // 2026-11-25 (Tefa: our own spent shell for the GM 79, and a coloured band on every live and spent round), WRITTEN BY THE
+    // PLUGIN (breech.cpp), read by visceral_re8_shell2.lua: what the GM 79's own grenade joint (Ammo01) shows now: 0 nothing,
+    // 1 a live round (in the barrel or in the hand), 2 the spent case (in the barrel, sliding out, or in the empty hand);
+    // 281 its stamp (S_FRAME + 1 of the frame it was written; stale = not the GM 79). The Lua array must be 282 long now
+    S_GL_ROUND = 280, S_GL_ROUND_ON = 281,
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

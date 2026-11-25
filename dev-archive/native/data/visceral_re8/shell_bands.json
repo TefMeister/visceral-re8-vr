@@ -1,0 +1,18 @@
+{
+  "_about": "Coloured bands on grenade-launcher rounds (Tefa 2026-11-25): one worn, flush paint band in the groove at the base of every live and spent round. tools/blender/build_gm79_spent_shell.py and tools/mdf_build_gm79_shells.py read this file when they build the game files; the Lua reads 're8.ammo' at run time to pick the band. base_color multiplies the game's own metal texture under the band (Weapon_Default.mmtr BaseColor), so it is brighter than the paint looks [hypothesis: tune in the headset].",
+  "colours": {
+    "explosive": { "name": "gold",   "base_color": [0.55, 0.40, 0.15], "preview": [0.15, 0.10, 0.035] },
+    "flame":     { "name": "red",    "base_color": [0.50, 0.10, 0.07], "preview": [0.14, 0.030, 0.022] },
+    "flash":     { "name": "blue",   "base_color": [0.12, 0.20, 0.45], "preview": [0.030, 0.050, 0.12] },
+    "acid":      { "name": "olive",  "base_color": [0.28, 0.32, 0.12], "preview": [0.060, 0.072, 0.028] },
+    "mine":      { "name": "purple", "base_color": [0.30, 0.14, 0.36], "preview": [0.070, 0.035, 0.085] }
+  },
+  "scorched_inside": { "base_color": [0.10, 0.08, 0.06], "roughness": 1.0, "metallic": 0.3 },
+  "re8": {
+    "_about": "Village's GM 79 has two rounds (Tefa 2026-11-25). Bullet item ids as the plugin logs them ('ammo: bullet item id ...'); an id not listed here gets the explosive band. 1927571624 was the id in the b170 robot run [inferred: that run is believed to have had explosive rounds]; the flash id is not known yet: read it from the log with flash rounds loaded.",
+    "ammo": {
+      "explosive": [1927571624],
+      "flash": []
+    }
+  }
+}

@@ -298,6 +298,8 @@ local function update(point)
     local vr = rawget(_G, "re8vr")
     if b == nil or not b.ready() or vr == nil or vr.player == nil then if copy then destroy() end; return end
     local num = math.floor(b.r(S_WEAPON_NUM) + 0.5)
+    -- 2026-11-25: the GM 79's spent shell is our own model now (visceral_re8_gl_rounds.lua reads the same slots); no copy
+    if num == 3023 and not test.front then if copy then destroy() end; return end
     local g = num > 0 and gun_cfg(num) or nil
     local wanted = cfg.enabled and g ~= nil and math.abs(b.r(S_ON) - 1.0 - b.r(S_FRAME)) <= STALE_FRAMES and b.r(S_ON) > 0.5
     local part, whole = g and math.floor(g.part + 0.5) or -1, false

@@ -652,9 +652,18 @@ void measure_mouth(const Quat& carrier_q) {
     if (g_ammo == nullptr) return;
     const bool live_in_hand = reload::round_in_hand();
     const bool spent_out = g_spent_in_hand || g_pull == 2;
+    // 2026-11-25 (Tefa: our own spent shell, a coloured band on every round): tell the Lua what the gun's grenade joint shows,
+    // so it draws our spent shell over it (and hides the game's) or our band on the live one (bridge.h S_GL_ROUND)
+    {
+        const bool joint_spent = !live_in_hand && (g_pull == 1 || g_spent_in_hand || g_spent);
+        const int shows = live_in_hand ? 1 : joint_spent ? 2 : player::loaded() > 0 ? 1 : 0;
+        bridge::put(bridge::S_GL_ROUND, (float)shows);
+        bridge::put(bridge::S_GL_ROUND_ON, bridge::view(bridge::S_FRAME) + 1.0f);
+    }
     // with NO live one in the hand the gun's own grenade joint IS the spent shell: it slides out with the pull and rides in the hand
     // (written in the world after the animation, as the barrel's turn is); with a live one in the hand (the gun's joint is that one)
-    // the spent shell is the Lua's copy [the copy's mesh part for the GM 79 is not found yet: it may not show]
+    // the spent shell is the Lua's (2026-11-25: our own model, gm79_spent_shell.mesh, in place of the copy of the gun, whose
+    // grenade was never found among its mesh parts)
     static bool drew_spent = false;
     const bool draw_spent = !live_in_hand && (g_pull == 1 || g_spent_in_hand);
     if (drew_spent && !draw_spent && !live_in_hand) {   // thrown away (or let back in): the joint back to its place in the barrel

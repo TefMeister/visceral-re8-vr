@@ -73,9 +73,26 @@ put "$HERE/bindings/_interaction_profiles_oculus_touch_controller.json" _interac
 for f in visceral_re8_bridge.lua visceral_re8_menu.lua visceral_re8_sounds.lua re8_vr.lua jitterlog.lua \
          re8_vr_holster.lua re8_vr_holster_visuals.lua visceral_re8_holsters.lua visceral_re8_hud.lua visceral_re8_emporium.lua visceral_re8_emporium_layout.lua visceral_re8_emporium_shop.lua \
          re8_vrz_begone_grip.lua visceral_re8_origin.lua visceral_re8_zones.lua visceral_re8_whitepoint.lua \
-         visceral_re8_hand_smooth.lua visceral_re8_magthrow.lua visceral_re8_bodyturn.lua visceral_re8_shell2.lua visceral_re8_mag2.lua visceral_re8_newgun.lua visceral_re8_walls.lua visceral_re8_doors.lua visceral_re8_dev_guns.lua; do
+         visceral_re8_hand_smooth.lua visceral_re8_magthrow.lua visceral_re8_bodyturn.lua visceral_re8_shell2.lua visceral_re8_mag2.lua visceral_re8_newgun.lua visceral_re8_walls.lua visceral_re8_doors.lua visceral_re8_dev_guns.lua \
+         visceral_re8_gl_rounds.lua; do
     put "$HERE/lua/$f" "reframework/autorun/$f" code
 done
+# 2026-11-25: the GM 79's spent shell and round bands (Tefa): our own models and materials. They are built from the game's
+# own case and materials (tools/blender/build_gm79_spent_shell.py, tools/mdf_build_gm79_shells.py) into $SHELLS, outside git;
+# REFramework's loose-file loader serves them from natives/stm/visceral/ (switched on here, the config backed up first)
+SHELLS="$BACKUPS/gm79-shell-work/build"
+put "$HERE/data/visceral_re8/shell_bands.json" reframework/data/visceral_re8/shell_bands.json code
+if ls "$SHELLS"/gm79_*.mesh.2101050001 >/dev/null 2>&1; then
+    for f in "$SHELLS"/gm79_*.mesh.2101050001 "$SHELLS"/gm79_shell_*.mdf2.19; do put "$f" "natives/stm/visceral/$(basename "$f")" code; done
+    CFG="$GAME/re2_fw_config.txt"
+    if [ -f "$CFG" ] && grep -q "^LooseFileLoader_Enabled=false" "$CFG"; then
+        mkdir -p "$BK/files"; cp -p "$CFG" "$BK/files/re2_fw_config.txt"
+        sed -i 's/^LooseFileLoader_Enabled=false/LooseFileLoader_Enabled=true/' "$CFG"
+        echo "update re2_fw_config.txt (the loose-file loader on, for natives/stm/visceral)"
+    fi
+else
+    echo "NOTE   no GM 79 shell files in $SHELLS: build them first (the spent shell and bands will not show)"
+fi
 for f in "$PACK"/autorun/*.lua; do
     b="$(basename "$f")"
     [ -f "$HERE/lua/$b" ] && continue                         # our copy of it went in above
