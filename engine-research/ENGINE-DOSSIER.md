@@ -218,6 +218,11 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   GM 79's explosive round), the GM 79 `ri3023` = 2576167331. A gun's rounds are listed in its inventory item's
   `<spec>k__BackingField.Weapon.IncludableItems`: the GM 79 takes 1927571624 (explosive) and 1583016682 (flash)
   `[measured 2026-11-25]`.
+- The GM 79's round is four joints under `Carrier`: Ammo01 the case, Ammo02 / Ammo03 the fronts 4.5 cm ahead, Ammo04
+  `[measured 2026-11-25]`. Its ammo kinds: the slot (`set_requestedUsingBulletIndex` + `applyRequestedBulletIndex`) sets only
+  the next reload's kind; `reload(n)` loads the MAIN record's `IncludeItemID` at either slot (Sub never filled); a round given
+  back by `addItem` goes to a hidden stack the carried count ignores `[verified-live 2026-11-25, n=1 each]`.
+- In Duke's area the game keeps guns away: a gun equipped there comes out the moment the player steps out `[seen 2026-11-25]`.
 
 ## Inbox drained 2026-11-25 (/lm)
 

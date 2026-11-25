@@ -97,3 +97,31 @@ The game was driven entirely from behind (window off the screen, pretend pad, pi
 Not established: the GM 79 itself (fire, open, pull with and without a live round in the hand, the bands on live
 rounds): that is headset-hand logic (`breech.cpp`), so it needs VR. The robot tools for it bring the game window to the
 front (`vb.py`'s presses, `keys.py`), and equipping the GM 79 in VR goes by number keys, so it was not done from behind.
+
+## 2026-11-25 evening, /lm: Tefa's first wear of b173, and b174
+
+Tefa wore b173 (screenshots 17:39-17:53, log kept beside the game as `re2_framework_log.2026-11-25-tefa-b173-gm79.txt`):
+the spent shell came out with its gold band (dim: a little brighter, "not by much at all"; it blends in very well);
+live rounds showed no band and no warhead (they looked like spent cases); a live grenade could not be pulled out (the
+hand docked at the chamber and LT did nothing); a dropped spent shell just vanishes; LG near the front teleported the
+hand to one spot (the top hold); the latch had to be shut by right B after closing the barrel; the left hand
+"sort of docked" near the front with no button pressed, until the hands were far apart.
+
+Causes found `[inferred-static]` unless marked:
+- No chamber dock with a live round in the open barrel: `g_at_mouth` asked only for a spent case or a round in the hand.
+- The warhead lives on its own joints `[measured 2026-11-25, flat]`: Ammo01 is the case (z -0.097 under Carrier), Ammo02 and
+  Ammo03 the fronts 4.5 cm ahead (z -0.052), Ammo04 at -0.037; our code carried Ammo01 alone.
+- The half-dock is not in the log: nothing docked with LG up. b174 logs a DETECTOR line when it happens.
+
+Measured flat with the GM 79 put in hand from the eval script (`__re8_holster_equip_item`) `[verified-live 2026-11-25, n=1 each]`:
+- `set_requestedUsingBulletIndex` + `applyRequestedBulletIndex` switch only the slot (`getBulletItemID`, the counter); the
+  loaded round keeps its kind. `changeIncludeItemIndex()` only flips the requested slot.
+- `reload(n)` loads rounds of the MAIN record's `IncludeItemID` from the carried ones, at either slot; the Sub record stayed
+  0 / 0. So `player.cpp sub()` now always reads the main record.
+- A round given back through `InventoryManager.createItemCore` + `Inventory.addItem` lands in a HIDDEN stack (slot -1) that
+  `getTotalStackSize(id, false, false)` does not count; one more on the visible stack's `StackSize` is counted.
+
+b174 (8fa1317, installed, compile-checked, not worn): the live pull; the ammo change (right stick click held 0.2 s, LG held +
+LT at the pouch) done the measured way; the nearer dock; the automatic latch flick and the hand kept on the barrel; the fronts
+riding with the case; bands x1.2; the detector; the band script ignores a gun that is not the GM 79 (a gun change read the
+handgun's ammo). Not established: any of it in the headset.
