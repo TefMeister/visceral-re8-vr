@@ -56,3 +56,23 @@ Three inserts of the LEMI's fresh magazine (log 12:31:06-12:31:31: eight inserts
   physical push; that needs a dock of its own beside the insert point. Ask Tefa where the top hold should be.
 - The top hold has no posed hand yet (b153 notes).
 - Nothing of b168 / b169 worn by Tefa yet; how the magazine carry LOOKS is for the headset.
+
+## b170: the top hold ahead of the hinge, no barrel from the front grip, the spent shell pulled out (the same afternoon)
+
+Tefa: the top hold *"further forward please"*; *"please delete the part where i can grab and open the barrel from the front part,
+i think it will surely interfere with the reloads"*; the spent shell pulled out by hand, the live one in after, the spent one kept
+until LG (quoted in breech.cpp and settings.h).
+- One dock, two places on the barrel: on top ahead of the hinge (6.1 up, 26 fwd at rest; Hand Poser spot 23 "top of the barrel")
+  for opening and shutting, the chamber end only at a fully open barrel with a live one in the hand or a case to take out. The
+  front grip is a two-handed hold only (`BREAK_FRONT_GRIP_MOVES false`).
+- LT at the chamber end on a spent case: thumb and finger on it (spot 24), the hand pulls it 10 cm out along the barrel. With a
+  live one in the hand the hand then carries that one back in (0.35 s, spot 25), it goes in, the spent one stays in the hand
+  until LG. With an empty hand the hand leaves with it (spot 26); LG let go throws it.
+- Robot `[verified-live 2026-11-25, robot, n=1 each]`: front grip LG + LT moves nothing; top hold opens and shuts; both pulls
+  worked by the log (loaded 0 -> 1 after the push); the spent case seen in the palm in the empty-hand case.
+- **Not working yet:** with a live one in the hand, the spent case is drawn by the second-shell copy, and the copy shows nothing
+  for the GM 79 (part 0, and a scan of parts 0-80 in place, `tools/sim/partscan.py`, found none). So in that case the spent
+  case is invisible while it is pulled and held. Next: find the grenade's mesh part another way (the gun's part list per joint,
+  or the W870 way: one part on at a time with the gun's body away, flat), or draw it another way.
+- Robot lessons: my robot runs brought the game window to the front again and again (keys.py, shot.py): that took Tefa's PC away
+  while it ran (FAULTS row 2026-11-25, memory "work in the background").
