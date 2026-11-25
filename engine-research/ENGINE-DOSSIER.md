@@ -228,6 +228,11 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   controls]`: on Tefa's lift save Duke stood frozen while his animation ran (moving platforms and guns wrong too) whenever our
   plugin wrote any joint there; PrepareRendering writes alone are fine. b177 writes none at BeginRendering. Found by one launch
   per guess with `off.txt` (plugin parts and phases off without a rebuild) and `tools/sim/liftrun.sh` + `regiondiff.py`.
+- **Hooking via.Joint's setters freezes the same way** `[measured 2026-11-25, lifttest, FAIL 315/115 with the hooks, PASS
+  3143/3453 without]`: a REFramework hook on set_LocalRotation / set_Rotation / set_LocalPosition / set_Position / set_LocalScale
+  alone froze Duke. Do not hook them. (A plain file scan run by the plugin at the first frame also failed 2 of 2, off passed 2 of 2:
+  mechanism unknown, possibly chance; the guard scan runs at install time instead, tools/check_begin_joints.py.)
+- The lift test: `tools/sim/lifttest.sh` (or `build.sh --deploy --lift`), PASS / FAIL / SKIPPED, on Tefa's lift save (slot 11).
 - A mesh must name the same materials, in the same order, as its mdf2, or the engine takes none (the checker pattern)
   `[verified-live 2026-11-25, flat, n=1]`.
 
