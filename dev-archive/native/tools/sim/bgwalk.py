@@ -4,7 +4,9 @@ import os, subprocess, sys, time
 import vgamepad as vg
 
 RV = os.path.expanduser(r"~\github-backups\visceral-re8-vr\dev-archive\native\tools\sim\rv.py")
-Q = ('local p = re8vr.player:call("get_Transform"):call("get_Position") '
+# BG_PLAYER_LUA: a Lua expression for the player's GameObject in another game (RV_GAME_DIR points rv.py there)
+PL = os.environ.get("BG_PLAYER_LUA", "re8vr.player")
+Q = ('local p = (' + PL + '):call("get_Transform"):call("get_Position") '
      'return string.format("%.3f %.3f %.3f", p.x, p.y, p.z)')
 
 
