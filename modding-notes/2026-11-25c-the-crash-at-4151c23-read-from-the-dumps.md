@@ -88,6 +88,20 @@ disassembly]`. Same family in the wide sense (a managed object used after it die
 one was caught right after a holster marker was made during a load. It may well be a run-time-object fault; today's
 two are not. +0x49F5794 (a read of address 0x220) was not looked at.
 
+## CORRECTION, the same night (/lm, flat, the game asked through lookup.cpp) `[measured 2026-11-25, n=1]`
+
+The game has about 100 `app.ThreadPoolList<T>` types, not a handful: among them `app.GUIRequest`, `app.IGUIDriver`,
+`app.VibrationTask` (rumble), `app.PhysicsManager.CastRayRequest` / `CastSphereRequest` (ray casts),
+`app.DoorRequestOrder`, `app.DoorStateSetManager.DoorStateSetRequestParam`, `app.DoorBehavior`,
+`app.InteractRequestOrder`, `app.ItemCore.InstanceWork`, `app.PlayerHealthPointController.HealthPointParam` and
+`via.GameObject`. Full list: `dev-archive/recon/2026-11-25-crash-4151c23/threadpool-lists-lookup.txt`. The merge code
+is shared by all of them, so **the `<app.GUIRequest>` label says nothing about which list held the dead entry, and the
+ammo refresh is ONE suspect among several, no longer the main one.** Back in the frame: our rumble hooks
+(`haptics.cpp` on `OrderVibration`), the wall and thrown-magazine ray casts, the door code, and the run-time objects
+(a `ThreadPoolList<via.GameObject>` exists). The storm test of the ammo refresh was started (`tools/sim/stormrun.sh`,
+`q_storm_gui.lua`: 928 refreshes in about 15 s, no crash) and stopped on Tefa's word: far too short to clear anything.
+Point 3 of "The short answer" and "Why the ammo refresh is the suspect" above are to be read with this.
+
 ## What is NOT established
 
 - **That the dead entry is a GUI request.** The list type is one of the game's `ThreadPoolList<T>`; which `T` exists

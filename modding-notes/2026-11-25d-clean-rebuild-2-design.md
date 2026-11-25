@@ -186,7 +186,38 @@ Each rule names what it rests on. A rule is checked by a script at every build w
 6. Only our new code, by one install script that also writes the list of what it installed; the build check compares
    the folder with that list and names any file that is not on it.
 
-## 7. The layers
+## 7a. CHANGED BY TEFA, 2026-11-25 23:0x: FROM ZERO, IN THE ORDER THE GAME IS PLAYED (replaces the layer table below)
+
+Tefa: *"what i want to do now, is really take it from zero. we have the latest build, and we can read it. but what i
+want to do, is a complete fresh install, save games and all. and start tackling our mod and what i aim to do as i play
+through the game bit by bit. so when i get to the first door, i want to make sure it opens by pushing. when i get lemi,
+i want to fully get it done and animated so it works fully, 2 mag reload and all, then the shotgun and so on."*
+
+What that changes:
+- **A complete fresh install, saves included** (not only Steam's file check): the game uninstalled, its folder deleted,
+  installed again; the saves start from a new game. Everything old is copied away first (section 8; the old saves, the
+  lift save and the all-guns save included, kept on D: as test material, not put back into the game).
+- **The order is the story's, not the code's.** The base goes in first (REFramework, praydog's VR layer, our frame of
+  items 1-7, the comfort set of items 11-18 that is needed from the first minute). After that a feature is built when
+  Tefa reaches the thing it is for, and it is FINISHED there, poses and animation included, before he plays on:
+  the first door -> doors by push (item 45); the knife; the LEMI -> the hand on the gun, the magazine, the two-magazine
+  reload, the rack, recoil, rumble, the click, the counter, its holster spot (the LEMI's share of items 19-37, 42);
+  the M1897 -> shells and the pump; then each gun and thing as it comes (the F2 and the scope mod at the castle, the
+  Wolfsbane, the GM 79 ...).
+- **Section 4 stops being a list to tick up front.** It becomes the catalogue of what exists in b178 to read from;
+  whether a part comes over is decided when the game gets there.
+- **Section 5 (the rule set) stands unchanged**, and so does "old code is read, not copied".
+- **Tefa's tuning** (hand poses, zones, timings, holster spots) is kept aside and brought back gun by gun, checked as
+  each gun is done, not poured in at the start.
+- **The crash:** with one thing added at a time and played before the next, a crash points at the newest piece. The
+  storm tests of RE8-080 stay worth running on b178 before it is taken out, since b178 is where it crashes.
+- **My test saves** are copies of Tefa's own saves from this playthrough, taken at each stop (the first door, the LEMI,
+  ...), kept in the builds folder; no cheats and no dev guns in his real saves (his rule).
+
+Still to settle before the wipe: question 55 (which REFramework), and the Steam cloud (the old saves come back from it
+unless the cloud copy is cleared or the cloud is switched off for Village).
+
+## 7. The layers (as first designed; superseded by 7a)
 
 Each layer: builds; passes the BeginRendering scan and (new) the request / object count check; passes
 `tools/sim/lifttest.sh`; its features checked by the robot on the simulator; **then an hour of play with no crash**
