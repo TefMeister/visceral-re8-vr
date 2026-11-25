@@ -165,16 +165,80 @@ local function tree_text(player)
         or safe(function() return layer:call("get_MotionNodeCount") end)
     if count == nil then return "no-node-count" end
     local parts = {}
-    for i = 0, math.min(count, 16) - 1 do
+    for i = 0, math.min(count, 120) - 1 do
         local node = safe(function() return layer:call("getMotionNode", i) end)
         if node ~= nil then
             local name = tostring(safe(function() return node:call("get_MotionName") end))
             local weight = safe(function() return node:call("get_Weight") end)
             local short = string.gsub(name, "ch01_0000_", "")
-            parts[#parts + 1] = string.format("%s=%s", short, weight and string.format("%.1f", weight) or "?")
+            if weight == nil or weight > 0.05 then
+                parts[#parts + 1] = string.format("%s=%s", short, weight and string.format("%.1f", weight) or "?")
+            end
         end
     end
     return table.concat(parts, " ")
+end
+
+-- v5 (2026-11-26 01:4x): THE BOB, MEASURED. Tefa: carrying Rose, walking forward and sideways she swings up to 30 cm,
+-- backward "how it should always be"; ticking praydog's "Movement Shake" changed nothing [reported, n=1], so the
+-- removed camera bob is not the cause. Which part moves against which? Every frame while something hangs on the
+-- player: the height of the left hand, the head, the chest and the hip joints and of the eye camera. Once a second
+-- one line ("bob"): how far each travelled up and down in that second against the camera, in centimetres, and the
+-- motion that carried the most weight.
+local BOB_JOINTS = { "L_Hand", "R_Hand", "Head", "Chest", "Hip" }
+local BOB_EVERY_FRAMES = 90
+local bob_min, bob_max, bob_n = {}, {}, 0
+
+local function bob_reset()
+    bob_min, bob_max, bob_n = {}, {}, 0
+end
+
+local function bob_take(key, v)
+    if v == nil then return end
+    if bob_min[key] == nil or v < bob_min[key] then bob_min[key] = v end
+    if bob_max[key] == nil or v > bob_max[key] then bob_max[key] = v end
+end
+
+local function bob_sample(player)
+    local transform = safe(function() return player:call("get_Transform") end)
+    if transform == nil then return end
+    local has_child = false
+    local child = safe(function() return transform:call("get_Child") end)
+    local n = 0
+    while child ~= nil and n < MAX_CHILDREN do
+        if go_name(child) == "pl5000" then has_child = true break end
+        child = safe(function() return child:call("get_Next") end)
+        n = n + 1
+    end
+    if not has_child then bob_reset() return end
+
+    local camera = sdk.get_primary_camera()
+    local cam_go = camera and safe(function() return camera:call("get_GameObject") end)
+    local cam_tf = cam_go and safe(function() return cam_go:call("get_Transform") end)
+    local cam_pos = cam_tf and safe(function() return cam_tf:call("get_Position") end)
+    local base_pos = safe(function() return transform:call("get_Position") end)
+    if cam_pos == nil or base_pos == nil then return end
+    bob_take("cam-feet", cam_pos.y - base_pos.y)
+    for _, name in ipairs(BOB_JOINTS) do
+        local joint = safe(function() return transform:call("getJointByName", name) end)
+        local pos = joint and safe(function() return joint:call("get_Position") end)
+        if pos ~= nil then
+            bob_take(name .. "-cam", pos.y - cam_pos.y)
+            bob_take(name .. "-feet", pos.y - base_pos.y)
+        end
+    end
+    bob_n = bob_n + 1
+    if bob_n < BOB_EVERY_FRAMES then return end
+
+    local keys = {}
+    for k, _ in pairs(bob_min) do keys[#keys + 1] = k end
+    table.sort(keys)
+    local parts = {}
+    for _, k in ipairs(keys) do
+        parts[#parts + 1] = string.format("%s=%.0f", k, (bob_max[k] - bob_min[k]) * 100.0)
+    end
+    log.info(TAG .. " bob cm/" .. tostring(BOB_EVERY_FRAMES) .. "f " .. table.concat(parts, " ") .. " | " .. last_tree)
+    bob_reset()
 end
 
 re.on_frame(function()
@@ -182,6 +246,8 @@ re.on_frame(function()
     if re8vr == nil then return end
     local player = re8vr.player
     if player == nil then return end
+
+    pcall(bob_sample, player)
 
     if frame % DRAW_EVERY_FRAMES == 0 then
         local d = safe(draw_text, player) or "draw failed"
@@ -197,6 +263,17 @@ re.on_frame(function()
         pcall(log_methods, "via.motion.TreeLayer")
         pcall(log_methods, "via.motion.MotionNodeCtrl")
         pcall(log_methods, "via.motion.Motion")
+        -- v6 (2026-11-26 01:5x): Ethan has no head when a scene's view is outside his body (Tefa, the crib scene).
+        -- Where is the head switched off? The names the mesh controller and the mesh offer, once.
+        KEYS = { "Parts", "Visible", "Head", "Draw", "Mask", "Material" }
+        pcall(log_methods, "via.render.Mesh")
+        pcall(log_methods, "app.PlayerMeshController")
+        pcall(function()
+            local t = sdk.find_type_definition("app.PlayerMeshController")
+            local names = {}
+            for _, f in ipairs(t:get_fields()) do names[#names + 1] = f:get_name() end
+            log.info(TAG .. " fields app.PlayerMeshController: " .. table.concat(names, " "))
+        end)
     end
     local tree = safe(tree_text, player) or "tree failed"
     if tree ~= last_tree then
