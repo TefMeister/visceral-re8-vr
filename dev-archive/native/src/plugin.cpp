@@ -66,39 +66,66 @@
 
 using namespace vn;
 
+// b175 (2026-11-25, the lift glitch hunt: Duke drawn frozen with our plugin loaded, moving without it): any part named in
+// reframework/data/visceral_re8/off.txt (names as below: reload, breech, doors, nodock ...; one per line or space-separated) is not
+// installed and not run. Read once, at the first call. No file = everything on, as before. For finding which part breaks something
+// with one launch per guess and no rebuild; never shipped with a file in place.
+#include <fstream>
+#include <set>
+#include <string>
+namespace {
+const std::set<std::string>& off_set() {
+    static std::set<std::string> s;
+    static bool read = false;
+    if (!read) {
+        read = true;
+        wchar_t exe[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, exe, MAX_PATH);
+        std::wstring path(exe);
+        path = path.substr(0, path.find_last_of(L"\\/") + 1) + L"reframework\\data\\visceral_re8\\off.txt";
+        std::ifstream f(path);
+        std::string w, all;
+        while (f >> w) { if (!w.empty() && w[0] != '#') { s.insert(w); all += w + " "; } }
+        if (!s.empty()) LOGI("%s OFF (off.txt): %s", TAG, all.c_str());
+    }
+    return s;
+}
+bool off(const char* part) { return off_set().count(part) != 0; }
+} // namespace
+
 namespace {
 void on_frame() {
-    perfprobe::frame();                                // 2026-11-02: the performance recorder counts every game frame (perfprobe.h)
+    if (!off("perfprobe")) perfprobe::frame();                                // 2026-11-02: the performance recorder counts every game frame (perfprobe.h)
     static std::atomic<bool> installed{false};
-    if (!installed.exchange(true)) { bridge::install(); haptics::install(); recoil::install(); reload::install(); accuracy::install(); eject::install(); foley::install(); ik::install(); body::install(); nodock::install(); equipguard::install(); player::probe_types(); body::probe_types(); }   // hooks need the type database: first game frame
-    bridge::frame_begin();
-    menukey::frame();                                  // 2026-11-04: the Emporium's kitchen card opens REFramework's menu (menukey.h)
-    player::refresh();                                 // before any feature: the hooks later in the frame read this snapshot
-    haptics::frame();
-    weapons::watch();
-    zones::frame();
-    reload::frame();
-    accuracy::frame();       // 2026-11-11: a handgun's accuracy from the hold and the movement (accuracy.h)
-    breech::frame();
-    gate::frame();
-    lookup::frame();                                   // 2026-11-02: our own read-only look at the game's type list (lookup.h)                                     // 2026-11-01: the Wolfsbane loaded by the right hand (after breech: right B)
-    rack::frame();
-    dryfire::frame();                                  // 2026-10-30: the empty click on RT (after reload + rack: they say if it fires)
-    smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
-    torch::frame();                                    // 2026-11-12: the torch you hold (torch.h), before handstate reads it
-    pairs::frame();                                    // the numbered hand pairs, after rack (pairs.h): the slide / bolt takes an LG first
-    ammo_hud::frame();
-    recoil::frame();
-    handstate::frame();
-    turn::frame();           // 2026-10-29: the game's own body-follow rule, with Tefa's numbers
-    sleephands::frame();     // 2026-11-09: a sleeping controller lowers its hand to the side
-    doors::frame();          // 2026-11-18: doors and gates pushed by the hand and the body (doors.h)
-    gunreport::frame();      // 2026-10-29: the gun's place in the hand, written down (the "gun too low, swings like a pendulum" launches)
-    body::frame();
-    fingers::frame();
-    nodock::frame();
-    shellclip::frame();      // 2026-11-02: the test file for the shell-in finger clip (shellclip.h)
-    timings::frame();        // 2026-11-07: the named seconds, re-read when timings.json changes (timings.h)
+    if (!installed.exchange(true)) { if (!off("bridge")) bridge::install(); if (!off("haptics")) haptics::install(); if (!off("recoil")) recoil::install(); if (!off("reload")) reload::install(); if (!off("accuracy")) accuracy::install(); if (!off("eject")) eject::install(); if (!off("foley")) foley::install(); if (!off("ik")) ik::install(); if (!off("body")) body::install(); if (!off("nodock")) nodock::install(); if (!off("equipguard")) equipguard::install(); if (!off("player")) player::probe_types(); if (!off("body")) body::probe_types(); }   // hooks need the type database: first game frame
+    if (!off("bridge")) bridge::frame_begin();
+    if (!off("menukey")) menukey::frame();                                  // 2026-11-04: the Emporium's kitchen card opens REFramework's menu (menukey.h)
+    if (!off("player")) player::refresh();                                 // before any feature: the hooks later in the frame read this snapshot
+    if (!off("haptics")) haptics::frame();
+    if (!off("weapons")) weapons::watch();
+    if (!off("zones")) zones::frame();
+    if (!off("reload")) reload::frame();
+    if (!off("accuracy")) accuracy::frame();       // 2026-11-11: a handgun's accuracy from the hold and the movement (accuracy.h)
+    if (!off("breech")) breech::frame();
+    if (!off("gate")) gate::frame();
+    if (!off("lookup")) lookup::frame();                                   // 2026-11-02: our own read-only look at the game's type list (lookup.h)                                     // 2026-11-01: the Wolfsbane loaded by the right hand (after breech: right B)
+    if (!off("rack")) rack::frame();
+    if (!off("dryfire")) dryfire::frame();                                  // 2026-10-30: the empty click on RT (after reload + rack: they say if it fires)
+    if (!off("smooth")) smooth::publish_zone();                            // the FRONT GRIP zone, after rack (zones.h GRIP)
+    if (!off("torch")) torch::frame();                                    // 2026-11-12: the torch you hold (torch.h), before handstate reads it
+    if (!off("pairs")) pairs::frame();                                    // the numbered hand pairs, after rack (pairs.h): the slide / bolt takes an LG first
+    if (!off("ammo_hud")) ammo_hud::frame();
+    if (!off("recoil")) recoil::frame();
+    if (!off("handstate")) handstate::frame();
+    if (!off("turn")) turn::frame();           // 2026-10-29: the game's own body-follow rule, with Tefa's numbers
+    if (!off("sleephands")) sleephands::frame();     // 2026-11-09: a sleeping controller lowers its hand to the side
+    if (!off("doors")) doors::frame();          // 2026-11-18: doors and gates pushed by the hand and the body (doors.h)
+    if (!off("gunreport")) gunreport::frame();      // 2026-10-29: the gun's place in the hand, written down (the "gun too low, swings like a pendulum" launches)
+    if (!off("body")) body::frame();
+    if (!off("fingers")) fingers::frame();
+    if (!off("nodock")) nodock::frame();
+    if (!off("shellclip")) shellclip::frame();      // 2026-11-02: the test file for the shell-in finger clip (shellclip.h)
+    if (!off("timings")) timings::frame();        // 2026-11-07: the named seconds, re-read when timings.json changes (timings.h)
 }
 } // namespace
 
@@ -117,18 +144,18 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
         return true;
     }
     param->functions->log_info("%s loaded: Hands Off port, haptics + recoil + manual reloads", TAG);
-    perfprobe::start();                                // 2026-11-02: always-on performance recorder, its own thread (perfprobe.h)
-    param->functions->on_present([]() { perfprobe::present(); });
+    if (!off("perfprobe")) perfprobe::start();                                // 2026-11-02: always-on performance recorder, its own thread (perfprobe.h)
+    param->functions->on_present([]() { if (!off("perfprobe")) perfprobe::present(); });
     // the bridge Lua writes its readings at UpdateHID pre; reading after it, at UpdateBehavior pre, sees this frame's
     param->functions->on_pre_application_entry("UpdateBehavior", []() { on_frame(); });
     // the ammo counter is placed at the right hand just before it is drawn (re8_vr_ammo_hud.lua did the same)
-    param->functions->on_pre_gui_draw_element([](void* element, void* context) { return ammo_hud::pre_gui_draw(element, context); });
+    param->functions->on_pre_gui_draw_element([](void* element, void* context) { return off("ammo_hud") ? true : ammo_hud::pre_gui_draw(element, context); });
     // re8_vr_recoil.lua stepped its spring at both of these (once per frame, whichever comes first)
-    param->functions->on_pre_application_entry("UpdateMotion", []() { recoil::physics_point(); });
-    param->functions->on_pre_application_entry("LateUpdateBehavior", []() { recoil::physics_point(); });
+    param->functions->on_pre_application_entry("UpdateMotion", []() { if (!off("recoil")) recoil::physics_point(); });
+    param->functions->on_pre_application_entry("LateUpdateBehavior", []() { if (!off("recoil")) recoil::physics_point(); });
     // the gun's joints (magazine, slide) after its own animation, and again before drawing (the engine rewrites them)
-    param->functions->on_post_application_entry("LateUpdateBehavior", []() { body::late_point(); reload::late_point(); magdisp::point(); rack::late_point(); pumpbolt::point(); rack_right::late_point(); breech::pose_point(); gate::late_point(); doors::late_point(); });
-    param->functions->on_post_application_entry("PrepareRendering", []() { body::render_point(); righthand::render_point(); fingers::render_point(); forearm::render_point();   /* 2026-11-02: the still hands first, the opening hand on top */ reload::render_point(); magdisp::point(); rack::render_point(); pumpbolt::point(); rack_right::render_point(); breech::pose_point(); gate::late_point(); ghosthand::render_point(); shellclip::render_point(); armstretch::render_point();   /* 2026-11-08: last: the rubber left arm */ });
-    param->functions->on_pre_application_entry("BeginRendering", []() { exposure::render_point(); reload::render_point(); magdisp::point(); rack::begin_render_point(); pumpbolt::point(); rack_right::begin_render_point(); breech::pose_point(); gate::late_point(); righthand::begin_render(); fingers::begin_render(); forearm::begin_render(); body::begin_render(); shellclip::begin_render(); armstretch::begin_render();  dockreport::render_point();   /* 2026-11-04: where the docked left hand lands, measured */ doors::render_point(); });
+    param->functions->on_post_application_entry("LateUpdateBehavior", []() { if (off("phase_late")) return; if (!off("body")) body::late_point(); if (!off("reload")) reload::late_point(); if (!off("magdisp")) magdisp::point(); if (!off("rack")) rack::late_point(); if (!off("pumpbolt")) pumpbolt::point(); if (!off("rack_right")) rack_right::late_point(); if (!off("breech")) breech::pose_point(); if (!off("gate")) gate::late_point(); if (!off("doors")) doors::late_point(); });
+    param->functions->on_post_application_entry("PrepareRendering", []() { if (off("phase_prepare")) return; if (!off("body")) body::render_point(); if (!off("righthand")) righthand::render_point(); if (!off("fingers")) fingers::render_point(); if (!off("forearm")) forearm::render_point();   /* 2026-11-02: the still hands first, the opening hand on top */ if (!off("reload")) reload::render_point(); if (!off("magdisp")) magdisp::point(); if (!off("rack")) rack::render_point(); if (!off("pumpbolt")) pumpbolt::point(); if (!off("rack_right")) rack_right::render_point(); if (!off("breech")) breech::pose_point(); if (!off("gate")) gate::late_point(); if (!off("ghosthand")) ghosthand::render_point(); if (!off("shellclip")) shellclip::render_point(); if (!off("armstretch")) armstretch::render_point();   /* 2026-11-08: last: the rubber left arm */ });
+    param->functions->on_pre_application_entry("BeginRendering", []() { if (off("phase_begin")) return; if (!off("exposure")) exposure::render_point(); if (!off("reload")) reload::render_point(); if (!off("magdisp")) magdisp::point(); if (!off("rack")) rack::begin_render_point(); if (!off("pumpbolt")) pumpbolt::point(); if (!off("rack_right")) rack_right::begin_render_point(); if (!off("breech")) breech::pose_point(); if (!off("gate")) gate::late_point(); if (!off("righthand")) righthand::begin_render(); if (!off("fingers")) fingers::begin_render(); if (!off("forearm")) forearm::begin_render(); if (!off("body")) body::begin_render(); if (!off("shellclip")) shellclip::begin_render(); if (!off("armstretch")) armstretch::begin_render();  if (!off("dockreport")) dockreport::render_point();   /* 2026-11-04: where the docked left hand lands, measured */ if (!off("doors")) doors::render_point(); });
     return true;
 }
