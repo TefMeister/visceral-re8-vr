@@ -241,6 +241,63 @@ local function bob_sample(player)
     bob_reset()
 end
 
+-- v7 (2026-11-26 02:0x): THE BOB, JOINT BY JOINT. v5 measured the hands (6 cm forward, 2-3 cm back) and found the
+-- head and hip still against the camera. Which joint between the hip and the hand starts the travel? While Rose is
+-- carried: every joint of the player, its height against the eye camera, min and max over SKEL_EVERY_FRAMES; then
+-- one line ("skel") with the joints that travelled SKEL_MIN_CM or more, in skeleton order, each as name=cm.
+-- The joint list is read once per player object. Dev only; it costs a call per joint per frame while it runs.
+local SKEL_EVERY_FRAMES = 180
+local SKEL_MIN_CM = 1.0
+local SKEL_MAX_JOINTS = 220
+local skel_for, skel_joints, skel_names = nil, nil, nil
+local skel_min, skel_max, skel_n = {}, {}, 0
+
+local function skel_setup(player, transform)
+    skel_for, skel_joints, skel_names = player, {}, {}
+    local list = safe(function() return transform:call("get_Joints") end)
+    local count = list and safe(function() return list:get_size() end) or 0
+    for i = 0, math.min(count, SKEL_MAX_JOINTS) - 1 do
+        local joint = safe(function() return list:get_element(i) end)
+        if joint ~= nil then
+            skel_joints[#skel_joints + 1] = joint
+            skel_names[#skel_names + 1] = tostring(safe(function() return joint:call("get_Name") end))
+        end
+    end
+    log.info(TAG .. " skel: " .. tostring(#skel_joints) .. " joints read")
+end
+
+local function skel_sample(player)
+    local transform = safe(function() return player:call("get_Transform") end)
+    if transform == nil then return end
+    if rawget(_G, "__visceral_re8_game_arms") ~= true then skel_n = 0 skel_min, skel_max = {}, {} return end
+    if skel_for ~= player then skel_setup(player, transform) end
+    local camera = sdk.get_primary_camera()
+    local cam_go = camera and safe(function() return camera:call("get_GameObject") end)
+    local cam_tf = cam_go and safe(function() return cam_go:call("get_Transform") end)
+    local cam_pos = cam_tf and safe(function() return cam_tf:call("get_Position") end)
+    if cam_pos == nil then return end
+    for i, joint in ipairs(skel_joints) do
+        local pos = safe(function() return joint:call("get_Position") end)
+        if pos ~= nil then
+            local v = pos.y - cam_pos.y
+            if skel_min[i] == nil or v < skel_min[i] then skel_min[i] = v end
+            if skel_max[i] == nil or v > skel_max[i] then skel_max[i] = v end
+        end
+    end
+    skel_n = skel_n + 1
+    if skel_n < SKEL_EVERY_FRAMES then return end
+    local parts = {}
+    for i, name in ipairs(skel_names) do
+        if skel_min[i] ~= nil then
+            local cm = (skel_max[i] - skel_min[i]) * 100.0
+            if cm >= SKEL_MIN_CM then parts[#parts + 1] = string.format("%s=%.0f", name, cm) end
+        end
+    end
+    log.info(TAG .. " skel cm/" .. tostring(SKEL_EVERY_FRAMES) .. "f [" .. last_tree .. "] " .. table.concat(parts, " "))
+    skel_n = 0
+    skel_min, skel_max = {}, {}
+end
+
 re.on_frame(function()
     frame = frame + 1
     if re8vr == nil then return end
@@ -248,6 +305,7 @@ re.on_frame(function()
     if player == nil then return end
 
     pcall(bob_sample, player)
+    pcall(skel_sample, player)
 
     if frame % DRAW_EVERY_FRAMES == 0 then
         local d = safe(draw_text, player) or "draw failed"
