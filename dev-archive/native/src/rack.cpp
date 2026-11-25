@@ -12,6 +12,7 @@
 #include "whichpart.h"
 #include "settings.h"
 #include "sleephands.h"
+#include "timings.h"
 #include "weapons.h"
 #include "json_mini.h"
 #include "zones.h"
@@ -278,6 +279,18 @@ bool in_grip_zone() {
     return dist(c, lp) <= r;
 }
 
+// b163 (settings.h SLIDE_SLAM_SEC): a slide let go at the back runs forward over a short time, speeding up, instead of jumping
+// shut. The game's side (complete(): racked, the sound) happens at the let-go as before; only the drawn slide takes the time.
+float g_slam_t0 = -1.0f, g_slam_from = 0.0f;
+void slam_start() { g_slam_from = g_travel; g_slam_t0 = now_s(); }
+void slam_step() {
+    if (g_slam_t0 < 0.0f) return;
+    if (g_hand_on) { g_slam_t0 = -1.0f; return; }   // taken again on the way: the hand has it
+    const float d = timings::v(timings::SLIDE_SLAM_S), t = d > 0.0f ? (now_s() - g_slam_t0) / d : 1.0f;
+    if (t >= 1.0f) { g_travel = 0.0f; g_slam_t0 = -1.0f; return; }
+    g_travel = g_slam_from * (1.0f - t * t);
+}
+
 void complete() {
     const bool was = g_needed;
     g_lock_by_id.erase(g_id);   // racked: the slide goes home
@@ -306,11 +319,12 @@ void hand_off(const char* why) {
         else g_turn = 0.0f;
         return;
     }
-    if (g_pulled) { g_pulled = false; g_travel = 0.0f; complete(); }
+    if (g_pulled) { g_pulled = false; if (!pump()) slam_start(); else g_travel = 0.0f; complete(); }   // b163: the slide runs home
     LOGI("%s rack: hand off the %s (%s), furthest pull %.3f m", TAG, part(), why, g_max_pull);
 }
 
 void write_joint() {
+    slam_step();   // b163: drawn at the render points too, so the run home is smooth between updates
     if (SLIDE_LOCK_HOLD_ON && g_joint != nullptr && g_have_rest && g_parked && !g_hand_on && !g_right && !pump() && !bolt()) {
         if (auto it = g_lock_by_id.find(g_id); it != g_lock_by_id.end()) {   // locked back with the rack due: stays back
             Vec3 p{g_rest.x, g_rest.y, g_rest.z + SLIDE_BACK_M * it->second};
@@ -501,6 +515,7 @@ void frame() {
         g_needed = g_parked = g_hand_on = g_armed = g_pulled = g_spent = g_hold_closed = g_have_rest = g_capture = g_rel_ok = g_right = false;
         g_auto = 0;
         g_travel = 0.0f;
+        g_slam_t0 = -1.0f;   // b163
         g_bstate = 0;
         g_turn = 0.0f;
         g_last_loaded = -1;
@@ -697,7 +712,7 @@ void frame() {
             g_armed = false;
             if (!pump() && g_pulled) {   // the slide let go of at the back: it slams home
                 g_pulled = false;
-                g_travel = 0.0f;
+                slam_start();   // b163: runs forward over SLIDE_SLAM_S (was: g_travel = 0 at once, Tefa: "teleports closed")
                 complete();
                 g_spent = true;
                 LOGI("%s rack: LT let go at the back: the slide went home", TAG);
@@ -746,6 +761,8 @@ void frame() {
             complete();
             LOGI("%s rack: pumped back up by hand: the hand stays on the pump", TAG);
         }
+    } else if (g_slam_t0 >= 0.0f) {   // b163: let go at the back: the timed run home
+        slam_step();
     } else if (!g_pulled && g_travel > 0.0f && !g_hand_on) {   // springs back only once the hand is off it (the slide too since 2026-11-08)
         g_travel = std::fmax(0.0f, g_travel - RACK_SPRING_STEP);
     }

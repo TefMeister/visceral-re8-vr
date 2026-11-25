@@ -304,7 +304,19 @@ void hand_checks() {
     // b149: the GM 79's next round, taken early: it goes in by itself only at an OPEN and EMPTY barrel (a spent case is swapped
     // with LT at the insert point, breech.cpp insert_lt; a live grenade still in there is taken out with LT first)
     if (g_round_in_hand && g_w->breech == weapons::Breech::BREAK && (!breech::is_open() || breech::spent() || (player::capacity() > 0 && player::loaded() + g_stash >= player::capacity()))) return;
-    if (mag && twomag::has() == twomag::Has::SPARE) {   // 2026-11-11: two in the hand: the old one does not go back in; LT swaps them
+    // b163 (twomag.h): two in the hand: LT, anywhere, swaps them round in the palm; then the front one goes in at the well like any
+    if (mag && twomag::has() == twomag::Has::SPARE && !TWOMAG_AUTO_IN && !TWOMAG_AUTO_SWAP) {
+        if (bridge::pressed(bridge::S_LTRIG)) {
+            const int front = twomag::exchange(g_same_mag ? g_mag_rounds : -1);
+            if (front >= 0) { g_mag_rounds = front; g_same_mag = true; } else { g_mag_rounds = 0; g_same_mag = false; }
+            g_lt_to_seat = false;   // no LT at the well: the swap was the go-ahead
+            g_well_armed = true;
+            bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
+            magazine_shown(true);
+            return;
+        }
+        if (!twomag::ready()) return;   // before the first LT nothing goes in
+    } else if (mag && twomag::has() == twomag::Has::SPARE) {   // 2026-11-11: two in the hand: the old one does not go back in; LT swaps them
         if (TWOMAG_AUTO_IN) { swap_in(true); return; }   // b162: no LT: the spare starts in the frame the old one is in the hand
         if (TWOMAG_AUTO_SWAP) {   // 2026-11-15: or the hand brings them to the well, after it left the well zone once
             const float dd = dock_dist();
@@ -351,8 +363,9 @@ void hand_checks() {
     // grip's line the way the same one does with LT held: up by itself with the hand on it, PISTOL_PUSH_LEFT_U short of the top,
     // and the hand's push seats it (filled from the carried ammo then). No LT. No measured line yet: straight in, as before.
     if (mag && pistol_mag() && !g_lt_to_seat && PISTOL_FRESH_NEEDS_PUSH && PISTOL_AUTO_SEAT && MAG_RAIL_ON &&
-        twomag::has() == twomag::Has::NONE && rail_possible()) {
+        (twomag::has() == twomag::Has::NONE || twomag::ready()) && rail_possible()) {
         g_last_dock = now;
+        twomag::went_in();   // b163: two in the hand: the one behind stays in the palm
         rail_enter(1.0f, "a fresh magazine at the well: it travels up the grip, a small push seats it", true);
         magazine_shown(true);
         return;
@@ -603,16 +616,40 @@ void twomag_frame() {
     if (!pistol_mag() || pose_lock()) { twomag::clear("not a handgun in play"); return; }
     const bool lg = bridge::held(bridge::S_LGRIP);
     if (h == Has::SPARE) {
-        if (!lg) { twomag::clear("LG let go: back in the pouch"); return; }
+        if (!lg) {
+            if (twomag::behind_is_old() && !left_in_holster()) {   // b163: one that was in the gun drops, it does not go to the pouch
+                Vec3 p{};
+                Quat q{0, 0, 0, 1};
+                if (g_joint != nullptr && held_pose(p, q)) throw_hand_over(p, q, true, twomag::rounds());
+                twomag::clear("LG let go: the one behind dropped");
+            } else twomag::clear("LG let go: back in the pouch");
+            return;
+        }
         if (g_st == St::OUT) {   // the gun's own magazine went to the floor: the spare is simply the magazine in the hand now
+            const bool old = twomag::behind_is_old();
+            const int r = twomag::rounds();
             twomag::clear("the gun's magazine is gone: the spare is the magazine in the hand now");
-            g_lt_to_seat = false;
-            g_same_mag = false;
-            set_state(St::IN_HAND, "the spare from the pouch");
+            g_lt_to_seat = old;      // b163: one that was in the gun goes back with LT at the well, as any taken out
+            g_same_mag = old;
+            g_mag_rounds = old ? r : 0;
+            set_state(St::IN_HAND, old ? "the other magazine, still in the hand" : "the spare from the pouch");
         }
         return;
     }
-    if (lg) return;   // the old magazine, still held (its throw speed: reload_pose.cpp pose_second)
+    if (lg) {   // the old magazine, still held (its throw speed: reload_pose.cpp pose_second)
+        // b163 (Tefa: "if i have the ejected mag1 in my hand still after ejecting mag2 from the gun so it drops on the floor, then
+        // LT must still insert mag1 back in, even if empty"): the old one becomes the magazine in the hand, with its own rounds
+        if (g_st == St::OUT) {
+            const int r = twomag::rounds();
+            twomag::clear("the gun's magazine dropped: the old one is the magazine in the hand now, LT at the well puts it in");
+            g_mag_rounds = r;
+            g_same_mag = true;
+            g_lt_to_seat = true;
+            g_well_armed = true;
+            set_state(St::IN_HAND, "the old magazine, still in the hand");
+        }
+        return;
+    }
     Vec3 p{};
     Quat q{0, 0, 0, 1};
     if (left_in_holster()) {
@@ -645,6 +682,7 @@ void pull_out() {
         capture_second();
     }
     g_hand_on_mag = false;   // the hand carries it now (mag_in_hand) rather than resting on a seated one
+    twomag::again();         // b163: the old one still in the palm: two in the hand again (nothing otherwise)
     g_lt_to_seat = true;     // it goes back in only on a fresh LT press at the well (hand_checks)
     g_same_mag = true;
     shellclip::play(g_id, "mag_out", (MAG_RAIL_ON && pistol_mag()) ? shellclip::RIGHT : shellclip::BOTH);   // 2026-11-23 (b148): on a pistol the LEFT fingers are Hand Poser's during the pull (its pose follows the pull distance, S_MAG_PULL); the clip keeps the right hand   // 2026-11-04: the game's own finger movement for the magazine coming out (shellclip.h)
@@ -675,6 +713,8 @@ void grab_frame() {
     // 2026-11-11 (twomag.h): a spare in the hand docks on the seated magazine with LG simply held (it was pressed at the pouch)
     const bool spare = twomag::has() == twomag::Has::SPARE && bridge::held(bridge::S_LGRIP);
     if (twomag::has() == twomag::Has::OLD) {   // the hand is full until the old magazine is let go
+        // b163 (twomag.h): docked on the gun's magazine with the old one in the palm, B takes it out into the hand: two again
+        if (g_hand_on_mag && pistol_mag() && bridge::pressed(bridge::S_RB)) { pull_out(); return; }
         // 2026-11-15 (Tefa: "when i let go of LG after taking out a mag and inserting the new spare one, the old one jumps out of
         // my hand as soon as i let go of LG"): the hand stayed on the new magazine at the gun while the controller went away, so
         // the let-go threw from the gun and the hand jumped back. Taken well away, it leaves the gun with the old one in the palm

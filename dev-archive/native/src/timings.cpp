@@ -42,6 +42,7 @@ const Row ROWS[KEY_COUNT] = {
     {"twomag_wait_s", TWOMAG_AUTO_WAIT_SEC, "s", "two magazines: the pause after the old one is out, before the new one starts in"},
     {"twomag_in_s", TWOMAG_AUTO_IN_SEC, "s", "two magazines: the new one travels up the grip by itself"},
     {"twomag_stop_pct", TWOMAG_AUTO_STOP_PCT, "%", "two magazines: how far in the new one stops (you push the rest)"},
+    {"slide_slam_s", SLIDE_SLAM_SEC, "s", "a slide let go at the back runs forward this long"},
 };
 float g_val[KEY_COUNT];
 bool g_set[KEY_COUNT];

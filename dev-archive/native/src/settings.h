@@ -308,7 +308,10 @@ constexpr float TWOMAG_SWAP_REACH_M = 0.25f;         // LT swaps the magazines w
 // into the mag"; and of LT: "it made it too complicated and confusing in battle"): the moment the gun's magazine is out of the
 // bottom with a spare in the hand, the spare goes onto the grip's line by itself, waits, travels up and stops; the hand's push
 // seats it. No LT anywhere in the two-magazine reload. The three numbers are rows of timings.h (the Animation & Timing window).
-constexpr bool  TWOMAG_AUTO_IN = true;
+// b163 (2026-11-25, Tefa after wearing b162: "having 2 mags both in hand then pressing LT while holding on to both with LG, should
+// change how Ethan holds them in his palm and that - even done outside of the chamber insert activation zone - should be the thing
+// that makes the mag2 insertable"): OFF again; LT swaps the two in the palm (reload.cpp twomag_lt), the well takes the front one
+constexpr bool  TWOMAG_AUTO_IN = false;
 constexpr float TWOMAG_AUTO_WAIT_SEC = 0.10f;        // the old magazine clear of the grip before the new one starts up
 constexpr float TWOMAG_AUTO_IN_SEC = 0.35f;          // the new one's travel up the grip
 constexpr float TWOMAG_AUTO_STOP_PCT = 50.0f;        // how far in it stops, per cent of the grip's line (the push does the rest)
@@ -367,6 +370,9 @@ constexpr float RACK_PULL_M = 0.08f;             // controller travel for a full
 constexpr float RACK_RETURN_M = 0.06f;           // and forward again for a full return
 constexpr float RACK_FOLLOW = 0.92f;             // the slide follows the hand by this much per frame
 constexpr float RACK_SPRING_STEP = 0.2f;         // let go mid-way: travel lost per frame as it springs back
+// b163 (2026-11-25, Tefa: "the slide, when completely pulled back, teleports closed instead of quickly traveling to the front"):
+// let go at the back it runs forward over this long, speeding up (a row of timings.h: the Animation & Timing window tunes it)
+constexpr float SLIDE_SLAM_SEC = 0.07f;
 constexpr float PUMP_RETURN_SEC = 0.2f;          // the pump handle returning by itself after LT is let go
 constexpr float RACK_BUZZ_AMP = 0.45f, RACK_BUZZ_SEC = 0.05f;
 // 2026-11-08 (Tefa, the LEMI: "gun click sound plays when my hand enters the sphere ... something that should not happen"):

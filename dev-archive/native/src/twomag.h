@@ -20,6 +20,15 @@
 //          spot, is put away. 2026-11-15 (Tefa): the hand rides in with the new magazine and stays on it, the old one still in
 //          the palm, until LG is let go (was: not kept on the new magazine).
 // The ammo is the ordinary reload's: the old magazine's rounds stay counted, as a dropped one's always did (reload.h).
+// b163 (2026-11-25, Tefa: "pressing LT while holding on to both with LG, should change how Ethan holds them in his palm and that -
+// even done outside of the chamber insert activation zone - should be the thing that makes the mag2 insertable"; and "pressing LT
+// must always alternate the mag1 and mag2 clips that get inserted - as long as i don't let go of the other clip in my hand"):
+//   SPARE  two in the hand. The gun's magazine object (the joint) is always the FRONT one, the copy the one behind it. LT, anywhere,
+//          swaps them round (their rounds trade places, Hand Poser's spot 22 takes the hand) and makes the front one READY: the well
+//          takes it like any magazine (up the grip, the push). Each LT swaps them again. The one behind may be a fresh pouch one
+//          (rounds -1: filled from the carried ammo when it goes in) or one that was in the gun (its own rounds).
+//   OLD    one in the gun, the other in the palm. B with LG held on the gun's magazine takes it out into the hand: SPARE again.
+//          The gun's one dropped instead: the old one is the ordinary magazine in the hand, LT at the well puts it in, even empty.
 #pragma once
 #include "common.h"
 
@@ -28,7 +37,13 @@ namespace vn::twomag {
 enum class Has { NONE, SPARE, OLD };
 Has has();
 void take_spare();                       // reload.cpp, the pouch grab with a magazine seated
-void swap(int old_rounds);               // reload.cpp, LT: the spare is the gun's now, the old one stays in the hand
+void swap(int old_rounds);               // reload.cpp, LT: the spare is the gun's now, the old one stays in the hand (b162 and before)
+int exchange(int front_rounds);          // b163, LT with two in the hand: the front one goes behind; returns the one coming to the front's
+                                         // rounds (-1 = a fresh pouch magazine). The front one is READY from then on
+bool ready();                            // b163: the front one may go in (an LT swapped them since they were both in the hand)
+void went_in();                          // b163: the front one went into the gun: the one behind stays in the palm (OLD)
+void again();                            // b163: OLD, and the gun's magazine came out into the hand: two in the hand again
+bool behind_is_old();                    // b163: the one behind is not a fresh pouch magazine (let go, it drops; it does not go back)
 void clear(const char* why);
 int rounds();                            // the extra magazine's own rounds (its look; a spare counts as full)
 void publish(Vec3 hold_p, Quat hold_q);  // reload_pose.cpp, both pose points: the hand's magazine hold in the gun's space, for the Lua

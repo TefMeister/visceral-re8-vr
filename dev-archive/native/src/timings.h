@@ -34,6 +34,7 @@ enum Key {
     TWOMAG_WAIT_S,     // b162: two magazines: the wait between the old one coming out and the new one starting in (reload.cpp)
     TWOMAG_IN_S,       // ...the new one's travel up the grip
     TWOMAG_STOP_PCT,   // ...how far in it stops (per cent); the hand pushes the rest
+    SLIDE_SLAM_S,      // b163: a slide let go at the back runs forward this long (rack.cpp)
     KEY_COUNT
 };
 
