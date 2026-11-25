@@ -248,6 +248,8 @@ constexpr float BREAK_SPENT_BESIDE[3] = {0.0f, 0.035f, 0.0f};   // the spent she
 // b170 (Tefa: "please delete the part where i can grab and open the barrel from the front part, i think it will surely interfere
 // with the reloads"): the front grip is a two-handed hold only; the barrel moves from the top hold (and the flicks)
 constexpr bool  BREAK_FRONT_GRIP_MOVES = false;
+// b174 (Tefa 2026-11-25: "right thumb pushed down for 0.2 sec"): the right stick's click held this long changes the GM 79's grenades
+constexpr float BREAK_AMMO_SWAP_HOLD_S = 0.2f;
 constexpr float BREAK_SHUT_PART = 0.06f;           // b152: let go this close to shut, it clicks shut instead of falling
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;

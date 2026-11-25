@@ -96,7 +96,9 @@ bool dock_applies(zones::Key k) {
     case zones::HANDLE: return w->shape == weapons::Shape::PISTOL && w->reload != weapons::Reload::NONE;
     // 2026-11-01 23:5x (Tefa: "the drum grab can actually completely go then, as it is not openable at all"): not on the Wolfsbane
     case zones::DRUM: return w->breech == weapons::Breech::CYLINDER && std::strcmp(w->id, settings::GATE_GUN) != 0;
-    case zones::INSERT: return w->breech == weapons::Breech::BREAK && breech::latch_open();   // b152 (Tefa): the hand goes on top of the barrel only once right B has opened the latch
+    // b174 (Tefa 2026-11-25: "left hand must stay docked on the barrel until let go of LG"): a hand already on it stays when the latch
+    // flicks shut after the barrel closed
+    case zones::INSERT: return w->breech == weapons::Breech::BREAK && (breech::latch_open() || (g_dock >= 0 && DOCKS[g_dock].key == zones::INSERT));   // b152 (Tefa): the hand goes on top of the barrel only once right B has opened the latch
     case zones::WELL: return shells::port_gun();
     default: return false;
     }
@@ -308,6 +310,32 @@ void frame() {
     // (2026-11-08: 4 = the right hand on the bolt from the click at the back until it is home, as the left's 11)
     bridge::put(bridge::S_RIGHT_SPOT, gate::right_at_cover() ? 1.0f : rack_right::active() ? (rack::right_on() && rack::at_back() ? 4.0f : 2.0f) : gate::right_lifted() ? 3.0f : (float)breech::latch_right_spot());   // 3: over the hammer (2026-11-06); 5 / 6: the GM 79's latch: the thumb on it, then flicked open (b152)
 
+    // b174 DETECTOR (2026-11-25, Tefa: "even putting the left hand near the front part, it 'sort of docks it' without me pressing
+    // anything and i lose control of the hand while it loosely follows the front of the gun, until i separate my hands far enough";
+    // nothing in that run's log docked with LG up): when the left hand's target sits away from its controller with LG up and no dock
+    // or pair holding it, say so once per time with what was on, so the next wear names whatever moves it
+    {
+        static int far_n = 0;
+        static bool told = false;
+        Vec3 cw, hp;
+        Quat hq;
+        if (ok && play && !lg && g_dock < 0 && g_active < 0 && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cw) &&
+            player::get_pose(field_obj(s.ik_left, "Target"), hp, hq)) {
+            const float d = dist(cw, hp);
+            if (d > 0.04f) {
+                if (++far_n == 10 && !told) {
+                    told = true;
+                    LOGI("%s pairs: DETECTOR: the left hand is %.1f cm off its controller with LG up and no dock: gun %d, spot %.0f, area %.0f, "
+                         "praydog's grip %d, reload %d, rack %d, round in hand %d, the barrel open %d", TAG, d * 100.0f, gun,
+                         bridge::view(bridge::S_LEFT_SPOT), bridge::view(bridge::S_LEFT_AREA), bridge::flag(bridge::S_GRIPPING_WEAPON) ? 1 : 0,
+                         reload::session_active() ? 1 : 0, rack::active() ? 1 : 0, reload::round_in_hand() ? 1 : 0, breech::is_open() ? 1 : 0);
+                }
+            } else {
+                if (told) LOGI("%s pairs: DETECTOR: the left hand is back on its controller (after %d frames off)", TAG, far_n);
+                far_n = 0; told = false;
+            }
+        }
+    }
     // 2026-10-30 (Tefa: "only the sphere of the activation area shows up when the hand reaches the edge of it"): the gun's
     // pair whose activation sphere the left hand is nearest (measured in its own radii) is handed to the zones script, which
     // shows it only while the hand is inside its edge. The landing spot is no longer drawn.

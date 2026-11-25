@@ -2,7 +2,10 @@
 
   bgaway.py away <pid> [class]      move the game's window past the left edge of all screens, no focus change
   bgaway.py back <pid> [class]      bring it back on screen (top-left of the main screen), still no focus change
-  bgaway.py watch <pid|exe> [secs]  from launch: every 20 ms, any new visible window of that program is moved away at once
+  bgaway.py watch <pid|exe> [secs] [--on-screen]  from launch: every 20 ms, any new visible window of that program is moved away at once
+                                    (--on-screen, 2026-11-25, Tefa: "i do prefer if you have the games running on the screen, so i can
+                                    see what you are doing, i just need to be able to use the pc at the same time": the window stays
+                                    where it is, only the front is handed back to the person's window whenever the game takes it)
                                     (give the exe name, e.g. re3.exe, to start watching before the process exists)
 """
 import ctypes, ctypes.wintypes as w, subprocess, sys, time
@@ -13,6 +16,7 @@ try:
 except Exception:
     pass
 SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE, SWP_NOOWNERZORDER = 0x1, 0x4, 0x10, 0x200
+SWP_ASYNC = 0x4000   # 2026-11-25: never wait on the game's window thread (a hung game froze `back`)
 HWND_BOTTOM = 1
 
 
@@ -43,7 +47,7 @@ def move_away(h):
     x, r = away_x(h)
     if r.left <= x:
         return False
-    u.SetWindowPos(h, HWND_BOTTOM, x, r.top, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER)
+    u.SetWindowPos(h, HWND_BOTTOM, x, r.top, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNC)
     return True
 
 
@@ -64,9 +68,11 @@ if cmd in ("away", "back"):
             print("moved away" if move_away(h) else "already away", int(h))
         else:
             r = w.RECT(); u.GetWindowRect(h, ctypes.byref(r))
-            u.SetWindowPos(h, HWND_BOTTOM, 40, 40, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER); print("back", int(h))
+            u.SetWindowPos(h, HWND_BOTTOM, 40, 40, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNC); print("back", int(h))
 elif cmd == "watch":
-    target = sys.argv[2]; secs = float(sys.argv[3]) if len(sys.argv) > 3 else 180
+    on_screen = '--on-screen' in sys.argv
+    rest = [a for a in sys.argv if a != '--on-screen']
+    target = rest[2]; secs = float(rest[3]) if len(rest) > 3 else 180
     t0 = time.time(); pid = int(target) if target.isdigit() else None; moved = set(); last_lookup = 0
     owner = u.GetForegroundWindow()          # the person's window: it gets the front back whenever the game takes it
     given = 0
@@ -76,7 +82,7 @@ elif cmd == "watch":
         if pid:
             mine = windows_of(pid)
             for h in mine:
-                if move_away(h) and int(h) not in moved:
+                if not on_screen and move_away(h) and int(h) not in moved:
                     moved.add(int(h)); print("%.2f s: window %d moved away" % (time.time() - t0, int(h)), flush=True)
             fg = u.GetForegroundWindow()
             p = w.DWORD(); u.GetWindowThreadProcessId(fg, ctypes.byref(p))

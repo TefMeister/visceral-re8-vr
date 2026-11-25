@@ -55,6 +55,7 @@ MO* g_shell = nullptr;            // the gun's own shell joint ("Bullet"), carri
 Vec3 g_shell_rest{};
 Quat g_shell_rest_rot{0, 0, 0, 1};
 bool g_shell_have_rest = false;
+bool g_round_leave = false;       // b174: the round in hand was just pulled out of the GM 79: it must leave the barrel once first
 int g_pocket = 0;                 // 2026-10-27: rounds taken out of the gun by hand (the GM 79), loaded again before the carried ammo
 int g_rounds_n = 0;               // 2026-10-27: a revolver's rounds in the left hand (one grab = the free chambers); 1 for other guns
 int g_mag_rounds = 0;             // rounds that left with the magazine   // (moved into detail 2026-11-05: magdisp reads them)
@@ -344,6 +345,12 @@ void hand_checks() {
         static float told = -10.0f;
         if (now - told > 2.0f) { told = now; LOGI("%s reload: at the gun (%.3f m) but not in front of you at gun height", TAG, d); }
         return;
+    }
+    // b174: a live grenade just pulled out of the GM 79 sits beside the barrel: it goes back in only after the hand has left once
+    if (g_round_in_hand && g_round_leave) {
+        if (d <= dock_need() * PISTOL_REARM) return;
+        g_round_leave = false;
+        LOGI("%s reload: the grenade taken out left the barrel: brought back, it goes in", TAG);
     }
     if (d > dock_need() || now - g_last_dock < RELOAD_DOCK_COOLDOWN_SEC) return;
     // 2026-10-30: a handgun's magazine goes in with LG and LT held and a push PISTOL_INSERT_PUSH of the way in (Tefa)
@@ -829,6 +836,7 @@ void pouch_grab() {
         }
         capture_port(g_shell);
         g_round_in_hand = true;
+        g_round_leave = false;   // b174: a fresh one from the pouch goes in as before (breech.cpp sets it again after a pull)
         g_rounds_n = shells::port_gun() ? shells::grab_count(player::unlimited() ? -1 : std::max(0, player::reserve()) + g_pocket, cap > 0 ? cap - player::loaded() - g_stash : -1) : 1;   // 2026-11-02: two shells (shells.h)
         ghosthand::event("shell", "start");
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -1301,6 +1309,8 @@ bool insert_direct() {   // gate.cpp, RT at the cover: the right hand pushes it 
 }
 void grab_from_pouch() { g_last_grab = -10.0f; pouch_grab(); }   // 2026-11-02: breech.cpp, LG held into the pouch
 bool port_center(Vec3& out) { return port_world(out); }       // 2026-11-02: pairs.cpp, the shell port dock
+void round_must_leave() { g_round_leave = true; }
+int take_pocket() { const int n = g_pocket; g_pocket = 0; if (n > 0) LOGI("%s reload: %d round(s) taken out by hand go back on their stack", TAG, n); return n; }
 void pocket_round() { ++g_pocket; LOGI("%s reload: a round back with the carried ammo (%d taken out by hand)", TAG, g_pocket); }
 
 } // namespace vn::reload

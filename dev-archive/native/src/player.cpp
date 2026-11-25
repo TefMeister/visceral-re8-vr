@@ -172,7 +172,11 @@ bool try_bool(MO* o, const char* method, bool& out) {
 namespace {
 MO* gun() { return g_now.gun; }
 MO* work() { return call_ptr(gun(), "get_work"); }
-bool sub() { return call_direct<int>(gun(), "get_usingBulletIndex", 0) == 1; }
+// b174 (2026-11-25, measured flat on the GM 79, Village's only gun with two kinds of ammo): with slot 1 (flash) in use the game's
+// reload(n) still fills the MAIN record (includeItemID / includeStackSize) and never the Sub one (it stayed 0 / 0), and the round
+// it loads is of the main record's item id. So the main record is always the one that holds the rounds; reading Sub at slot 1
+// made the gun look empty
+bool sub() { return false; }
 API::Method* m_of(MO* o, const char* name) { return is_managed(o) ? find_method_deep(o->get_type_definition(), name) : nullptr; }
 } // namespace
 
@@ -243,6 +247,60 @@ int game_reload(int n) {
     const int after = loaded();
     LOGI("%s ammo: the game's %s: loaded %d -> %d, carried now %d", TAG, n < 0 ? "reload()" : "reload(n)", before, after, reserve());
     return after - before;
+}
+
+// ---- b174: the GM 79's two kinds of round (2026-11-25, Tefa: change the ammo by a button or at the pouch) -------------------
+// Measured flat [verified-live 2026-11-25, n=1 each]: set_requestedUsingBulletIndex + applyRequestedBulletIndex changes only the
+// slot (getBulletItemID, the counter); the loaded round keeps its type, which is the main record's includeItemID. reload(n)
+// takes rounds of THAT id from the carried ones. A round given back through the game's addItem lands in a HIDDEN stack (slot -1)
+// the carried count does not see, so a round goes back by one more on its own visible stack.
+uint32_t round_id() { return call_direct<uint32_t>(work(), "get_includeItemID", 0u); }
+bool set_round_id(uint32_t id) {
+    auto* f = field_ptr<uint32_t>(work(), "IncludeItemID");
+    if (f == nullptr) return false;
+    *f = id;
+    return true;
+}
+int bullet_slot() { return call_direct<int>(gun(), "get_usingBulletIndex", -1); }
+int bullet_slots() { return call_direct<int>(gun(), "get_usableBulletNum", 0); }
+uint32_t slot_item_id(int slot) {
+    auto* m = overload(gun(), "getBulletItemID", 1);
+    return m != nullptr ? m->call<uint32_t>(API::get()->get_vm_context(), (void*)gun(), (int32_t)slot) : 0u;
+}
+bool set_bullet_slot(int slot) {
+    auto* r = overload(gun(), "set_requestedUsingBulletIndex", 1);
+    auto* a = overload(gun(), "applyRequestedBulletIndex", 0);
+    if (r == nullptr || a == nullptr) return false;
+    auto* ctx = API::get()->get_vm_context();
+    r->call<void>(ctx, (void*)gun(), (int32_t)slot);
+    a->call<void>(ctx, (void*)gun());
+    return bullet_slot() == slot;
+}
+int carried_of(uint32_t id) {
+    auto* m = overload(g_now.inventory, "getTotalStackSize", 3);
+    return m != nullptr && id != 0 ? m->call<int>(API::get()->get_vm_context(), (void*)g_now.inventory, id, false, false) : -1;
+}
+bool give_back(uint32_t id, int n) {
+    if (n <= 0) return true;
+    MO* list = field_obj(g_now.inventory, "<items>k__BackingField");
+    auto* get = overload(list, "get_Item", 1);
+    const int count = call_direct<int>(list, "get_Count", 0);
+    if (get == nullptr) return false;
+    auto* ctx = API::get()->get_vm_context();
+    for (int i = 0; i < count; ++i) {
+        MO* item = get->call<MO*>(ctx, (void*)list, (int32_t)i);
+        MO* w = field_obj(item, "<work>k__BackingField");
+        const auto* iid = field_ptr<uint32_t>(w, "ItemID");
+        const auto* hid = field_ptr<bool>(w, "IsHidden");
+        const auto* slot = field_ptr<int32_t>(w, "SlotNo");
+        auto* size = field_ptr<int32_t>(w, "StackSize");
+        if (iid == nullptr || size == nullptr || *iid != id || (hid != nullptr && *hid) || (slot != nullptr && *slot < 0)) continue;
+        *size += n;
+        LOGI("%s ammo: %d round(s) of item %u back on its stack (now %d)", TAG, n, id, *size);
+        return true;
+    }
+    LOGW("%s ammo: no visible stack of item %u to give %d round(s) back to", TAG, id, n);
+    return false;
 }
 
 // the game's own calls, written once at the first game frame (the title screen is enough): every method and field of the

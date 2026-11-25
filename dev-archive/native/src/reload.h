@@ -50,6 +50,8 @@ void pocket_round();
 int rounds_in_hand();
 bool insert_from_hand();
 bool round_hand_local(Vec3& lp, Quat& lq);   // b170: where a round sits in the left hand, in the gun's space (breech.cpp: the GM 79's spent shell)
+void round_must_leave();         // b174: the round now in the hand was pulled out of the GM 79: no going back in before the hand leaves
+int take_pocket();               // b174: the rounds taken out by hand (the GM 79), handed over and forgotten here (the ammo swap)
 void grab_from_pouch();          // 2026-11-02: a pouch grab without a fresh LG press (breech.cpp: LG held in with the spent case)
 bool port_center(Vec3& out);     // 2026-11-02: the shell port, world (pairs.cpp's shell port dock)
 bool insert_direct();

@@ -47,5 +47,14 @@ bool unlimited();
 bool set_loaded(int n);            // false when the gun has no item record
 int game_reload(int n);            // the game's own reload maths: n < 0 = fill up, else up to n; returns rounds added
 void probe_types();                // once, first game frame: the ammo types' calls to type_probe.txt
+// b174: the GM 79's two kinds of round (player.cpp, measured 2026-11-25)
+uint32_t round_id();               // the item id of the round(s) loaded (the main record's includeItemID)
+bool set_round_id(uint32_t id);
+int bullet_slot();                 // 0 / 1: which kind the gun uses (getBulletItemID, the counter); -1 unknown
+int bullet_slots();                // how many kinds this gun takes
+uint32_t slot_item_id(int slot);   // the item id of slot 0 / 1's rounds
+bool set_bullet_slot(int slot);
+int carried_of(uint32_t id);       // carried rounds of that item (-1 unknown)
+bool give_back(uint32_t id, int n);   // n rounds of that item back on its visible stack
 
 } // namespace vn::player

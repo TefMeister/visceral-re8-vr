@@ -2,6 +2,7 @@
 // magazine and the shell are drawn -- the pose maths, the gun's magazine display and mesh part, the joint writes and
 // the joint / part logs. The state they read is reload.cpp's (reload_internal.h).
 #include "reload_internal.h"
+#include "breech.h"
 #include "joints.h"
 #include "player.h"
 #include "settings.h"
@@ -296,6 +297,7 @@ void pose_shell() {   // the gun's shell joint rides in the left hand while a ro
     if (SHELL_WORLD_WRITE) {
         set_any(JOINT, g_shell, "set_Position", &wp);
         set_any(JOINT, g_shell, "set_Rotation", &wr);
+        breech::carry_warheads(wp, wr, k);   // b174: the GM 79's grenade front rides with its case (no-op on other guns)
     } else if (to_weapon_local(wp, wr, lp, lr)) {
         shell_write(lp, lr);
     }

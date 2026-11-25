@@ -284,6 +284,10 @@ local function update(point)
     if point == "late" then return end   -- after the plugin has placed the joint (as the shell copy: never before the arms)
     local gun = the_gun()
     if gun == nil or gun.xf == nil then all_off(); return end
+    -- b174 (Tefa's run 2026-11-25 17:55: "bullet item 1179972000 ... the GM 79 has no Ammo01 joint"): for a frame or two after a gun
+    -- change the plugin's gun number still says GM 79 while the hand already holds the next gun: only the GM 79 itself counts
+    local gname = safe(function() return gun.xf:call("get_GameObject"):call("get_Name") end)
+    if gname == nil or not tostring(gname):find("ri3023") then all_off(); return end
     local shows = math.floor(b.r(S_GL_ROUND) + 0.5)
     if shows == 1 then live_t = bullet_type(gun) end
     if shows == 2 and last_shows == 1 then spent_t = live_t; L("fired (or the spent case is out): the spent shell keeps the " .. spent_t .. " band") end
