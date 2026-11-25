@@ -575,7 +575,16 @@ local function grip_pass(final)
     -- a leftover from before the grip was our own decision. It dropped our grip the instant praydog's dock dropped
     -- (every bolt swing), before the keep-test below ever ran -- the jerk that survived four fixes. Now the pass only
     -- skips when there is truly nothing it could do.
-    if not cpp_grip and not stacked and S.take == nil and S.frozen == nil and S.keep_at == nil and chk.verified then return end
+    -- b168 (2026-11-25, Tefa: "W870 TAC is only steered with the right hand, when LG is docked on the weapon it just rides along and
+    -- doesn't steer it"): the plugin's "the left hand is on the pump" (bridge slot 99) is something it could do. The W870 has no
+    -- frozen grip spot and praydog does not dock it, so the pass returned here and never read slot 99 (log 12:23:49-12:23:52: the
+    -- hand on the pump 3 s, no "grip taken"); the M1897 had one and steered (12:46:37, 13:01:05-13:01:31)
+    local rack_wants = false
+    do
+        local b = rawget(_G, "visceral_re8_bridge")
+        if b ~= nil and b.ready() and (safe(function() return b.r(99) end) or 0) > 0.5 then rack_wants = true end
+    end
+    if not rack_wants and not cpp_grip and not stacked and S.take == nil and S.frozen == nil and S.keep_at == nil and chk.verified then return end
     S.stage = "hands()"
     local lp_ik, lr_ik, rp_ik, rr_ik = hands()
     if lp_ik == nil then blocked("no hand IK targets yet (no weapon in hand, or not in gameplay)") return end
@@ -679,6 +688,11 @@ local function grip_pass(final)
     -- at the moment"): on a long gun (bridge slot 104) a grip whose socket is closer than LONG_GRIP_MIN_M to the right hand
     -- is never taken; only the forestock counts
     local LONG_GRIP_MIN_M = 0.25
+    -- b168 (2026-11-25, Tefa: on the grenade launcher "LG doesn't dock on the front part"): the GM 79 is a short long gun; its
+    -- front grip (kept 2026-11-23, "yours", under the barrel just ahead of the receiver) is 15.3 cm from the right hand, so this
+    -- rule refused every LG there (log 12:33:30-12:33:39: LG pressed 0.4-17 cm from the spot, never taken). Its own minimum:
+    local LONG_GRIP_MIN_BY_GUN = { [3023] = 0.08 }
+    LONG_GRIP_MIN_M = LONG_GRIP_MIN_BY_GUN[gun_num()] or LONG_GRIP_MIN_M
     do
         local b = rawget(_G, "visceral_re8_bridge")
         local long_gun = b ~= nil and b.ready() and (safe(function() return b.r(104) end) or 0) > 0.5
