@@ -4,7 +4,12 @@ Small tools from 2026-11-01. They need the VR Bench layer on for re8.exe (`vrben
 and Village on Single Frame Multipass (Two Frame Sequential freezes on the first frame).
 
 - `drive.sh`: launch on the simulator and drive to gameplay (A, A, left stick up, A, wait, A). Writes `pid.txt`.
-- `keys.py <pid> [keys]`: bring the game forward (it pauses when not in front) and tap keys; 1-4 take out quick-slot guns.
+- `keys.py <pid> [keys]`: bring the game forward and tap REAL keys (these only reach the window in front); 1-4 take out
+  quick-slot guns. ⚠️ Takes over the PC: prefer the background tools below.
+- **Background, the PC stays free (2026-11-25, flat):** the game does NOT pause behind other windows; only real keys need
+  the front. `bgpad.py a up down start ...` presses a pretend Xbox pad (ViGEm); `bgwalk.py <secs> [x y]` holds the
+  left stick and says how far the player moved; `bgshot.py <pid> <out.png>` grabs the game window from behind
+  (PrintWindow). REFramework's overlay: Insert sent as window messages to the `via` window. `rv.py` without --front.
 - `vb.py press <hand> <button> [sec]`, `stick.py <hand> <x> <y>`: VR Bench buttons and sticks.
 - `hands.py rx ry rz ryaw rpitch [lx ly lz lyaw lpitch]`: hold both controllers still (room metres, degrees). ⚠️ Perfectly
   still = "asleep" after 20 frames (sleephands.cpp: the hand drops to the hip); for any hand test use
