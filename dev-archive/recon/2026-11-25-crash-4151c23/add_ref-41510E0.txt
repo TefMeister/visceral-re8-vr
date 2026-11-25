@@ -1,0 +1,87 @@
+>> 041510E0  push     rdi
+   041510E2  sub      rsp, 0x20
+   041510E6  mov      eax, dword ptr [rcx + 8]
+   041510E9  mov      rdi, rcx
+   041510EC  test     eax, eax
+   041510EE  jns      0x4151211
+   041510F4  movzx    eax, byte ptr [rcx + 0xe]
+   041510F8  mov      qword ptr [rsp + 0x48], rsi
+   041510FD  test     al, al
+   041510FF  je       0x41511b6
+   04151105  movzx    eax, al
+   04151108  mov      rsi, rcx
+   0415110B  shl      eax, 4
+   0415110E  movsxd   rdx, eax
+   04151111  sub      rsi, rdx
+   04151114  je       0x41511b6
+   0415111A  mov      qword ptr [rsp + 0x40], rbx
+   0415111F  mov      dword ptr [rcx + 8], 1
+   04151126  call     0x41519b0
+   0415112B  mov      eax, dword ptr [rsi + 8]
+   0415112E  test     eax, eax
+   04151130  jns      0x415113c
+   04151132  mov      rcx, rsi
+   04151135  call     0x4151dd0
+   0415113A  jmp      0x4151140
+   0415113C  lock inc dword ptr [rsi + 8]
+   04151140  movzx    ebx, byte ptr [rdi + 0xe]
+   04151144  mov      rcx, rdi
+   04151147  call     0x4151400
+   0415114C  movzx    ecx, bx
+   0415114F  lea      r8, [rsp + 0x38]
+   04151154  shl      cx, 4
+   04151158  sub      cx, 0x40
+   0415115C  lea      edx, [rax + 0xf]
+   0415115F  mov      eax, 0xfff0
+   04151164  and      dx, ax
+   04151167  lea      rax, [rsp + 0x30]
+   0415116C  add      dx, cx
+   0415116F  movzx    ecx, word ptr [rsi + 0x10]
+   04151173  cmp      cx, dx
+   04151176  mov      word ptr [rsp + 0x30], dx
+   0415117B  mov      edx, ebx
+   0415117D  mov      word ptr [rsp + 0x38], cx
+   04151182  cmovae   rax, r8
+   04151186  and      edx, 0x3f
+   04151189  movzx    eax, word ptr [rax]
+   0415118C  mov      word ptr [rsi + 0x10], ax
+   04151190  mov      eax, ebx
+   04151192  mov      rbx, qword ptr [rsp + 0x40]
+   04151197  shr      rax, 6
+   0415119B  lea      rcx, [rsi + rax*8]
+   0415119F  mov      rsi, qword ptr [rsp + 0x48]
+   041511A4  mov      rax, qword ptr [rcx + 0x20]
+   041511A8  bts      rax, rdx
+   041511AC  mov      qword ptr [rcx + 0x20], rax
+   041511B0  add      rsp, 0x20
+   041511B4  pop      rdi
+   041511B5  ret      
+   041511B6  mov      rcx, qword ptr [rip + 0x83560f3]
+   041511BD  mov      edx, 0xffffffff
+   041511C2  call     0x416d960
+   041511C7  dec      dword ptr [rax + 0x98]
+   041511CD  mov      rcx, qword ptr [rax + 0x88]
+   041511D4  mov      edx, dword ptr [rax + 0x98]
+   041511DA  mov      r8, qword ptr [rcx + rdx*8]
+   041511DE  mov      ecx, dword ptr [rdi + 8]
+   041511E1  mov      dword ptr [r8 + 8], ecx
+   041511E5  mov      ecx, dword ptr [rdi + 8]
+   041511E8  mov      rax, qword ptr [rax + 0x88]
+   041511EF  neg      ecx
+   041511F1  movsxd   rdx, ecx
+   041511F4  mov      rcx, rdi
+   041511F7  mov      qword ptr [rax + rdx*8], r8
+   041511FB  mov      dword ptr [rdi + 8], 1
+   04151202  mov      rsi, qword ptr [rsp + 0x48]
+   04151207  add      rsp, 0x20
+   0415120B  pop      rdi
+   0415120C  jmp      0x41519b0
+   04151211  lock inc dword ptr [rcx + 8]
+   04151215  add      rsp, 0x20
+   04151219  pop      rdi
+   0415121A  ret      
+   0415121B  int3     
+   0415121C  int3     
+   0415121D  int3     
+   0415121E  int3     
+   0415121F  int3     

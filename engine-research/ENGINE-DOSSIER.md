@@ -250,3 +250,16 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   show its sign (Suspending 81 = Resuming 81). The b163 / b164 changes and the newer `hand_poser.lua` stay the first
   suspects. Flat runs of b171 and b172 on 2026-11-25 (both carry b163 / b164) played without freezing `[measured, n=2,
   flat only]`.
+
+- /pd 2026-11-25 (Fable), the crash at `re8.exe+0x4151C23` read from two dumps (note
+  `modding-notes/2026-11-25c-the-crash-at-4151c23-read-from-the-dumps.md`): +0x4151C00 is the engine's `release` of a
+  managed object (header at +0, hold count at +8; a negative count = a thread-local object, its place in the creating
+  thread's table of locals); +0x41510E0 is `add_ref`, which takes a local out of the CURRENT thread's table
+  `[inferred-static]`. Both crashes: `app.ThreadPoolMergeExecutor.lateUpdate` -> `ThreadPoolList<T>.merge`
+  (+0x20AC2A0, shared by every object list; REFramework labels it `<app.GUIRequest>`) -> `List.Clear` ->
+  `Array.Clear` -> `release` on an entry whose header was already gone; sub-list 0, one entry `[measured, n=2]`.
+  Not a GameObject path. Suspect `[hypothesis]`: the bridge's 2-s ammo counter refresh (`GUIRemainAmmoOrder` calls
+  from the UpdateHID callback, since 2026-11-11), the only script code that makes the game queue requests in play.
+  REFramework's crash log names unknown native code `via.dti.finalize`: a nearest-name guess, not a finalize call.
+  +0x415879C (the 2026-11-14 crash) is a virtual call on an object with a bad header: a different path.
+  Tools: `dev-archive/native/tools/crash/`. Rule set that follows: `modding-notes/2026-11-25d-clean-rebuild-2-design.md` section 5.

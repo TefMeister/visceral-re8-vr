@@ -1,0 +1,264 @@
+#### function holding +0x4151C23
+function 4151C00..4151CF9 (249 bytes)
+   04151C00  push     rbx
+   04151C02  sub      rsp, 0x20
+   04151C06  mov      eax, dword ptr [rcx + 8]
+   04151C09  mov      rbx, rcx
+   04151C0C  test     eax, eax
+   04151C0E  js       0x4151cf3
+   04151C14  nop      dword ptr [rax]
+   04151C18  nop      dword ptr [rax + rax]
+   04151C20  mov      rax, qword ptr [rbx]
+>> 04151C23  mov      rcx, qword ptr [rax]
+   04151C26  mov      rax, qword ptr [rcx + 8]
+   04151C2A  shr      rax, 0x24
+   04151C2E  and      eax, 0x3ffff
+   04151C33  lea      rcx, [rax + rax*2]
+   04151C37  mov      rax, qword ptr [rip + 0x83ae0ca]
+   04151C3E  add      rcx, rcx
+   04151C41  cmp      qword ptr [rax + rcx*8 + 0x28], 0
+   04151C47  je       0x4151c5a
+   04151C49  mov      rcx, qword ptr [rip + 0x8355660]
+   04151C50  mov      rdx, rbx
+   04151C53  call     0x41709e0
+   04151C58  jmp      0x4151c7c
+   04151C5A  mov      eax, 0xffffffff
+   04151C5F  lock xadd dword ptr [rbx + 8], eax
+   04151C64  cmp      eax, 1
+   04151C67  jne      0x4151cf3
+   04151C6D  mov      rcx, qword ptr [rip + 0x835563c]
+   04151C74  mov      rdx, rbx
+   04151C77  call     0x4170c70
+   04151C7C  test     al, al
+   04151C7E  jne      0x4151cf3
+   04151C80  mov      rax, qword ptr [rbx]
+   04151C83  mov      rcx, qword ptr [rax]
+   04151C86  mov      eax, dword ptr [rcx + 0x10]
+   04151C89  shr      eax, 0x19
+   04151C8C  test     al, 1
+   04151C8E  je       0x4151c96
+   04151C90  test     byte ptr [rbx + 0xc], 1
+   04151C94  je       0x4151ccb
+   04151C96  mov      rcx, rbx
+   04151C99  call     0x4151640
+   04151C9E  movzx    eax, byte ptr [rbx + 0xe]
+   04151CA2  test     al, al
+   04151CA4  je       0x4151cdf
+   04151CA6  movzx    eax, al
+   04151CA9  shl      eax, 4
+   04151CAC  movsxd   rcx, eax
+   04151CAF  mov      rax, rbx
+   04151CB2  sub      rax, rcx
+   04151CB5  je       0x4151cdf
+   04151CB7  mov      rbx, rax
+   04151CBA  mov      eax, dword ptr [rax + 8]
+   04151CBD  test     eax, eax
+   04151CBF  jns      0x4151c20
+   04151CC5  add      rsp, 0x20
+   04151CC9  pop      rbx
+   04151CCA  ret      
+   04151CCB  mov      rcx, qword ptr [rip + 0x83555de]
+   04151CD2  mov      rdx, rbx
+   04151CD5  add      rsp, 0x20
+   04151CD9  pop      rbx
+   04151CDA  jmp      0x4151220
+   04151CDF  mov      rax, qword ptr [rbx]
+   04151CE2  mov      edx, 1
+   04151CE7  mov      rcx, rbx
+   04151CEA  add      rsp, 0x20
+   04151CEE  pop      rbx
+   04151CEF  jmp      qword ptr [rax + 0x30]
+   04151CF3  add      rsp, 0x20
+   04151CF7  pop      rbx
+   04151CF8  ret      
+#### function holding +0x41ACF47
+function 41ACEFF..41ACF65 (102 bytes)
+   041ACEFF  lea      rbx, [rdx + 0x20]
+   041ACF03  mov      rdi, r11
+   041ACF06  lea      rbx, [rbx + r10*8]
+   041ACF0A  test     r11d, r11d
+   041ACF0D  jle      0x41acebc
+   041ACF0F  xor      esi, esi
+   041ACF11  mov      rcx, qword ptr [rbx]
+   041ACF14  test     rcx, rcx
+   041ACF17  je       0x41acf47
+   041ACF19  mov      rax, rcx
+   041ACF1C  lock cmpxchg qword ptr [rbx], rsi
+   041ACF21  je       0x41acf3d
+   041ACF23  prefetchw byte ptr [rbx]
+   041ACF26  nop      word ptr [rax + rax]
+   041ACF30  mov      rcx, qword ptr [rbx]
+   041ACF33  mov      rax, rcx
+   041ACF36  lock cmpxchg qword ptr [rbx], rsi
+   041ACF3B  jne      0x41acf30
+   041ACF3D  test     rcx, rcx
+   041ACF40  je       0x41acf47
+   041ACF42  call     0x4151c00
+>> 041ACF47  add      rbx, 8
+   041ACF4B  sub      rdi, 1
+   041ACF4F  jne      0x41acf11
+   041ACF51  mov      rsi, qword ptr [rsp + 0x40]
+   041ACF56  mov      rbx, qword ptr [rsp + 0x30]
+   041ACF5B  mov      rdi, qword ptr [rsp + 0x20]
+   041ACF60  add      rsp, 0x28
+   041ACF64  ret      
+#### function holding +0xE44565
+function E44540..E44582 (66 bytes)
+   00E44540  mov      qword ptr [rsp + 8], rbx
+   00E44545  push     rdi
+   00E44546  sub      rsp, 0x20
+   00E4454A  mov      r9d, dword ptr [rdx + 0x18]
+   00E4454E  mov      rbx, rdx
+   00E44551  mov      rdi, rcx
+   00E44554  test     r9d, r9d
+   00E44557  jle      0xe44577
+   00E44559  mov      rdx, qword ptr [rdx + 0x10]
+   00E4455D  xor      r8d, r8d
+   00E44560  call     0x41acda0
+>> 00E44565  mov      rax, qword ptr [rdi + 0x50]
+   00E44569  cmp      qword ptr [rax + 0x18], 0
+   00E4456E  jne      0xe44577
+   00E44570  mov      dword ptr [rbx + 0x18], 0
+   00E44577  mov      rbx, qword ptr [rsp + 0x30]
+   00E4457C  add      rsp, 0x20
+   00E44580  pop      rdi
+   00E44581  ret      
+#### function holding +0x20AC336
+function 20AC2A0..20AC378 (216 bytes)
+   020AC2A0  mov      qword ptr [rsp + 0x30], rsi
+   020AC2A5  lea      esi, [rbx + 0x20]
+   020AC2A8  nop      dword ptr [rax + rax]
+   020AC2B0  mov      r9, qword ptr [rbp + 0x18]
+   020AC2B4  test     r9, r9
+   020AC2B7  je       0x20ac363
+   020AC2BD  cmp      ebx, dword ptr [r9 + 0x1c]
+   020AC2C1  jae      0x20ac359
+   020AC2C7  mov      rcx, qword ptr [rsi + r9]
+   020AC2CB  test     rcx, rcx
+   020AC2CE  je       0x20ac363
+   020AC2D4  mov      rax, qword ptr [rdi + 0x50]
+   020AC2D8  cmp      qword ptr [rax + 0x18], 0
+   020AC2DD  jne      0x20ac373
+   020AC2E3  cmp      dword ptr [rcx + 0x18], 0
+   020AC2E7  jle      0x20ac341
+   020AC2E9  mov      rdx, qword ptr [rbp + 0x30]
+   020AC2ED  test     r9, r9
+   020AC2F0  je       0x20ac363
+   020AC2F2  cmp      ebx, dword ptr [r9 + 0x1c]
+   020AC2F6  jae      0x20ac359
+   020AC2F8  test     rdx, rdx
+   020AC2FB  je       0x20ac363
+   020AC2FD  mov      r8d, dword ptr [rdx + 0x18]
+   020AC301  mov      r9, rcx
+   020AC304  mov      rcx, rdi
+   020AC307  call     0x3a5fc80
+   020AC30C  mov      rax, qword ptr [rdi + 0x50]
+   020AC310  cmp      qword ptr [rax + 0x18], 0
+   020AC315  jne      0x20ac373
+   020AC317  mov      rax, qword ptr [rbp + 0x18]
+   020AC31B  test     rax, rax
+   020AC31E  je       0x20ac363
+   020AC320  mov      rcx, rdi
+   020AC323  cmp      ebx, dword ptr [rax + 0x1c]
+   020AC326  jae      0x20ac352
+   020AC328  mov      rdx, qword ptr [rsi + rax]
+   020AC32C  test     rdx, rdx
+   020AC32F  je       0x20ac366
+   020AC331  call     0xe44540
+>> 020AC336  mov      rax, qword ptr [rdi + 0x50]
+   020AC33A  cmp      qword ptr [rax + 0x18], 0
+   020AC33F  jne      0x20ac373
+   020AC341  inc      ebx
+   020AC343  add      rsi, 8
+   020AC347  cmp      ebx, dword ptr [rbp + 0x20]
+   020AC34A  jl       0x20ac2b0
+   020AC350  jmp      0x20ac373
+   020AC352  mov      edx, 0x37
+   020AC357  jmp      0x20ac36b
+   020AC359  mov      edx, 0x37
+   020AC35E  mov      rcx, rdi
+   020AC361  jmp      0x20ac36b
+   020AC363  mov      rcx, rdi
+   020AC366  mov      edx, 0x38
+   020AC36B  xor      r8d, r8d
+   020AC36E  call     0x416a580
+   020AC373  mov      rsi, qword ptr [rsp + 0x30]
+#### function holding +0x300584E
+function 30057C7..30058AA (227 bytes)
+   030057C7  mov      qword ptr [rsp + 0x60], rbx
+   030057CC  lea      rdx, [rsp + 0x20]
+   030057D1  mov      qword ptr [rsp + 0x68], rsi
+   030057D6  mov      rcx, rdi
+   030057D9  mov      qword ptr [rsp + 0x70], r14
+   030057DE  movups   xmmword ptr [rsp + 0x20], xmm0
+   030057E3  movsd    qword ptr [rsp + 0x30], xmm1
+   030057E9  call     0xe9b410
+   030057EE  movzx    edx, al
+   030057F1  mov      rax, qword ptr [rdi + 0x50]
+   030057F5  mov      rcx, qword ptr [rax + 0x18]
+   030057F9  test     rcx, rcx
+   030057FC  jne      0x3005884
+   03005802  movabs   r14, 0x7fffffffffffffff
+   0300580C  nop      dword ptr [rax]
+   03005810  test     edx, edx
+   03005812  je       0x30058db
+   03005818  lea      rax, [rsp + 0x20]
+   0300581D  and      rax, r14
+   03005820  mov      rbx, qword ptr [rax + 0x10]
+   03005824  test     rcx, rcx
+   03005827  jne      0x3005884
+   03005829  test     rbx, rbx
+   0300582C  je       0x30058c7
+   03005832  mov      eax, dword ptr [rbx + 0x10]
+   03005835  test     eax, eax
+   03005837  je       0x300585d
+   03005839  add      rbx, 0x18
+   0300583D  mov      esi, eax
+   0300583F  nop      
+   03005840  mov      rdx, qword ptr [rbx]
+   03005843  mov      rcx, rdi
+   03005846  test     rdx, rdx
+   03005849  je       0x3005850
+   0300584B  call     qword ptr [rbx + 8]
+>> 0300584E  jmp      0x3005853
+   03005850  call     qword ptr [rbx + 8]
+   03005853  add      rbx, 0x18
+   03005857  sub      rsi, 1
+   0300585B  jne      0x3005840
+   0300585D  mov      rax, qword ptr [rdi + 0x50]
+   03005861  cmp      qword ptr [rax + 0x18], rbp
+   03005865  jne      0x3005888
+   03005867  lea      rdx, [rsp + 0x20]
+   0300586C  mov      rcx, rdi
+   0300586F  call     0xe9b410
+   03005874  movzx    edx, al
+   03005877  mov      rax, qword ptr [rdi + 0x50]
+   0300587B  mov      rcx, qword ptr [rax + 0x18]
+   0300587F  test     rcx, rcx
+   03005882  je       0x3005810
+   03005884  mov      rax, qword ptr [rdi + 0x50]
+   03005888  mov      rdx, qword ptr [rax + 0x18]
+   0300588C  mov      qword ptr [rax + 0x18], rbp
+   03005890  mov      rax, qword ptr [rdi + 0x50]
+   03005894  mov      r14, qword ptr [rsp + 0x70]
+   03005899  mov      rsi, qword ptr [rsp + 0x68]
+   0300589E  mov      rbx, qword ptr [rsp + 0x60]
+   030058A3  cmp      qword ptr [rax + 0x18], 0
+   030058A8  jne      0x30058bc
+#### function holding +0x415879C
+function 4158790..41587B5 (37 bytes)
+   04158790  push     rbx
+   04158792  sub      rsp, 0x20
+   04158796  mov      rax, qword ptr [rcx]
+   04158799  mov      rbx, rcx
+>> 0415879C  call     qword ptr [rax + 0x40]
+   0415879F  test     al, al
+   041587A1  jne      0x41587a9
+   041587A3  add      rsp, 0x20
+   041587A7  pop      rbx
+   041587A8  ret      
+   041587A9  mov      byte ptr [rbx + 0x39], 1
+   041587AD  mov      al, 1
+   041587AF  add      rsp, 0x20
+   041587B3  pop      rbx
+   041587B4  ret      
