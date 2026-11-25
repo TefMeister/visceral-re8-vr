@@ -257,6 +257,7 @@ local function update(point)
         local cx = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform") end)
         local cp, cr = cx and safe(function() return cx:call("get_Position") end), cx and safe(function() return cx:call("get_Rotation") end)
         local o = get(test.kind, the_gun())
+        show(objs[test.kind == "spent" and "band" or "spent"], false)   -- only the kind asked for (b172: a switch left the other up)
         if o and cp and cr then
             if o.parent ~= nil then pcall(function() o.xf:call("set_Parent", nil) end); o.parent = nil end
             paint(o, test.kind, test.type)
