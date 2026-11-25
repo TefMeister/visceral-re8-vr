@@ -92,7 +92,12 @@ local res_cache = {}
 local function resource(kind, path)
     local key = kind .. "|" .. path
     if res_cache[key] == nil then
-        local r = safe(function() local x = sdk.create_resource(kind, path); return x and x:add_ref() end)
+        -- setMesh / set_Material take the HOLDER, not the resource (b171 passed the resource: "the object took no mesh";
+        -- measured 2026-11-25 /lm: setMesh(via.render.MeshResourceHolder), set_Material(via.render.MeshMaterialResourceHolder))
+        local r = safe(function()
+            local x = sdk.create_resource(kind, path)
+            return x and x:add_ref():create_holder(kind .. "Holder"):add_ref()
+        end)
         res_cache[key] = r or false
         L(string.format("%s %s: %s", kind, path, r and "loaded" or "NOT FOUND (is the loose-file loader on, and the file in natives/stm/visceral?)"))
     end
@@ -164,10 +169,14 @@ local function make(kind, gun)
     L(kind .. ": our object made")
     return o
 end
+local retry_at = {}   -- a failed make is tried again a second later, not every frame
 local function get(kind, gun)
     local o = objs[kind]
     if o and safe(function() return o.go:call("get_Valid") end) == false then objs[kind] = nil; o = nil end
-    if o == nil then o = make(kind, gun); objs[kind] = o end
+    if o == nil and os.clock() >= (retry_at[kind] or 0) then
+        o = make(kind, gun); objs[kind] = o
+        if o == nil then retry_at[kind] = os.clock() + 1.0 end
+    end
     return o
 end
 local function paint(o, kind, t)
@@ -230,9 +239,20 @@ local function all_off()
     show(objs.spent, false); show(objs.band, false); hide_game_round(false)
 end
 
+-- every round type's material is loaded once the player is in play, so a colour change never shows the engine's checker
+-- pattern while the file loads (its first load takes some seconds; on the title screen the guns' textures do not load at all:
+-- measured 2026-11-25 /lm)
+local preloaded = false
+local function preload()
+    if preloaded or safe(function() return rawget(_G, "re8vr").player end) == nil then return end
+    preloaded = true
+    resource("via.render.MeshResource", MESH_SPENT); resource("via.render.MeshResource", MESH_BAND)
+    for _, t in ipairs(types) do resource("via.render.MeshMaterialResource", mdf_path(t)) end
+end
+
 local function update(point)
     local now = os.clock()
-    if now - test_t > 1.0 then test_t = now; read_test() end
+    if now - test_t > 1.0 then test_t = now; read_test(); preload() end
     if test.front then   -- TEST: one of ours in front of the game camera
         local cx = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform") end)
         local cp, cr = cx and safe(function() return cx:call("get_Position") end), cx and safe(function() return cx:call("get_Rotation") end)

@@ -9,10 +9,10 @@
   },
   "scorched_inside": { "base_color": [0.10, 0.08, 0.06], "roughness": 1.0, "metallic": 0.3 },
   "re8": {
-    "_about": "Village's GM 79 has two rounds (Tefa 2026-11-25). Bullet item ids as the plugin logs them ('ammo: bullet item id ...'); an id not listed here gets the explosive band. 1927571624 was the id in the b170 robot run [inferred: that run is believed to have had explosive rounds]; the flash id is not known yet: read it from the log with flash rounds loaded.",
+    "_about": "Village's GM 79 has two rounds (Tefa 2026-11-25). Bullet item ids as the plugin logs them; an id not listed here gets the explosive band. Both ids MEASURED 2026-11-25 (/lm) from the GM 79's own spec (inventory item, <spec>.Weapon.IncludableItems): 1927571624 explosive (short name ri2042), 1583016682 flash.",
     "ammo": {
       "explosive": [1927571624],
-      "flash": []
+      "flash": [1583016682]
     }
   }
 }
