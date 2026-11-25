@@ -65,6 +65,24 @@ end
 -- So: after LockScene's own work, while something is carried, DrawDefault goes back on for the same two meshes
 -- (the player's own and pl1000LowerBody). A draw flag, not a joint; nothing made; no request.
 local BODY_PARTS = { "pl1000LowerBody" }
+-- THE SCENE LIST (2026-11-26, Tefa: "it proves that cutscenes can be individually tuned, so please have the crib scene
+-- have body as well"). One line per game event, by the name the game gives it (re8vr.game_event_action_controller ->
+-- _GameEventAction -> _EventName). body = true: the body stays drawn in it although "Auto Hide Upper Body in
+-- Cutscenes" is on. Later settings per scene (the camera yours or the game's) go in the same line.
+local SCENES = {
+    c10e050_00 = { what = "Ethan puts Rose in the crib", body = true },
+}
+
+local function running_scene()
+    local c = re8vr.game_event_action_controller
+    if c == nil then return nil end
+    local action = safe(function() return c:get_field("_GameEventAction") end)
+    if action == nil then return nil end
+    local name = safe(function() return action:get_field("_EventName") end)
+    return name and SCENES[name] or nil
+end
+
+local last_scene = nil
 local mesh_t = nil
 local body_meshes, body_meshes_for = nil, nil
 
@@ -96,13 +114,18 @@ local function find_body_meshes(player)
 end
 
 re.on_application_entry("LockScene", function()
-    if carrying == nil then body_meshes, body_meshes_for = nil, nil return end
     local player = re8vr and re8vr.player
     if player == nil then body_meshes, body_meshes_for = nil, nil return end
+    local scene = running_scene()
+    if scene ~= last_scene then
+        last_scene = scene
+        if scene then log.info(TAG .. " scene on the list: " .. scene.what .. (scene.body and " (body shown)" or "")) end
+    end
+    if carrying == nil and not (scene and scene.body) then return end
     if body_meshes_for ~= player then
         body_meshes = find_body_meshes(player)
         body_meshes_for = player
-        log.info(TAG .. " the body stays drawn during the carry: " .. tostring(#body_meshes) .. " meshes")
+        log.info(TAG .. " the body stays drawn: " .. tostring(#body_meshes) .. " meshes")
     end
     for _, m in ipairs(body_meshes) do
         pcall(function() m:call("set_DrawDefault", true) end)
