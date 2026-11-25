@@ -344,6 +344,7 @@ void insert_lt() {
         return;
     }
     const int have = player::loaded();
+    if (have <= 0 && !reload::round_in_hand()) return;   // b168: nothing to load or take out: LT moves the barrel (break_frame)
     if (have <= 0) {
         bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
         LOGI("%s breech: LT at the insert point: the barrel is empty", TAG);
@@ -391,7 +392,11 @@ void break_frame() {
     }
     // the left hand moves the barrel: LG + LT held on it, the latch open (not at a fully open barrel's insert point: LT loads there)
     const bool both = bridge::held(bridge::S_LGRIP) && bridge::held(bridge::S_LTRIG) && left_on_barrel();
-    const bool at_open_insert = g_ang >= 0.999f && pairs::docked_on(zones::INSERT) && !bridge::flag(bridge::S_GRIPPING_WEAPON);
+    // b168 (Tefa 2026-11-25: "holding it from the bottom and top of the barrel and having LG and LT to be able to bend it closed
+    // again"; robot: LG + LT at the open barrel's top only said "LT at the insert point: the barrel is empty"): LT loads there only
+    // when there is something to load or take out; otherwise it moves the barrel like anywhere else on it
+    const bool load_work = g_spent || g_hold_round || reload::round_in_hand() || player::loaded() > 0;
+    const bool at_open_insert = g_ang >= 0.999f && pairs::docked_on(zones::INSERT) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && load_work;
     if (g_move != 1 && both && bridge::pressed(bridge::S_LTRIG)) {
         if (!g_latch) {
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -526,6 +531,50 @@ void lever_point() {
     joints::set_any(joints::JOINT, lever, "set_LocalRotation", &q);
 }
 
+// b168 (2026-11-25, Tefa: "the shell insert point is off to the right by quite a bit"): the insert point was the right wrist plus a
+// guessed (0, 5, 12 cm), never measured, and it stood still while the barrel swung. Measured live (q_gm79_insert.lua, robot, barrel
+// fully open): the point 3.8 cm right of the gun's centre line, 4.7 cm under and 8.2 cm behind the barrel's chamber end
+// (vfx_muzzle2, under Carrier). Now the point rides the barrel: on top of its rear while shut (BREAK_TOP_OFF, where the hand pushes
+// it open), easing onto the chamber end as it opens (where the grenade goes in). Worked out after the arm is solved, in the right
+// hand target's frame (the way the magazine's line is, reload.cpp measure_mag_rel), and handed to pairs.cpp next frame.
+namespace {
+MO* g_mouth_tf = nullptr;
+MO* g_body = nullptr;
+Vec3 g_carrier_lp{}, g_mouth_lp{};
+bool g_mouth_joints = false;
+bool g_mouth_ok = false;
+Vec3 g_mouth_rel{};               // the insert point, in the right hand target's frame
+void measure_mouth(const Quat& carrier_q) {
+    const auto& s = player::now();
+    if (s.weapon_tf != g_mouth_tf) {
+        g_mouth_tf = s.weapon_tf; g_mouth_ok = false; g_mouth_joints = false;
+        g_body = g_mouth_tf != nullptr ? joints::joint_by_name(g_mouth_tf, L"Body") : nullptr;
+        MO* m = g_mouth_tf != nullptr ? joints::joint_by_name(g_mouth_tf, L"vfx_muzzle2") : nullptr;
+        g_mouth_joints = g_body != nullptr && g_carrier != nullptr && m != nullptr &&
+                         joints::get_v3(joints::JOINT, g_carrier, "get_LocalPosition", g_carrier_lp) && joints::get_v3(joints::JOINT, m, "get_LocalPosition", g_mouth_lp);
+        LOGI("%s breech: %s insert point %s (chamber end %.3f %.3f %.3f under the barrel joint)", TAG, g_id.c_str(),
+             g_mouth_joints ? "rides the barrel" : "joints NOT found: the old fixed place", g_mouth_lp.x, g_mouth_lp.y, g_mouth_lp.z);
+    }
+    if (!g_mouth_joints) return;
+    Vec3 bp, rp;
+    Quat bq, rq;
+    if (!joints::get_v3(joints::JOINT, g_body, "get_Position", bp) || !joints::get_q(joints::JOINT, g_body, "get_Rotation", bq) ||
+        !player::get_pose(field_obj(s.ik_right, "Target"), rp, rq))
+        return;
+    const float a = g_ang < 0.0f ? 0.0f : g_ang > 1.0f ? 1.0f : g_ang;
+    const Vec3 top{BREAK_TOP_OFF[0] * (1.0f - a), BREAK_TOP_OFF[1] * (1.0f - a), BREAK_TOP_OFF[2] * (1.0f - a)};
+    const Vec3 local = g_carrier_lp + rotate(qnorm(carrier_q), g_mouth_lp + top);
+    const Vec3 w = bp + rotate(qnorm(bq), local);
+    g_mouth_rel = rotate(qinv(qnorm(rq)), w - rp);
+    g_mouth_ok = true;
+}
+} // namespace
+bool insert_point(const Vec3& rp, const Quat& rq, Vec3& out) {
+    if (!BREAK_INSERT_RIDES || !here() || g_w->breech != Breech::BREAK || !g_mouth_ok) return false;
+    out = rp + rotate(qnorm(rq), g_mouth_rel);
+    return true;
+}
+
 void pose_point() {
     const bool lid = gate_gun();   // 2026-11-01 22:4x: the M1851's cover swings the same way the GM 79's barrel does
     if (!here() || (g_w->breech != Breech::BREAK && !lid)) return;
@@ -549,10 +598,11 @@ void pose_point() {
     const float step = sec > 0.0f ? dt / sec : 1.0f;
     g_swing = want > g_swing ? std::fmin(want, g_swing + step) : std::fmax(want, g_swing - step);
     if (!lid) g_swing = g_ang;   // b152: the GM 79's barrel hangs where the hand, the fall or the flick has it
-    if (g_swing <= 0.0f) return;   // shut: the animation's own pose stands
-    const float h = (lid ? g_lid_deg : BREAK_OPEN_DEG) * g_swing * 3.14159265f / 360.0f, sh = std::sin(h);
+    const float h = (lid ? g_lid_deg : BREAK_OPEN_DEG) * std::fmax(0.0f, g_swing) * 3.14159265f / 360.0f, sh = std::sin(h);
     const Vec3 ax = lid ? g_lid_axis : Vec3{1, 0, 0};
     Quat q = qnorm(qmul(g_carrier_rest, Quat{ax.x * sh, ax.y * sh, ax.z * sh, std::cos(h)}));
+    if (!lid) measure_mouth(q);   // b168: the insert point rides the barrel (shut too)
+    if (g_swing <= 0.0f) return;   // shut: the animation's own pose stands
     joints::set_any(joints::JOINT, g_carrier, "set_LocalRotation", &q);
 }
 

@@ -231,6 +231,11 @@ constexpr float BREAK_LATCH_FLICK_SEC = 0.25f;     // b152: right B: the thumb i
 constexpr float BREAK_LATCH_DEG = 28.0f;           // 2026-11-23: the latch part (the gun's `Lever` joint) turns this far when flicked open
 constexpr float BREAK_LATCH_AXIS[3] = {0.0f, 1.0f, 0.0f};   // ... about this axis of its own (set by eye from the six views)
 constexpr float BREAK_LATCH_TURN_SEC = 0.08f;      // ... in this long
+// b168 (2026-11-25, Tefa: "the shell insert point is off to the right by quite a bit"; breech.cpp measure_mouth): the insert point
+// rides the barrel: the chamber end (vfx_muzzle2) when open, and this far from it in the barrel's own axes (m: right, up, forward)
+// while shut, on top of the barrel's rear just ahead of the latch, where the hand pushes it open. false = the old fixed place.
+constexpr bool  BREAK_INSERT_RIDES = true;
+constexpr float BREAK_TOP_OFF[3] = {0.0f, 0.03f, 0.04f};
 constexpr float BREAK_SHUT_PART = 0.06f;           // b152: let go this close to shut, it clicks shut instead of falling
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;

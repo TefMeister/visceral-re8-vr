@@ -136,6 +136,9 @@ void frame() {
         g_dock_on[i] = ok && dock_applies(DOCKS[i].key);
         g_dock_c[i] = world(z.off);
         g_dock_r[i] = z.r;
+        // b168: the GM 79's insert point rides its barrel (breech.cpp measure_mouth); a Grip Zones move still applies on top
+        Vec3 ip;
+        if (DOCKS[i].key == zones::INSERT && ok && breech::insert_point(rp, rq, ip)) g_dock_c[i] = ip + rotate(gq, zones::file_offset(zones::INSERT));
         if (DOCKS[i].key == zones::WELL) {   // where reload.cpp measured the port (it draws the zone itself)
             Vec3 c;
             g_dock_on[i] = g_dock_on[i] && reload::port_center(c);
