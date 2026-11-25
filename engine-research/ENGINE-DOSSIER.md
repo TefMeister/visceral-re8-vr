@@ -95,6 +95,38 @@ count (on at 2 and 1 loaded, off at 0) `[measured 2026-11-05]`. `NormalMagazineP
 `[measured 2026-11-05, n=1 gun]`. The magazine held in the left hand is the gun's own mesh, so these parts rule its look too;
 `src/magdisp.cpp` overrides them while it is out. Type list: `type_probe.txt`.
 
+## §10 The prologue with Rose, and how praydog's layer hides and hands over the body (2026-11-26, /ms, headset, nightly 01451)
+
+Detail and Tefa's words: `modding-notes/2026-11-26-from-zero-step-1-rose-the-scene-list.md`.
+
+- The player object is `pl9000` at the title and in the book scene's lead-in, `pl1000` in play `[measured, n=3]`.
+- Ethan carrying Rose has no game event and raises none of `re8vr`'s flags. Its marker: the object `pl5000` is a
+  first-level child of the player's transform, from the first frame of control until the crib event `c10e050_00`
+  starts `[measured 2026-11-26, n=3 runs]`. The event before control is `c10e001_00`.
+- The carry's motions (layer 0, bank 0): id 0 `ch01_0000_Baby_001_Idle_Loop`, 4 / 5 `Baby_410_Turn_L75` /
+  `Baby_411_Turn_R75`, 9002 `Baby_100_Dandle` (the patting on the stairs), 1 = ONE blend of
+  `Hands_Walk_HoldBaby_Loop`, `Hands_WalkB_..`, `Hands_WalkL_..`, `Hands_WalkR_..` `[measured, n=1]`.
+  `via.motion.MotionNodeCtrl` offers only `get_Weight`; `via.motion.TreeLayer` has `getMotionNodeCount`,
+  `getMotionNode`, `getNodeParameter`, `trySetNodeParameter` `[measured: method names]`.
+- Hand travel against the eye camera while carrying: 6 cm forward and sideways, 2-3 cm backward, 0 standing; head and
+  hip 0 `[measured, n=1, 90-frame windows]`.
+- `re8vr:update_hand_ik()` skipped = the game's own arm motion shows (praydog does it for `c32e390_01..09`; we do it
+  for the carry) `[verified-live 2026-11-26, n=1]`. Skipping `update_body_ik` too changed nothing Tefa could see in
+  the bob `[reported, n=1]`.
+- The body is hidden by `RE8VR::fix_player_shadow` at pre-LockScene: DrawDefault off on the upper and lower body
+  meshes when the controllers are not in use, or when (`is_in_cutscene` or not `can_use_hands` or grapple aim or a
+  vehicle) and the "Auto Hide ... in Cutscenes" settings are on (`RE8VR_AutoHideUpperBodyCutscenes`,
+  `RE8VR_AutoHideLowerBodyCutscenes` in `re2_fw_config.txt`) `[inferred-static from RE8VR.cpp at 22c713ce + measured]`.
+  Setting DrawDefault back on from `re.on_application_entry("LockScene")` wins for that frame `[verified-live, n=1]`.
+- A running event's name: `re8vr.game_event_action_controller` -> `_GameEventAction` -> `_EventName`; it stays up
+  for the whole scene (c10e050_00: 14 s) `[measured, n=3]`.
+- `re8_vr.lua` on the nightly still asks `is_openxr_loaded()` before OpenXR is up (26 ms early): the OpenVR hand
+  offsets stay unless asked again `[measured, n=1]`.
+- `VR_DecoupledPitch=true`: a cutscene's camera no longer tilts the view `[verified-live, n=1, Tefa]`.
+- `app.PlayerMeshController` fields include `FaceMesh`, `HairMesh`, `HeadShadowMesh`, `HeadJoint`; methods
+  `updateHeadMesh`, `updateParts`, `updatePl1000Parts` `[measured: names only]`. `getComponent` for it on
+  `re8vr.player` gave nothing from our script: unexplained (RE8-083).
+
 ## Dead ends
 
 - praydog's connector on the 76298bd build (§1). The game's held-trigger shot with only `readyShootByTimer` forced (§2).
