@@ -70,8 +70,50 @@ local BODY_PARTS = { "pl1000LowerBody" }
 -- _GameEventAction -> _EventName). body = true: the body stays drawn in it although "Auto Hide Upper Body in
 -- Cutscenes" is on. Later settings per scene (the camera yours or the game's) go in the same line.
 local SCENES = {
-    c10e050_00 = { what = "Ethan puts Rose in the crib", body = true },
+    c10e050_00 = { what = "Ethan puts Rose in the crib", body = true, head = true },
 }
+
+-- THE HEAD IN A SCENE SEEN FROM OUTSIDE THE BODY (2026-11-26, A TRY). Tefa: in the crib scene "the view is out of
+-- body so i can see the whole Ethan ... with no head". app.PlayerMeshController holds FaceMesh and HairMesh beside
+-- the body meshes [measured 2026-11-26: its field list]; HOW the game keeps the head out of first person is not
+-- known yet. The try: DrawDefault on for both while a scene with head = true runs, put back as found after it.
+-- The state found is logged once per scene so the next step has numbers if this is not it.
+local HEAD_FIELDS = { "FaceMesh", "HairMesh" }
+local mesh_controller_t = nil
+local head_meshes, head_was = nil, nil
+
+local function head_begin(player)
+    mesh_controller_t = mesh_controller_t or sdk.typeof("app.PlayerMeshController")
+    local mc = safe(function() return player:call("getComponent(System.Type)", mesh_controller_t) end)
+    if mc == nil then log.info(TAG .. " head: no mesh controller") return end
+    head_meshes, head_was = {}, {}
+    local seen = {}
+    for _, field in ipairs(HEAD_FIELDS) do
+        local m = safe(function() return mc:get_field(field) end)
+        if m ~= nil then
+            head_meshes[#head_meshes + 1] = m
+            head_was[#head_meshes] = safe(function() return m:call("get_DrawDefault") end)
+            seen[#seen + 1] = string.format("%s draw=%s enabled=%s parts=%s", field, tostring(head_was[#head_meshes]),
+                tostring(safe(function() return m:call("get_Enabled") end)),
+                tostring(safe(function() return m:call("getPartsEnableCount") end)))
+        else
+            seen[#seen + 1] = field .. " none"
+        end
+    end
+    local hj = safe(function() return mc:get_field("HeadJoint") end)
+    local scale = hj and safe(function() return hj:call("get_LocalScale") end)
+    seen[#seen + 1] = "HeadJoint scale=" .. (scale and string.format("%.2f %.2f %.2f", scale.x, scale.y, scale.z) or "?")
+    log.info(TAG .. " head, as found: " .. table.concat(seen, "; "))
+end
+
+local function head_end()
+    if head_meshes == nil then return end
+    for i, m in ipairs(head_meshes) do
+        if head_was[i] ~= nil then pcall(function() m:call("set_DrawDefault", head_was[i]) end) end
+    end
+    head_meshes, head_was = nil, nil
+    log.info(TAG .. " head: put back as found")
+end
 
 local function running_scene()
     local c = re8vr.game_event_action_controller
@@ -118,8 +160,13 @@ re.on_application_entry("LockScene", function()
     if player == nil then body_meshes, body_meshes_for = nil, nil return end
     local scene = running_scene()
     if scene ~= last_scene then
+        head_end()
+        if scene and scene.head then head_begin(player) end
         last_scene = scene
         if scene then log.info(TAG .. " scene on the list: " .. scene.what .. (scene.body and " (body shown)" or "")) end
+    end
+    if head_meshes ~= nil then
+        for _, m in ipairs(head_meshes) do pcall(function() m:call("set_DrawDefault", true) end) end
     end
     if carrying == nil and not (scene and scene.body) then return end
     if body_meshes_for ~= player then
