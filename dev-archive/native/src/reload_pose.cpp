@@ -428,4 +428,17 @@ int mag_rounds_out() {
     const int have = std::max(0, player::reserve()) + std::max(0, g_mag_rounds);
     return cap > 0 ? std::min(cap, have) : have;
 }
+// b170 (the GM 79's spent shell, breech.cpp): where a round sits in the left hand (pose_shell's place, without its size), in the
+// gun's space, whether or not a round is carried; the Lua's copy draws the spent shell there
+bool round_hand_local(Vec3& lp, Quat& lq) {
+    using namespace detail;
+    Vec3 wp;
+    Quat wr;
+    if (!held_pose(wp, wr)) return false;
+    wp = wp + rotate(qnorm(wr), Vec3{SHELL_DROP_LOCAL[0], SHELL_DROP_LOCAL[1], SHELL_DROP_LOCAL[2]});
+    const auto sv = [](int i) { const float v = bridge::view((bridge::Slot)(bridge::S_SHELL_HOLD + i)); return bridge::has(v) ? v : 0.0f; };
+    wp = wp + rotate(qnorm(wr), Vec3{sv(0), sv(1), sv(2)} * 0.01f);
+    wr = qnorm(qmul(qnorm(wr), quat_from_ypr(sv(3), sv(4), sv(5))));
+    return to_weapon_local(wp, wr, lp, lq);
+}
 } // namespace vn::reload

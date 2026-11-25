@@ -308,7 +308,7 @@ void hand_checks() {
     if (g_round_in_hand && (g_w->breech == weapons::Breech::CYLINDER || shells::port_gun())) return;   // docked on the drum / the shell port (2026-11-02), LT puts each in
     // b149: the GM 79's next round, taken early: it goes in by itself only at an OPEN and EMPTY barrel (a spent case is swapped
     // with LT at the insert point, breech.cpp insert_lt; a live grenade still in there is taken out with LT first)
-    if (g_round_in_hand && g_w->breech == weapons::Breech::BREAK && (!breech::is_open() || breech::spent() || (player::capacity() > 0 && player::loaded() + g_stash >= player::capacity()))) return;
+    if (g_round_in_hand && g_w->breech == weapons::Breech::BREAK && (!breech::is_open() || breech::spent() || breech::spent_stage() == 1 || breech::spent_stage() == 2 || (player::capacity() > 0 && player::loaded() + g_stash >= player::capacity()))) return;
     // b163 (twomag.h): two in the hand: LT, anywhere, swaps them round in the palm; then the front one goes in at the well like any
     // b167 (Tefa 2026-11-25: after LT "the bullet count stays as if i kept inserting mag1"): this check runs at more than one point
     // a frame and bridge::pressed() is true for the whole frame, so ONE press swapped them twice (log 12:02:51.330 / .337, 12:03:00.067
@@ -407,7 +407,7 @@ void hand_checks() {
             static float told_spent = -10.0f;
             if (now - told_spent > 2.0f) {   // 2026-11-02: no refusal buzz: the hand docks here and LT swaps them (breech.cpp)
                 told_spent = now;
-                LOGI("%s reload: the spent case is still in: LT here swaps it for the round in the hand", TAG);
+                LOGI("%s reload: the spent case is still in: LT here puts thumb and finger on it, pull it out; the round in the hand goes in after", TAG);
             }
             return;
         }

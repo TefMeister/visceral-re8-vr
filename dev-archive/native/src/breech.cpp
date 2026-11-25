@@ -67,6 +67,13 @@ float g_peak = 0.0f;          // the biggest rate this second, for the log (how 
 bool g_spent = false;         // the GM 79 fired and its case is still in the barrel (2026-10-27)
 bool g_spent_in_hand = false; // 2026-11-02: the spent case taken out is held in the left hand until LG lets go (thrown away)
 bool g_hold_round = false;    // 2026-11-02: a round just went into the open barrel by hand: the hand stays on it while LG is held
+// b170: the spent shell pulled out by hand (settings.h BREAK_SPENT_PULL_M): 0 none, 1 the hand pulls it, 2 the hand carries the live
+// one back in; how far out it is (m), the left controller where the pull began and the barrel's way out (both in the right hand
+// target's frame, measure_mouth), and a one-shot "let the hand off the dock" for pairs.cpp
+int g_pull = 0;
+float g_pull_m = 0.0f, g_push_t0 = -1.0f;
+Vec3 g_pull_c0{}, g_out_rel{0, 0, -1};
+bool g_out_ok = false, g_undock_req = false;
 int g_last_loaded = -1;       // rounds in the gun last frame: a drop while closed = a shot
 int g_spent_n = 0;            // a revolver's spent casings still in the drum (2026-10-27)
 int g_drag = 0;               // the drum dragged by hand: +1 opening, -1 closing, 0 not
@@ -320,8 +327,60 @@ void open_cover(const char* why) { if (cover_gun()) set_open(true, why); }
 void close_cover(const char* why) { if (cover_gun()) { set_open(false, why); g_spent_n = 0; } }
 bool drop_casing() { if (!cover_gun() || g_spent_n <= 0) return false; --g_spent_n; return true; }
 
+// b170: the left controller in the right hand target's frame (the frame the barrel's way out is kept in)
+bool pull_ctrl(Vec3& rel) {
+    const auto& s = player::now();
+    Vec3 rp, cp;
+    Quat rq;
+    if (!player::get_pose(field_obj(s.ik_right, "Target"), rp, rq) || !bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cp)) return false;
+    rel = rotate(qinv(qnorm(rq)), cp - rp);
+    return true;
+}
+void pull_frame() {
+    if (g_pull == 1) {
+        if (!bridge::held(bridge::S_LGRIP) || !g_open) {
+            LOGI("%s breech: the spent shell let go %.0f%% out: it slides back in", TAG, g_pull_m / BREAK_SPENT_PULL_M * 100.0f);
+            g_pull = 0; g_pull_m = 0.0f;
+            return;
+        }
+        Vec3 c;
+        if (!g_out_ok || !pull_ctrl(c)) return;
+        const Vec3 d = c - g_pull_c0;
+        const float m = d.x * g_out_rel.x + d.y * g_out_rel.y + d.z * g_out_rel.z;
+        g_pull_m = m < 0.0f ? 0.0f : m > BREAK_SPENT_PULL_M ? BREAK_SPENT_PULL_M : m;
+        if (m < BREAK_SPENT_PULL_M) return;
+        g_spent = false;
+        g_spent_in_hand = true;
+        bridge::sfx(bridge::SFX_MAG_OUT);
+        bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
+        if (reload::round_in_hand()) {
+            g_pull = 2; g_push_t0 = now_s();
+            LOGI("%s breech: the spent shell is out, in the hand: the hand pushes the live one in (%.2f s)", TAG, BREAK_PUSH_SEC);
+        } else {
+            g_pull = 0; g_pull_m = 0.0f; g_undock_req = true;
+            LOGI("%s breech: the spent shell is out, in the left hand: let go of LG to throw it away, or keep LG held to the pouch for a live one", TAG);
+        }
+        return;
+    }
+    if (g_pull == 2) {
+        const float k = BREAK_PUSH_SEC > 0.0f ? (now_s() - g_push_t0) / BREAK_PUSH_SEC : 1.0f;
+        g_pull_m = BREAK_SPENT_PULL_M * (1.0f - (k >= 1.0f ? 1.0f : k * k * (3.0f - 2.0f * k)));
+        if (k < 1.0f) return;
+        g_pull = 0; g_pull_m = 0.0f;
+        if (reload::round_in_hand() && reload::insert_from_hand()) {
+            g_last_loaded = player::loaded();
+            g_hold_round = true;
+            click();
+            LOGI("%s breech: the live one pushed in (loaded %d); the spent shell stays in the hand until LG is let go", TAG, player::loaded());
+        } else {
+            LOGI("%s breech: the live one could not go in", TAG);
+        }
+    }
+}
+
 void insert_lt() {
     if (!here() || g_w->breech != Breech::BREAK) return;
+    if (insert_on_top()) return;   // b170: the hand on top of the barrel: LT moves the barrel (break_frame), it loads nothing
     if (!g_open) {   // b152: at a barrel that is not open LT is the hand moving it (break_frame), or a refusal while the latch is shut
         if (!g_latch) {
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -329,18 +388,14 @@ void insert_lt() {
         }
         return;
     }
-    if (g_spent) {   // 2026-11-02 (Tefa): it comes out INTO the left hand; with a live round already in the hand, one LT swaps them
-        g_spent = false;
-        g_spent_in_hand = true;
-        bridge::sfx(bridge::SFX_MAG_OUT);
+    if (g_spent) {   // b170 (was 2026-11-02: one LT took it out at once, or swapped it for the round in the hand)
+        if (g_pull != 0) return;
+        Vec3 c;
+        if (!pull_ctrl(c)) return;
+        g_pull = 1; g_pull_m = 0.0f; g_pull_c0 = c;
         bridge::rumble(bridge::LEFT, RELOAD_GRAB_BUZZ_AMP, RELOAD_GRAB_BUZZ_SEC, RELOAD_BUZZ_HZ);
-        if (reload::round_in_hand() && reload::insert_from_hand()) {
-            g_last_loaded = player::loaded();
-            g_hold_round = true;
-            LOGI("%s breech: LT swapped them: the spent case out into the hand, the live round in (loaded %d); LG let go drops the case", TAG, player::loaded());
-        } else {
-            LOGI("%s breech: the spent case is out, in the left hand: let go to throw it away, or keep LG held to the pouch for a live round", TAG);
-        }
+        LOGI("%s breech: LT on the spent shell: thumb and finger on it; pull it out %.0f cm along the barrel (LG held)%s", TAG,
+             BREAK_SPENT_PULL_M * 100.0f, reload::round_in_hand() ? "; the live one in the hand goes in after" : "");
         return;
     }
     const int have = player::loaded();
@@ -363,7 +418,7 @@ float left_down_m() {   // how far the left controller is BELOW the gun hand, st
     // way, as the barrel's fall is; the gun hand's own axes lie any way the gun is held (the first cut used them: no pull was seen)
     return bridge::hand_pos(bridge::RIGHT).y - bridge::hand_pos(bridge::LEFT).y;
 }
-bool left_on_barrel() { return bridge::flag(bridge::S_GRIPPING_WEAPON) || pairs::docked_on(zones::INSERT); }
+bool left_on_barrel() { return (BREAK_FRONT_GRIP_MOVES && bridge::flag(bridge::S_GRIPPING_WEAPON)) || pairs::docked_on(zones::INSERT); }   // b170: the top hold only
 void break_frame() {
     const float now = now_s();
     const float dt = g_ang_t < 0.0f ? 0.0f : std::fmin(0.05f, now - g_ang_t);
@@ -396,7 +451,8 @@ void break_frame() {
     // again"; robot: LG + LT at the open barrel's top only said "LT at the insert point: the barrel is empty"): LT loads there only
     // when there is something to load or take out; otherwise it moves the barrel like anywhere else on it
     const bool load_work = g_spent || g_hold_round || reload::round_in_hand() || player::loaded() > 0;
-    const bool at_open_insert = g_ang >= 0.999f && pairs::docked_on(zones::INSERT) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && load_work;
+    // b170: the hand on TOP of the barrel always moves it; at the chamber end LT loads (insert_on_top, measure_mouth below)
+    const bool at_open_insert = g_ang >= 0.999f && pairs::docked_on(zones::INSERT) && !bridge::flag(bridge::S_GRIPPING_WEAPON) && !insert_on_top() && load_work;
     if (g_move != 1 && both && bridge::pressed(bridge::S_LTRIG)) {
         if (!g_latch) {
             bridge::rumble(bridge::LEFT, RELOAD_DENY_BUZZ_AMP, RELOAD_DENY_BUZZ_SEC, RELOAD_BUZZ_HZ);
@@ -453,6 +509,7 @@ void frame() {
         g_spent = false;
         g_spent_in_hand = false;
         g_hold_round = false;
+        g_pull = 0; g_pull_m = 0.0f; g_undock_req = false;
         g_last_loaded = -1;
         g_spent_n = 0;
         g_drag = 0;
@@ -460,7 +517,7 @@ void frame() {
         g_have_prev = false;
         g_rate = 0.0f;
         if (here()) LOGI("%s breech: %s (%s) %s", TAG, id.c_str(), weapons::name(id),
-                         g_w->breech == Breech::BREAK ? "opens with LG + LT on its front grip; closes the same way or with a flick up"
+                         g_w->breech == Breech::BREAK ? "right B unlatches it; LG + LT on top of the barrel opens and shuts it, or a flick down / up; LT at the open chamber pulls the spent shell"
                          : gate_gun() ? "right B opens the loading cover; LG on it + LT puts pouch rounds in; LT with none in the hand, or right B, closes it"
                                       : "opens with LG at the drum and a drag; closes with a swing of the gun hand or LT with none in the hand");
     }
@@ -493,7 +550,7 @@ void frame() {
     // 2026-11-01 (Tefa: "please disable B opening and closing the grenade launcher"): right B no longer opens or closes it
     // (it comes back with the semi-immersive and automatic reload modes, ideas/fresh)
     // the GM 79 with the left hand on its front grip: LT opens / closes it (2026-10-27)
-    if (g_w->breech == Breech::BREAK) { break_frame(); return; }   // b152: the latch, the hand on the barrel, gravity
+    if (g_w->breech == Breech::BREAK) { pull_frame(); break_frame(); return; }   // b152: the latch, the hand on the barrel, gravity
     if (gate_gun()) {   // 2026-11-01 22:4x: right B opens the M1851's cover; gate.cpp loads it and shuts it (Tefa's plan, 22:5x)
         if (bridge::pressed(bridge::S_RB)) {
             if (gate::holding()) gate::close_request("right B");   // the right hand back to the grip first, then the thumb shuts it
@@ -543,6 +600,11 @@ MO* g_body = nullptr;
 Vec3 g_carrier_lp{}, g_mouth_lp{};
 bool g_mouth_joints = false;
 bool g_mouth_ok = false;
+bool g_at_mouth = false;          // b170: the dock is at the chamber end (loading), not on top of the barrel
+MO* g_ammo = nullptr;             // b170: the gun's own grenade joint (Ammo01, under Carrier): the live one; its rest under the barrel
+Vec3 g_ammo_lp{}, g_ammo_scale{1, 1, 1};
+Quat g_ammo_lq{0, 0, 0, 1};
+bool g_ammo_hidden = false;
 Vec3 g_mouth_rel{};               // the insert point, in the right hand target's frame
 void measure_mouth(const Quat& carrier_q) {
     const auto& s = player::now();
@@ -550,6 +612,11 @@ void measure_mouth(const Quat& carrier_q) {
         g_mouth_tf = s.weapon_tf; g_mouth_ok = false; g_mouth_joints = false;
         g_body = g_mouth_tf != nullptr ? joints::joint_by_name(g_mouth_tf, L"Body") : nullptr;
         MO* m = g_mouth_tf != nullptr ? joints::joint_by_name(g_mouth_tf, L"vfx_muzzle2") : nullptr;
+        g_ammo = g_mouth_tf != nullptr ? joints::joint_by_name(g_mouth_tf, L"Ammo01") : nullptr;
+        g_ammo_hidden = false;
+        if (g_ammo == nullptr || !joints::get_v3(joints::JOINT, g_ammo, "get_LocalPosition", g_ammo_lp) || !joints::get_q(joints::JOINT, g_ammo, "get_LocalRotation", g_ammo_lq) ||
+            !joints::get_v3(joints::JOINT, g_ammo, "get_LocalScale", g_ammo_scale))
+            g_ammo = nullptr;
         g_mouth_joints = g_body != nullptr && g_carrier != nullptr && m != nullptr &&
                          joints::get_v3(joints::JOINT, g_carrier, "get_LocalPosition", g_carrier_lp) && joints::get_v3(joints::JOINT, m, "get_LocalPosition", g_mouth_lp);
         LOGI("%s breech: %s insert point %s (chamber end %.3f %.3f %.3f under the barrel joint)", TAG, g_id.c_str(),
@@ -561,12 +628,76 @@ void measure_mouth(const Quat& carrier_q) {
     if (!joints::get_v3(joints::JOINT, g_body, "get_Position", bp) || !joints::get_q(joints::JOINT, g_body, "get_Rotation", bq) ||
         !player::get_pose(field_obj(s.ik_right, "Target"), rp, rq))
         return;
-    const float a = g_ang < 0.0f ? 0.0f : g_ang > 1.0f ? 1.0f : g_ang;
-    const Vec3 top{BREAK_TOP_OFF[0] * (1.0f - a), BREAK_TOP_OFF[1] * (1.0f - a), BREAK_TOP_OFF[2] * (1.0f - a)};
-    const Vec3 local = g_carrier_lp + rotate(qnorm(carrier_q), g_mouth_lp + top);
+    // b170 (Tefa 2026-11-25, asked where the top hold goes: "further forward please"): the one dock has two places, both riding the
+    // barrel. ON TOP of the barrel AHEAD of the hinge (BREAK_TOP_HOLD, from the barrel joint) is where the hand opens and shuts it:
+    // pushed down it opens, lifted it shuts, the way a hand on a real barrel moves it. The CHAMBER END is where a grenade goes in or a
+    // spent case comes out: the dock goes there only at a fully open barrel with a grenade in the hand or a case to take out. It
+    // never moves while the hand is docked on it (pairs.cpp), so a hand on top rides the barrel all the way open and back.
+    const bool docked = pairs::docked_on(zones::INSERT);
+    if (!docked) g_at_mouth = g_ang >= 0.999f && (reload::round_in_hand() || g_spent || g_hold_round);
+    const Quat cq = qnorm(carrier_q);
+    // b170: the hand on the spent shell rides it out of the chamber (and back in with the live one): the dock moves g_pull_m out
+    const Vec3 out_c{0.0f, 0.0f, -1.0f};   // the barrel's own way out of the chamber end (the muzzle is +z)
+    const Vec3 at = g_at_mouth ? g_mouth_lp + out_c * g_pull_m : Vec3{BREAK_TOP_HOLD[0], BREAK_TOP_HOLD[1], BREAK_TOP_HOLD[2]};
+    const Vec3 local = g_carrier_lp + rotate(cq, at);
     const Vec3 w = bp + rotate(qnorm(bq), local);
-    g_mouth_rel = rotate(qinv(qnorm(rq)), w - rp);
+    const Quat inv = qinv(qnorm(rq));
+    g_mouth_rel = rotate(inv, w - rp);
     g_mouth_ok = true;
+    g_out_rel = rotate(inv, rotate(qnorm(bq), rotate(cq, out_c)));
+    g_out_ok = true;
+    // b170: the spent shell is drawn by the Lua's copy (visceral_re8_shell2.lua, slots 217-225, the gun's space): in the chamber
+    // while a live one is in the hand, sliding out with the pull, then in the hand beside the live one / alone until LG lets go.
+    // The gun's own grenade joint is the live one; with none in the hand or the barrel it is hidden while the copy shows
+    if (g_ammo == nullptr) return;
+    const bool live_in_hand = reload::round_in_hand();
+    const bool spent_out = g_spent_in_hand || g_pull == 2;
+    // with NO live one in the hand the gun's own grenade joint IS the spent shell: it slides out with the pull and rides in the hand
+    // (written in the world after the animation, as the barrel's turn is); with a live one in the hand (the gun's joint is that one)
+    // the spent shell is the Lua's copy [the copy's mesh part for the GM 79 is not found yet: it may not show]
+    static bool drew_spent = false;
+    const bool draw_spent = !live_in_hand && (g_pull == 1 || g_spent_in_hand);
+    if (drew_spent && !draw_spent && !live_in_hand) {   // thrown away (or let back in): the joint back to its place in the barrel
+        joints::set_any(joints::JOINT, g_ammo, "set_LocalPosition", &g_ammo_lp);
+        joints::set_any(joints::JOINT, g_ammo, "set_LocalRotation", &g_ammo_lq);
+    }
+    drew_spent = draw_spent;
+    if (draw_spent) {
+        Vec3 lp;
+        Quat lq;
+        bool ok = true;
+        if (g_spent_in_hand) ok = reload::round_hand_local(lp, lq);
+        else { lp = g_carrier_lp + rotate(cq, g_ammo_lp + out_c * g_pull_m); lq = qnorm(qmul(cq, g_ammo_lq)); }
+        if (ok) {
+            const Vec3 gw = bp + rotate(qnorm(bq), lp);
+            const Quat gr = qnorm(qmul(qnorm(bq), lq));
+            joints::set_any(joints::JOINT, g_ammo, "set_Position", &gw);
+            joints::set_any(joints::JOINT, g_ammo, "set_Rotation", &gr);
+        }
+    }
+    const bool copy_on = live_in_hand && (g_pull != 0 || spent_out || g_spent);
+    if (copy_on) {
+        Vec3 cp;
+        Quat cr;
+        bool ok = false;
+        if (spent_out) {
+            ok = reload::round_hand_local(cp, cr);
+            if (ok) cp = cp + rotate(qnorm(cr), Vec3{BREAK_SPENT_BESIDE[0], BREAK_SPENT_BESIDE[1], BREAK_SPENT_BESIDE[2]});
+        } else {
+            cp = g_carrier_lp + rotate(cq, g_ammo_lp + out_c * (g_pull == 1 ? g_pull_m : 0.0f));
+            cr = qnorm(qmul(cq, g_ammo_lq));
+            ok = true;
+        }
+        if (ok) {
+            const float v[8] = {cp.x, cp.y, cp.z, cr.x, cr.y, cr.z, cr.w, 1.0f};
+            for (int i = 0; i < 8; ++i) bridge::put((bridge::Slot)(bridge::S_SHELL2_POS + i), v[i]);
+            bridge::put(bridge::S_SHELL2_ON, bridge::view(bridge::S_FRAME) + 1.0f);
+        }
+    }
+    if (g_ammo_hidden) {   // (an earlier cut hid the gun's joint; nothing hides it now)
+        joints::set_any(joints::JOINT, g_ammo, "set_LocalScale", &g_ammo_scale);
+        g_ammo_hidden = false;
+    }
 }
 } // namespace
 bool insert_point(const Vec3& rp, const Quat& rq, Vec3& out) {
@@ -574,6 +705,9 @@ bool insert_point(const Vec3& rp, const Quat& rq, Vec3& out) {
     out = rp + rotate(qnorm(rq), g_mouth_rel);
     return true;
 }
+bool take_undock() { const bool r = g_undock_req; g_undock_req = false; return r; }
+int spent_stage() { return !here() || g_w->breech != Breech::BREAK ? 0 : g_pull == 1 ? 1 : g_pull == 2 ? 2 : g_spent_in_hand ? 3 : 0; }
+bool insert_on_top() { return BREAK_INSERT_RIDES && here() && g_w->breech == Breech::BREAK && g_mouth_ok && !g_at_mouth; }
 
 void pose_point() {
     const bool lid = gate_gun();   // 2026-11-01 22:4x: the M1851's cover swings the same way the GM 79's barrel does

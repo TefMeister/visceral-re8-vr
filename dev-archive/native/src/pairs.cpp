@@ -148,6 +148,11 @@ void frame() {
         if (g_dock_on[i]) zones::publish(DOCKS[i].key, g_dock_c[i], g_dock_r[i]);
         else zones::clear(DOCKS[i].key);
     }
+    // b170: the spent shell came out with no live one in the hand: the hand carries it away (LG still held)
+    if (breech::take_undock() && g_dock >= 0 && DOCKS[g_dock].key == zones::INSERT) {
+        LOGI("%s pairs: the left hand leaves the insert point with the spent shell (LG held)", TAG);
+        g_dock = -1;
+    }
     if (g_dock >= 0 && (!ok || !lg || !play || !g_dock_on[g_dock])) {
         LOGI("%s pairs: the left hand leaves the %s (%s)", TAG, DOCKS[g_dock].name, !lg ? "LG let go" : "the gun or the scene changed");
         if (DOCKS[g_dock].key == zones::DRUM) breech::drum_undock();
@@ -165,7 +170,7 @@ void frame() {
             Quat hq;
             g_turn = player::get_pose(field_obj(s.ik_left, "Target"), hp, hq) ? qnorm(qmul(qinv(rq), qnorm(hq))) : Quat{0, 0, 0, 1};
             bridge::rumble(bridge::LEFT, PAIR_BUZZ_AMP, PAIR_BUZZ_SEC, PAIR_BUZZ_HZ);
-            LOGI("%s pairs: round(s) in hand at the %s: the left hand docks there (LT %s)", TAG, DOCKS[i].name, DOCKS[i].key == zones::INSERT ? "swaps the spent case for it" : "puts each in");
+            LOGI("%s pairs: round(s) in hand at the %s: the left hand docks there (LT %s)", TAG, DOCKS[i].name, DOCKS[i].key == zones::INSERT ? "puts thumb and finger on the spent shell: pull it out, the live one goes in after" : "puts each in");
             if (DOCKS[i].key == zones::DRUM) breech::drum_taken();
             break;
         }
@@ -224,7 +229,9 @@ void frame() {
     // pump / bolt, the magazine, or an activation sphere the hand is inside without having taken it.
     float spot = 0.0f;
     if (gate::left_spot() > 0) spot = (float)gate::left_spot();   // 2026-11-02: the Wolfsbane's hammer (10) / drum hold (6), gate.cpp
-    else if (g_dock >= 0) spot = DOCKS[g_dock].spot;
+    else if (g_dock >= 0 && DOCKS[g_dock].key == zones::INSERT && breech::spent_stage() > 0) spot = breech::spent_stage() == 1 ? 24.0f : 25.0f;   // b170: 24 fingers on the spent shell, pulling; 25 pushing the live one in (and held there until LG lets go)
+    else if (g_dock >= 0) spot = (DOCKS[g_dock].key == zones::INSERT && breech::insert_on_top()) ? 23.0f : DOCKS[g_dock].spot;   // b170: 23 = on top of the GM 79's barrel (Hand Poser "top of the barrel")
+    else if (breech::spent_stage() == 3 && !reload::round_in_hand()) spot = 26.0f;   // b170: the spent shell alone in the hand   // b170: 23 = on top of the GM 79's barrel (Hand Poser "top of the barrel")
     else if (g_active >= 0) spot = 1000.0f + (float)g_pairs[g_active].n;
     // 2026-11-08 (Tefa: "i would like to have a point on the guns when something happens, then the hand pose changes. for exapmle,
     // the rifle bolt, when pulled back with left hand then after the click that means it's at the very back, then the hand changes

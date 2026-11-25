@@ -49,6 +49,7 @@ void pocket_round();
 // 2026-10-27: a revolver's rounds in the left hand (0 = none), and one of them into the drum (breech.cpp, LT on the drum)
 int rounds_in_hand();
 bool insert_from_hand();
+bool round_hand_local(Vec3& lp, Quat& lq);   // b170: where a round sits in the left hand, in the gun's space (breech.cpp: the GM 79's spent shell)
 void grab_from_pouch();          // 2026-11-02: a pouch grab without a fresh LG press (breech.cpp: LG held in with the spent case)
 bool port_center(Vec3& out);     // 2026-11-02: the shell port, world (pairs.cpp's shell port dock)
 bool insert_direct();

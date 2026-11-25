@@ -232,10 +232,22 @@ constexpr float BREAK_LATCH_DEG = 28.0f;           // 2026-11-23: the latch part
 constexpr float BREAK_LATCH_AXIS[3] = {0.0f, 1.0f, 0.0f};   // ... about this axis of its own (set by eye from the six views)
 constexpr float BREAK_LATCH_TURN_SEC = 0.08f;      // ... in this long
 // b168 (2026-11-25, Tefa: "the shell insert point is off to the right by quite a bit"; breech.cpp measure_mouth): the insert point
-// rides the barrel: the chamber end (vfx_muzzle2) when open, and this far from it in the barrel's own axes (m: right, up, forward)
-// while shut, on top of the barrel's rear just ahead of the latch, where the hand pushes it open. false = the old fixed place.
+// rides the barrel. b170 (Tefa: the top hold "further forward please"): two places, both in the barrel's frame: the chamber end
+// (vfx_muzzle2) for loading, and BREAK_TOP_HOLD (m from the barrel joint `Carrier`, its own axes: right, up, forward) on top of the
+// barrel ahead of the hinge for opening and shutting it: 6.1 cm up, 26 cm forward in the gun at rest (the hinge is at 20.2, the
+// sight 29.8; the bore's line 2.3 up). false = the old fixed place.
 constexpr bool  BREAK_INSERT_RIDES = true;
-constexpr float BREAK_TOP_OFF[3] = {0.0f, 0.03f, 0.04f};
+constexpr float BREAK_TOP_HOLD[3] = {0.0f, 0.069f, 0.058f};
+// b170 (Tefa 2026-11-25: "if i already have a live shell in hand, taking it to the insert point must dock it, LT puts the available
+// thumb and finger on the spent shell and i have to pull the spent shell out. when it is out completely, the live shell must
+// automatically go in after, with the hand pose changing to pusing it in, spent shell stays in my hand until LG is released"):
+// the spent shell follows the left hand's pull out of the chamber end along the barrel; this far is "out completely" (m)
+constexpr float BREAK_SPENT_PULL_M = 0.10f;
+constexpr float BREAK_PUSH_SEC = 0.35f;            // then the hand carries the live one back into the chamber over this long
+constexpr float BREAK_SPENT_BESIDE[3] = {0.0f, 0.035f, 0.0f};   // the spent shell beside the live one in the hand (m, the hold's axes)
+// b170 (Tefa: "please delete the part where i can grab and open the barrel from the front part, i think it will surely interfere
+// with the reloads"): the front grip is a two-handed hold only; the barrel moves from the top hold (and the flicks)
+constexpr bool  BREAK_FRONT_GRIP_MOVES = false;
 constexpr float BREAK_SHUT_PART = 0.06f;           // b152: let go this close to shut, it clicks shut instead of falling
 // forearm.cpp (2026-11-01): the left forearm's twist joints held at one pose while a gun is in hand
 constexpr bool  FOREARM_HOLD_ON = true;

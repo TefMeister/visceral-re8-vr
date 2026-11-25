@@ -31,9 +31,12 @@ local S_FRAME, S_CAM_POS, S_CAM_ROT, S_WEAPON_NUM = 0, 72, 75, 97
 local S_ON, S_POS, S_ROT, S_SIZE = 217, 218, 221, 225
 local STALE_FRAMES = 3         -- the plugin's "wanted" stamp older than this = no second shell
 local PARTS_MAX = 256          -- a gun mesh has at most this many parts
-local SHELL_JOINTS = { "Bullet", "ShotgunCartridge_FK_0" }   -- as src/reload.cpp looks for them
+local SHELL_JOINTS = { "Bullet", "ShotgunCartridge_FK_0", "Ammo01" }   -- as src/reload.cpp looks for them (Ammo01: the GM 79, b170)
 local BODY_JOINT, BODY_AWAY_M = "Body", 100.0
-local KNOWN_PART = { [3021] = 50, [3085] = 50, [3036] = 0, [3084] = 0, [3147] = 0 }   -- W870 (+ Mercenaries), M1897 (+ Mercenaries, Rose); the two variants by likeness, not measured
+-- b170: the GM 79 (3023): its spent shell (breech.cpp measure_mouth hands over the exact place, so no "beside" offset); part 0
+-- with the body moved away, as the M1897 [hypothesis: not measured]
+local KNOWN_PART = { [3021] = 50, [3085] = 50, [3036] = 0, [3084] = 0, [3147] = 0, [3023] = 0 }
+local KNOWN_X = { [3023] = 0.0 }   -- W870 (+ Mercenaries), M1897 (+ Mercenaries, Rose); the two variants by likeness, not measured
 local cfg = {
     enabled = true,
     guns = {},                 -- "<gun number>" -> { part = <mesh part>, x, y, z (cm, the first shell's own axes), rx, ry, rz (deg) }
@@ -43,7 +46,7 @@ local function gun_cfg(num)
     local g = cfg.guns[key]
     if type(g) ~= "table" then g = {}; cfg.guns[key] = g end
     -- beside the first shell: one shell's width across (a first guess: which of its axes is "across" is not known yet)
-    for k, v in pairs({ part = KNOWN_PART[num] or -1, x = 2.2, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0 }) do if type(g[k]) ~= "number" then g[k] = v end end
+    for k, v in pairs({ part = KNOWN_PART[num] or -1, x = KNOWN_X[num] or 2.2, y = 0.0, z = 0.0, rx = 0.0, ry = 0.0, rz = 0.0 }) do if type(g[k]) ~= "number" then g[k] = v end end
     return g
 end
 local function load_cfg()
@@ -300,6 +303,8 @@ local function update(point)
     local part, whole = g and math.floor(g.part + 0.5) or -1, false
     local front = test.front and num > 0
     if front then part, whole = (test.part and math.floor(test.part + 0.5) or part), test.whole end
+    -- 2026-11-25 (b170, finding the GM 79's grenade part): "part" in the test file also tries a part where the copy really is drawn
+    if not front and test.part then part = math.floor(test.part + 0.5) end
     if not (wanted or front) then
         if copy and shown then pcall(function() copy.go:call("set_DrawSelf", false) end); shown = false; L("the second shell is gone (one or none left in the hand)") end
         if copy and copy.num ~= num then destroy() end

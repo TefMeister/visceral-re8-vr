@@ -46,6 +46,9 @@ bool hold_round();         // pairs.cpp keeps the left hand docked at the insert
 // b168: the GM 79's insert point riding its barrel (top of the rear while shut, the chamber end when open), from the right hand
 // target (rp, rq); false = not known yet (pairs.cpp keeps the old fixed place)
 bool insert_point(const Vec3& rp, const Quat& rq, Vec3& out);
+bool insert_on_top();
+bool take_undock();        // b170: once, after the spent shell came out with no live one in the hand: pairs.cpp lets the hand go
+int spent_stage();         // b170: 1 the hand pulls the spent shell, 2 it pushes the live one in, 3 the spent shell in the hand; 0 none      // b170: that dock is on top of the barrel ahead of the hinge (opening / shutting), not at the chamber end
 // 2026-11-01 22:5x (Tefa's Wolfsbane plan, gate.h): the M1851 opens its loading cover with right B; gate.cpp does the rest
 bool cover_gun();                        // the gun in hand is the M1851 (a cover, not a swing-out drum)
 void close_cover(const char* why);
