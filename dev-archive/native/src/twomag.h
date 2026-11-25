@@ -40,6 +40,7 @@ void take_spare();                       // reload.cpp, the pouch grab with a ma
 void swap(int old_rounds);               // reload.cpp, LT: the spare is the gun's now, the old one stays in the hand (b162 and before)
 int exchange(int front_rounds);          // b163, LT with two in the hand: the front one goes behind; returns the one coming to the front's
                                          // rounds (-1 = a fresh pouch magazine). The front one is READY from then on
+bool flipped();                          // b167: LT swapped them an odd number of times (the hand's swapped pose, spot 22)
 bool ready();                            // b163: the front one may go in (an LT swapped them since they were both in the hand)
 void went_in();                          // b163: the front one went into the gun: the one behind stays in the palm (OLD)
 void again();                            // b163: OLD, and the gun's magazine came out into the hand: two in the hand again

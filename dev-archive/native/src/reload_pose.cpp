@@ -33,7 +33,13 @@ Vec3 g_j2_rel_l{}, g_j2_rel_w{}, g_j2_rest_scale{1, 1, 1};
 Quat g_j2_rot_l{0, 0, 0, 1}, g_j2_rot_w{0, 0, 0, 1};
 } // namespace
 
-Vec3 mag_out_pos() { return g_rest_pos - Vec3{0, RELOAD_MAG_DROP_M, 0}; }
+Vec3 mag_out_pos() {   // b167: along the magazine's own length (settings.h MAG_OUT_ALONG_OWN_AXIS)
+    const Vec3 down{0, RELOAD_MAG_DROP_M, 0};
+    if (!MAG_OUT_ALONG_OWN_AXIS) return g_rest_pos - down;
+    const Vec3 along = rotate(qnorm(g_rest_rot), down);   // same length; .y / length = the cosine of the turn off Body's -Y
+    if (along.y < RELOAD_MAG_DROP_M * std::cos(MAG_OUT_AXIS_MAX_DEG * 3.14159265f / 180.0f)) return g_rest_pos - down;
+    return g_rest_pos - along;
+}
 
 Quat quat_from_ypr(float yaw, float pitch, float roll) {   // yaw about Z, then pitch about Y, then roll about X (degrees)
     const float d = 3.14159265f / 360.0f;

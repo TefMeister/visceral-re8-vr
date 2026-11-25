@@ -277,6 +277,10 @@ void swap_in(bool by_itself = false) {
     LOGI("%s reload: the swap at %.3f m from the well (%s)", TAG, d, from ? "the spare starts where it was drawn" : "the Lua's place for the spare is not known: it starts at the bottom of the grip");
 }
 void hand_checks() {
+    // b167: LT's own memory for the two-magazine swap (below), kept on every call so a press held from before counts as old
+    static bool lt_swap_was = false;
+    const bool lt_swap_now = bridge::held(bridge::S_LTRIG), lt_swap_edge = lt_swap_now && !lt_swap_was;
+    lt_swap_was = lt_swap_now;
     if (pose_lock() || g_w == nullptr) return;
     const bool mag = g_w->reload == Reload::MAG && g_st == St::IN_HAND;
     if (!mag && !g_round_in_hand) return;
@@ -305,8 +309,11 @@ void hand_checks() {
     // with LT at the insert point, breech.cpp insert_lt; a live grenade still in there is taken out with LT first)
     if (g_round_in_hand && g_w->breech == weapons::Breech::BREAK && (!breech::is_open() || breech::spent() || (player::capacity() > 0 && player::loaded() + g_stash >= player::capacity()))) return;
     // b163 (twomag.h): two in the hand: LT, anywhere, swaps them round in the palm; then the front one goes in at the well like any
+    // b167 (Tefa 2026-11-25: after LT "the bullet count stays as if i kept inserting mag1"): this check runs at more than one point
+    // a frame and bridge::pressed() is true for the whole frame, so ONE press swapped them twice (log 12:02:51.330 / .337, 12:03:00.067
+    // / .075) and the old one was in front again. One swap per press, by this check's own memory of LT (top of hand_checks)
     if (mag && twomag::has() == twomag::Has::SPARE && !TWOMAG_AUTO_IN && !TWOMAG_AUTO_SWAP) {
-        if (bridge::pressed(bridge::S_LTRIG)) {
+        if (lt_swap_edge) {
             const int front = twomag::exchange(g_same_mag ? g_mag_rounds : -1);
             if (front >= 0) { g_mag_rounds = front; g_same_mag = true; } else { g_mag_rounds = 0; g_same_mag = false; }
             g_lt_to_seat = false;   // no LT at the well: the swap was the go-ahead

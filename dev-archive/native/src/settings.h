@@ -318,6 +318,16 @@ constexpr float TWOMAG_AUTO_STOP_PCT = 50.0f;        // how far in it stops, per
 // 2026-11-16 (Tefa: "after inserting the spare mag with LT, the left hand must not dock again, until LG has been released and
 // let go of the mag in hand"): once the spare is seated, the hand with the old magazine is the controller's at once
 constexpr bool  TWOMAG_FREE_AFTER_SEAT = true;
+// b167 (2026-11-25, Tefa's LEMI screenshot: "a wrong angle the mag is going in at ... it gradually goes more into the handle towards
+// the correct spot the further it gets pushed in"): the line below the seat ran straight down the gun's Body (-Y), while a magazine
+// seated at a turn (the LEMI's, about 18 degrees) points along its OWN -Y; the magazine slid in sideways and met the grip only at
+// the top. Now along the magazine's own axis; a turn bigger than the limit (a joint whose Y is not its length) keeps the old line
+constexpr bool  MAG_OUT_ALONG_OWN_AXIS = true;
+constexpr float MAG_OUT_AXIS_MAX_DEG = 40.0f;
+// b167 (Tefa 2026-11-25: "when pulling out mag1 with mag2 in hand, it must not automatically change the mags in hand. once pulled
+// out, LT must make the hand animation switch"): the hand keeps its pulling-out pose (spot 18) once the magazine is out; LT's swap
+// moves it to the two-magazines pose (spot 22, Hand Poser falls back to "two magazines in hand")
+constexpr bool  TWOMAG_PULL_POSE_UNTIL_LT = true;
 constexpr float TWOMAG_UNDOCK_SCALE = 3.0f;          // a hand docked on the seated magazine with a spare leaves it this many zone radii away
 constexpr float TWOMAG_INSERT_REACH_PART = 0.45f;    // of the insert's time: the spare travels from the hand to the bottom of the grip, then up it
 constexpr float TWOMAG_DRAWN_STALE_FRAMES = 3.0f;    // the Lua's "drawn here" older than this is not used

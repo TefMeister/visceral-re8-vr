@@ -235,6 +235,9 @@ void frame() {
     // hand (twomag SPARE) makes four spots of its own: 16 two magazines in the hand, 17 docked on the seated magazine, 18 pulling it
     // out along the grip, 19 the gun's magazine still seated and the hand not on it. Hand Poser falls back to the old spot's pose
     // b163 (Tefa: LT "should change how Ethan holds them in his palm"): after LT swapped the two round, a spot of its own, 22
+    // b167 (Tefa: "it must not automatically change the mags in hand. once pulled out, LT must make the hand animation switch"):
+    // out of the gun, the hand keeps its pulling-out pose (18) until LT; each LT flips between that and the swapped pose (22)
+    else if (TWOMAG_PULL_POSE_UNTIL_LT && twomag::has() == twomag::Has::SPARE && reload::gun_mag_in_hand()) spot = twomag::flipped() ? 22.0f : 18.0f;
     else if (twomag::ready() && reload::gun_mag_in_hand()) spot = 22.0f;
     else if (twomag::has() == twomag::Has::SPARE && reload::gun_mag_in_hand()) spot = 16.0f;
     else if (twomag::has() == twomag::Has::SPARE && reload::hand_on_mag()) spot = reload::on_rail() ? 18.0f : 17.0f;

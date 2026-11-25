@@ -16,6 +16,7 @@ Has g_has = Has::NONE;
 int g_old_rounds = 0;
 int g_spare_rounds = -1;   // b163: the one behind, while two are in the hand: -1 = a fresh pouch magazine (looks full)
 bool g_ready = false;      // b163: LT swapped them since the two came together
+bool g_flip = false;       // b167: an odd number of LT swaps: the other one is in front (the hand's swapped pose)
 } // namespace
 
 Has has() { return g_has; }
@@ -24,6 +25,7 @@ void take_spare() {
     g_has = Has::SPARE;
     g_spare_rounds = -1;
     g_ready = false;
+    g_flip = false;
     LOGI("%s twomag: a spare magazine in the left hand, the gun's still seated (carried %d): LG held to the gun's magazine docks, right B releases it", TAG, player::reserve());
 }
 
@@ -37,12 +39,14 @@ int exchange(int front_rounds) {
     const int back = g_spare_rounds;
     g_spare_rounds = front_rounds;
     g_ready = true;
+    g_flip = !g_flip;
     LOGI("%s twomag: LT: the two swapped round in the palm; the front one (%s) goes in at the well, the one behind has %s", TAG,
          back < 0 ? "fresh from the pouch" : (std::to_string(back) + " round(s)").c_str(),
          front_rounds < 0 ? "a fresh one's" : (std::to_string(front_rounds) + " round(s)").c_str());
     return back;
 }
 bool ready() { return g_has == Has::SPARE && g_ready; }
+bool flipped() { return g_has == Has::SPARE && g_flip; }
 bool behind_is_old() { return g_has == Has::SPARE && g_spare_rounds >= 0; }
 void went_in() {
     if (g_has != Has::SPARE) return;
@@ -51,6 +55,7 @@ void went_in() {
     g_has = Has::OLD;
     g_spare_rounds = -1;
     g_ready = false;
+    g_flip = false;
     LOGI("%s twomag: the front one goes in; the other (%d round(s)) stays in the palm until LG is let go", TAG, g_old_rounds);
 }
 void again() {
@@ -58,6 +63,7 @@ void again() {
     g_has = Has::SPARE;
     g_spare_rounds = g_old_rounds;
     g_ready = false;
+    g_flip = false;
     LOGI("%s twomag: the gun's magazine out into the hand, the old one (%d round(s)) still in the palm: two in the hand again, LT swaps them", TAG, g_spare_rounds);
 }
 
@@ -68,6 +74,7 @@ void clear(const char* why) {
     g_old_rounds = 0;
     g_spare_rounds = -1;
     g_ready = false;
+    g_flip = false;
 }
 
 int rounds() {
