@@ -263,3 +263,11 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   REFramework's crash log names unknown native code `via.dti.finalize`: a nearest-name guess, not a finalize call.
   +0x415879C (the 2026-11-14 crash) is a virtual call on an object with a bad header: a different path.
   Tools: `dev-archive/native/tools/crash/`. Rule set that follows: `modding-notes/2026-11-25d-clean-rebuild-2-design.md` section 5.
+
+- /lm 2026-11-25 (Fable), from zero: the Village folder is the stock game (Steam's file check) + praydog's REFramework
+  nightly 01451 (22c713ce, ONE dinput8.dll for every RE Engine game) + his `re8_vr.lua`, `utility/`, `vr/` +
+  `openxr_loader.dll`. One flat start: loads, 89 / 89 threads resumed, reaches the game's Initial Settings
+  `[verified-live 2026-11-25, n=1, flat]`. Its menu has a `ManualFlashlight` module the March build lacked. ⚠️ Every
+  finding above this line was read on the March build (pd-upscaler 76298bd) with the old mod installed; b178 and that
+  folder are kept in `D:/RE Village REFramework builds/full-backup-2026-11-25-b178-before-rebuild-2/`. Note:
+  `modding-notes/2026-11-25e-from-zero-the-wipe-and-the-new-base.md`.
