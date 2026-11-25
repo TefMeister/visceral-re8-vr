@@ -30,6 +30,11 @@ inline API::Method* method(const char* type, const char* name) {
     if (m == nullptr) LOGW("%s reload: %s not found", TAG, key.c_str());
     return cache[key] = m;
 }
+// b177 (2026-11-25, the lift glitch, RE8-078, measured flat on Tefa's lift save, one launch per guess, with a control): a via.Joint
+// written at BeginRendering stops the engine drawing OTHER things anew (Duke frozen on his lift while his animation runs, moving
+// platforms wrong, guns coming out wrong; [hypothesis] the b175 crash in the game's merge thread too). Writes at PrepareRendering
+// alone are fine. So while plugin.cpp's BeginRendering step runs, joint writes are dropped; the PrepareRendering ones stand.
+inline bool& drop_on() { static bool on = false; return on; }
 inline bool get_v3(const char* type, MO* o, const char* name, Vec3& out) {
     auto* m = o ? method(type, name) : nullptr;
     if (m == nullptr) return false;
@@ -46,11 +51,13 @@ inline bool get_q(const char* type, MO* o, const char* name, Quat& out) {
     std::memcpy(&out, r.bytes.data(), sizeof out);
     return std::isfinite(out.w);
 }
+constexpr const char* JOINT = "via.Joint";
 inline void set_any(const char* type, MO* o, const char* name, const void* value) {   // value types go by pointer (x64 ABI)
     auto* m = o ? method(type, name) : nullptr;
-    if (m != nullptr) m->call<void>(API::get()->get_vm_context(), (void*)o, (void*)value);
+    if (m == nullptr) return;
+    if (drop_on() && std::strcmp(type, JOINT) == 0) return;   // b177: not at BeginRendering (above)
+    m->call<void>(API::get()->get_vm_context(), (void*)o, (void*)value);
 }
-constexpr const char* JOINT = "via.Joint";
 constexpr const char* XFORM = "via.Transform";
 
 inline MO* joint_by_name(MO* tf, const wchar_t* name) {
