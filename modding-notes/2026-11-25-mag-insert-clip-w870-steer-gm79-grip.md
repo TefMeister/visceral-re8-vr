@@ -34,12 +34,25 @@ Three inserts of the LEMI's fresh magazine (log 12:31:06-12:31:31: eight inserts
 - GM 79: the long-gun rule (no grip within 25 cm of the right hand) refused its kept front grip, 15.3 cm out (log 12:33:30-39: LG
   pressed 0.4-17 cm from the spot, `our_grip=false` every time). Its own minimum 8 cm (`LONG_GRIP_MIN_BY_GUN`). `[luac -p ok]`
 
+## b169: the GM 79's insert point rides the barrel (robot, the desk headset, the same afternoon)
+
+- Measured (`tools/sim/q_gm79_insert.lua`, barrel fully open): the point (right wrist + a guessed 0/5/12 cm, `INSERT_OFF`) sat
+  3.8 cm right of the gun's centre line, 4.7 cm under and 8.2 cm behind the chamber end (`vfx_muzzle2`, under `Carrier`), and
+  stood still while the barrel swung. `breech.cpp measure_mouth` works it out after the arm solve (Body joint + the barrel's
+  turn + the chamber end, kept in the right hand target's frame); shut: `BREAK_TOP_OFF` on top of the barrel's rear; open: the
+  chamber end. After: 0.0 right; shut 5.3 up 11.1 fwd; open 10.0 up 12.2 fwd = the chamber end `[verified-live 2026-11-25, robot, n=1]`.
+- LG + LT at the open barrel's top only said "the barrel is empty": LT loads there now only with something to load or take out.
+- Robot `[verified-live 2026-11-25, robot, n=1 each]`: GM 79 front grip taken (b168 grip script); opens (70% with a 6 cm pull)
+  and shuts from below; top hold opens it (let go at 80%: falls open) and shuts it; W870 pump grip taken, the gun's pitch
+  -0.095 -> +0.102 with the left hand 10 cm up and back; LEMI fresh magazine logs "stays in the hand while the hand glides".
+- Robot set-up notes: `drive_real_slot.sh` stops `keep.py` (restart it after every launch, or the robot's buttons do nothing);
+  Village was on Single Frame Multipass (=2, desktop frozen): switched to =1 for the robot and back to =2 after; the first launch
+  hung on "Checking for additional content" (picture only: the game ran at 72 fps behind the frozen window).
+
 ## Not established
 
-- **The GM 79's insert point "off to the right":** the point is the right wrist (IK target) + (0, 5, 12 cm) in the gun's turn, a
-  first guess (settings.h `INSERT_OFF`), never measured against the breech. The dock report only measures the palm against that
-  same point (palm 3.2-4.0 cm to its left, `dock_report.tsv`), so it cannot say where the breech is. Needs the game running:
-  the `Carrier` / `Ammo01` joints' drawn place against the zone's centre. The top hold (to break it open after B, and to push it
-  shut) IS that point (pairs.cpp, spot 7, offered only with the latch open), so it moves with the fix.
+- **The top hold sits behind the hinge** (on the barrel's rear, near the latch): pushing DOWN there opens it, the way the mod's
+  drive works everywhere (the hand's way down = open). A hand on top AHEAD of the hinge (over the barrel) would be the
+  physical push; that needs a dock of its own beside the insert point. Ask Tefa where the top hold should be.
 - The top hold has no posed hand yet (b153 notes).
-- None of b168 has been worn.
+- Nothing of b168 / b169 worn by Tefa yet; how the magazine carry LOOKS is for the headset.
