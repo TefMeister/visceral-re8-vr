@@ -17,7 +17,7 @@
 --                                                         copy of the gun, visceral_re8_shell2.lua, which never showed it)
 -- The round's type is the gun's own bullet item (getBulletItemID), named by shell_bands.json "re8.ammo"; the spent shell
 -- keeps the colour of the round that was fired.
--- Test with no gun: reframework/data/visceral_re8/gl_rounds_test.json {"front": true, "kind": "spent"|"band", "type": "flash"}
+-- Test with no gun: reframework/data/visceral_re8/gl_rounds_test.json {"front": true, "kind": "spent"|"band"|"live", "type": "flash"}
 -- floats one 0.35 m in front of the camera (read once a second).
 
 if reframework:get_game_name() ~= "re8" then return end
@@ -32,10 +32,18 @@ local GUN = 3023                                  -- the GM 79
 local S_FRAME, S_WEAPON_NUM = 0, 97
 local S_SHELL2_ON, S_SHELL2_POS, S_SHELL2_ROT, S_SHELL2_SIZE = 217, 218, 221, 225
 local S_GL_ROUND, S_GL_ROUND_ON = 280, 281
+local S_GL_LIVE_ON, S_GL_LIVE_POS, S_GL_LIVE_ROT = 283, 284, 287   -- b176: the barrel's round while the gun's round is in the hand
 local STALE_FRAMES = 3
 local JOINT = "Ammo01"
 local HIDE_SCALE = 0.0005                         -- the game's own case while ours is drawn over it
 local MESH_SPENT, MESH_BAND = "visceral/gm79_spent_shell.mesh", "visceral/gm79_round_band.mesh"
+-- b176 (Tefa 2026-11-25: "create our own replicas of live rounds"): kind "live_<type>" is the whole live round, the game's case and
+-- warhead with the band (tools/blender/build_gm79_spent_shell.py), drawn in the barrel while the gun's own round is in the hand
+local function mesh_of(kind)
+    if kind == "spent" then return MESH_SPENT end
+    if kind == "band" then return MESH_BAND end
+    return "visceral/gm79_" .. kind .. ".mesh"   -- live_explosive / live_flash
+end
 local function mdf_path(t) return "visceral/gm79_shell_" .. t .. ".mdf2" end
 local BANDS_FILE, TEST_FILE = "visceral_re8/shell_bands.json", "visceral_re8/gl_rounds_test.json"
 
@@ -143,7 +151,7 @@ local function destroy(kind)
     objs[kind] = nil
 end
 local function make(kind, gun)
-    local res = resource("via.render.MeshResource", kind == "spent" and MESH_SPENT or MESH_BAND)
+    local res = resource("via.render.MeshResource", mesh_of(kind))
     if res == nil or (mk_go == nil and mk_go_in == nil) then return nil end
     local folder = spawn_folder()
     local go = safe(function()
@@ -230,13 +238,15 @@ local function read_test()
     fh:close()
     local ok, d = pcall(json.load_file, TEST_FILE)
     if ok and type(d) == "table" then
-        local f, k, t = d.front == true, d.kind == "band" and "band" or "spent", type(d.type) == "string" and d.type or "explosive"
+        local t = type(d.type) == "string" and d.type or "explosive"
+        local f, k = d.front == true, d.kind == "band" and "band" or d.kind == "live" and ("live_" .. t) or "spent"
         if f ~= test.front or k ~= test.kind or t ~= test.type then L("test: front " .. tostring(f) .. ", " .. k .. ", " .. t) end
         test.front, test.kind, test.type = f, k, t
     end
 end
 local function all_off()
-    show(objs.spent, false); show(objs.band, false); hide_game_round(false)
+    for _, o in pairs(objs) do show(o, false) end
+    hide_game_round(false)
 end
 
 -- every round type's material is loaded once the player is in play, so a colour change never shows the engine's checker
@@ -247,6 +257,7 @@ local function preload()
     if preloaded or safe(function() return rawget(_G, "re8vr").player end) == nil then return end
     preloaded = true
     resource("via.render.MeshResource", MESH_SPENT); resource("via.render.MeshResource", MESH_BAND)
+    for _, t in ipairs(types) do resource("via.render.MeshResource", mesh_of("live_" .. t)) end
     for _, t in ipairs(types) do resource("via.render.MeshMaterialResource", mdf_path(t)) end
 end
 
@@ -257,7 +268,7 @@ local function update(point)
         local cx = safe(function() return sdk.get_primary_camera():call("get_GameObject"):call("get_Transform") end)
         local cp, cr = cx and safe(function() return cx:call("get_Position") end), cx and safe(function() return cx:call("get_Rotation") end)
         local o = get(test.kind, the_gun())
-        show(objs[test.kind == "spent" and "band" or "spent"], false)   -- only the kind asked for (b172: a switch left the other up)
+        for k2, o2 in pairs(objs) do if k2 ~= test.kind then show(o2, false) end end   -- only the kind asked for (b173; b176: the replicas too)
         if o and cp and cr then
             if o.parent ~= nil then pcall(function() o.xf:call("set_Parent", nil) end); o.parent = nil end
             paint(o, test.kind, test.type)
@@ -278,7 +289,7 @@ local function update(point)
     local fresh = math.abs(b.r(S_GL_ROUND_ON) - 1.0 - frame) <= STALE_FRAMES and b.r(S_GL_ROUND_ON) > 0.5
     if math.floor(b.r(S_WEAPON_NUM) + 0.5) ~= GUN or not fresh then
         all_off()
-        if objs.spent or objs.band then destroy("spent"); destroy("band"); joint, joint_of, hidden = nil, nil, false end
+        if next(objs) ~= nil then for k in pairs(objs) do destroy(k) end; joint, joint_of, hidden = nil, nil, false end
         return
     end
     if point == "late" then return end   -- after the plugin has placed the joint (as the shell copy: never before the arms)
@@ -315,6 +326,22 @@ local function update(point)
         if o then paint(o, "band", live_t); place_in_gun(o, gun, jp, jq, 1.0); show(o, true) end
     else
         show(objs.band, false)
+    end
+    -- b176: a live round left in the barrel while the gun's own round is in the left hand: our replica where it rests
+    local live_on = math.abs(b.r(S_GL_LIVE_ON) - 1.0 - frame) <= STALE_FRAMES and b.r(S_GL_LIVE_ON) > 0.5
+    for _, t in ipairs(types) do
+        local k = "live_" .. t
+        if live_on and t == live_t then
+            local o = get(k, gun)
+            if o then
+                paint(o, k, t)
+                place_in_gun(o, gun, { x = b.r(S_GL_LIVE_POS), y = b.r(S_GL_LIVE_POS + 1), z = b.r(S_GL_LIVE_POS + 2) },
+                    qnorm({ x = b.r(S_GL_LIVE_ROT), y = b.r(S_GL_LIVE_ROT + 1), z = b.r(S_GL_LIVE_ROT + 2), w = b.r(S_GL_LIVE_ROT + 3) }), 1.0)
+                show(o, true)
+            end
+        else
+            show(objs[k], false)
+        end
     end
 end
 

@@ -129,12 +129,16 @@ void load_lid_tune() {   // re-read each time the cover opens, so the swing can 
          g_lid_axis.x, g_lid_axis.y, g_lid_axis.z, g_lid_deg, g_lid_sec, left.x, left.y, left.z, right.x, right.y, right.z, cyl.x, cyl.y, cyl.z);
 }
 
-void click() {   // the same chamber click as the bolt (rack.cpp)
+void play_wav(const wchar_t* name) {
     wchar_t exe[MAX_PATH]{};
     GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    const auto f = std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "sfx" / "bolt_click.wav";
+    const auto f = std::filesystem::path(exe).parent_path() / "reframework" / "data" / "visceral_re8" / "sfx" / name;
     PlaySoundW(f.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
 }
+void click() { play_wav(L"bolt_click.wav"); }   // the same chamber click as the bolt (rack.cpp)
+// b176 (Tefa 2026-11-25: "we need a different sound for the guard, something subtle and clicky, otherwise right now both barrel
+// closing sound and the guard open/close sound are the same and play one after another"): the latch's own short tick
+void latch_click() { play_wav(L"dry_click.wav"); }
 
 void set_open(bool open, const char* why) {
     if (open == g_open) return;
@@ -502,7 +506,7 @@ void break_frame() {
         g_flick_t = -1.0f;
         if (g_ang <= 0.001f) {
             g_latch = g_flick_to;
-            click();
+            latch_click();
             bridge::rumble(bridge::RIGHT, BREECH_BUZZ_AMP, BREECH_BUZZ_SEC, RELOAD_BUZZ_HZ);
             LOGI("%s breech: right B: the thumb flicks the latch %s%s", TAG, g_latch ? "OPEN" : "shut", g_latch ? ": a flick down, or LG + LT on the barrel and a pull, opens it" : "");
         }
@@ -529,6 +533,10 @@ void break_frame() {
             const float travel = BREAK_LEVER_M * BREAK_OPEN_DEG * 3.14159265f / 180.0f;   // the hand's way for the whole swing
             const float a = g_drive_ang0 + (left_down_m() - g_drive_ref) / travel;
             g_ang = a < 0.0f ? 0.0f : a > 1.0f ? 1.0f : a;
+            // b176 (Tefa 2026-11-25, wearing b175: "the guard still has to be closed by hand, it has to close automatically once the
+            // barrel has closed"; the log: shut at LG + LT held, the flick waited for the hand to let go): shut = the hand's move ends
+            // here (the hand stays docked until LG lets go), and the thumb flicks the latch below
+            if (g_ang <= 0.0f && g_was_part_open) { g_move = 0; LOGI("%s breech: the hand brought the barrel shut", TAG); }
         } else if (g_ang <= BREAK_SHUT_PART) {
             g_move = 3;   // let go almost shut: it clicks shut
         } else {
@@ -829,6 +837,17 @@ void measure_mouth(const Quat& carrier_q) {
             for (int i = 0; i < 8; ++i) bridge::put((bridge::Slot)(bridge::S_SHELL2_POS + i), v[i]);
             bridge::put(bridge::S_SHELL2_ON, bridge::view(bridge::S_FRAME) + 1.0f);
         }
+    }
+    // b176 (Tefa 2026-11-25: "when there already is a live round in the chamber, taking a new one from the pouch makes the one in
+    // the barrel invisible ... create our own replicas of live rounds"): the gun shows one round, so while that one is in the hand
+    // the one still in the barrel is our replica (visceral_re8_gl_rounds.lua, gm79_live_<kind>.mesh), placed where the gun's own
+    // round rests in the barrel, in the gun's space (slots 283-290)
+    if (live_in_hand && player::loaded() > 0) {
+        const Vec3 bp2 = g_carrier_lp + rotate(cq, g_ammo_lp);
+        const Quat br2 = qnorm(qmul(cq, g_ammo_lq));
+        const float v[7] = {bp2.x, bp2.y, bp2.z, br2.x, br2.y, br2.z, br2.w};
+        for (int i = 0; i < 7; ++i) bridge::put((bridge::Slot)(bridge::S_GL_LIVE_POS + i), v[i]);
+        bridge::put(bridge::S_GL_LIVE_ON, bridge::view(bridge::S_FRAME) + 1.0f);
     }
     if (g_ammo_hidden) {   // (an earlier cut hid the gun's joint; nothing hides it now)
         joints::set_any(joints::JOINT, g_ammo, "set_LocalScale", &g_ammo_scale);

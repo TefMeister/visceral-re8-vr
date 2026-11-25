@@ -247,7 +247,10 @@ constexpr float BREAK_PUSH_SEC = 0.35f;            // then the hand carries the 
 constexpr float BREAK_SPENT_BESIDE[3] = {0.0f, 0.035f, 0.0f};   // the spent shell beside the live one in the hand (m, the hold's axes)
 // b170 (Tefa: "please delete the part where i can grab and open the barrel from the front part, i think it will surely interfere
 // with the reloads"): the front grip is a two-handed hold only; the barrel moves from the top hold (and the flicks)
-constexpr bool  BREAK_FRONT_GRIP_MOVES = false;
+// b176 (Tefa 2026-11-25, wearing b175: "after releasing the lock, LG + LT at the lower dock does not open the launcher when i hold
+// LG + LT and move my controller down. holding it from the top position does"; the front grip now sits forward on the barrel,
+// grip_spots.json 3023): LG + LT on the front grip moves the barrel too
+constexpr bool  BREAK_FRONT_GRIP_MOVES = true;
 // b174 (Tefa 2026-11-25: "right thumb pushed down for 0.2 sec"): the right stick's click held this long changes the GM 79's grenades
 constexpr float BREAK_AMMO_SWAP_HOLD_S = 0.2f;
 constexpr float BREAK_SHUT_PART = 0.06f;           // b152: let go this close to shut, it clicks shut instead of falling

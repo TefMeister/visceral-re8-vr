@@ -139,10 +139,11 @@ def to_local_blender(p):
 print("Ammo01 bind T (RE) = (%.4f, %.4f, %.4f)" % T)
 
 def export(name, mats):
+    # mats: material names (their mesh from `parts`), or (material, mesh) pairs (b176: the live rounds' warhead submesh)
     coll = bpy.data.collections.new(name + ".mesh"); bpy.context.scene.collection.children.link(coll)
     coll["~TYPE"] = "RE_MESH_COLLECTION"
-    for slot, mat in enumerate(mats):
-        src_me = parts[mat]
+    for slot, entry in enumerate(mats):
+        mat, src_me = (entry, parts[entry]) if isinstance(entry, str) else entry
         m = src_me.copy()
         # our object has no skeleton: drop the game's joint weights (the exporter refuses weights without an armature)
         bmw = bmesh.new(); bmw.from_mesh(m)
@@ -171,5 +172,27 @@ def export(name, mats):
 
 export("gm79_spent_shell", [MAT_CASE, MAT_SOOT, MAT_BAND])
 export("gm79_round_band", [MAT_BAND])
+
+# ---- 4. b176 (Tefa 2026-11-25, wearing b175: "when there already is a live round in the chamber, taking a new one from the pouch
+# makes the one in the barrel invisible ... create our own replicas of live rounds in blender?"): the gun shows ONE round (its
+# Ammo01 joint, and the fronts on Ammo02-04), so while that one is in the hand, the one in the barrel is ours: the game's own case
+# (outside and inside, plain metal, no soot), its own warhead part for the kind (6 the explosive's, 7 the flash's: the pickups
+# it03_500 / it03_501 match them, 2026-11-25 note) and the band; same materials as the spent shell (gm79_shell_<kind>.mdf2: the
+# warhead's UVs sit on the launcher's own texture, which the case material is). Both in Ammo01's frame, the warhead where it sits
+# in front of the case in the gun.
+def part_mesh(group):
+    o = next((x for x in bpy.data.objects if x.type == "MESH" and x.name.startswith(group)), None)
+    if o is None:
+        print("NOT FOUND:", group); return None
+    m = o.data.copy(); m.transform(o.matrix_world)
+    m.materials.clear(); m.materials.append(bpy.data.materials.get(MAT_CASE) or bpy.data.materials.new(MAT_CASE))
+    print("warhead part:", o.name, len(m.vertices), "verts")
+    return m
+for kind, group in (("explosive", "Group_6_Sub_0"), ("flash", "Group_7_Sub_0")):
+    head = part_mesh(group)
+    if head is not None:
+        # the inside keeps the soot material (hidden behind the warhead): the mesh must name the same three materials, in the same
+        # order, as gm79_shell_<kind>.mdf2, or the engine takes none (measured flat 2026-11-25: case + band only drew the checker)
+        export("gm79_live_" + kind, [MAT_CASE, MAT_SOOT, (MAT_CASE, head), MAT_BAND])
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "gm79_spent_shell.blend"))
 print("DONE")

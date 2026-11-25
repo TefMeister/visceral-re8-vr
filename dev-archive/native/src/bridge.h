@@ -166,6 +166,10 @@ enum Slot : int {
     // b174 (2026-11-25), WRITTEN BY THE LUA (visceral_re8_bridge.lua input): 1 while the right stick is clicked in (vrmod's joystick
     // click on the right controller), 0 not. breech.cpp: held 0.2 s with the GM 79 = the other kind of grenade. The Lua array is 283 long
     S_RSCLICK = 282,
+    // b176 (2026-11-25), WRITTEN BY THE PLUGIN (breech.cpp), read by visceral_re8_gl_rounds.lua: a live round in the GM 79's barrel
+    // while the gun's own round joint is in the left hand: 283 its stamp (S_FRAME + 1), 284-286 where it rests and 287-290 its turn,
+    // in the gun's space (our replica, gm79_live_<kind>.mesh, is drawn there). The Lua array is 291 long
+    S_GL_LIVE_ON = 283, S_GL_LIVE_POS = 284, S_GL_LIVE_ROT = 287,
     S_LEFT_AREA = 213,        // WRITTEN BY THE PLUGIN (2026-11-09, Tefa: "make Hand Poser say ... that the left hand is now in for
                               // example left side slide activation area"): WHICH area a free left hand is in while S_LEFT_SPOT says
                               // "ready" (14): 0 none, 1 the pouch, 10 + zones::Key (10 magazine, 11 well, 12 the slide / pump / bolt,

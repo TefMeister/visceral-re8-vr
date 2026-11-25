@@ -317,16 +317,20 @@ void frame() {
     {
         static int far_n = 0;
         static bool told = false;
+        // b176: the free hand always sits about 8 cm from the controller's tracked point (the palm is not the controller's centre:
+        // b175's log fired on every gun, every second). The usual gap is learned while nothing happens; a jump past it is reported
+        static float base = -1.0f;
         Vec3 cw, hp;
         Quat hq;
         if (ok && play && !lg && g_dock < 0 && g_active < 0 && bridge::room_to_world(bridge::hand_pos(bridge::LEFT), cw) &&
             player::get_pose(field_obj(s.ik_left, "Target"), hp, hq)) {
             const float d = dist(cw, hp);
-            if (d > 0.04f) {
+            if (!told && far_n == 0) base = base < 0.0f ? d : base + (d - base) * 0.02f;
+            if (base >= 0.0f && d > base + 0.05f) {
                 if (++far_n == 10 && !told) {
                     told = true;
-                    LOGI("%s pairs: DETECTOR: the left hand is %.1f cm off its controller with LG up and no dock: gun %d, spot %.0f, area %.0f, "
-                         "praydog's grip %d, reload %d, rack %d, round in hand %d, the barrel open %d", TAG, d * 100.0f, gun,
+                    LOGI("%s pairs: DETECTOR: the left hand is %.1f cm off its controller (usually %.1f) with LG up and no dock: gun %d, spot %.0f, area %.0f, "
+                         "praydog's grip %d, reload %d, rack %d, round in hand %d, the barrel open %d", TAG, d * 100.0f, base * 100.0f, gun,
                          bridge::view(bridge::S_LEFT_SPOT), bridge::view(bridge::S_LEFT_AREA), bridge::flag(bridge::S_GRIPPING_WEAPON) ? 1 : 0,
                          reload::session_active() ? 1 : 0, rack::active() ? 1 : 0, reload::round_in_hand() ? 1 : 0, breech::is_open() ? 1 : 0);
                 }
