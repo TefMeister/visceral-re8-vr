@@ -100,12 +100,109 @@ local function who_text(player)
         parent and go_name(parent) or "none", scene_name, node_name, table.concat(kids, " "))
 end
 
+-- v3 (2026-11-26 01:0x): Tefa: in the patting scene on the stairs (ch01_0000_Baby_100_Dandle) "hands and body
+-- disappear and then reappear after it's done". None of the VR layer's flags changes there. So: is each body part
+-- drawn? One line ("draw"), on change, checked every 10 frames while anything hangs on the player or not.
+local DRAW_EVERY_FRAMES = 10
+local DRAW_PARTS = { "pl1000HandR", "pl1000HandL", "pl1000LowerBody", "ShadowBody", "pl5000" }
+local last_draw = ""
+local mesh_t = nil
+
+local function part_text(go)
+    mesh_t = mesh_t or sdk.typeof("via.render.Mesh")
+    local draw_self = safe(function() return go:call("get_DrawSelf") end)
+    local draw = safe(function() return go:call("get_Draw") end)
+    local mesh = safe(function() return go:call("getComponent(System.Type)", mesh_t) end)
+    local mesh_on = mesh and safe(function() return mesh:call("get_Enabled") end)
+    local mesh_draw = mesh and safe(function() return mesh:call("get_DrawDefault") end)
+    return string.format("%s%s%s%s", flag(draw_self), flag(draw), flag(mesh_on), flag(mesh_draw))
+end
+
+local function draw_text(player)
+    local parts = { "self=" .. part_text(player) }
+    local transform = safe(function() return player:call("get_Transform") end)
+    local child = transform and safe(function() return transform:call("get_Child") end)
+    local n = 0
+    while child ~= nil and n < MAX_CHILDREN do
+        local go = safe(function() return child:call("get_GameObject") end)
+        local name = go and safe(function() return go:call("get_Name") end)
+        for _, want in ipairs(DRAW_PARTS) do
+            if name == want then parts[#parts + 1] = want .. "=" .. part_text(go) end
+        end
+        child = safe(function() return child:call("get_Next") end)
+        n = n + 1
+    end
+    return table.concat(parts, " ")
+end
+
+-- v4 (2026-11-26 01:1x): Tefa: the carry bobs a lot walking forward and "how it should always be" walking back.
+-- Layer 0 shows ONE motion id (0/1) for Hands_Walk / WalkB / WalkL / WalkR_HoldBaby_Loop [measured, n=1]: a blend.
+-- So: once, the method names of the layer and node types that could show or steer a blend; and every half second
+-- while a walk plays, each node of layer 0 with its name and weight ("tree"), on change.
+local methods_logged = false
+local last_tree = ""
+local KEYS = { "Node", "Weight", "Blend", "Rate", "Speed" }
+
+local function log_methods(type_name)
+    local t = sdk.find_type_definition(type_name)
+    if t == nil then log.info(TAG .. " methods " .. type_name .. ": no such type") return end
+    local names = {}
+    for _, m in ipairs(t:get_methods()) do
+        local name = m:get_name()
+        for _, key in ipairs(KEYS) do
+            if string.find(name, key, 1, true) then names[#names + 1] = name break end
+        end
+    end
+    log.info(TAG .. " methods " .. type_name .. ": " .. table.concat(names, " "))
+end
+
+local function tree_text(player)
+    motion_t = motion_t or sdk.typeof("via.motion.Motion")
+    local motion = safe(function() return player:call("getComponent(System.Type)", motion_t) end)
+    local layer = motion and safe(function() return motion:call("getLayer", 0) end)
+    if layer == nil then return "no-layer" end
+    local count = safe(function() return layer:call("getMotionNodeCount") end)
+        or safe(function() return layer:call("get_MotionNodeCount") end)
+    if count == nil then return "no-node-count" end
+    local parts = {}
+    for i = 0, math.min(count, 16) - 1 do
+        local node = safe(function() return layer:call("getMotionNode", i) end)
+        if node ~= nil then
+            local name = tostring(safe(function() return node:call("get_MotionName") end))
+            local weight = safe(function() return node:call("get_Weight") end)
+            local short = string.gsub(name, "ch01_0000_", "")
+            parts[#parts + 1] = string.format("%s=%s", short, weight and string.format("%.1f", weight) or "?")
+        end
+    end
+    return table.concat(parts, " ")
+end
+
 re.on_frame(function()
     frame = frame + 1
-    if frame % EVERY_FRAMES ~= 0 then return end
     if re8vr == nil then return end
     local player = re8vr.player
     if player == nil then return end
+
+    if frame % DRAW_EVERY_FRAMES == 0 then
+        local d = safe(draw_text, player) or "draw failed"
+        if d ~= last_draw then
+            last_draw = d
+            log.info(TAG .. " draw (DrawSelf,Draw,meshEnabled,meshDrawDefault) " .. d)
+        end
+    end
+    if frame % EVERY_FRAMES ~= 0 then return end
+
+    if not methods_logged then
+        methods_logged = true
+        pcall(log_methods, "via.motion.TreeLayer")
+        pcall(log_methods, "via.motion.MotionNodeCtrl")
+        pcall(log_methods, "via.motion.Motion")
+    end
+    local tree = safe(tree_text, player) or "tree failed"
+    if tree ~= last_tree then
+        last_tree = tree
+        log.info(TAG .. " tree " .. tree)
+    end
 
     if frame % WHO_EVERY_FRAMES == 0 then
         local who = safe(who_text, player) or "who failed"

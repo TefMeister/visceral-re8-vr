@@ -53,6 +53,31 @@ re8vr.right_hand_rotation_offset = right_hand_rotation_offset
 re8vr.left_hand_position_offset = left_hand_position_offset
 re8vr.right_hand_position_offset = right_hand_position_offset
 
+-- VISCERAL 2026-11-26 (first found 2026-10-30 on the March build; measured again on nightly 01451: this script ran at
+-- 00:53:59.642, "Initializing OpenXR" came at 00:53:59.668): THE LOW HANDS AT START. is_openxr above is asked once, at
+-- script load, before OpenXR is up, so the OpenVR hand offsets (15.5 cm along the controller) stay for the whole
+-- session: the hands sit low and tilted. Keep asking until OpenXR is loaded, then put the OpenXR offsets in once.
+if not is_openxr then
+    local visceral_offsets_fixed = false
+    re.on_pre_application_entry("UpdateHID", function()
+        if visceral_offsets_fixed then return end
+        if not vrmod:is_openxr_loaded() then return end
+        visceral_offsets_fixed = true
+        is_openxr = true
+        left_hand_rotation_vec = openxr.left_hand_rotation_vec:clone()
+        right_hand_rotation_vec = openxr.right_hand_rotation_vec:clone()
+        left_hand_rotation_offset = Quaternion.new(left_hand_rotation_vec):normalized()
+        right_hand_rotation_offset = Quaternion.new(right_hand_rotation_vec):normalized()
+        left_hand_position_offset = openxr.left_hand_position_offset:clone()
+        right_hand_position_offset = openxr.right_hand_position_offset:clone()
+        re8vr.left_hand_rotation_offset = left_hand_rotation_offset
+        re8vr.right_hand_rotation_offset = right_hand_rotation_offset
+        re8vr.left_hand_position_offset = left_hand_position_offset
+        re8vr.right_hand_position_offset = right_hand_position_offset
+        log.info("[re8_vr] VISCERAL: OpenXR came up after this script loaded; the OpenXR hand offsets are in now")
+    end)
+end
+
 local ray_typedef = sdk.find_type_definition("via.Ray")
 local last_muzzle_rot = Quaternion.new(0.0, 0.0, 0.0, 0.0)
 
@@ -629,6 +654,9 @@ local zero_vec = Vector3f.new(0, 0, 0)
 
 local function update_body_ik(camera_rotation, camera_pos)
     if re8vr.in_re8_end_game_event then return end
+    -- VISCERAL 2026-11-26, A TRY: with the game's arms holding Rose she swings up to 30 cm against a still head while
+    -- walking (Tefa). praydog skips the body IK too in his end-game events; the same here, under its own switch.
+    if rawget(_G, "__visceral_re8_game_body") then return end
 
     re8vr:update_body_ik(camera_rotation, camera_pos)
 end

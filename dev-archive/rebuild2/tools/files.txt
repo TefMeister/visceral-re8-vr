@@ -3,3 +3,4 @@ lua/visceral_re8_carry_rec.lua reframework/autorun/visceral_re8_carry_rec.lua
 lua/visceral_re8_game_arms.lua reframework/autorun/visceral_re8_game_arms.lua
 # praydog's VR script as shipped with nightly 01451 + our dated lines (marked VISCERAL)
 lua/re8_vr.lua reframework/autorun/re8_vr.lua
+lua/visceral_re8_origin.lua reframework/autorun/visceral_re8_origin.lua
