@@ -125,3 +125,19 @@ b174 (8fa1317, installed, compile-checked, not worn): the live pull; the ammo ch
 LT at the pouch) done the measured way; the nearer dock; the automatic latch flick and the hand kept on the barrel; the fronts
 riding with the case; bands x1.2; the detector; the band script ignores a gun that is not the GM 79 (a gun change read the
 handgun's ammo). Not established: any of it in the headset.
+
+## 2026-11-25 night, /lm: Tefa's wear of b175, and b176
+
+Worked: the hand stays on the barrel after closing; a live grenade comes out by hand; a flick-up close shuts the latch by
+itself. Not yet: an LG + LT close left the latch open (the flick waited for LG to let go; log 20:01:38-42); the latch's
+sound was the barrel's; the front grip sat at the right hand (grip_spots.json 3023 x -0.128); LG + LT on the front grip
+did nothing (BREAK_FRONT_GRIP_MOVES off since b170); a second round taken while one was in the barrel made the barrel's
+round vanish (the gun shows one round, Ammo01 and its fronts). The game crashed once (FAULTS.md).
+
+b176 (f20f681): the hand's move ends when the barrel arrives shut, so the thumb flicks at once; `dry_click.wav` for the
+latch; the front grip 26 cm forward and moving the barrel; our live-round replica (`gm79_live_explosive` / `_flash`: the
+game's case, its warhead part 6 / 7, the band) drawn where the barrel's round rests while the gun's round is in the hand.
+Found on the way `[verified-live 2026-11-25, flat, n=1]`: a mesh must name the same materials, in the same order, as its
+mdf2, or the engine takes none (the first replica named case + band against case + soot + band and drew the checker).
+The detector of b174 fired on every gun: the free hand always sits about 8 cm from the controller's tracked point; b176
+reports a jump past that usual gap instead.
