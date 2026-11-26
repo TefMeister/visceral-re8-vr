@@ -379,8 +379,6 @@ local cam_type_was, cam_type_told = nil, 0
 local GLIDE_S = 0.12          -- the taken-out jump fades with this time constant (gone in about three of them)
 local GLIDE_MIN_M, GLIDE_MAX_M = 0.055, 0.60   -- smaller is nothing; bigger is a teleport, left alone
 local GLIDE_WINDOW_FRAMES = 4
-local glide_window, glide_from = 0, nil
-local probe_ring, probe_kind, probe_events, probe_after = {}, nil, 0, 0
 local glide_x, glide_z, glide_was, glide_kind, glide_t, glide_told = 0.0, 0.0, nil, nil, nil, 0
 local camoff_error_told = false
 local function camera_offset_step(player_camera, blip)
@@ -402,61 +400,51 @@ local function camera_offset_step(player_camera, blip)
         end
         cam_type_was = kind
     end
-    -- SECOND DESIGN, 23:5x the same night. Worn with the offset kept on: "same, two little flicks". The log: the
-    -- offset is 8.3 cm, the jump stayed 18 to 19 cm and falls on the picture the type goes back to 0: the game's two
-    -- cameras simply sit that far apart when one hands over to the other. So nothing is assumed about why: on the
-    -- picture the type changes (no real scene), the camera's own jump against the player's spot is MEASURED on what
-    -- the loader set, and taken out again as a shift that fades away (GLIDE_S), so the view glides instead of
-    -- snapping. Tefa on the loader's own pan after a vault: "the camera now pans smoothly to where hmd is looking".
-    local camera = sdk.get_primary_camera()
-    local player_tf = re8vr.transform
-    if camera == nil or player_tf == nil then glide_was = nil return end
+end
+
+-- THE CAMERA GLIDE (2026-11-27 00:1x, RE8-098), fourth design; the first three are in the notes (2026-11-26f).
+-- What was measured (probe, six hand-overs): through a running stop, a jump, a climb or a vault the game's camera
+-- drifts 28 to 43 cm off the player's spot and comes back in ONE picture (20 to 33 cm), a picture before the
+-- camera's type goes back to 0; then the loader's own offset (8.3 cm, added only at type 0) snaps in as well.
+-- Third design: the jump was taken out AFTER the loader's camera fix, on the joint and the transform. Tefa: the
+-- flicker is gone, "camera like starts from just tiny bit further away and comes closer to me" (the glide, as
+-- meant), but "hands still jank back a little ... like a quick pull-back": the loader's hands are solved from a
+-- camera that did not hold the shift (17 cm against the controllers on the hand-over picture, walk file 23:57).
+-- So the shift goes in BEFORE the loader's camera fix, on the position the loader reads as the game's camera:
+-- everything the loader works out from it (the drawn camera, the hands, the body's place) then agrees.
+-- re8_vr.lua calls this right before re8vr:fix_player_camera. bodyplace.json "camoff": 0 switches it off.
+local function glide_reset() glide_x, glide_z, glide_was = 0.0, 0.0, nil end
+function B.camera_pre(player_camera)
+    if (PLACE.camoff or 0.0) <= 0.5 or not vrmod:is_hmd_active() or not vrmod:is_using_controllers() then glide_reset() return end
+    if event_name() ~= nil or re8vr.is_arm_jacked then glide_reset() return end       -- a real scene: left alone
+    local solver = player_camera:get_field("BaseTransSolver")
+    local t = solver and solver:get_field("<currentType>k__BackingField")
+    local kind = t and t:get_field("Value")
+    local camera, player_tf = sdk.get_primary_camera(), re8vr.transform
+    if kind == nil or camera == nil or player_tf == nil then glide_reset() return end
     local cam_tf = camera:call("get_GameObject"):call("get_Transform")
-    local joint = cam_tf:call("get_Joints")[0]
-    if joint == nil then glide_was = nil return end
-    local jp, pp2 = joint:call("get_Position"), player_tf:call("get_Position")
-    local dx, dz = jp.x - pp2.x, jp.z - pp2.z                 -- the camera against the player's spot, level
-    -- A PROBE (2026-11-26 midnight, RE8-098), comes out again. The glide caught the 8.3 cm of the offset, and the
-    -- eyes still jump 18 cm against the body on the hand-over picture, the joints smooth. So which part of the
-    -- camera jumps: what the game set (the joint), or what the headset adds on top (transform minus joint), and
-    -- do the two turns agree? Three pictures before and three after each change of the camera's type, 12 times.
-    do
-        local tp = cam_tf:call("get_Position")
-        local line = string.format("type %s | joint-player %.3f %.3f %.3f | headset part %.3f %.3f %.3f | yaw joint %.1f, transform %.1f, player %.1f | glide %.3f %.3f",
-            tostring(kind), dx, jp.y - pp2.y, dz, tp.x - jp.x, tp.y - jp.y, tp.z - jp.z,
-            math.deg(yaw_of(joint:call("get_Rotation"))), math.deg(yaw_of(cam_tf:call("get_Rotation"))),
-            math.deg(yaw_of(player_tf:call("get_Rotation"))), glide_x, glide_z)
-        if probe_kind ~= nil and kind ~= probe_kind and probe_events < 12 then
-            probe_events = probe_events + 1
-            for _, old in ipairs(probe_ring) do log.info(TAG .. " hand-over probe  before: " .. old) end
-            probe_after = 4
+    local cp, pp2 = cam_tf:call("get_Position"), player_tf:call("get_Position")
+    -- where the loader will put the camera: the game's spot, plus the game's level offset while the type is 0
+    local ex, ez = cp.x, cp.z
+    if kind == 0 then
+        local pc = player_camera:get_field("_CurrentParamContainer") or player_camera:get_field("CurrentParamContainer")
+        local pp = pc and pc:get_field("PostureParam")
+        local o = pp and pp:get_field("CameraOffset")
+        if o ~= nil then
+            local off = cam_tf:call("get_Rotation") * Vector3f.new(o.x, 0.0, o.z)
+            ex, ez = ex + off.x, ez + off.z
         end
-        if probe_after > 0 then
-            probe_after = probe_after - 1
-            log.info(TAG .. " hand-over probe  " .. (probe_after == 3 and "CHANGE" or " after") .. ": " .. line)
-        end
-        probe_ring[#probe_ring + 1] = line
-        if #probe_ring > 3 then table.remove(probe_ring, 1) end
-        probe_kind = kind
     end
+    local dx, dz = ex - pp2.x, ez - pp2.z                     -- the camera against the player's spot, level
     local now = os.clock()
     local dt = glide_t and math.min(0.1, math.max(0.0005, now - glide_t)) or 0.011
     glide_t = now
-    local real_scene = re8vr.is_in_cutscene and not blip
-    if not on or real_scene or not vrmod:is_using_controllers() then
-        glide_x, glide_z, glide_was, glide_kind = 0.0, 0.0, nil, kind
-        return
-    end
-    -- THIRD DESIGN, midnight. The probe (23:54, six hand-overs): the big jump falls ONE PICTURE BEFORE the type
-    -- changes: the camera sits 28 to 43 cm off the player's spot, the next picture 9 cm, and only then the type goes
-    -- to 0 and the last 7 cm go (the part the second design caught). So the type is not asked at all: with no real
-    -- scene running, ANY one-picture jump of the camera against the player's spot is glided out, when the camera
-    -- itself moved that far in the world (at a landing the player's spot is pulled a metre under a camera that
-    -- stays put: that is the spot moving, not the camera, and is left alone).
+    -- a one-picture jump against the player's spot counts when the camera itself moved that far in the world (at a
+    -- landing the player's spot is pulled a metre under a camera that stays put: the spot moving, left alone)
     if glide_was ~= nil then
         local jx, jz = dx - glide_was.x, dz - glide_was.z
         local size = math.sqrt(jx * jx + jz * jz)
-        local wx, wz = jp.x - glide_was.wx, jp.z - glide_was.wz
+        local wx, wz = ex - glide_was.wx, ez - glide_was.wz
         local moved = math.sqrt(wx * wx + wz * wz)
         if size > GLIDE_MIN_M and size < GLIDE_MAX_M and moved > GLIDE_MIN_M then
             glide_x, glide_z = glide_x - jx, glide_z - jz
@@ -466,13 +454,11 @@ local function camera_offset_step(player_camera, blip)
             end
         end
     end
-    glide_was, glide_kind = { x = dx, z = dz, wx = jp.x, wz = jp.z }, kind
+    glide_was = { x = dx, z = dz, wx = ex, wz = ez }
     local keep = math.exp(-dt / GLIDE_S)
     glide_x, glide_z = glide_x * keep, glide_z * keep
     if math.abs(glide_x) + math.abs(glide_z) < 0.001 then glide_x, glide_z = 0.0, 0.0 return end
-    local off = Vector3f.new(glide_x, 0.0, glide_z)
-    joint:call("set_Position", jp + off)
-    cam_tf:call("set_Position", cam_tf:call("get_Position") + off)
+    cam_tf:call("set_Position", Vector3f.new(cp.x + glide_x, cp.y, cp.z + glide_z))
 end
 
 function B.camera_step(player_camera)

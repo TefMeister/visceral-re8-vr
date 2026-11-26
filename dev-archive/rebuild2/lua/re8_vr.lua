@@ -1060,6 +1060,10 @@ end
 
 local function fix_player_camera(player_camera)
     if true then
+        -- VISCERAL 2026-11-27: the camera glide (visceral_re8_bridge.lua, B.camera_pre) shifts the game's camera spot
+        -- BEFORE the loader reads it, so the loader's camera, hands and body all work from the same place
+        local vb0 = rawget(_G, "__visceral_re8_bridge")
+        if vb0 ~= nil and vb0.camera_pre ~= nil then pcall(vb0.camera_pre, player_camera) end
         re8vr:fix_player_camera(player_camera)
         -- VISCERAL 2026-11-26: the body turn (native/src/bodyturn.h) reads the head's direction right after the
         -- loader wrote it; nothing is changed here
