@@ -392,3 +392,36 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
 - A REFramework call on the player object can throw while the prologue's scene is torn down; anything "off for the
   whole run after two throws" then never comes back `[measured 2026-11-26, n=1]`.
 - Full write-up: `modding-notes/2026-11-26d-from-zero-step-3-worn-doors-body-legs.md`.
+
+## §12 Legs, the cutscene flag at a stop, the camera hand-over (2026-11-26/27, /ms, headset, nightly 01451)
+
+Full write-up: `modding-notes/2026-11-26f-the-legs-are-the-games-foot-fitting-the-blip-the-body-hold.md`.
+
+- **Leg pops on uneven ground = `via.motion.IkLeg.EnabledGroundAdjust`** (default true); false = clean legs
+  `[verified-live 2026-11-26, n=2]`. Stock game + praydog's VR have it too (true reinstall, March 76298bd and nightly
+  01451) `[verified-live, n=2 builds]`. Reached by `player:call("getComponent(System.Type)", sdk.typeof("via.motion.IkLeg"))`.
+- **The loader's cutscene flag goes up at every running stop, jump, climb and vault with no event running**: the
+  camera's `currentType` is 5 or 2 there, and the flag stays 1.0 s after it returns to 0 `[measured, 13 of 13 stops]`.
+  While up: `update_body_ik` zeroes the IkLeg centre offset (the body goes to its own animated spot), the Lua hand
+  code returns early (the game's arms show), the body is hidden if `RE8VR_AutoHide*BodyCutscenes` is on.
+  Putting the flag down right after `re8vr:fix_player_camera` each frame, when `_GameEventAction._EventName` is nil
+  and the arm is not jacked, keeps hands and body in play `[verified-live 2026-11-26, n=1 run]`.
+- The Lua body of `fix_player_camera` in `re8_vr.lua` after the `if true then ... return end` is DEAD CODE; the C++
+  `RE8VR::fix_player_camera` runs. `update_hand_ik` is called at UpdateMotion post, LateUpdateBehavior post and
+  PrepareRendering PRE; it solves from `camera:get_WorldMatrix`.
+- **The camera hand-over jump**: with the type not 0 the game's camera drifts 28 to 43 cm (level) off the player's
+  spot and returns in one picture, a picture before the type is 0 again; the loader adds
+  `PostureParam.CameraOffset` (0, 1.61, 0.083) only at type 0, another 8.3 cm snap `[measured, n=6]`. A shift on the
+  camera transform's position BEFORE the loader's fix, fading with 0.12 s, takes it out `[verified-live 2026-11-27, n=2 runs]`.
+- **A landing pulls the player's spot ~1.2 m under the body over four pictures** (the camera stays); the body shows
+  up to 30 cm ahead of the eyes meanwhile `[measured, n=6]`. Open.
+- **Player motion ids, layer 0, bank 0**: 0 idle, 1 run, 2 running stop, 4 / 5 turn on the spot, 408 landing `[measured]`.
+- **Lean, by joint** (local pitch against standing): running Hip +10..13, Spine_0 +12..15, Spine_1 -20..-24; Spine_2
+  never moves; the place of the body against the eyes swings far more than the joints turn `[measured, one run]`.
+- DEAD END: `get_JogEndThreshold` hook (never called); `playerMovementConfig.JogEndThreshold` written 2.0 and 0.0 (the
+  stop motion still plays) `[disproved 2026-11-27]`. `app.PlayerMovement.processMove(Parameter)` runs once per player
+  object (handler setup), not per frame.
+- DEAD END: collar bones (`L_Shoulder`, `R_Shoulder`) held at their standing local rotation before the last hand
+  solve: no change to the elbow pops at a stop, elbows look too high `[disproved 2026-11-27, n=1]`.
+- `config.ini` VSync defaults true on a fresh install; `re2_fw_config.txt` `RE8VR_HideUpperBody` /
+  `RE8VR_AutoHide{Upper,Lower}BodyCutscenes` decide whether any of the above is ever seen.

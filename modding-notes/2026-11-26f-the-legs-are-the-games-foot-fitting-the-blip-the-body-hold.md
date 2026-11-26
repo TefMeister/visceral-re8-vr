@@ -110,3 +110,63 @@ b189's files plus: `visceral_re8.dll` sha256 c821029f... (rec format 2, lean bot
 
 Known-working bundles per game section, prologue first: saved only after he has worn it and says it works, as the
 next build number (b190 "prologue"), so a reinstall never costs a finished section again.
+
+## 8. After midnight (2026-11-27, 23:27 to 00:45): the camera glide, and two levers that did nothing
+
+Eleven short runs with Tefa in the headset; every change is one commit in `dev-archive/rebuild2/lua/`.
+
+### 8a. The body hold both ways, worn (23:27)
+Tefa: *"better again! the slide down hill now doesn't produce me to see Ethan at all"*. Left: a flick of *"the view from
+the chest area outwards ... a dark area of Ethan's coat at the bottom of my view"* after a vault, a jump down and a
+climb, right after control comes back; the coat in the middle of the vault; the teleport at the end of the slide.
+`[verified-live 2026-11-26, n=1 run]`
+
+### 8b. What a jump down / climb / vault / running stop does to the camera `[measured, six hand-overs + the walk files]`
+- The camera's `currentType` goes 0 -> 5 (or 2) with NO event running, and back. A running stop does it too.
+- While it is not 0 the game's camera drifts 28 to 43 cm off the player's spot (level) and comes back in ONE picture
+  (20 to 33 cm), one picture BEFORE the type goes back to 0. Then the loader's own offset snaps in:
+  `PostureParam.CameraOffset` is (0, 1.61, 0.083) and `RE8VR::fix_player_camera` adds its level part only at type 0.
+- The player's motion id (layer 0) changes on the same pictures: 0 idle, 1 run, 2 the running-stop motion, 4 and 5
+  turns on the spot, 408 a landing. So the recorder's motion readout DOES work (bank 0); `walkread.py` reads it wrong.
+- At a landing the player's spot is pulled about 1.2 m under the body over four pictures (10, 19, 25, 26 cm) and the
+  body shows up to 30 cm ahead of the eyes for those pictures: a second, separate flick. NOT fixed.
+- The slide down the hill is a REAL scene (an event runs, flags bit 1): left to the loader on purpose. Its end
+  teleport is the loader's own cutscene exit. The vault's end also turns the view about 10 degrees in one picture.
+
+### 8c. The camera glide, four designs
+1. Keep the loader's offset on while the type is not 0: `[disproved]`, worn: *"same, two little flicks"* (the offset
+   is 8.3 cm, the jump 18 to 33).
+2. Take the jump out on the picture the type changes, as a shift that fades (0.12 s time constant): caught only the
+   last 7 to 8 cm. Tefa: one flicker left, shorter.
+3. Take out ANY one-picture jump of the camera against the player's spot when the camera itself moved that far in the
+   world, no real scene running, applied after the loader's camera fix (joint + transform). Tefa: *"flicker gone, now
+   camera like starts from just tiny bit further away and comes closer to me, same with vault and climb"*
+   `[verified-live 2026-11-27, n=1 run]`; but the game hands jumped 17 cm against the controllers on that picture.
+4. The same sum, applied BEFORE the loader's camera fix (`B.camera_pre`, called from `re8_vr.lua`), on the position
+   the loader reads as the game's camera. Tefa: *"still the same"* on the hand pull-back, the flicker still gone.
+   INSTALLED, `bodyplace.json` `"camoff": 1`.
+
+### 8d. The hand "pull-back" at a running stop: what it is, and two levers that did nothing
+- Tefa: *"hands still jank back a little, it doesn't seem like a teleport jank, just like a quick pull-back"*; later
+  *"more teleporty than not ... and then sort of smooth out"*.
+- Measured (walk format 2, elbows and hand turns; 18 stops over two runs): the wrists stay within 3 cm of the
+  controllers. On the picture the motion goes 1 -> 2 the body pops about 3 cm against the eyes, an elbow 4 to 5 cm,
+  the RIGHT hand 2.5 to 3 cm off its controller (the left 0.1). More elbow pops (2 to 6 cm, one picture) about 0.6 s
+  later and when the run starts again.
+- **Collar bones held in their standing pose before the loader's last hand solve** (`B.pre_hands`, re8_vr.lua
+  PrepareRendering pre, `"shoulders": 1`): Tefa, on then off live: *"no difference"*; *"my elbows seem to be too high
+  up"*; he remembers the same from RE2's spine-correction days. `[disproved as the cause, n=1]`. Left in, OFF.
+- **The running-stop motion through `JogEndThreshold`**: the stop is `app.PlayerMovement.processRunEnd`. The getter
+  `get_JogEndThreshold` is never called `[measured]`; the number is the field
+  `app.PlayerMovementConfiguration.playerMovementConfig.JogEndThreshold` (own value 0.8; DeccelSec 0.25, AccelSec
+  0.25, WalkSpeed 2.625, SprintSpeed 4.125). `processMove` runs ONCE per player object (it sets handlers up), so the
+  settings object is kept from it and written from the camera step. Written 2.0 (reads back 2.0): the stop motion
+  still plays after every run of 1.3 s or more. Written 0.0: a 0.8 s run ends in the stop motion, a 0.3 s run does
+  not. **Not the switch** `[disproved 2026-11-27, n=2 values]`. The code is left in; no number in the file = untouched.
+- NEXT for this, no game needed: find what starts state 2 (`app.PlayerDefine.StateName.RunEndL/R`,
+  `BaseActionID.RunEnd`, `isJogEndLSequence`, the motion FSM's conditions), and why the right hand alone slips.
+
+### 8e. Installed at the end (game closed, 00:45)
+b189's files + the plugin of 23:22 (sha256 c821029f...) + the bridge and `re8_vr.lua` of commit 75548a6 + the legs
+probe; `bodyplace.json`: `lean 1.0, blip 1, camoff 1, shoulders 0`, no `runend_threshold`; `legs.json` ground adjust
+off. Kept logs: `~/visceral-kept-logs/re8-2026-11-26-23*` and `re8-2026-11-27-00*` (nine files).
