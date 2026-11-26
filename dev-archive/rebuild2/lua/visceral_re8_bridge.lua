@@ -169,6 +169,11 @@ local function place_numbers()
     local f = json.load_file(PLACE_FILE) or {}
     local d, fo, b = tonumber(f.dead_cm) or 0.0, tonumber(f.follow_s) or 0.05, tonumber(f.back_cm) or 2.0
     PLACE.lean_back = tonumber(f.lean_back)      -- nil = the same strength as "lean"
+    local co = tonumber(f.camoff) or 0.0
+    if co ~= PLACE.camoff then
+        PLACE.camoff = co
+        log.info(TAG .. " camera offset: " .. (co > 0.5 and "kept on through a jump, a climb, a vault and a running stop (no event running)" or "off, the loader drops it there"))
+    end
     local ln = tonumber(f.lean) or 0.0
     if ln ~= PLACE.lean then
         PLACE.lean = ln
@@ -360,6 +365,49 @@ local function event_name()
 end
 
 
+-- THE CAMERA OFFSET THROUGH A BLIP (2026-11-26 night, RE8-098). Tefa: "after the vault, just before i get camera
+-- handed back to me, i see a quick flick of what seems to be the view from the chest area outwards ... the same
+-- flick happens when jumping down from a ledge or climbing up one, right after i get control back". The walk
+-- file of 23:27: about 0.8 s after every landing the eyes jump 17 to 19 cm against the body in ONE picture, and
+-- the body takes five pictures to follow. Read in the loader (RE8VR::fix_player_camera): it adds the game's
+-- PostureParam.CameraOffset (level part) to the camera ONLY while the camera's type is 0, so the offset drops out
+-- when a jump, a climb, a vault or a running stop takes the camera, and snaps back in when it is handed back.
+-- Here, right after the loader's camera fix: with the type not 0 and NO event running, the same offset is added
+-- to what the loader set (the drawn joint and the transform). A real scene is left alone. Every change of the
+-- camera's type is logged with the offset's size, so the next log says whether the sum is right.
+local cam_type_was, cam_type_told = nil, 0
+local camoff_error_told = false
+local function camera_offset_step(player_camera, blip)
+    local solver = player_camera:get_field("BaseTransSolver")
+    local t = solver and solver:get_field("<currentType>k__BackingField")
+    local kind = t and t:get_field("Value")
+    if kind == nil then return end
+    local pc = player_camera:get_field("_CurrentParamContainer") or player_camera:get_field("CurrentParamContainer")
+    local pp = pc and pc:get_field("PostureParam")
+    local o = pp and pp:get_field("CameraOffset")
+    local on = (PLACE.camoff or 0.0) > 0.5
+    if kind ~= cam_type_was then
+        cam_type_told = cam_type_told + 1
+        if cam_type_told <= 80 then
+            log.info(string.format("%s camera type %s -> %s (%s); the game's camera offset: %s; kept on: %s", TAG, tostring(cam_type_was),
+                tostring(kind), blip and "no event" or (re8vr.is_in_cutscene and "a real scene" or "play"),
+                o and string.format("%.1f cm level (x %.3f, y %.3f, z %.3f)", math.sqrt(o.x * o.x + o.z * o.z) * 100.0, o.x, o.y, o.z) or "not found",
+                (on and blip and kind ~= 0) and "yes" or "no"))
+        end
+        cam_type_was = kind
+    end
+    if not on or not blip or kind == 0 or o == nil or not vrmod:is_using_controllers() then return end
+    local camera = sdk.get_primary_camera()
+    if camera == nil then return end
+    local cam_tf = camera:call("get_GameObject"):call("get_Transform")
+    local joint = cam_tf:call("get_Joints")[0]
+    if joint == nil then return end
+    -- in the loader's cutscene mode the joint holds the camera's turn BEFORE the headset: the turn the loader uses
+    local off = joint:call("get_Rotation") * Vector3f.new(o.x, 0.0, o.z)
+    joint:call("set_Position", joint:call("get_Position") + off)
+    cam_tf:call("set_Position", cam_tf:call("get_Position") + off)
+end
+
 function B.camera_step(player_camera)
     local blip = false
     if re8vr.is_in_cutscene then
@@ -375,6 +423,11 @@ function B.camera_step(player_camera)
         end
     else
         blip_was = nil
+    end
+    local okc, ec = pcall(camera_offset_step, player_camera, blip)
+    if not okc and not camoff_error_told then
+        camoff_error_told = true
+        log.info(TAG .. " camera offset: failed, left to the loader: " .. tostring(ec))
     end
     if (re8vr.is_in_cutscene and not blip) or not vrmod:is_hmd_active() then wb(S_TURN_OK, false) return end
     local solver = player_camera:get_field("BaseTransSolver")
