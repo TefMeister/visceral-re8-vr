@@ -169,6 +169,11 @@ local function place_numbers()
     local f = json.load_file(PLACE_FILE) or {}
     local d, fo, b = tonumber(f.dead_cm) or 0.0, tonumber(f.follow_s) or 0.05, tonumber(f.back_cm) or 2.0
     PLACE.lean_back = tonumber(f.lean_back)      -- nil = the same strength as "lean"
+    local re_ = tonumber(f.runend_threshold)
+    if re_ ~= PLACE.runend then
+        PLACE.runend = re_
+        log.info(TAG .. " run end: " .. (re_ and string.format("the game's jog-end threshold is answered with %.2f", re_) or "the game's own threshold"))
+    end
     local sh = tonumber(f.shoulders) or 0.0
     if sh ~= PLACE.shoulders then
         PLACE.shoulders = sh
@@ -501,6 +506,33 @@ function B.pre_hands()
         if not sh_told then sh_told = true log.info(TAG .. " shoulders: the standing pose is learned; held from here") end
     end
     for i = 1, 2 do sh_joints[i]:call("set_LocalRotation", sh_ref[i]) end
+end
+
+-- NO RUNNING-STOP MOTION (2026-11-27 00:4x, RE8-096/097), a first try, bodyplace.json "runend_threshold".
+-- Tefa: "can we just eliminate these animations as we did with re2". The walk file (00:12, ten stops): on the
+-- picture the player's motion goes from 1 (run) to 2 (the stop) the body pops 3 cm against the eyes, an elbow 4 to
+-- 5 cm and the right hand 3 cm off its controller; the collar bones held still changed nothing ("no difference").
+-- The stop is app.PlayerMovement.processRunEnd, and the class asks get_JogEndThreshold() to decide on it [read in
+-- the type database, no game]. RE2's fix was the same idea (the jog mode hook). Here the getter's answer is
+-- replaced with the number from the file while the headset and the controllers are in use; no number = the
+-- game's own. Which way the threshold works is NOT known: the first answer the game gives is logged, and the
+-- number can be changed while Tefa plays.
+do
+    local told = false
+    local ok, e = pcall(function()
+        local m = sdk.find_type_definition("app.PlayerMovement"):get_method("get_JogEndThreshold")
+        sdk.hook(m, function(args) end, function(retval)
+            if not told then
+                told = true
+                log.info(string.format("%s run end: the game's own jog-end threshold is %.3f", TAG, sdk.to_float(retval)))
+            end
+            if PLACE.runend ~= nil and vrmod:is_hmd_active() and vrmod:is_using_controllers() then
+                return sdk.float_to_ptr(PLACE.runend)
+            end
+            return retval
+        end)
+    end)
+    log.info(TAG .. " run end: the hook on the jog-end threshold " .. (ok and "is in" or ("FAILED: " .. tostring(e))))
 end
 
 function B.camera_step(player_camera)
