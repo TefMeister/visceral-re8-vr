@@ -12,7 +12,9 @@ namespace vr8 {
 const REFrameworkPluginInitializeParam* g_param = nullptr;
 
 namespace {
-constexpr int MAX_THROWS = 2;            // rule 6: a call that throws twice is switched off
+constexpr int MAX_THROWS = 2;            // rule 6: a call that throws twice in a row rests
+constexpr float REST_S = 5.0f;           // ... for this long, then it is tried again
+constexpr int REST_LINES = 3;            // how many rests of one call are logged
 constexpr int STRING_LENGTH_AT = 0x10;   // System.String: the length, then UTF-16 text (read from b178, RE Engine)
 constexpr int STRING_TEXT_AT = 0x14;
 constexpr int STRING_MAX = 512;
@@ -72,7 +74,11 @@ MO* managed_string(const wchar_t* text) {
 }
 
 bool Call::usable() {
-    if (m_off) return false;
+    if (m_off) {
+        if (now_s() < m_rest_until) return false;
+        m_off = false;
+        m_throws = 0;
+    }
     if (m_looked) return m_found != nullptr;
     m_looked = true;
     m_found = API::get()->tdb()->find_method(m_type, m_method);
@@ -92,13 +98,16 @@ bool Call::usable() {
 void Call::threw() {
     if (++m_throws < MAX_THROWS) return;
     m_off = true;
-    LOGW("%s call off: %s.%s threw %d times", TAG, m_type, m_method, m_throws);
+    m_rest_until = now_s() + REST_S;
+    if (m_rests++ < REST_LINES)
+        LOGW("%s call resting %.0f s: %s.%s threw %d times in a row", TAG, REST_S, m_type, m_method, m_throws);
 }
 
 MO* Call::ptr(void* self, std::vector<void*> args) {
     if (self == nullptr || args.size() != m_params || !usable()) return nullptr;
     auto r = m_found->invoke((MO*)self, args);
     if (r.exception_thrown) { threw(); return nullptr; }
+    m_throws = 0;
     return (MO*)r.ptr;
 }
 
@@ -106,6 +115,7 @@ bool Call::value(void* self, void* out, size_t size, std::vector<void*> args) {
     if (self == nullptr || args.size() != m_params || !usable()) return false;
     auto r = m_found->invoke((MO*)self, args);
     if (r.exception_thrown) { threw(); return false; }
+    m_throws = 0;
     if (size > r.bytes.size()) return false;
     std::memcpy(out, r.bytes.data(), size);
     return true;
@@ -131,6 +141,8 @@ struct DynEntry {
     API::Method* found = nullptr;
     bool off = false;
     int throws = 0;
+    float rest_until = 0.0f;
+    int rests = 0;
 };
 
 // nullptr when the call may not be made (missing, wrong count, switched off); each reason logged once
@@ -151,13 +163,15 @@ DynEntry* dyn_entry(MO* self, const char* method, size_t params) {
             e.found = nullptr;
         }
     }
+    if (e.off && now_s() >= e.rest_until) { e.off = false; e.throws = 0; }
     return e.found != nullptr && !e.off ? &e : nullptr;
 }
 
 void dyn_threw(DynEntry& e, const char* method) {
     if (++e.throws < MAX_THROWS) return;
     e.off = true;
-    LOGW("%s call off: %s threw %d times", TAG, method, e.throws);
+    e.rest_until = now_s() + REST_S;
+    if (e.rests++ < REST_LINES) LOGW("%s call resting %.0f s: %s threw %d times in a row", TAG, REST_S, method, e.throws);
 }
 } // namespace
 
@@ -166,6 +180,7 @@ MO* dyn_ptr(MO* self, const char* method, std::vector<void*> args) {
     if (e == nullptr) return nullptr;
     auto r = e->found->invoke(self, args);
     if (r.exception_thrown) { dyn_threw(*e, method); return nullptr; }
+    e->throws = 0;
     return (MO*)r.ptr;
 }
 
@@ -174,6 +189,7 @@ bool dyn_value(MO* self, const char* method, void* out, size_t size, std::vector
     if (e == nullptr) return false;
     auto r = e->found->invoke(self, args);
     if (r.exception_thrown) { dyn_threw(*e, method); return false; }
+    e->throws = 0;
     if (size > r.bytes.size()) return false;
     std::memcpy(out, r.bytes.data(), size);
     return true;

@@ -4,7 +4,10 @@
 // joints.h. What is kept from there is the knowledge, each piece named where it is used; no file was copied.
 //
 // RULE 6 lives here: every call into the game is found once, its parameter count checked, and a call that throws
-// twice is switched off and logged once (b178: the crash of 2026-10-22 and the flood of 113,905 error lines).
+// twice in a row RESTS for a few seconds before it is tried again (b178: the crash of 2026-10-22 and the flood
+// of 113,905 error lines). Until 2026-11-26 it was switched off for the whole run: when the prologue ended, the
+// dying player object threw twice on get_Transform and every part that needs the player stood down for good
+// (Tefa's clips of that run: idle hands at the face, hands that open no door).
 #pragma once
 
 #include <cmath>
@@ -45,8 +48,8 @@ MO* managed_string(const wchar_t* text);        // one per text, made once and k
 
 // ---- checked calls (rule 6) -----------------------------------------------------------------------------------
 // A Call is one method of one type, by name and parameter count. It is looked up on first use. It reports "not
-// usable" when the method is missing, when the count differs, or after it has thrown MAX_THROWS times; each of
-// those is logged once.
+// usable" when the method is missing or the count differs (for good, logged once), and for REST_S seconds
+// after it has thrown MAX_THROWS times in a row (logged the first few times).
 class Call {
 public:
     Call(const char* type, const char* method, uint32_t params) : m_type(type), m_method(method), m_params(params) {}
@@ -68,6 +71,8 @@ private:
     bool m_looked = false;
     bool m_off = false;
     int m_throws = 0;
+    float m_rest_until = 0.0f;
+    int m_rests = 0;
 };
 
 MO* component(MO* game_object, const char* type);   // getComponent(System.Type), nullptr when absent or stale
