@@ -77,6 +77,14 @@ int selftest() {
     for (int i = 0; i < 180; ++i) r.picture(0.16f, 0.0f);
     check("after the stop: let go again", r.state.ask_m < 0.002f, r.state.ask_m);
     check("after the stop: the standing distance was not dragged down", std::fabs(r.state.standing_m - 0.16f) < 0.015f, r.state.standing_m);
+    // a swing BACK (the jump down, the vault's second half): 16 -> 30 cm in 0.2 s, held: the ask goes negative, by
+    // the swing less the dead band, and is let go again
+    r.fresh();
+    for (int i = 0; i < 18; ++i) r.picture(0.16f + 0.14f * (i + 1) / 18.0f, 0.5f);
+    for (int i = 0; i < 27; ++i) r.picture(0.30f, 0.5f);
+    check("a swing back: the body is asked forward by about 10 cm", r.state.ask_m < -0.09f && r.state.ask_m > -0.11f, r.state.ask_m);
+    for (int i = 0; i < 180; ++i) r.picture(0.16f, 0.0f);
+    check("after the swing back: let go again", std::fabs(r.state.ask_m) < 0.002f, r.state.ask_m);
     // looking down: the loader moves the body back 10 cm at straight down; that is not a lean and not a standing change
     r.fresh();
     for (int i = 0; i < 180; ++i) r.picture(0.16f + 0.10f * 0.7f, 0.0f, true, 0.7f);

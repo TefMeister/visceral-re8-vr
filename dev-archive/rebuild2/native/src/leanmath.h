@@ -12,6 +12,13 @@
 // player STANDS (learned in play, never assumed: two designs that assumed it were wrong, bridge script, b183 and
 // b184). Whatever a motion takes it below that, past a dead band, is what the body should sit further back by.
 // Out quickly, back slowly. Nothing before the standing distance is learned; never more than MAX_M.
+//
+// 2026-11-26 late (RE8-092/097): BOTH WAYS, and let go quickly. The walk file of 23:12 (blip fix in): ten running
+// stops lean under 2 cm forward (the 12 cm "lean" was the loader putting the body back on its own spot while its
+// cutscene flag was up), but the jump down swings 19 cm forward THEN 11 cm back, the vault 39 forward then 35 back.
+// A fix that only takes out the forward half and lets go over 0.3 s leaves the back swing whole and adds its own
+// late shift to it: "the body does go back a bit too much" (Tefa). So: a swing back past the dead band is asked
+// out too (a NEGATIVE ask = the body sits further forward), and the ask follows what is measured both ways.
 #pragma once
 
 #include <algorithm>
@@ -21,9 +28,10 @@ namespace vr8::leanmath {
 
 struct Numbers {
     float dead_m = 0.04f;        // the standing distance moves this much with the head alone (measured 14..19 cm)
-    float max_m = 0.20f;         // never ask for more
+    float max_m = 0.40f;         // never ask for more, forward leans (the vault: 39 cm measured)
+    float max_back_m = 0.40f;    // the same for a swing back (a negative ask)
     float out_s = 0.05f;         // how fast the ask grows (a stop leans in about a quarter second)
-    float back_s = 0.30f;        // how fast it is let go again
+    float back_s = 0.08f;        // how fast it is let go again (0.30 until b189: it held on into the back swing)
     float still_mps = 0.05f;     // slower than this is standing
     float learn_s = 0.6f;        // standing this long, the distance steady: it is the standing distance
     float steady_m = 0.02f;      // "steady": it moved less than this over learn_s
@@ -54,7 +62,7 @@ inline float step(State& s, const Numbers& n, float behind_m, float applied_m, f
     const float raw = behind_m - applied_m - n.lookdown * down;
     s.raw_m = raw;
     // learning: only while standing, with nothing asked, and only a reading that holds still
-    if (speed_mps < n.still_mps && s.ask_m < 0.005f) {
+    if (speed_mps < n.still_mps && std::fabs(s.ask_m) < 0.005f) {
         if (s.still_s <= 0.0f) s.still_lo = s.still_hi = raw;
         s.still_lo = std::min(s.still_lo, raw);
         s.still_hi = std::max(s.still_hi, raw);
@@ -70,10 +78,15 @@ inline float step(State& s, const Numbers& n, float behind_m, float applied_m, f
     } else {
         s.still_s = 0.0f;
     }
-    const float want = s.learned ? std::clamp(s.standing_m - n.dead_m - raw, 0.0f, n.max_m) : 0.0f;
-    const float tau = want > s.ask_m ? n.out_s : n.back_s;
-    s.ask_m += (want - s.ask_m) * (1.0f - std::exp(-dt / tau));
-    if (s.ask_m < 0.0005f && want <= 0.0f) s.ask_m = 0.0f;
+    float want = 0.0f;
+    if (s.learned) {
+        const float fwd = std::clamp(s.standing_m - n.dead_m - raw, 0.0f, n.max_m);        // the neck came forward
+        const float back = std::clamp(raw - s.standing_m - n.dead_m, 0.0f, n.max_back_m);  // the neck went back
+        want = fwd > 0.0f ? fwd : -back;
+    }
+    const bool growing = std::fabs(want) > std::fabs(s.ask_m) || want * s.ask_m < 0.0f;
+    s.ask_m += (want - s.ask_m) * (1.0f - std::exp(-dt / (growing ? n.out_s : n.back_s)));
+    if (std::fabs(s.ask_m) < 0.0005f && want == 0.0f) s.ask_m = 0.0f;
     return s.ask_m;
 }
 

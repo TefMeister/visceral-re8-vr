@@ -74,12 +74,12 @@ void pose() {
         LOGI("%s lean fix: standing, the neck is %.0f cm behind the eyes; leans are measured from here", TAG,
              g_state.standing_m * 100.0f);
     }
-    g_peak = std::max(g_peak, ask);
+    g_peak = std::max(g_peak, std::fabs(ask));
     const float now = now_s();
     if (now - g_last_report >= REPORT_EVERY_S) {
         if (g_peak > 0.01f)
             LOGI("%s lean fix: up to %.0f cm asked in the last %.0f s (%s; standing %.0f cm)", TAG, g_peak * 100.0f,
-                 REPORT_EVERY_S, applied > 0.0f ? "the body is moved" : "measuring only",
+                 REPORT_EVERY_S, applied != 0.0f ? "the body is moved" : "measuring only",
                  g_state.standing_m * 100.0f);
         g_peak = 0.0f;
         g_last_report = now;

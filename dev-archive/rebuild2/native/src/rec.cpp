@@ -35,6 +35,25 @@ enum Joint : int { HIP, L_FOOT, R_FOOT, L_KNEE, R_KNEE, L_HAND, R_HAND, NECK, JO
 const wchar_t* const JOINT_NAMES[JOINTS] = {L"Hip", L"L_Foot", L"R_Foot", L"L_Shin", L"R_Shin", L"L_Hand", L"R_Hand", L"Neck_0"};
 const char* const JOINT_SAY[JOINTS] = {"hip", "L_foot", "R_foot", "L_knee", "R_knee", "L_hand", "R_hand", "neck"};
 
+// 2026-11-26 late (RE8-097): which joints carry a motion's lean (the running stop, the jump down, the vault)? The
+// upper body's LOCAL turns, one quaternion each, at the end of every walk line. Read only.
+constexpr int TORSO = 5;
+const wchar_t* const TORSO_NAMES[TORSO] = {L"Hip", L"Spine_0", L"Spine_1", L"Spine_2", L"Neck_0"};
+const char* const TORSO_SAY[TORSO] = {"hipq", "sp0q", "sp1q", "sp2q", "neckq"};
+MO* g_torso[TORSO]{};
+
+// 2026-11-26 night (RE8-096): Tefa after the blip fix: "hand flip gone almost, there is still a quick little flick
+// after running and stopping". The wrists do not move then (under half a centimetre a picture, ten stops), so it is
+// the hand's TURN or the elbow: both elbows (in the head's space, like the hands) and both hands' turn as seen from
+// the view, at the end of every walk line. Read only.
+constexpr int ARM = 2;
+const wchar_t* const ELBOW_NAMES[ARM] = {L"L_Forearm", L"R_Forearm"};
+MO* g_elbow[ARM]{};
+Quat times(Quat a, Quat b) {
+    return {a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y, a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+            a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w, a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z};
+}
+
 bool g_on = false;
 bool g_inited = false;
 unsigned g_generation = 0;
@@ -46,6 +65,7 @@ int g_walk_lines = 0;
 float g_walk_t0 = 0.0f;
 
 Call& joint_position() { static Call c("via.Joint", "get_Position", 0); return c; }
+Call& joint_rotation() { static Call c("via.Joint", "get_Rotation", 0); return c; }
 Call& transform_position() { static Call c("via.Transform", "get_Position", 0); return c; }
 Call& transform_rotation() { static Call c("via.Transform", "get_Rotation", 0); return c; }
 
@@ -64,14 +84,18 @@ void open_walk() {
     g_walk_lines = 0;
     g_walk_t0 = now_s();
     if (g_walk == nullptr) { LOGW("%s recorders: the walk file could not be made", TAG); return; }
-    std::fprintf(g_walk, "# visceral-re8 walkrec 1 off=[%s] scriptbody_off=%d\n", switches::all(),
+    std::fprintf(g_walk, "# visceral-re8 walkrec 2 off=[%s] scriptbody_off=%d\n", switches::all(),
                  bridge::flag(bridge::S_SCRIPTBODY_OFF) ? 1 : 0);
     std::fprintf(g_walk, "t_ms,dt_ms,flags,speed,head_off_deg,stick_x,stick_y,px,pz,pyaw_deg");
     for (int layer = 0; layer < MOTION_LAYERS; ++layer)
         std::fprintf(g_walk, ",m%d_bank,m%d_id,m%d_frame,m%d_frame_d,m%d_end", layer, layer, layer, layer, layer);
     for (int j = HIP; j <= R_KNEE; ++j) std::fprintf(g_walk, ",%s_x,%s_y,%s_z", JOINT_SAY[j], JOINT_SAY[j], JOINT_SAY[j]);
     std::fprintf(g_walk, ",gL_x,gL_y,gL_z,gR_x,gR_y,gR_z,cL_x,cL_y,cL_z,cR_x,cR_y,cR_z");
-    std::fprintf(g_walk, ",neck_behind,lean_raw,lean_standing,lean_ask,lean_applied,down\n");
+    std::fprintf(g_walk, ",neck_behind,lean_raw,lean_standing,lean_ask,lean_applied,down");
+    for (int j = 0; j < TORSO; ++j)
+        std::fprintf(g_walk, ",%s_x,%s_y,%s_z,%s_w", TORSO_SAY[j], TORSO_SAY[j], TORSO_SAY[j], TORSO_SAY[j]);
+    std::fprintf(g_walk, ",eL_x,eL_y,eL_z,eR_x,eR_y,eR_z,hLq_x,hLq_y,hLq_z,hLq_w,hRq_x,hRq_y,hRq_z,hRq_w");
+    std::fprintf(g_walk, "\n");
 }
 
 void turn_on() {
@@ -108,6 +132,11 @@ void find(const ready::Snapshot& player) {
         g_joint[j] = jointwriter::joint_by_name(player.transform, JOINT_NAMES[j]);
         if (g_joint[j] == nullptr) missing += std::string(" ") + JOINT_SAY[j];
     }
+    for (int j = 0; j < TORSO; ++j) {
+        g_torso[j] = jointwriter::joint_by_name(player.transform, TORSO_NAMES[j]);
+        if (g_torso[j] == nullptr) missing += std::string(" ") + TORSO_SAY[j];
+    }
+    for (int a = 0; a < ARM; ++a) g_elbow[a] = jointwriter::joint_by_name(player.transform, ELBOW_NAMES[a]);
     g_motion = component(player.player, "via.motion.Motion");
     LOGI("%s recorders: joints%s; the player's motion %s", TAG, missing.empty() ? " all found" : (" MISSING:" + missing).c_str(),
          g_motion != nullptr ? "found" : "NOT found");
@@ -231,8 +260,26 @@ void pose() {
     std::fprintf(g_walk, ",%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f", game[L_HAND].x, game[L_HAND].y,
                  game[L_HAND].z, game[R_HAND].x, game[R_HAND].y, game[R_HAND].z, real[0].x, real[0].y, real[0].z,
                  real[1].x, real[1].y, real[1].z);
-    std::fprintf(g_walk, ",%.4f,%.4f,%.4f,%.4f,%.4f,%.2f\n", lean.behind_m, lean.raw_m, lean.standing_m, lean.ask_m,
+    std::fprintf(g_walk, ",%.4f,%.4f,%.4f,%.4f,%.4f,%.2f", lean.behind_m, lean.raw_m, lean.standing_m, lean.ask_m,
                  lean.applied_m, lean.down);
+    for (int j = 0; j < TORSO; ++j) {
+        Quat q{0, 0, 0, 1};
+        if (g_torso[j] != nullptr) jointwriter::read_local_rotation(g_torso[j], q);
+        std::fprintf(g_walk, ",%.4f,%.4f,%.4f,%.4f", q.x, q.y, q.z, q.w);
+    }
+    for (int a = 0; a < ARM; ++a) {
+        Vec3 e{}, seen{};
+        if (g_elbow[a] != nullptr && have_camera && joint_position().value(g_elbow[a], &e, sizeof e))
+            seen = rotate(conjugate(view), e - eye);
+        std::fprintf(g_walk, ",%.4f,%.4f,%.4f", seen.x, seen.y, seen.z);
+    }
+    for (int a = 0; a < ARM; ++a) {
+        Quat q{0, 0, 0, 1}, turn{0, 0, 0, 1};
+        MO* hand = g_joint[a == 0 ? L_HAND : R_HAND];
+        if (hand != nullptr && have_camera && joint_rotation().value(hand, &turn, sizeof turn)) q = times(conjugate(view), turn);
+        std::fprintf(g_walk, ",%.4f,%.4f,%.4f,%.4f", q.x, q.y, q.z, q.w);
+    }
+    std::fprintf(g_walk, "\n");
     if (++g_walk_lines % WALK_FLUSH_LINES == 0) std::fflush(g_walk);
 }
 

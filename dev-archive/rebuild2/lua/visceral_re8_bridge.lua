@@ -168,10 +168,16 @@ local function place_numbers()
     if place_frames % PLACE_FILE_EVERY_FRAMES ~= 1 then return end
     local f = json.load_file(PLACE_FILE) or {}
     local d, fo, b = tonumber(f.dead_cm) or 0.0, tonumber(f.follow_s) or 0.05, tonumber(f.back_cm) or 2.0
+    PLACE.lean_back = tonumber(f.lean_back)      -- nil = the same strength as "lean"
     local ln = tonumber(f.lean) or 0.0
     if ln ~= PLACE.lean then
         PLACE.lean = ln
-        log.info(TAG .. " lean fix: " .. (ln > 0.5 and "moves the body" or "measures only"))
+        log.info(TAG .. " lean fix: " .. (ln > 0.01 and string.format("moves the body, by %.0f%% of what a motion leans it", math.min(ln, 1.0) * 100.0) or "measures only"))
+    end
+    local bl = tonumber(f.blip) or 0.0
+    if bl ~= PLACE.blip then
+        PLACE.blip = bl
+        log.info(TAG .. " blip: " .. (bl > 0.5 and "a cutscene flag with no event running counts as play (hands stay on the controllers)" or "off, the loader's flag stands"))
     end
     local st, s1, s0, sp = tonumber(f.steps) or 1.0, tonumber(f.step_start_cm) or 12.0, tonumber(f.step_stop_cm) or 6.0,
         tonumber(f.step_push) or 0.18
@@ -259,9 +265,13 @@ local function body_place()
     -- THE LEAN FIX (native/src/leanfix.h): the plugin measured, on the body as it was drawn, how far a motion
     -- leaned the neck toward the eyes, and asks for the body to sit that far back, behind the HEAD (the direction
     -- it measured in). What was used goes back to it, so it knows what the next picture already holds.
-    if PLACE.lean > 0.5 and hl > 0.001 then
+    -- 2026-11-26 late, Tefa with "lean": 1: "it works ... after running the body does go back a bit too much":
+    -- `lean` is a strength now (0 = measures only, 1 = all of it, 0.6 = 60% of what the plugin asks).
+    if PLACE.lean > 0.01 and hl > 0.001 then
         local lean = arr:read_float(ARRAY_DATA_AT + S_LEAN * 4)
-        if lean ~= nil and lean == lean and lean > 0.0 and lean < 0.30 then
+        -- 2026-11-26 late: both ways. A negative ask = the motion swung the body BACK, so it sits further forward.
+        if lean ~= nil and lean == lean and lean ~= 0.0 and math.abs(lean) < 0.45 then
+            lean = lean * math.min(lean > 0.0 and PLACE.lean or (PLACE.lean_back or PLACE.lean), 1.0)
             tx, tz = tx + head_back.x / hl * lean, tz + head_back.z / hl * lean
             w(S_LEAN_APPLIED, lean)
         end
@@ -349,6 +359,7 @@ local function event_name()
     return (ok2 and name ~= nil and tostring(name)) or "?"
 end
 
+
 function B.camera_step(player_camera)
     local blip = false
     if re8vr.is_in_cutscene then
@@ -378,7 +389,11 @@ function B.camera_step(player_camera)
     if SCRIPTBODY_OFF then return end          -- the halving test: the loader's own placing stands
     if blip then pcall(function() re8vr.is_in_cutscene = false end) end
     local ok, e = pcall(body_place)
-    if blip then pcall(function() re8vr.is_in_cutscene = true end) end
+    -- 2026-11-26 late (RE8-096), bodyplace.json "blip": 1: the flag STAYS down for the rest of the frame, so the
+    -- loader's hands (which read it later) stay on the controllers through a running stop and the second after it.
+    -- Tefa: "when stopping running, then hands do this second long animation that should not be there". The loader
+    -- raises the flag again in its camera fix every frame, so this is decided anew each frame. 0 = put back up.
+    if blip and (PLACE.blip or 0.0) <= 0.5 then pcall(function() re8vr.is_in_cutscene = true end) end
     if not ok and not body_error_told then
         body_error_told = true
         log.info(TAG .. " body place: failed, the loader's own placing stands: " .. tostring(e))
