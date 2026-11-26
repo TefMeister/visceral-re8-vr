@@ -530,6 +530,7 @@ do
                 local this = sdk.to_managed_object(args[2])
                 if this == nil then return end
                 local cfg = this:call("get_config")
+                if cfg ~= nil then cfg = cfg:get_field("playerMovementConfig") end
                 if cfg == nil then return end
                 local now = cfg:get_field("JogEndThreshold")
                 if not cfg_told then
