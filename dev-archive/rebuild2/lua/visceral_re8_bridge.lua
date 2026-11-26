@@ -592,21 +592,19 @@ local function stopjog_step(x, y)
             tostring(m:get_field("IsJog")), tostring(m:get_field("IsJogging")), tostring(m:get_field("JogRate")),
             tostring(m:get_field("IsSprint")), tostring(m:get_field("SprintRate"))))
     end
+    -- Worn 2026-11-27 01:2x with IsJog / IsJogging / JogRate put down: "pull-back is the same". The log of that run:
+    -- IsJog and IsJogging are false at every stop (Ethan does not use them); what is up is SprintRate (0.94 to 1.0)
+    -- and sometimes IsSprint and JogRate (0.7). So these are put down too.
     m:set_field("IsJog", false)
     m:set_field("IsJogging", false)
     m:set_field("JogRate", 0.0)
+    m:set_field("IsSprint", false)
+    m:set_field("IsKeepSprint", false)
+    m:set_field("SprintRate", 0.0)
 end
-do
-    local ok, e = pcall(function()
-        local m = sdk.find_type_definition("app.PlayerMovement"):get_method("<processRunEnd>b__348_0")
-        sdk.hook(m, function(args)
-            stopjog_entered = stopjog_entered + 1
-            log.info(string.format("%s stop jog: the game ENTERED the stop motion (%d), %d frame(s) after the stick was let go, lever %s", TAG,
-                stopjog_entered, stopjog_frame - stopjog_last_stop_frame, ((PLACE.stopjog or 0.0) > 0.5) and "ON" or "off"))
-        end, function(retval) return retval end)
-    end)
-    log.info(TAG .. " stop jog: the counting hook on the stop motion's first handler " .. (ok and "is in" or ("FAILED: " .. tostring(e))))
-end
+-- The counting hook on <processRunEnd>b__348_0 is OUT (2026-11-27 01:2x): it fired on every running stride (445
+-- times in nine minutes, in pairs, half a second apart), so RunEndL / RunEndR are marks inside the run ("which
+-- foot is forward"), not the start of the stop motion. Taken out also to see whether it shook the pistol hand.
 
 function B.camera_step(player_camera)
     pcall(runend_step)
