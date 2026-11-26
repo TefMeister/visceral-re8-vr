@@ -21,6 +21,7 @@ enum class Owner : int {
     CarryArms,           // carryarms.cpp: the game's own arms held steady while Rose is carried
     SleepHands,          // sleephands.cpp: an arm held where it was while its controller is asleep
     SpineStill,          // spinestill.cpp: the lower spine's turn toward the view taken out again
+    DoorLeaf,            // doors.cpp: an open door's leaf, as far as the hands and the body have pushed it
     Count,
 };
 const char* owner_name(Owner owner);

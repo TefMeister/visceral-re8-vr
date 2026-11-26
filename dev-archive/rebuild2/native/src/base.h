@@ -72,4 +72,17 @@ private:
 
 MO* component(MO* game_object, const char* type);   // getComponent(System.Type), nullptr when absent or stale
 
+// ---- checked calls on an object whose type is only known when it is met (2026-11-26, doors) ---------------------
+// The method is looked up on the object's OWN type (a list the scene hands back, a component of some derived
+// kind). Same rule 6: found once per (type, method), parameter count checked, switched off after it threw twice.
+MO* dyn_ptr(MO* self, const char* method, std::vector<void*> args = {});
+bool dyn_value(MO* self, const char* method, void* out, size_t size, std::vector<void*> args = {});
+
+// a value-type field's bytes inside a managed object (a float, a bool, a number), or nullptr
+void* field_data(MO* o, std::string_view field);
+
+inline Vec3 operator+(Vec3 a, Vec3 b) { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
+inline Quat conjugate(Quat q) { return {-q.x, -q.y, -q.z, q.w}; }
+Vec3 rotate(Quat q, Vec3 v);                        // v turned by the unit quaternion q
+
 } // namespace vr8

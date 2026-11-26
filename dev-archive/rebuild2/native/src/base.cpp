@@ -126,4 +126,71 @@ MO* component(MO* go, const char* type) {
     return get_component.ptr(go, {rt});
 }
 
+namespace {
+struct DynEntry {
+    API::Method* found = nullptr;
+    bool off = false;
+    int throws = 0;
+};
+
+// nullptr when the call may not be made (missing, wrong count, switched off); each reason logged once
+DynEntry* dyn_entry(MO* self, const char* method, size_t params) {
+    static std::map<std::pair<API::TypeDefinition*, std::string>, DynEntry> entries;
+    if (!is_managed(self)) return nullptr;
+    auto* td = self->get_type_definition();
+    if (td == nullptr) return nullptr;
+    auto [it, fresh] = entries.try_emplace({td, method});
+    auto& e = it->second;
+    if (fresh) {
+        e.found = td->find_method(method);
+        if (e.found == nullptr) {
+            LOGW("%s call off: %s.%s was not found", TAG, td->get_full_name().c_str(), method);
+        } else if (e.found->get_num_params() != params) {
+            LOGW("%s call off: %s.%s takes %u parameters, %u were expected", TAG, td->get_full_name().c_str(), method,
+                 e.found->get_num_params(), (unsigned)params);
+            e.found = nullptr;
+        }
+    }
+    return e.found != nullptr && !e.off ? &e : nullptr;
+}
+
+void dyn_threw(DynEntry& e, const char* method) {
+    if (++e.throws < MAX_THROWS) return;
+    e.off = true;
+    LOGW("%s call off: %s threw %d times", TAG, method, e.throws);
+}
+} // namespace
+
+MO* dyn_ptr(MO* self, const char* method, std::vector<void*> args) {
+    auto* e = dyn_entry(self, method, args.size());
+    if (e == nullptr) return nullptr;
+    auto r = e->found->invoke(self, args);
+    if (r.exception_thrown) { dyn_threw(*e, method); return nullptr; }
+    return (MO*)r.ptr;
+}
+
+bool dyn_value(MO* self, const char* method, void* out, size_t size, std::vector<void*> args) {
+    auto* e = dyn_entry(self, method, args.size());
+    if (e == nullptr) return false;
+    auto r = e->found->invoke(self, args);
+    if (r.exception_thrown) { dyn_threw(*e, method); return false; }
+    if (size > r.bytes.size()) return false;
+    std::memcpy(out, r.bytes.data(), size);
+    return true;
+}
+
+void* field_data(MO* o, std::string_view field) {
+    if (!is_managed(o)) return nullptr;
+    auto* f = find_field_deep(o->get_type_definition(), field);
+    return f != nullptr ? f->get_data_raw(o, false) : nullptr;
+}
+
+Vec3 rotate(Quat q, Vec3 v) {
+    // v + 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v)
+    const Vec3 u{q.x, q.y, q.z};
+    const Vec3 c1{u.y * v.z - u.z * v.y + q.w * v.x, u.z * v.x - u.x * v.z + q.w * v.y, u.x * v.y - u.y * v.x + q.w * v.z};
+    const Vec3 c2{u.y * c1.z - u.z * c1.y, u.z * c1.x - u.x * c1.z, u.x * c1.y - u.y * c1.x};
+    return {v.x + 2.0f * c2.x, v.y + 2.0f * c2.y, v.z + 2.0f * c2.z};
+}
+
 } // namespace vr8

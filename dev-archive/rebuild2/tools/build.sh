@@ -33,5 +33,7 @@ ls -l "$DLL"; sha256sum "$DLL"
 for e in reframework_plugin_required_version reframework_plugin_initialize; do
     grep -q "$e" "$DLL" && echo "export $e: present" || { echo "export $e: MISSING"; exit 1; }
 done
+# the maths check: the shipped base.cpp against sums built another way (native/tests/mathtest.cpp)
+cmake --build "$BUILD" --config Release --target mathtest >/dev/null 2>&1 && "$BUILD/Release/mathtest.exe" || { echo "MATHS CHECK FAILED"; exit 1; }
 [ "${1:-}" = "--install" ] || exit 0
 bash "$HERE/tools/install.sh"

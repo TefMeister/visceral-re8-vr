@@ -354,3 +354,20 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   finding above this line was read on the March build (pd-upscaler 76298bd) with the old mod installed; b178 and that
   folder are kept in `D:/RE Village REFramework builds/full-backup-2026-11-25-b178-before-rebuild-2/`. Note:
   `modding-notes/2026-11-25e-from-zero-the-wipe-and-the-new-base.md`.
+
+## Doors: states, sounds, the type database off disk (2026-11-26, /pd, no game running)
+
+- The exe carries the whole managed type database; `flat-to-vr-RE-toolkit/tools/tdb-read.py <re8.exe> type <name>` prints
+  any class's fields and methods with no game running (version 69). Its door-state numbers equal the eight read in the
+  running game on 2026-11-19 `[verified-numerically 2026-11-26, 8 of 8]`.
+- Door states (`app.DoorStateNames`, name = murmur hash): Closed 474011919, Closing 3360157036, LittleOpened 171654102,
+  **LittleOpening 2329368004**, Opened 3232296810, Opening 887278378, Push 396010129, Locked 3401490761, External
+  2304963444, CurveAnimation 4118602539 `[inferred-static 2026-11-26]`. DEAD END: "LittleOpen = 3407536511" (b178) is
+  no state `[disproved 2026-11-26, by the list]`.
+- Door sounds: `app.DoorBehavior.CallSE(app.DoorSeTriggerType.Value)` / `CallSE(System.UInt32)`; ten kinds: Locked
+  3401490761, CreakSlow 1884312664, CreakStop 3741696246, OpenKnob 3881480549, OpenLock 3567993302, OpenSlow 165766960,
+  CloseCreakShort 2057132247, CloseCreakLong 2638778551, Close 1212689092, CloseSoft 3119021430 `[inferred-static
+  2026-11-26]`. Which kind plays at which moment: not known `[hypothesis: OpenKnob = the first "partly open" sound]`.
+  DEAD END: the hashes are code immediates only in the type's static constructor, so "which state calls which sound"
+  cannot be read from immediates.
+- Full write-up: `modding-notes/2026-11-26c-from-zero-step-3-doors-by-hand-on-the-frame.md`.

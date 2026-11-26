@@ -18,20 +18,28 @@
 //   spinestill   the stomach no longer turns with the head (2026-11-26)
 //   carryarms    the game's own arms held steady while Rose is carried (2026-11-26)
 //   gamearms     decides "the game's own arms are showing" (Rose); the scene list (2026-11-26, was a script)
-// Not built yet (each comes with the first feature that needs it): the object pool (rule 4), the request gate
-// (rule 5), the arm-solver hook (rule 8), the recorders (Ghost Hand, the performance recorder).
+//   gate         THE REQUEST GATE: the only code that asks the game to start or switch something   rule 5
+//   doors        a hand on a door opens it, never from afar; with Rose, walking in does (2026-11-26)
+//   doorsounds   which of a door's ten sounds play; the first "partly open" one muted (2026-11-26)
+// Not built yet (each comes with the first feature that needs it): the object pool (rule 4), the arm-solver
+// hook (rule 8), the recorders (Ghost Hand, the performance recorder).
 //
 // WHERE THINGS RUN, and nowhere else:
-//   UpdateBehavior, pre        read the bridge, refresh the player              (game thread)
+//   UpdateBehavior, pre        read the bridge, refresh the player, the request gate, the parts' frame steps
 //   PrepareRendering, post     parts ask for joints, then the joint writer writes them
 //   LockScene, post            gamearms: the body's draw flag (after the loader's own hiding)
-// Nothing of ours runs at BeginRendering (rule 1). ONE game function is hooked: bodyturn.cpp's.
+// Nothing of ours runs at BeginRendering (rule 1). FOUR game functions are hooked: bodyturn.cpp's (the body's
+// direction), doors.cpp's (the walk-in open) and doorsounds.cpp's two (the door's sound call); the last three
+// only read a flag or their own argument and count (rule 8).
 #include "base.h"
 #include "bodyturn.h"
 #include "bridge.h"
 #include "carryarms.h"
+#include "doors.h"
+#include "doorsounds.h"
 #include "fingers.h"
 #include "gamearms.h"
+#include "gate.h"
 #include "jointwriter.h"
 #include "ready.h"
 #include "sleephands.h"
@@ -48,6 +56,9 @@ void on_update() {
     bridge::frame();
     ready::refresh();
     if (!switches::off("gamearms")) gamearms::frame();
+    gate::run();                                   // what the parts asked for last frame is made here, only here
+    if (!switches::off("doorsounds")) doorsounds::frame();
+    if (!switches::off("doors")) doors::frame();
     if (!switches::off("bodyturn")) bodyturn::frame();
 }
 
@@ -57,6 +68,7 @@ void on_prepare_rendering() {
     if (!switches::off("carryarms")) carryarms::pose();
     if (!switches::off("sleephands")) sleephands::pose();
     if (!switches::off("bodyturn") && !switches::off("spinestill")) spinestill::pose();
+    if (!switches::off("doors")) doors::pose();
     jointwriter::flush();
 }
 
@@ -80,7 +92,7 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
         param->functions->log_error("%s API init failed, nothing will run", TAG);
         return true;
     }
-    LOGI("%s loaded: %s, the frame + still fingers + carry arms + body turn + sleeping hands + still spine + game arms", TAG, SERIES);
+    LOGI("%s loaded: %s, the frame + still fingers + carry arms + body turn + sleeping hands + still spine + game arms + doors by hand", TAG, SERIES);
     param->functions->on_pre_application_entry("UpdateBehavior", []() { on_update(); });
     param->functions->on_post_application_entry("PrepareRendering", []() { on_prepare_rendering(); });
     param->functions->on_post_application_entry("LockScene", []() { on_lock_scene(); });

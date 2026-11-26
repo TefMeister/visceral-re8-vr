@@ -32,6 +32,7 @@ const char* owner_name(Owner owner) {
     case Owner::CarryArms: return "carry-arms";
     case Owner::SleepHands: return "sleep-hands";
     case Owner::SpineStill: return "spine-still";
+    case Owner::DoorLeaf: return "door-leaf";
     default: return "?";
     }
 }

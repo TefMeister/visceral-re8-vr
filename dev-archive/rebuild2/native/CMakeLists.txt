@@ -16,6 +16,9 @@ add_library(visceral_re8 SHARED
     src/fingers.cpp
     src/carryarms.cpp
     src/gamearms.cpp
+    src/gate.cpp
+    src/doors.cpp
+    src/doorsounds.cpp
     src/bodyturn.cpp
     src/sleephands.cpp
     src/spinestill.cpp)
@@ -25,4 +28,12 @@ target_compile_definitions(visceral_re8 PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 if(MSVC)
     target_compile_options(visceral_re8 PRIVATE /W4 /utf-8 /wd4267 /wd4189)   # two warnings inside praydog's API.hpp
     target_link_options(visceral_re8 PRIVATE "/Brepro")                        # same source, same hash
+endif()
+
+# the frame's maths against sums built another way (tools/build.sh --test); not part of the plugin
+add_executable(mathtest EXCLUDE_FROM_ALL tests/mathtest.cpp src/base.cpp)
+target_include_directories(mathtest PRIVATE include src)
+target_compile_definitions(mathtest PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+if(MSVC)
+    target_compile_options(mathtest PRIVATE /utf-8 /wd4267 /wd4189)
 endif()
