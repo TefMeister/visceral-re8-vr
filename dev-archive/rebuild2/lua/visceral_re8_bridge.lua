@@ -172,7 +172,7 @@ local function place_numbers()
     local co = tonumber(f.camoff) or 0.0
     if co ~= PLACE.camoff then
         PLACE.camoff = co
-        log.info(TAG .. " camera offset: " .. (co > 0.5 and "kept on through a jump, a climb, a vault and a running stop (no event running)" or "off, the loader drops it there"))
+        log.info(TAG .. " camera offset: " .. (co > 0.5 and "a jump of the camera when the game hands it over (no event running) is glided out" or "off, the camera snaps as the game has it"))
     end
     local ln = tonumber(f.lean) or 0.0
     if ln ~= PLACE.lean then
@@ -376,6 +376,11 @@ end
 -- to what the loader set (the drawn joint and the transform). A real scene is left alone. Every change of the
 -- camera's type is logged with the offset's size, so the next log says whether the sum is right.
 local cam_type_was, cam_type_told = nil, 0
+local GLIDE_S = 0.12          -- the taken-out jump fades with this time constant (gone in about three of them)
+local GLIDE_MIN_M, GLIDE_MAX_M = 0.05, 0.60   -- smaller is nothing; bigger is a teleport, left alone
+local GLIDE_WINDOW_FRAMES = 4
+local glide_window, glide_from = 0, nil
+local glide_x, glide_z, glide_was, glide_kind, glide_t, glide_told = 0.0, 0.0, nil, nil, nil, 0
 local camoff_error_told = false
 local function camera_offset_step(player_camera, blip)
     local solver = player_camera:get_field("BaseTransSolver")
@@ -392,19 +397,53 @@ local function camera_offset_step(player_camera, blip)
             log.info(string.format("%s camera type %s -> %s (%s); the game's camera offset: %s; kept on: %s", TAG, tostring(cam_type_was),
                 tostring(kind), blip and "no event" or (re8vr.is_in_cutscene and "a real scene" or "play"),
                 o and string.format("%.1f cm level (x %.3f, y %.3f, z %.3f)", math.sqrt(o.x * o.x + o.z * o.z) * 100.0, o.x, o.y, o.z) or "not found",
-                (on and blip and kind ~= 0) and "yes" or "no"))
+                on and "glide" or "no"))
         end
         cam_type_was = kind
     end
-    if not on or not blip or kind == 0 or o == nil or not vrmod:is_using_controllers() then return end
+    -- SECOND DESIGN, 23:5x the same night. Worn with the offset kept on: "same, two little flicks". The log: the
+    -- offset is 8.3 cm, the jump stayed 18 to 19 cm and falls on the picture the type goes back to 0: the game's two
+    -- cameras simply sit that far apart when one hands over to the other. So nothing is assumed about why: on the
+    -- picture the type changes (no real scene), the camera's own jump against the player's spot is MEASURED on what
+    -- the loader set, and taken out again as a shift that fades away (GLIDE_S), so the view glides instead of
+    -- snapping. Tefa on the loader's own pan after a vault: "the camera now pans smoothly to where hmd is looking".
     local camera = sdk.get_primary_camera()
-    if camera == nil then return end
+    local player_tf = re8vr.transform
+    if camera == nil or player_tf == nil then glide_was = nil return end
     local cam_tf = camera:call("get_GameObject"):call("get_Transform")
     local joint = cam_tf:call("get_Joints")[0]
-    if joint == nil then return end
-    -- in the loader's cutscene mode the joint holds the camera's turn BEFORE the headset: the turn the loader uses
-    local off = joint:call("get_Rotation") * Vector3f.new(o.x, 0.0, o.z)
-    joint:call("set_Position", joint:call("get_Position") + off)
+    if joint == nil then glide_was = nil return end
+    local jp, pp2 = joint:call("get_Position"), player_tf:call("get_Position")
+    local dx, dz = jp.x - pp2.x, jp.z - pp2.z                 -- the camera against the player's spot, level
+    local now = os.clock()
+    local dt = glide_t and math.min(0.1, math.max(0.0005, now - glide_t)) or 0.011
+    glide_t = now
+    local real_scene = re8vr.is_in_cutscene and not blip
+    if not on or real_scene or not vrmod:is_using_controllers() then
+        glide_x, glide_z, glide_was, glide_kind = 0.0, 0.0, nil, kind
+        return
+    end
+    -- the jump may fall a picture or two after the type changes: a short window, and only a real jump counts there
+    if glide_kind ~= nil and kind ~= glide_kind then glide_window, glide_from = GLIDE_WINDOW_FRAMES, glide_kind end
+    if glide_was ~= nil and glide_window > 0 then
+        glide_window = glide_window - 1
+        local jx, jz = dx - glide_was.x, dz - glide_was.z
+        local size = math.sqrt(jx * jx + jz * jz)
+        if size > GLIDE_MIN_M and size < GLIDE_MAX_M then
+            glide_x, glide_z = glide_x - jx, glide_z - jz
+            glide_window = 0
+            glide_told = glide_told + 1
+            if glide_told <= 80 then
+                log.info(string.format("%s camera glide: type %s -> %s, the camera jumped %.1f cm against the player; taken out over %.2f s", TAG, tostring(glide_from), tostring(kind), size * 100.0, GLIDE_S * 3.0))
+            end
+        end
+    end
+    glide_was, glide_kind = { x = dx, z = dz }, kind
+    local keep = math.exp(-dt / GLIDE_S)
+    glide_x, glide_z = glide_x * keep, glide_z * keep
+    if math.abs(glide_x) + math.abs(glide_z) < 0.001 then glide_x, glide_z = 0.0, 0.0 return end
+    local off = Vector3f.new(glide_x, 0.0, glide_z)
+    joint:call("set_Position", jp + off)
     cam_tf:call("set_Position", cam_tf:call("get_Position") + off)
 end
 
