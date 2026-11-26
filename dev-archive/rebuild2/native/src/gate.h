@@ -19,6 +19,7 @@ namespace vr8::gate {
 enum class Kind : int {
     DoorOpen = 0,     // doors.cpp: the game's own "open this door" for a door a hand is on
     DoorSolid,        // doors.cpp: an open leaf's solid parts off, and on again when the game shuts it
+    DoorSound,        // doors.cpp: the hinge creak while a hand or the body moves a leaf we draw
     Count,
 };
 

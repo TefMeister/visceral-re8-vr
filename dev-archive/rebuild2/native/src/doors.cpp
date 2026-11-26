@@ -25,7 +25,13 @@ constexpr float DEG = 3.14159265f / 180.0f;
 // real one is LittleOpening.
 constexpr uint32_t ST_CLOSED = 474011919u, ST_LOCKED = 3401490761u, ST_LITTLE_OPENING = 2329368004u,
                    ST_LITTLE_OPENED = 171654102u, ST_OPENING = 887278378u, ST_OPENED = 3232296810u,
-                   ST_PUSH = 396010129u;
+                   ST_PUSH = 396010129u, ST_CLOSING = 3360157036u, ST_CURVE = 4118602539u;
+// the door's own sound kinds used here (doorsounds.h has all ten)
+constexpr uint32_t SE_CREAK_SLOW = 1884312664u, SE_CREAK_STOP = 3741696246u;
+constexpr float CLOSE_S = 1.2f;            // our leaf swings shut over this long once the game starts closing the door
+                                           // (the game's own close sounds are 1.0 to 1.6 s apart, log of 2026-11-26)
+constexpr float CREAK_STOP_S = 0.25f;      // the leaf has not moved for this long: the creak ends
+constexpr float MOVED_DEG = 0.05f;         // a push of less than this in a frame is not movement
 constexpr int MAX_LEAVES = 4;              // leaves looked after at once (a gate has two)
 constexpr int MAX_SOLID = 8;               // solid parts of one leaf (the leaf, padlocks hanging on it)
 constexpr int MAX_CHILDREN = 40;
@@ -62,6 +68,10 @@ struct Leaf {
     bool put_back = false;     // pose(): write the rest angle once (the game has shut it)
     float prev[PUSHERS]{};     // per pusher: its distance to the shut leaf (shut) or its angle (open) last frame
     bool prev_ok[PUSHERS]{};
+    float closing_from = -1.0f; // the game is closing it: the angle ours had when that began (-1 = not closing)
+    float closing_at = 0.0f;
+    bool creaking = false;     // we started the hinge creak and have not ended it
+    float moved_at = -1.0f;
     MO* solid[MAX_SOLID]{};    // the parts we switched off (each held by one add_ref, rule 7)
     int solid_n = 0;
 };
@@ -186,6 +196,19 @@ void solid_off(Leaf& d) {
 
 int index_of(const Leaf& d) { return (int)(&d - g_leaf); }
 
+// Tefa, 2026-11-26: a door pushed by hand made one sound at the touch and none while it moved: the game creaks
+// only while IT moves a leaf. So the door's own creak is asked for while ours moves, and its stop when it rests.
+void creak(Leaf& d, bool on) {
+    if (d.creaking == on) return;
+    d.creaking = on;
+    MO* door = d.door;
+    const uint32_t kind = on ? SE_CREAK_SLOW : SE_CREAK_STOP;
+    gate::ask(gate::Kind::DoorSound, [door, kind]() {
+        static Call call_se("app.DoorBehavior", "CallSE(System.UInt32)", 1);
+        if (is_managed(door)) call_se.ptr(door, {(void*)(uintptr_t)kind});
+    });
+}
+
 void drop(Leaf& d, bool door_still_there) {
     if (d.solid_n != 0) {
         if (door_still_there) solid_on(d);
@@ -267,7 +290,8 @@ void scan(Vec3 at) {
 void open_request(MO* door, Vec3 hinge) {
     const auto& player = ready::now();
     Vec3 at{};
-    if (!is_managed(door) || state_of(door) != ST_CLOSED || player.player == nullptr ||
+    const uint32_t st = is_managed(door) ? state_of(door) : 0u;
+    if ((st != ST_CLOSED && st != ST_LITTLE_OPENED && st != ST_CURVE) || player.player == nullptr ||
         !transform_position().value(player.transform, &at, sizeof at)) return;
     MO* list = components("app.InteractDoor");
     MO* best = nullptr;
@@ -290,8 +314,11 @@ void touch(Leaf& d, const Vec3 hands[2], const bool hand_ok[2], float now) {
     for (int i = 0; i < 2; ++i) {
         Vec3 local{};
         if (!hand_ok[i] || !to_leaf_frame(d, hands[i], local)) { d.prev_ok[i] = false; continue; }
-        const float along = d.side != 0.0f ? local.x * d.side : std::fabs(local.x);
-        const float off = std::fabs(local.z);
+        // the leaf at joint yaw t lies along (s cos t, 0, -s sin t); for a door never seen shut its rest is taken as 0
+        const float t = (local_yaw_deg(d.hinge) - (d.seen_shut ? d.rest_deg : 0.0f)) * DEG;
+        const float on_line = local.x * std::cos(t) - local.z * std::sin(t);
+        const float along = d.side != 0.0f ? on_line * d.side : std::fabs(on_line);
+        const float off = std::fabs(local.x * std::sin(t) + local.z * std::cos(t));
         const bool on_leaf = along >= HINGE_GAP_M && along <= d.width + g_hand_m && off <= g_hand_m;
         const bool closing_in = d.prev_ok[i] && off < d.prev[i];
         d.prev[i] = off;
@@ -301,7 +328,7 @@ void touch(Leaf& d, const Vec3 hands[2], const bool hand_ok[2], float now) {
         if (is_locked(d.door)) { say("a hand on a LOCKED door (%.2f m from the hinge): nothing asked", along); return; }
         Vec3 hinge{};
         if (!joint_position().value(d.hinge, &hinge, sizeof hinge)) return;
-        say(i == 0 ? "the left hand on a shut door, %.2f m from the hinge" : "the right hand on a shut door, %.2f m from the hinge", along);
+        say(i == 0 ? "the left hand on a door, %.2f m from the hinge (the leaf at %.0f deg)" : "the right hand on a door, %.2f m from the hinge (the leaf at %.0f deg)", along, t / DEG);
         MO* door = d.door;
         gate::ask(gate::Kind::DoorOpen, [door, hinge]() { open_request(door, hinge); });
         return;
@@ -342,6 +369,12 @@ void step(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], bool hand
             if (st == ST_CLOSED && hands_free) touch(d, points, ok, now);
             return;
         }
+        // a door found a crack open or swinging by itself (the scripted door in the village, 2026-11-26: Tefa's
+        // hand did nothing to it): a hand on its leaf asks the game's own open too; the leaf stays the game's
+        if (!d.seen_shut && !d.games_own && hands_free && (st == ST_LITTLE_OPENED || st == ST_CURVE)) {
+            touch(d, points, ok, now);
+            return;
+        }
         if (!d.seen_shut || d.games_own || !is_open(st)) return;      // found open, or the game's own (Rose)
         if (!hands_free) {                                            // opened by walking in with Rose: all the game's
             d.games_own = true;
@@ -361,7 +394,18 @@ void step(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], bool hand
         return;
     }
     if (is_shut(st)) { if (d.shut_since < 0.0f) d.shut_since = now; } else d.shut_since = -1.0f;
-    if (d.shut_since >= 0.0f && now - d.shut_since >= SHUT_HOLD_S) {
+    bool hands_push[PUSHERS] = {ok[0], ok[1], ok[2]};
+    if (st == ST_CLOSING || is_shut(st)) {
+        if (d.closing_from < 0.0f) { d.closing_from = d.drawn_deg; d.closing_at = now; creak(d, false); }
+        const float k = std::clamp((now - d.closing_at) / CLOSE_S, 0.0f, 1.0f);
+        d.drawn_deg = std::min(d.drawn_deg, d.closing_from * (1.0f - k * k * (3.0f - 2.0f * k)));
+        hands_push[0] = hands_push[1] = false;            // only the body in the doorway holds a closing leaf
+    } else {
+        d.closing_from = -1.0f;
+    }
+    if (d.shut_since >= 0.0f && now - d.shut_since >= SHUT_HOLD_S && (d.closing_from < 0.0f || now - d.closing_at >= CLOSE_S)) {
+        creak(d, false);
+        d.closing_from = -1.0f;
         say("the game shut the door: ours too (drawn %.0f deg, back to its own %.1f)", d.drawn_deg, d.rest_deg);
         d.ours = false;
         d.put_back = true;
@@ -373,7 +417,9 @@ void step(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], bool hand
         return;
     }
     const float before = d.drawn_deg;
-    push(d, points, ok);
+    push(d, points, hands_push);
+    if (d.drawn_deg > before + MOVED_DEG && d.closing_from < 0.0f) { d.moved_at = now; creak(d, true); }
+    else if (d.creaking && now - d.moved_at > CREAK_STOP_S) creak(d, false);
     if (std::floor(d.drawn_deg / 15.0f) != std::floor(before / 15.0f)) say("a door pushed to %.0f deg", d.drawn_deg);
 }
 

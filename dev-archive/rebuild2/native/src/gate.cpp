@@ -13,7 +13,7 @@ namespace {
 constexpr float REPORT_EVERY_S = 60.0f;
 constexpr size_t MAX_WAITING = 32;          // more than this waiting is a part gone wrong: the rest is dropped
 
-const char* const KIND_NAME[(int)Kind::Count] = {"door-open", "door-solid"};
+const char* const KIND_NAME[(int)Kind::Count] = {"door-open", "door-solid", "door-sound"};
 
 struct Waiting {
     Kind kind;

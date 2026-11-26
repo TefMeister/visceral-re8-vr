@@ -88,7 +88,23 @@ local PLACE_FILE_EVERY_FRAMES = 180
 -- The numbers as Tefa tuned them in play, 2026-11-26 (bodyplace.json): dead zone 1 cm ("this feels right", after 3, 6
 -- and 15), follow 0.9 s, neck 9 cm + back 2 cm ("the 10 body backwards is ideal"), steps from 12 cm to 6 cm at a push
 -- of 0.18 ("that is great"; 0.5 was "a dash almost", 0.3 "still too fast").
-local PLACE = { dead_cm = 1.0, follow_s = 0.90, back_cm = 2.0, steps = 1.0, step_start_cm = 12.0, step_stop_cm = 6.0, step_push = 0.18, neck_cm = 9.0 }
+local PLACE = { dead_cm = 1.0, follow_s = 0.90, back_cm = 2.0, steps = 1.0, step_start_cm = 12.0, step_stop_cm = 6.0, step_push = 0.18, neck_cm = 9.0, pin = 1.0 }
+-- THE BODY PINNED BY THE REAL HEAD (2026-11-26). Tefa, in the village: "when i run and stop, Ethan's whole body
+-- get's pushed forward so for less than a second i'm looking through his body, like from the centre of it"; the
+-- same at a vault and when a cutscene hands control back. Switching the follow lag off changed nothing (his
+-- answer, same hour). Why [read, RE8VR.cpp update_body_ik]: the loader places the body so that the head of the
+-- STANDING STRAIGHT pose is under the view (plus its look-down shift); whatever a motion leans the upper body
+-- by, the torso swings into the view by that much. So: each frame the REAL Head joint is compared with where
+-- the loader's sum says the head should be, and the level difference is added, bit by bit, to the place handed
+-- to the loader (it settles within a few frames; standing straight the difference is nothing, so the standing
+-- feel Tefa tuned stays). bodyplace.json "pin": 0 switches it off in play. If it ever pushes to its limit and
+-- the head still does not come, it switches itself off and says so.
+local PIN_GAIN = 0.3                  -- how much of the difference is taken in per frame
+local PIN_MAX_M = 0.6                 -- never more than this
+local PIN_STUCK_FRAMES = 180          -- at the limit this long with the head still off: wrong idea, off
+local PIN_STUCK_M = 0.25
+local PIN_LOOKDOWN, PIN_FORWARD = 0.1, 0.025   -- the loader's own look-down shift and forward shift (its numbers)
+local pin_x, pin_z, pin_joint, pin_for, pin_stuck, pin_off, pin_frames = 0.0, 0.0, nil, nil, 0, false, 0
 local PLACE_SETTLE_M = 0.01           -- a move ends this close to the head
 local PLACE_JUMP_M = 1.0              -- the head this far from the kept place: a load or a teleport, start again
 local place_at, place_moving, place_t, place_frames = nil, false, nil, 0
@@ -118,6 +134,12 @@ local function place_numbers()
     local st, s1, s0, sp = tonumber(f.steps) or 1.0, tonumber(f.step_start_cm) or 12.0, tonumber(f.step_stop_cm) or 6.0,
         tonumber(f.step_push) or 0.18
     local nk = tonumber(f.neck_cm) or 9.0
+    local pn = tonumber(f.pin) or 1.0
+    if pn ~= PLACE.pin then
+        PLACE.pin = pn
+        pin_off = false
+        log.info(TAG .. " body pin: " .. (pn > 0.5 and "on" or "off"))
+    end
     if nk ~= PLACE.neck_cm then
         PLACE.neck_cm = nk
         log.info(TAG .. string.format(" body place: the neck is %.0f cm behind the eyes", nk))
@@ -189,7 +211,42 @@ local function body_place()
     local bl = math.sqrt(back.x * back.x + back.z * back.z)
     local bx, bz = 0.0, 0.0
     if bl > 0.001 then bx, bz = back.x / bl * PLACE.back_cm * 0.01, back.z / bl * PLACE.back_cm * 0.01 end
-    re8vr:update_body_ik(rot, Vector4f.new(base.x + place_at.x + bx, cam.y, base.z + place_at.z + bz, 1.0))
+    local tx, tz = place_at.x + bx, place_at.z + bz          -- the place handed over, from the player's own spot
+    if PLACE.pin > 0.5 and not pin_off then
+        if pin_for ~= player_tf then
+            pin_for, pin_x, pin_z, pin_stuck = player_tf, 0.0, 0.0, 0
+            pin_joint = player_tf:call("getJointByName", "Head")
+        end
+        if pin_joint ~= nil then
+            -- where the loader's sum puts the straight pose's head: the place + its look-down and forward shifts
+            local shift = bl > 0.001 and (PIN_LOOKDOWN * math.abs(back.y) - PIN_FORWARD) / bl or 0.0
+            local wx, wz = tx + back.x * shift, tz + back.z * shift
+            local h = pin_joint:call("get_Position")
+            -- the real head, with the correction already in it taken out again: what the motion alone leans by
+            local ex, ez = wx + pin_x - (h.x - base.x), wz + pin_z - (h.z - base.z)
+            local el = math.sqrt(ex * ex + ez * ez)
+            if el > PLACE_JUMP_M then
+                pin_x, pin_z = 0.0, 0.0
+            else
+                pin_x, pin_z = pin_x + (ex - pin_x) * PIN_GAIN, pin_z + (ez - pin_z) * PIN_GAIN
+                local pl = math.sqrt(pin_x * pin_x + pin_z * pin_z)
+                if pl > PIN_MAX_M then pin_x, pin_z = pin_x / pl * PIN_MAX_M, pin_z / pl * PIN_MAX_M end
+                local left = math.sqrt((ex - pin_x) ^ 2 + (ez - pin_z) ^ 2)
+                if pl >= PIN_MAX_M - 0.001 and left > PIN_STUCK_M then pin_stuck = pin_stuck + 1 else pin_stuck = 0 end
+                if pin_stuck > PIN_STUCK_FRAMES then
+                    pin_off, pin_x, pin_z = true, 0.0, 0.0
+                    log.info(TAG .. " body pin: at its limit and the head still off; switched OFF for this run")
+                end
+                pin_frames = pin_frames + 1
+                if pl > 0.08 and pin_frames % 90 == 0 then
+                    log.info(TAG .. string.format(" body pin: the motion leans the head %.0f cm; the body is moved %.0f cm against it", el * 100.0, pl * 100.0))
+                end
+            end
+        end
+    else
+        pin_x, pin_z = 0.0, 0.0
+    end
+    re8vr:update_body_ik(rot, Vector4f.new(base.x + tx + pin_x, cam.y, base.z + tz + pin_z, 1.0))
 end
 
 function B.camera_step(player_camera)
