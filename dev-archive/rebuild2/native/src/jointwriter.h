@@ -18,6 +18,9 @@ namespace vr8::jointwriter {
 // one that asked; two asks for one joint in a frame are a fault, and the FIRST in this order is the one written.
 enum class Owner : int {
     FingersRest = 0,     // fingers.cpp: an empty hand's fingers held still
+    CarryArms,           // carryarms.cpp: the game's own arms held steady while Rose is carried
+    SleepHands,          // sleephands.cpp: an arm held where it was while its controller is asleep
+    SpineStill,          // spinestill.cpp: the lower spine's turn toward the view taken out again
     Count,
 };
 const char* owner_name(Owner owner);

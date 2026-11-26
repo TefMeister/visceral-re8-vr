@@ -266,6 +266,22 @@ local function skel_setup(player, transform)
     log.info(TAG .. " skel: " .. tostring(#skel_joints) .. " joints read")
 end
 
+local rose_min, rose_max, rose_told = {}, {}, false
+local function rose_take(key, v)
+    if rose_min[key] == nil or v < rose_min[key] then rose_min[key] = v end
+    if rose_max[key] == nil or v > rose_max[key] then rose_max[key] = v end
+end
+local function rose_transform(transform)
+    local child = safe(function() return transform:call("get_Child") end)
+    local n = 0
+    while child ~= nil and n < MAX_CHILDREN do
+        if go_name(child) == "pl5000" then return child end
+        child = safe(function() return child:call("get_Next") end)
+        n = n + 1
+    end
+    return nil
+end
+
 local function skel_sample(player)
     local transform = safe(function() return player:call("get_Transform") end)
     if transform == nil then return end
@@ -284,9 +300,32 @@ local function skel_sample(player)
             if skel_max[i] == nil or v > skel_max[i] then skel_max[i] = v end
         end
     end
+    -- v8 (2026-11-26 11:4x): Rose herself. Does she ride the hands (then steady arms steady her) or play her own
+    -- walk? Her object's height against the camera ("ROSE"), her head joint's ("ROSE_Head"), and the gap between
+    -- her head and Ethan's left hand ("ROSE_Head-LHand": 0 = she rides the hand). Her parent joint, logged once.
+    local rose = rose_transform(transform)
+    if rose ~= nil then
+        if not rose_told then
+            rose_told = true
+            log.info(TAG .. " rose: parent joint=" .. tostring(safe(function() return rose:call("get_ParentJoint") end))
+                .. " same joints as parent=" .. tostring(safe(function() return rose:call("get_SameJointsConstraint") end)))
+        end
+        local rpos = safe(function() return rose:call("get_Position") end)
+        local rhead = safe(function() return rose:call("getJointByName", "Head") end)
+        local rhead_pos = rhead and safe(function() return rhead:call("get_Position") end)
+        local lhand = safe(function() return transform:call("getJointByName", "L_Hand") end)
+        local lhand_pos = lhand and safe(function() return lhand:call("get_Position") end)
+        if rpos ~= nil then rose_take("ROSE", rpos.y - cam_pos.y) end
+        if rhead_pos ~= nil then rose_take("ROSE_Head", rhead_pos.y - cam_pos.y) end
+        if rhead_pos ~= nil and lhand_pos ~= nil then rose_take("ROSE_Head-LHand", rhead_pos.y - lhand_pos.y) end
+    end
     skel_n = skel_n + 1
     if skel_n < SKEL_EVERY_FRAMES then return end
     local parts = {}
+    for _, k in ipairs({ "ROSE", "ROSE_Head", "ROSE_Head-LHand" }) do
+        if rose_min[k] ~= nil then parts[#parts + 1] = string.format("%s=%.1f", k, (rose_max[k] - rose_min[k]) * 100.0) end
+    end
+    rose_min, rose_max = {}, {}
     for i, name in ipairs(skel_names) do
         if skel_min[i] ~= nil then
             local cm = (skel_max[i] - skel_min[i]) * 100.0
@@ -298,12 +337,83 @@ local function skel_sample(player)
     skel_min, skel_max = {}, {}
 end
 
+-- v9 (2026-11-26 12:4x): Tefa: "when the controllers go inactive, is there a way to just freeze hands in their
+-- current position? right now they teleport right to my face". What does the loader report when a controller is put
+-- down and goes to sleep? Twice a second: is_using_controllers, and per controller its distance from the headset and
+-- how far it moved since the last look. One line ("ctl") when the picture changes: asleep (did not move at all),
+-- near (closer than CTL_NEAR_M to the headset), or awake.
+local CTL_EVERY_FRAMES = 30
+local CTL_NEAR_M = 0.25
+local CTL_STILL_M = 0.0002
+local ctl_last_pos, ctl_last_state = {}, ""
+local function ctl_sample()
+    if frame % CTL_EVERY_FRAMES ~= 0 then return end
+    if not vrmod:is_hmd_active() then return end
+    local hmd = vrmod:get_position(0)
+    local list = vrmod:get_controllers()
+    local state, detail = { "using=" .. flag(vrmod:is_using_controllers()) }, {}
+    for n = 1, 2 do
+        local idx = list and list[n]
+        if idx == nil then
+            state[#state + 1] = "c" .. n .. "=none"
+        else
+            local pos = vrmod:get_position(idx)
+            local last = ctl_last_pos[n]
+            local moved = last and (pos - last):length() or 1.0
+            ctl_last_pos[n] = pos
+            local dist = (pos - hmd):length()
+            state[#state + 1] = "c" .. n .. "=" .. (moved < CTL_STILL_M and "asleep" or "awake") .. (dist < CTL_NEAR_M and "+near" or "")
+            detail[#detail + 1] = string.format("c%d %.0f cm from the headset, at %.2f %.2f %.2f", n, dist * 100.0, pos.x, pos.y, pos.z)
+        end
+    end
+    local text = table.concat(state, " ")
+    if text ~= ctl_last_state then
+        ctl_last_state = text
+        log.info(TAG .. " ctl " .. text .. " | " .. table.concat(detail, "; "))
+    end
+end
+
+-- v10 (2026-11-26 14:1x): Tefa: "looking left and right seems to move the stomach area only, Ethan's coat and
+-- clothing only at the stomach level seem to move with turning my head". Which joint is it? Whenever the head's
+-- turn off the body has changed by TWIST_STEP_DEG: one line ("twist") with that angle, each spine joint's own turn
+-- about the up axis (its local rotation, degrees) and where the hip is against the player's spot (cm).
+local TWIST_EVERY_FRAMES = 10
+local TWIST_STEP_DEG = 4.0
+local TWIST_JOINTS = { "Hip", "Spine_0", "Spine_1", "Spine_2", "Neck_0", "Neck_1", "Head" }
+local twist_last = nil
+local function twist_sample(player)
+    if frame % TWIST_EVERY_FRAMES ~= 0 then return end
+    local vb = rawget(_G, "__visceral_re8_bridge")
+    if vb == nil or vb.head_off == nil or re8vr.is_in_cutscene then return end
+    local off = math.deg(vb.head_off() or 0.0)
+    if twist_last ~= nil and math.abs(off - twist_last) < TWIST_STEP_DEG then return end
+    twist_last = off
+    local transform = player:call("get_Transform")
+    local base = transform:call("get_Position")
+    local parts = {}
+    for _, name in ipairs(TWIST_JOINTS) do
+        local joint = transform:call("getJointByName", name)
+        if joint ~= nil then
+            local q = joint:call("get_LocalRotation")
+            -- the turn about the up axis in this rotation (swing-twist: the twist part about Y)
+            parts[#parts + 1] = string.format("%s=%.0f", name, math.deg(2.0 * math.atan(q.y, q.w)))
+            if name == "Hip" then
+                local p = joint:call("get_Position")
+                parts[#parts + 1] = string.format("hip-at=%.1f,%.1f", (p.x - base.x) * 100.0, (p.z - base.z) * 100.0)
+            end
+        end
+    end
+    log.info(TAG .. string.format(" twist head-off=%.0f ", off) .. table.concat(parts, " "))
+end
+
 re.on_frame(function()
     frame = frame + 1
     if re8vr == nil then return end
     local player = re8vr.player
     if player == nil then return end
 
+    pcall(ctl_sample)
+    pcall(twist_sample, player)
     pcall(bob_sample, player)
     pcall(skel_sample, player)
 

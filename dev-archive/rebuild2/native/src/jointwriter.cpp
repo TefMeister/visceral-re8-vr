@@ -29,6 +29,9 @@ Call& get_joint_by_name() { static Call c("via.Transform", "getJointByName", 1);
 const char* owner_name(Owner owner) {
     switch (owner) {
     case Owner::FingersRest: return "fingers-rest";
+    case Owner::CarryArms: return "carry-arms";
+    case Owner::SleepHands: return "sleep-hands";
+    case Owner::SpineStill: return "spine-still";
     default: return "?";
     }
 }

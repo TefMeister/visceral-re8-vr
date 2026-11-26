@@ -13,7 +13,11 @@ add_library(visceral_re8 SHARED
     src/bridge.cpp
     src/ready.cpp
     src/jointwriter.cpp
-    src/fingers.cpp)
+    src/fingers.cpp
+    src/carryarms.cpp
+    src/bodyturn.cpp
+    src/sleephands.cpp
+    src/spinestill.cpp)
 target_include_directories(visceral_re8 PRIVATE include src)
 set_target_properties(visceral_re8 PROPERTIES OUTPUT_NAME "visceral_re8" PREFIX "")
 target_compile_definitions(visceral_re8 PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)

@@ -16,7 +16,7 @@ constexpr float RETRY_S = 1.0f;            // how often the file is read while n
 constexpr int STALE_FRAMES = 120;          // the counter stood still this long: the scripts were reset
 constexpr const char* ARRAY_TYPE = "System.Single[]";
 
-const float* g_data = nullptr;             // the array's floats; nullptr = not attached
+float* g_data = nullptr;             // the array's floats; nullptr = not attached
 MO* g_array = nullptr;
 float g_last_try = -RETRY_S;
 float g_last_counter = -1.0f;
@@ -52,7 +52,7 @@ void try_attach() {
     }
     auto* candidate = (MO*)(uintptr_t)address;
     if (!is_managed(candidate) || type_name(candidate) != ARRAY_TYPE) return;   // a file from an earlier run
-    const auto* data = (const float*)((const char*)candidate + ARRAY_DATA_AT);
+    auto* data = (float*)((char*)candidate + ARRAY_DATA_AT);
     if (data[S_SENTINEL] != (float)sentinel) return;
     g_array = candidate;
     g_data = data;
@@ -79,5 +79,7 @@ void frame() {
 bool live() { return g_data != nullptr && g_stale <= STALE_FRAMES / 4; }
 
 float read(Slot slot) { return live() ? g_data[slot] : 0.0f; }
+
+void write(Slot slot, float value) { if (live()) g_data[slot] = value; }
 
 } // namespace vr8::bridge

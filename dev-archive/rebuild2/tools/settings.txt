@@ -4,3 +4,7 @@ VR_DecoupledPitch=true
 # across a cutscene that really is not good and needs the body off" (a scene that needs it off goes on the scene list)
 RE8VR_AutoHideUpperBodyCutscenes=false
 RE8VR_AutoHideLowerBodyCutscenes=false
+# 2026-11-26 Tefa: "idle timer has to go, so there is no idle animations in the game, apart from the one used to
+# carry rose" (a day, as in b178: checked there 2026-10-28 and 2026-11-05). The Rose carry is our own check
+# (visceral_re8_game_arms.lua), not this timer.
+VR_MotionControlsInactivityTimer=86400.000000

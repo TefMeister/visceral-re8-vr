@@ -272,7 +272,17 @@ local function update_pad_device(device)
 
     local cur_button = device:call("get_Button")
     
-    device:call("set_AxisL", vr_left_stick_axis)
+    -- VISCERAL 2026-11-26: the walk follows the head, not the body (native/src/bodyturn.h). Only what the game is
+    -- handed is turned; the script's own uses of vr_left_stick_axis below (menus, the d-pad) keep the real stick.
+    local visceral_axis_l = vr_left_stick_axis
+    do
+        local vb = rawget(_G, "__visceral_re8_bridge")
+        if vb ~= nil then
+            local ok, turned = pcall(vb.turned_stick, vr_left_stick_axis)
+            if ok and turned ~= nil then visceral_axis_l = turned end
+        end
+    end
+    device:call("set_AxisL", visceral_axis_l)
     device:call("set_RawAxisR", vr_right_stick_axis)
     device:call("set_AxisR", vr_right_stick_axis)
 
@@ -1051,6 +1061,10 @@ end
 local function fix_player_camera(player_camera)
     if true then
         re8vr:fix_player_camera(player_camera)
+        -- VISCERAL 2026-11-26: the body turn (native/src/bodyturn.h) reads the head's direction right after the
+        -- loader wrote it; nothing is changed here
+        local vb = rawget(_G, "__visceral_re8_bridge")
+        if vb ~= nil then pcall(vb.camera_step, player_camera) end
         return
     end
 
@@ -1907,7 +1921,18 @@ re.on_pre_application_entry("UnlockScene", function()
     hmd_pos.y = 0.0
     standing_origin.y = 0.0
 
-    if (hmd_pos - standing_origin):length() >= 0.01 and cfg.roomscale_movement then
+    -- VISCERAL 2026-11-26: steps instead of sliding (visceral_re8_bridge.lua, room_step). While that is on it
+    -- moves the standing origin itself and the game walks the player; the slide below is left out.
+    local visceral_steps = false
+    do
+        local vb = rawget(_G, "__visceral_re8_bridge")
+        if vb ~= nil and vb.room_step ~= nil then
+            local ok, took = pcall(vb.room_step)
+            visceral_steps = ok and took == true
+        end
+    end
+
+    if not visceral_steps and (hmd_pos - standing_origin):length() >= 0.01 and cfg.roomscale_movement then
         standing_origin = vrmod:get_standing_origin()
         hmd_pos.y = standing_origin.y
 
