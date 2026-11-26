@@ -521,42 +521,42 @@ end
 -- field, app.PlayerMovementConfiguration...Base.JogEndThreshold, reached from the movement object's get_config().
 -- The movement object is caught as `this` of processMove (runs while the player moves); the field is written there
 -- when the file gives a number, and put back to the game's own when the number is taken out of the file.
+-- THIRD TRY, 01:0x: processMove runs ONCE per player object (it sets the motion's handlers up), so a write inside
+-- it never saw the number from the file (one line at the start, none after "go"; the stop motion, id 2, still
+-- played). The settings object is kept from that one call and written from the camera step instead.
+local runend_cfg, runend_own, runend_set = nil, nil, nil
 do
-    local cfg_told, own, set_to = false, nil, nil
     local ok, e = pcall(function()
         local m = sdk.find_type_definition("app.PlayerMovement"):get_method("processMove")
         sdk.hook(m, function(args)
             local okh, eh = pcall(function()
                 local this = sdk.to_managed_object(args[2])
-                if this == nil then return end
-                local cfg = this:call("get_config")
+                local cfg = this and this:call("get_config")
                 if cfg ~= nil then cfg = cfg:get_field("playerMovementConfig") end
                 if cfg == nil then return end
-                local now = cfg:get_field("JogEndThreshold")
-                if not cfg_told then
-                    cfg_told = true
-                    own = now
-                    log.info(string.format("%s run end: the movement settings are a %s; the game's own: JogEndThreshold %s, DeccelSec %s, AccelSec %s, WalkSpeed %s, SprintSpeed %s", TAG,
-                        cfg:get_type_definition():get_full_name(), tostring(now), tostring(cfg:get_field("DeccelSec")), tostring(cfg:get_field("AccelSec")),
-                        tostring(cfg:get_field("WalkSpeed")), tostring(cfg:get_field("SprintSpeed"))))
-                end
-                local want = PLACE.runend
-                if want ~= nil and vrmod:is_hmd_active() and vrmod:is_using_controllers() then
-                    if now ~= want then cfg:set_field("JogEndThreshold", want) end
-                    if set_to ~= want then set_to = want log.info(string.format("%s run end: JogEndThreshold set to %.3f (the game's own %s)", TAG, want, tostring(own))) end
-                elseif set_to ~= nil and own ~= nil then
-                    cfg:set_field("JogEndThreshold", own)
-                    set_to = nil
-                    log.info(TAG .. " run end: JogEndThreshold back to the game's own " .. tostring(own))
-                end
+                runend_cfg, runend_set = cfg:add_ref(), nil
+                if runend_own == nil then runend_own = cfg:get_field("JogEndThreshold") end
+                log.info(string.format("%s run end: the movement settings caught; JogEndThreshold now %s (the game's own %s), DeccelSec %s", TAG,
+                    tostring(cfg:get_field("JogEndThreshold")), tostring(runend_own), tostring(cfg:get_field("DeccelSec"))))
             end)
-            if not okh and not cfg_told then cfg_told = true log.info(TAG .. " run end: failed inside the hook: " .. tostring(eh)) end
+            if not okh then log.info(TAG .. " run end: failed inside the hook: " .. tostring(eh)) end
         end, function(retval) return retval end)
     end)
-    log.info(TAG .. " run end: the hook on the player's move step " .. (ok and "is in" or ("FAILED: " .. tostring(e))))
+    log.info(TAG .. " run end: the hook on the player's move setup " .. (ok and "is in" or ("FAILED: " .. tostring(e))))
+end
+local function runend_step()
+    if runend_cfg == nil or runend_own == nil then return end
+    local want = PLACE.runend
+    if want ~= nil and not (vrmod:is_hmd_active() and vrmod:is_using_controllers()) then want = nil end
+    local target = want or runend_own
+    if runend_set == target then return end
+    runend_cfg:set_field("JogEndThreshold", target)
+    runend_set = target
+    log.info(string.format("%s run end: JogEndThreshold written %.3f, reads back %s (the game's own %s)", TAG, target, tostring(runend_cfg:get_field("JogEndThreshold")), tostring(runend_own)))
 end
 
 function B.camera_step(player_camera)
+    pcall(runend_step)
     local blip = false
     if re8vr.is_in_cutscene then
         local event = event_name()
