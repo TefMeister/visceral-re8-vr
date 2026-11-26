@@ -172,7 +172,7 @@ local function place_numbers()
     local re_ = tonumber(f.runend_threshold)
     if re_ ~= PLACE.runend then
         PLACE.runend = re_
-        log.info(TAG .. " run end: " .. (re_ and string.format("the game's jog-end threshold is answered with %.2f", re_) or "the game's own threshold"))
+        log.info(TAG .. " run end: " .. (re_ and string.format("the jog-end threshold is asked to be %.3f", re_) or "the game's own threshold"))
     end
     local sh = tonumber(f.shoulders) or 0.0
     if sh ~= PLACE.shoulders then
@@ -517,22 +517,42 @@ end
 -- replaced with the number from the file while the headset and the controllers are in use; no number = the
 -- game's own. Which way the threshold works is NOT known: the first answer the game gives is logged, and the
 -- number can be changed while Tefa plays.
+-- SECOND TRY, 00:5x: the getter is never called (two stops, no line): the game reads the number itself. It is a
+-- field, app.PlayerMovementConfiguration...Base.JogEndThreshold, reached from the movement object's get_config().
+-- The movement object is caught as `this` of processMove (runs while the player moves); the field is written there
+-- when the file gives a number, and put back to the game's own when the number is taken out of the file.
 do
-    local told = false
+    local cfg_told, own, set_to = false, nil, nil
     local ok, e = pcall(function()
-        local m = sdk.find_type_definition("app.PlayerMovement"):get_method("get_JogEndThreshold")
-        sdk.hook(m, function(args) end, function(retval)
-            if not told then
-                told = true
-                log.info(string.format("%s run end: the game's own jog-end threshold is %.3f", TAG, sdk.to_float(retval)))
-            end
-            if PLACE.runend ~= nil and vrmod:is_hmd_active() and vrmod:is_using_controllers() then
-                return sdk.float_to_ptr(PLACE.runend)
-            end
-            return retval
-        end)
+        local m = sdk.find_type_definition("app.PlayerMovement"):get_method("processMove")
+        sdk.hook(m, function(args)
+            local okh, eh = pcall(function()
+                local this = sdk.to_managed_object(args[2])
+                if this == nil then return end
+                local cfg = this:call("get_config")
+                if cfg == nil then return end
+                local now = cfg:get_field("JogEndThreshold")
+                if not cfg_told then
+                    cfg_told = true
+                    own = now
+                    log.info(string.format("%s run end: the movement settings are a %s; the game's own: JogEndThreshold %s, DeccelSec %s, AccelSec %s, WalkSpeed %s, SprintSpeed %s", TAG,
+                        cfg:get_type_definition():get_full_name(), tostring(now), tostring(cfg:get_field("DeccelSec")), tostring(cfg:get_field("AccelSec")),
+                        tostring(cfg:get_field("WalkSpeed")), tostring(cfg:get_field("SprintSpeed"))))
+                end
+                local want = PLACE.runend
+                if want ~= nil and vrmod:is_hmd_active() and vrmod:is_using_controllers() then
+                    if now ~= want then cfg:set_field("JogEndThreshold", want) end
+                    if set_to ~= want then set_to = want log.info(string.format("%s run end: JogEndThreshold set to %.3f (the game's own %s)", TAG, want, tostring(own))) end
+                elseif set_to ~= nil and own ~= nil then
+                    cfg:set_field("JogEndThreshold", own)
+                    set_to = nil
+                    log.info(TAG .. " run end: JogEndThreshold back to the game's own " .. tostring(own))
+                end
+            end)
+            if not okh and not cfg_told then cfg_told = true log.info(TAG .. " run end: failed inside the hook: " .. tostring(eh)) end
+        end, function(retval) return retval end)
     end)
-    log.info(TAG .. " run end: the hook on the jog-end threshold " .. (ok and "is in" or ("FAILED: " .. tostring(e))))
+    log.info(TAG .. " run end: the hook on the player's move step " .. (ok and "is in" or ("FAILED: " .. tostring(e))))
 end
 
 function B.camera_step(player_camera)
