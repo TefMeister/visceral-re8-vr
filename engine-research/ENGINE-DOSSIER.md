@@ -371,3 +371,24 @@ Files in `staging/visceral-re8-vr/menu-button/` (not committed, nothing installe
   DEAD END: the hashes are code immediates only in the type's static constructor, so "which state calls which sound"
   cannot be read from immediates.
 - Full write-up: `modding-notes/2026-11-26c-from-zero-step-3-doors-by-hand-on-the-frame.md`.
+
+## Doors and the VR layer's cutscene flag, from the headset (2026-11-26 evening, /ms)
+
+- Every door open fires the sound kinds OpenKnob and OpenSlow in one frame; CreakSlow / CreakStop only while the game
+  itself moves a leaf; CloseCreakLong then Close (or CloseCreakShort then CloseSoft) on shutting `[measured 2026-11-26,
+  the log of four runs]`. Each play is one `CallSE`.
+- Several door objects can share one hinge and the game draws one (the bolted village door: `Before_Dynamic/..._Out`,
+  `After1_Dynamic/...DoorOneWayLock_1Way`, `After2_Dynamic/..._Door_Dynamic`). An `app.InteractDoor` names its door in
+  its `Door` field; `via.GameObject.get_Draw` told the shown one from the hidden two `[measured, n=1 door]`.
+- `InteractDoor.StartInteractDoor(player)` opens an ordinary shut door `[verified-live 2026-11-26, Tefa, many doors]`;
+  it does nothing on a door standing a crack open (LittleOpened) or on the one-way-lock door `[measured, n=1 door]`.
+  DEAD END for those: letting the walk-in call through for the door's own parts (nothing happens on the bolted door;
+  it does open the door that swings by itself, state CurveAnimation).
+- praydog's cutscene flag (`re8vr.is_in_cutscene`) is "the camera's controller is not the fully controllable one",
+  held one second longer; while it is up the loader zeroes the leg solver's centre offset. It goes up for a moment
+  whenever a run stops, with no event running `[measured 2026-11-26, n=3 stops; read from RE8VR.cpp, March source]`.
+- DEAD END: reading joints in the script's camera step to place the body (two designs; the joints there are not the
+  posed body) `[disproved 2026-11-26]`. PrepareRendering post is where the posed body is read.
+- A REFramework call on the player object can throw while the prologue's scene is torn down; anything "off for the
+  whole run after two throws" then never comes back `[measured 2026-11-26, n=1]`.
+- Full write-up: `modding-notes/2026-11-26d-from-zero-step-3-worn-doors-body-legs.md`.
