@@ -380,6 +380,7 @@ local GLIDE_S = 0.12          -- the taken-out jump fades with this time constan
 local GLIDE_MIN_M, GLIDE_MAX_M = 0.05, 0.60   -- smaller is nothing; bigger is a teleport, left alone
 local GLIDE_WINDOW_FRAMES = 4
 local glide_window, glide_from = 0, nil
+local probe_ring, probe_kind, probe_events, probe_after = {}, nil, 0, 0
 local glide_x, glide_z, glide_was, glide_kind, glide_t, glide_told = 0.0, 0.0, nil, nil, nil, 0
 local camoff_error_told = false
 local function camera_offset_step(player_camera, blip)
@@ -415,6 +416,29 @@ local function camera_offset_step(player_camera, blip)
     if joint == nil then glide_was = nil return end
     local jp, pp2 = joint:call("get_Position"), player_tf:call("get_Position")
     local dx, dz = jp.x - pp2.x, jp.z - pp2.z                 -- the camera against the player's spot, level
+    -- A PROBE (2026-11-26 midnight, RE8-098), comes out again. The glide caught the 8.3 cm of the offset, and the
+    -- eyes still jump 18 cm against the body on the hand-over picture, the joints smooth. So which part of the
+    -- camera jumps: what the game set (the joint), or what the headset adds on top (transform minus joint), and
+    -- do the two turns agree? Three pictures before and three after each change of the camera's type, 12 times.
+    do
+        local tp = cam_tf:call("get_Position")
+        local line = string.format("type %s | joint-player %.3f %.3f %.3f | headset part %.3f %.3f %.3f | yaw joint %.1f, transform %.1f, player %.1f | glide %.3f %.3f",
+            tostring(kind), dx, jp.y - pp2.y, dz, tp.x - jp.x, tp.y - jp.y, tp.z - jp.z,
+            math.deg(yaw_of(joint:call("get_Rotation"))), math.deg(yaw_of(cam_tf:call("get_Rotation"))),
+            math.deg(yaw_of(player_tf:call("get_Rotation"))), glide_x, glide_z)
+        if probe_kind ~= nil and kind ~= probe_kind and probe_events < 12 then
+            probe_events = probe_events + 1
+            for _, old in ipairs(probe_ring) do log.info(TAG .. " hand-over probe  before: " .. old) end
+            probe_after = 4
+        end
+        if probe_after > 0 then
+            probe_after = probe_after - 1
+            log.info(TAG .. " hand-over probe  " .. (probe_after == 3 and "CHANGE" or " after") .. ": " .. line)
+        end
+        probe_ring[#probe_ring + 1] = line
+        if #probe_ring > 3 then table.remove(probe_ring, 1) end
+        probe_kind = kind
+    end
     local now = os.clock()
     local dt = glide_t and math.min(0.1, math.max(0.0005, now - glide_t)) or 0.011
     glide_t = now
