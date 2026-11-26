@@ -278,8 +278,45 @@ local function body_place()
     re8vr:update_body_ik(rot, Vector4f.new(base.x + tx + pin_x, cam.y, base.z + tz + pin_z, 1.0))
 end
 
+-- THE "CUTSCENE" THAT IS NO SCENE (2026-11-26, measured). Tefa: "when i run and stop, Ethan's whole body get's
+-- pushed forward so for less than a second i'm looking through his body, like from the centre of it"; "cutscenes
+-- still end with the torso being pushed forward a little". The recorder (native/src/leanrec.h), three stops from
+-- a run: the neck went from 17 cm behind the eyes to 9 cm IN FRONT of them, and each time the loader's cutscene
+-- flag was up [measured 2026-11-26, n=3 stops; kept log re8-2026-11-26-1735-b185]. Why [read, RE8VR.cpp
+-- update_player / update_body_ik]: the flag is "the camera controller is not the fully controllable one", and it
+-- stays up one second longer; while it is up the loader takes the body's placing away (centre offset 0), so the
+-- body jumps to where the game has it: under the eyes. The game switches that controller for a moment when a run
+-- stops, and the extra second follows every real scene.
+-- So: when the flag is up and the game runs NO event (no _GameEventAction), it is no scene: the body's place and
+-- the body's turn carry on. The flag is put down only around our own call of the loader's body placing, and put
+-- back as it was. A real scene (an event runs) is left to the loader as before.
+local blip_was, blip_count = nil, 0
+local function event_name()
+    local c = re8vr.game_event_action_controller
+    if c == nil then return nil end
+    local ok, action = pcall(c.get_field, c, "_GameEventAction")
+    if not ok or action == nil then return nil end
+    local ok2, name = pcall(action.get_field, action, "_EventName")
+    return (ok2 and name ~= nil and tostring(name)) or "?"
+end
+
 function B.camera_step(player_camera)
-    if re8vr.is_in_cutscene or not vrmod:is_hmd_active() then wb(S_TURN_OK, false) return end
+    local blip = false
+    if re8vr.is_in_cutscene then
+        local event = event_name()
+        blip = event == nil and not re8vr.is_arm_jacked
+        local now = blip and "no scene" or ("scene " .. tostring(event))
+        if now ~= blip_was then
+            blip_was = now
+            blip_count = blip_count + 1
+            if blip_count <= 60 then
+                log.info(TAG .. " the loader's cutscene flag is up: " .. (blip and "no event runs, so the body's place and turn carry on" or ("a real scene (" .. tostring(event) .. "), left to the loader")))
+            end
+        end
+    else
+        blip_was = nil
+    end
+    if (re8vr.is_in_cutscene and not blip) or not vrmod:is_hmd_active() then wb(S_TURN_OK, false) return end
     local solver = player_camera:get_field("BaseTransSolver")
     local c = solver and (solver:get_field("CurrentController") or solver:get_field("<CurrentController>k__BackingField"))
     if c == nil then wb(S_TURN_OK, false) return end
@@ -289,7 +326,9 @@ function B.camera_step(player_camera)
     turn_stamp = (turn_stamp + 1) % 1000000
     w(S_TURN_STAMP, turn_stamp)
     wb(S_TURN_OK, true)
+    if blip then pcall(function() re8vr.is_in_cutscene = false end) end
     local ok, e = pcall(body_place)
+    if blip then pcall(function() re8vr.is_in_cutscene = true end) end
     if not ok and not body_error_told then
         body_error_told = true
         log.info(TAG .. " body place: failed, the loader's own placing stands: " .. tostring(e))
