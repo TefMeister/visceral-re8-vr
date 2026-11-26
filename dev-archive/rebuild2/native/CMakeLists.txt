@@ -20,6 +20,8 @@ add_library(visceral_re8 SHARED
     src/doors.cpp
     src/doorsounds.cpp
     src/leanrec.cpp
+    src/leanfix.cpp
+    src/rec.cpp
     src/bodyturn.cpp
     src/sleephands.cpp
     src/spinestill.cpp)
@@ -37,4 +39,11 @@ target_include_directories(mathtest PRIVATE include src)
 target_compile_definitions(mathtest PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 if(MSVC)
     target_compile_options(mathtest PRIVATE /utf-8 /wd4267 /wd4189)
+endif()
+
+# the lean fix's SHIPPED sums (src/leanmath.h) run over the recorded lean lines of a kept log, no game
+add_executable(leanreplay EXCLUDE_FROM_ALL tests/leanreplay.cpp)
+target_include_directories(leanreplay PRIVATE src)
+if(MSVC)
+    target_compile_options(leanreplay PRIVATE /utf-8 /W4)
 endif()

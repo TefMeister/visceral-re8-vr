@@ -6,5 +6,6 @@
 namespace vr8::switches {
 
 bool off(const char* part);
+const char* all();     // every name in off.txt, space-separated ("" = none): the recorders stamp their files with it
 
 } // namespace vr8::switches

@@ -27,12 +27,23 @@ enum Slot : int {
     S_MOVE_TURN = 11,      // WRITTEN BY THE PLUGIN: turn the left stick by this, radians (head - body); 0 = leave it
     S_LEFT_ASLEEP = 12,    // 1 = the left controller reports the position 0 0 0 (asleep): sleephands.h
     S_RIGHT_ASLEEP = 13,   // the same for the right controller
-    S_COUNT = 16,          // the array's length (room for the controller readings to come)
+    S_STICK_X = 14,        // the left stick as the script handed it to the game (turned, or a room step's push)
+    S_STICK_Y = 15,
+    S_STEP_ON = 16,        // 1 = a room step is pushing the stick
+    S_HMD_AT = 17,         // 17..19 the headset's place, 20..23 its turn (x y z w), as the loader reports them
+    S_HMD_TURN = 20,
+    S_LEFT_AT = 24,        // 24..26 the left controller's place, the same space
+    S_RIGHT_AT = 27,       // 27..29 the right one's
+    S_LEAN = 30,           // WRITTEN BY THE PLUGIN (leanfix.h): metres the body should sit further back
+    S_LEAN_APPLIED = 31,   // what the script's body placing really used this frame (0 = nothing)
+    S_SCRIPTBODY_OFF = 32, // 1 = the script half of the body is switched off (scriptbody-off.json)
+    S_COUNT = 40,          // the array's length
 };
 
 void frame();                 // once per frame, game thread (UpdateBehavior pre): attach / let go
 bool live();                  // attached and the frame counter moved within the last STALE_FRAMES frames
 float read(Slot slot);        // 0 when not live
+inline float read_at(Slot first, int n) { return read((Slot)((int)first + n)); }
 void write(Slot slot, float value);   // only the slots marked WRITTEN BY THE PLUGIN; nothing when not live
 inline bool flag(Slot slot) { return read(slot) > 0.5f; }
 

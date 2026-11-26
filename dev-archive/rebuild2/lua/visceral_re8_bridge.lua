@@ -14,7 +14,22 @@ local S_TURN_OK, S_TURN_STAMP, S_HEAD_YAW, S_BASE_YAW, S_MOVE_TURN = 7, 8, 9, 10
 local S_LEFT_ASLEEP, S_RIGHT_ASLEEP = 12, 13
 local ASLEEP_M = 0.0001             -- a controller that reports a position this close to 0 0 0 is asleep (measured
                                     -- 2026-11-26: exactly 0 0 0 from about 6 s after it is put down)
-local S_COUNT = 16
+-- 2026-11-26, the recorders (native/src/rec.h) and the lean fix (native/src/leanfix.h):
+local S_STICK_X, S_STICK_Y, S_STEP_ON = 14, 15, 16     -- the left stick as it was handed to the game; a room step runs
+local S_HMD = 17                    -- 17..19 the headset's place, 20..23 its turn (x y z w), as the loader reports them
+local S_LEFT_AT, S_RIGHT_AT = 24, 27   -- 24..26 / 27..29 the controllers' places, the same space
+local S_LEAN, S_LEAN_APPLIED = 30, 31  -- 30 WRITTEN BY THE PLUGIN: metres the body should sit further back; 31 what
+                                       -- body_place really used this frame (0 = nothing: off, or a real scene)
+local S_SCRIPTBODY_OFF = 32         -- 1 = the script half of the body (its place, the steps) is switched off
+local S_COUNT = 40
+-- THE SCRIPT HALF'S OWN SWITCH (2026-11-26, the legs' halving test). off.txt's `frame` switches the plugin off, but
+-- the body's place and the steps live in this script and stayed on. tools/legs-test.sh writes this file beside
+-- off.txt when `scriptbody` is asked for: the loader's own placing and its own slide stand then.
+local SCRIPTBODY_OFF = false
+pcall(function()
+    local f = json.load_file("visceral_re8/scriptbody-off.json")
+    SCRIPTBODY_OFF = f ~= nil and tonumber(f.off) == 1
+end)
 
 if reframework:get_game_name() ~= "re8" then return end
 
@@ -60,6 +75,22 @@ re.on_pre_application_entry("UpdateHID", function()
     end)
     wb(S_LEFT_ASLEEP, left_asleep)
     wb(S_RIGHT_ASLEEP, right_asleep)
+    -- for the recorders: the headset and the controllers as the loader reports them (one space, metres)
+    pcall(function()
+        local p, q = vrmod:get_position(0), vrmod:get_rotation(0):to_quat()
+        w(S_HMD, p.x) w(S_HMD + 1, p.y) w(S_HMD + 2, p.z)
+        w(S_HMD + 3, q.x) w(S_HMD + 4, q.y) w(S_HMD + 5, q.z) w(S_HMD + 6, q.w)
+        local list = vrmod:get_controllers()
+        if list == nil then return end
+        for n, slot in ipairs({ S_LEFT_AT, S_RIGHT_AT }) do
+            if list[n] ~= nil then
+                local c = vrmod:get_position(list[n])
+                w(slot, c.x) w(slot + 1, c.y) w(slot + 2, c.z)
+            end
+        end
+    end)
+    w(S_LEAN_APPLIED, 0.0)          -- body_place writes what it used, later this frame
+    wb(S_SCRIPTBODY_OFF, SCRIPTBODY_OFF)
 end)
 
 -- THE BODY TURN (native/src/bodyturn.h). re8_vr.lua calls camera_step right after the loader's camera fix (one dated
@@ -88,7 +119,10 @@ local PLACE_FILE_EVERY_FRAMES = 180
 -- The numbers as Tefa tuned them in play, 2026-11-26 (bodyplace.json): dead zone 1 cm ("this feels right", after 3, 6
 -- and 15), follow 0.9 s, neck 9 cm + back 2 cm ("the 10 body backwards is ideal"), steps from 12 cm to 6 cm at a push
 -- of 0.18 ("that is great"; 0.5 was "a dash almost", 0.3 "still too fast").
-local PLACE = { dead_cm = 1.0, follow_s = 0.90, back_cm = 2.0, steps = 1.0, step_start_cm = 12.0, step_stop_cm = 6.0, step_push = 0.18, neck_cm = 9.0, pin = 0.0 }
+-- 2026-11-26 evening: follow 0.05 s and no dead zone are the built-in numbers now (worn live through bodyplace.json
+-- for the body-at-a-stop tests; Tefa, standing still: "still fine", twice, and when asked: "standing still felt
+-- fine"). `lean`: 1 = the plugin's lean fix (native/src/leanfix.h) moves the body; 0 = it only measures.
+local PLACE = { lean = 0.0, dead_cm = 0.0, follow_s = 0.05, back_cm = 2.0, steps = 1.0, step_start_cm = 12.0, step_stop_cm = 6.0, step_push = 0.18, neck_cm = 9.0, pin = 0.0 }
 -- THE BODY PINNED BY THE REAL HEAD (2026-11-26). Tefa, in the village: "when i run and stop, Ethan's whole body
 -- get's pushed forward so for less than a second i'm looking through his body, like from the centre of it"; the
 -- same at a vault and when a cutscene hands control back. Switching the follow lag off changed nothing (his
@@ -133,7 +167,12 @@ local function place_numbers()
     place_frames = place_frames + 1
     if place_frames % PLACE_FILE_EVERY_FRAMES ~= 1 then return end
     local f = json.load_file(PLACE_FILE) or {}
-    local d, fo, b = tonumber(f.dead_cm) or 1.0, tonumber(f.follow_s) or 0.90, tonumber(f.back_cm) or 2.0
+    local d, fo, b = tonumber(f.dead_cm) or 0.0, tonumber(f.follow_s) or 0.05, tonumber(f.back_cm) or 2.0
+    local ln = tonumber(f.lean) or 0.0
+    if ln ~= PLACE.lean then
+        PLACE.lean = ln
+        log.info(TAG .. " lean fix: " .. (ln > 0.5 and "moves the body" or "measures only"))
+    end
     local st, s1, s0, sp = tonumber(f.steps) or 1.0, tonumber(f.step_start_cm) or 12.0, tonumber(f.step_stop_cm) or 6.0,
         tonumber(f.step_push) or 0.18
     local nk = tonumber(f.neck_cm) or 9.0
@@ -217,6 +256,16 @@ local function body_place()
     local bx, bz = 0.0, 0.0
     if bl > 0.001 then bx, bz = back.x / bl * PLACE.back_cm * 0.01, back.z / bl * PLACE.back_cm * 0.01 end
     local tx, tz = place_at.x + bx, place_at.z + bz          -- the place handed over, from the player's own spot
+    -- THE LEAN FIX (native/src/leanfix.h): the plugin measured, on the body as it was drawn, how far a motion
+    -- leaned the neck toward the eyes, and asks for the body to sit that far back, behind the HEAD (the direction
+    -- it measured in). What was used goes back to it, so it knows what the next picture already holds.
+    if PLACE.lean > 0.5 and hl > 0.001 then
+        local lean = arr:read_float(ARRAY_DATA_AT + S_LEAN * 4)
+        if lean ~= nil and lean == lean and lean > 0.0 and lean < 0.30 then
+            tx, tz = tx + head_back.x / hl * lean, tz + head_back.z / hl * lean
+            w(S_LEAN_APPLIED, lean)
+        end
+    end
     -- SECOND DESIGN, 2026-11-26 17:1x. The first one took the Head joint for the head: in VR that joint read 72 cm
     -- off while Tefa stood still, and the body was dragged 63 cm back ("ethan is like more than 50cm befing me").
     -- Now nothing is assumed about where the joint sits: while the player stands still its offset from the place
@@ -326,6 +375,7 @@ function B.camera_step(player_camera)
     turn_stamp = (turn_stamp + 1) % 1000000
     w(S_TURN_STAMP, turn_stamp)
     wb(S_TURN_OK, true)
+    if SCRIPTBODY_OFF then return end          -- the halving test: the loader's own placing stands
     if blip then pcall(function() re8vr.is_in_cutscene = false end) end
     local ok, e = pcall(body_place)
     if blip then pcall(function() re8vr.is_in_cutscene = true end) end
@@ -358,7 +408,8 @@ local step_count = 0
 local step_neck = nil               -- the "eyes to neck" arrow when the head was last at the origin
 
 function B.room_step()
-    if PLACE.steps < 0.5 then step_on = false step_last = nil return false end
+    wb(S_STEP_ON, step_on)
+    if SCRIPTBODY_OFF or PLACE.steps < 0.5 then step_on = false step_last = nil return false end
     local origin, hmd = vrmod:get_standing_origin(), vrmod:get_position(0)
     -- The NECK's way off, not the eyes' (worn 14:08: Tefa: "there is still a dead zone after which the body smoothly
     -- but quickly jumps to the opposite side"; the log: a step started while he only turned his head, looking
@@ -436,11 +487,12 @@ function B.turned_stick(axis)
         axis = Vector2f.new(step_x, step_y)
     end
     local a = arr:read_float(ARRAY_DATA_AT + S_MOVE_TURN * 4)
-    if a == nil or a ~= a or math.abs(a) < 0.001 then return axis end
+    if a == nil or a ~= a or math.abs(a) < 0.001 then w(S_STICK_X, axis.x) w(S_STICK_Y, axis.y) return axis end
     local s, co = math.sin(a), math.cos(a)
+    w(S_STICK_X, axis.x * co - axis.y * s) w(S_STICK_Y, axis.y * co + axis.x * s)
     -- which way round: worn 2026-11-26 12:2x with the other sign, Tefa: "when i look left ethan seems to move
     -- diagonally more to the right, and left when i look right". So this one.
     return Vector2f.new(axis.x * co - axis.y * s, axis.y * co + axis.x * s)
 end
 
-log.info(TAG .. " loaded: the array is ready")
+log.info(TAG .. " loaded: the array is ready" .. (SCRIPTBODY_OFF and "; SCRIPTBODY OFF (scriptbody-off.json): the loader places the body and slides it" or ""))

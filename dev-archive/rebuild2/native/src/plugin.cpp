@@ -21,6 +21,9 @@
 //   gate         THE REQUEST GATE: the only code that asks the game to start or switch something   rule 5
 //   doors        a hand on a door opens it, never from afar; with Rose, walking in does (2026-11-26)
 //   doorsounds   which of a door's ten sounds play; the first "partly open" one muted (2026-11-26)
+//   leanfix      the body at a stop: measures the neck against the eyes as drawn; moves the body only when
+//                bodyplace.json says "lean": 1 (2026-11-26, RE8-092)
+//   rec          THE RECORDERS: Camera Jitter BeG0nE, Ghost Hand BeG0nE, the walk file (2026-11-26, RE8-091)
 // Not built yet (each comes with the first feature that needs it): the object pool (rule 4), the arm-solver
 // hook (rule 8), the recorders (Ghost Hand, the performance recorder).
 //
@@ -41,8 +44,10 @@
 #include "gamearms.h"
 #include "gate.h"
 #include "jointwriter.h"
+#include "leanfix.h"
 #include "leanrec.h"
 #include "ready.h"
+#include "rec.h"
 #include "sleephands.h"
 #include "spinestill.h"
 #include "switches.h"
@@ -52,10 +57,12 @@ using namespace vr8;
 namespace {
 constexpr const char* SERIES = "rebuild 2";
 
+// off.txt's `frame` switches every part off, but not the two readers below and not the recorders: they change
+// nothing in the game, and the bare base must be measurable (the legs' halving test, 2026-11-26).
 void on_update() {
-    if (switches::off("frame")) return;
     bridge::frame();
     ready::refresh();
+    if (switches::off("frame")) return;
     if (!switches::off("gamearms")) gamearms::frame();
     gate::run();                                   // what the parts asked for last frame is made here, only here
     if (!switches::off("doorsounds")) doorsounds::frame();
@@ -63,8 +70,15 @@ void on_update() {
     if (!switches::off("bodyturn")) bodyturn::frame();
 }
 
+void measure() {                                   // after the joints are written: the body as it is drawn
+    ready::render_tick();
+    if (!switches::off("frame") && !switches::off("leanfix")) leanfix::pose();
+    else bridge::write(bridge::S_LEAN, 0.0f);
+    if (!switches::off("recorders")) rec::pose();
+}
+
 void on_prepare_rendering() {
-    if (switches::off("frame")) return;
+    if (switches::off("frame")) { measure(); return; }
     if (!switches::off("fingers")) fingers::pose();
     if (!switches::off("carryarms")) carryarms::pose();
     if (!switches::off("sleephands")) sleephands::pose();
@@ -72,6 +86,7 @@ void on_prepare_rendering() {
     if (!switches::off("doors")) doors::pose();
     if (!switches::off("leanrec")) leanrec::pose();   // dev only: measures, changes nothing
     jointwriter::flush();
+    measure();
 }
 
 void on_lock_scene() {
@@ -94,7 +109,7 @@ extern "C" __declspec(dllexport) bool reframework_plugin_initialize(const REFram
         param->functions->log_error("%s API init failed, nothing will run", TAG);
         return true;
     }
-    LOGI("%s loaded: %s, the frame + still fingers + carry arms + body turn + sleeping hands + still spine + game arms + doors by hand", TAG, SERIES);
+    LOGI("%s loaded: %s, the frame + still fingers + carry arms + body turn + sleeping hands + still spine + game arms + doors by hand + the recorders + the lean fix (measuring)", TAG, SERIES);
     param->functions->on_pre_application_entry("UpdateBehavior", []() { on_update(); });
     param->functions->on_post_application_entry("PrepareRendering", []() { on_prepare_rendering(); });
     param->functions->on_post_application_entry("LockScene", []() { on_lock_scene(); });

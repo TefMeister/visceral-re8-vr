@@ -10,21 +10,32 @@
 
 namespace vr8::switches {
 
-bool off(const char* part) {
-    static std::set<std::string> names;
+namespace {
+std::set<std::string> g_names;
+std::string g_all;
+void read_once() {
     static bool read = false;
-    if (!read) {
-        read = true;
-        std::ifstream f(paths::data(L"off.txt"));
-        std::string word, all;
-        while (f >> word) {
-            if (word.empty() || word[0] == '#') continue;
-            names.insert(word);
-            all += word + " ";
-        }
-        if (!names.empty()) LOGI("%s OFF (off.txt): %s", TAG, all.c_str());
+    if (read) return;
+    read = true;
+    std::ifstream f(paths::data(L"off.txt"));
+    std::string word;
+    while (f >> word) {
+        if (word.empty() || word[0] == '#') continue;
+        g_names.insert(word);
+        g_all += (g_all.empty() ? "" : " ") + word;
     }
-    return names.count(part) != 0;
+    if (!g_names.empty()) LOGI("%s OFF (off.txt): %s", TAG, g_all.c_str());
+}
+} // namespace
+
+bool off(const char* part) {
+    read_once();
+    return g_names.count(part) != 0;
+}
+
+const char* all() {
+    read_once();
+    return g_all.c_str();
 }
 
 } // namespace vr8::switches
