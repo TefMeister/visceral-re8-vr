@@ -377,7 +377,7 @@ end
 -- camera's type is logged with the offset's size, so the next log says whether the sum is right.
 local cam_type_was, cam_type_told = nil, 0
 local GLIDE_S = 0.12          -- the taken-out jump fades with this time constant (gone in about three of them)
-local GLIDE_MIN_M, GLIDE_MAX_M = 0.05, 0.60   -- smaller is nothing; bigger is a teleport, left alone
+local GLIDE_MIN_M, GLIDE_MAX_M = 0.055, 0.60   -- smaller is nothing; bigger is a teleport, left alone
 local GLIDE_WINDOW_FRAMES = 4
 local glide_window, glide_from = 0, nil
 local probe_ring, probe_kind, probe_events, probe_after = {}, nil, 0, 0
@@ -447,22 +447,26 @@ local function camera_offset_step(player_camera, blip)
         glide_x, glide_z, glide_was, glide_kind = 0.0, 0.0, nil, kind
         return
     end
-    -- the jump may fall a picture or two after the type changes: a short window, and only a real jump counts there
-    if glide_kind ~= nil and kind ~= glide_kind then glide_window, glide_from = GLIDE_WINDOW_FRAMES, glide_kind end
-    if glide_was ~= nil and glide_window > 0 then
-        glide_window = glide_window - 1
+    -- THIRD DESIGN, midnight. The probe (23:54, six hand-overs): the big jump falls ONE PICTURE BEFORE the type
+    -- changes: the camera sits 28 to 43 cm off the player's spot, the next picture 9 cm, and only then the type goes
+    -- to 0 and the last 7 cm go (the part the second design caught). So the type is not asked at all: with no real
+    -- scene running, ANY one-picture jump of the camera against the player's spot is glided out, when the camera
+    -- itself moved that far in the world (at a landing the player's spot is pulled a metre under a camera that
+    -- stays put: that is the spot moving, not the camera, and is left alone).
+    if glide_was ~= nil then
         local jx, jz = dx - glide_was.x, dz - glide_was.z
         local size = math.sqrt(jx * jx + jz * jz)
-        if size > GLIDE_MIN_M and size < GLIDE_MAX_M then
+        local wx, wz = jp.x - glide_was.wx, jp.z - glide_was.wz
+        local moved = math.sqrt(wx * wx + wz * wz)
+        if size > GLIDE_MIN_M and size < GLIDE_MAX_M and moved > GLIDE_MIN_M then
             glide_x, glide_z = glide_x - jx, glide_z - jz
-            glide_window = 0
             glide_told = glide_told + 1
-            if glide_told <= 80 then
-                log.info(string.format("%s camera glide: type %s -> %s, the camera jumped %.1f cm against the player; taken out over %.2f s", TAG, tostring(glide_from), tostring(kind), size * 100.0, GLIDE_S * 3.0))
+            if glide_told <= 120 then
+                log.info(string.format("%s camera glide: type %s, the camera jumped %.1f cm against the player in one picture; taken out over %.2f s (now held: %.1f cm)", TAG, tostring(kind), size * 100.0, GLIDE_S * 3.0, math.sqrt(glide_x * glide_x + glide_z * glide_z) * 100.0))
             end
         end
     end
-    glide_was, glide_kind = { x = dx, z = dz }, kind
+    glide_was, glide_kind = { x = dx, z = dz, wx = jp.x, wz = jp.z }, kind
     local keep = math.exp(-dt / GLIDE_S)
     glide_x, glide_z = glide_x * keep, glide_z * keep
     if math.abs(glide_x) + math.abs(glide_z) < 0.001 then glide_x, glide_z = 0.0, 0.0 return end
