@@ -97,3 +97,30 @@ unchanged and has no `stopjog`). The bridge it replaced is kept in the rebuild-2
 - `tdb-read.py` prints `@-` for every method of Village: the function field is empty on disk. Worth a line in its
   help text, and a `slots` command (the exe's table of 11,042 method slots at file offset 0x8684ce0: slot address,
   method number) plus the string-literal cross-reference (`litx.py` here). Tool idea, not done tonight.
+
+## 7. Worn the same night (/ms, 01:10 to 01:45, Tefa in the headset, the LEMI and the knife)
+
+- **Run 1, lever off, with a counting hook on `<processRunEnd>b__348_0`:** the hook fired 445 times in nine minutes,
+  in pairs, about half a second apart while running, with the stick held. So `RunEndL` / `RunEndR` are marks inside
+  the run ("which foot is forward"), not the start of the stop motion. **Section 1's reading of them as the stop's
+  states was wrong** `[disproved 2026-11-27, n=445 calls, one run]`; "nothing asks for them by name" still holds.
+  The hook is out.
+- **Run 2, lever on with IsJog / IsJogging / JogRate put down:** Tefa: *"pull-back is the same"* (later: *"might be
+  smaller, but it is very hard to tell"*). The log: `IsJog` and `IsJogging` are false at every stop; what is up is
+  `SprintRate` (0.94 to 1.0), sometimes `IsSprint` and `JogRate` (up to 0.7) `[measured, n=9 stops]`.
+- **Run 3, lever also puts `IsSprint`, `IsKeepSprint` false and `SprintRate` 0.0:** Tefa: *"pullback is gone"*
+  `[verified-live 2026-11-27, n=1 run, 9 stops]`. INSTALLED, `bodyplace.json` `"stopjog": 1`. So the stop motion is
+  chosen from the sprint level the movement object holds on the frame the stick is let go.
+- **A new fault, not from the lever (there with the lever off and with the hook out):** Tefa: *"when holding out Lemi
+  and running, hand is shaking with the pistol like it hasn't before"*; *"like a real weapon would shake in hand
+  when running ... an irregular wobble, or a bobbing but not just up and down"*; walking too; the knife too;
+  *"sometimes more sometimes less"*. Measured: the wrists stay on the controllers while moving (gap steady at 8.07 cm,
+  0.04 cm a picture, the same as standing; walk file, 6,619 pictures) and the weapon does not move against the right
+  hand at all (0.00 cm, under 0.1 degree, sampled after LockScene; probe `archive/probes/visceral_re8_weapon_probe.lua`,
+  23 moving seconds) `[measured 2026-11-27, one run each]`. Tefa saw it, so the measurements are looking in the wrong
+  place: both compare hand, weapon and controller with each other, none compares them with the VIEW at the moment
+  the picture is drawn. Suspects, not tested: the origin being moved after the hands are placed (the body's place
+  follow, the camera glide, the room step); a stale drawn matrix. The body hold (`lean`) switched off live: no answer
+  from Tefa on that run. Board row RE8-101.
+- **Seen in passing:** the gate whose chain is cut with the bolt cutters did not open at a hand push right after the
+  cut; once it had closed again it did. Board row RE8-102.

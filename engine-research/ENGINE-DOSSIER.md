@@ -431,6 +431,8 @@ Full write-up: `modding-notes/2026-11-26f-the-legs-are-the-games-foot-fitting-th
 Full write-up: `modding-notes/2026-11-27a-what-starts-the-running-stop-read-off-the-exe.md`; scripts:
 `dev-archive/recon/2026-11-27-runend-static/`.
 
+- **THE SWITCH (worn):** on the frame the left stick is let go, before the game's update, `app.PlayerMovement` `SprintRate` = 0, `IsSprint` / `IsKeepSprint` = false (and `JogRate` 0): the stop motion does not start; Tefa: "pullback is gone" `[verified-live 2026-11-27, n=1 run, 9 stops]`. `IsJog` / `IsJogging` are always false for Ethan; `SprintRate` is 0.94 to 1.0 in a run `[measured]`.
+- CORRECTION: `RunEndL` / `RunEndR` are marks inside the run, not the stop's states: `<processRunEnd>b__348_0` fires about twice a second while running `[disproved 2026-11-27, n=445 calls]`. The line below is kept for its addresses.
 - The stop = body states `RunEndL` / `RunEndR` + action id `BaseActionID.RunEnd` (hash 3705329191)
   `[inferred-static 2026-11-27]`.
 - `app.PlayerMovement.processRunEnd` @0x1411d51d0 only LISTENS: hashes into the parameter's set, handlers
