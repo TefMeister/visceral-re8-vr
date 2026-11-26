@@ -351,7 +351,7 @@ void open_request(MO* door, Vec3 hinge) {
     const auto& player = ready::now();
     Vec3 at{};
     const uint32_t st = is_managed(door) ? state_of(door) : 0u;
-    if ((st != ST_CLOSED && st != ST_CURVE) || player.player == nullptr ||
+    if ((st != ST_CLOSED && st != ST_CURVE && st != ST_LITTLE_OPENED) || player.player == nullptr ||
         !transform_position().value(player.transform, &at, sizeof at)) return;
     MO* list = components("app.InteractDoor");
     MO* best = nullptr;
@@ -492,6 +492,10 @@ void step(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], bool hand
         if ((!d.seen_shut && st == ST_LITTLE_OPENED) || st == ST_CURVE) {
             d.different = true;
             near_opens(d, points, ok, now);
+            // The bolted door standing a crack open (2026-11-26 19:03, its own parts let through: nothing; Tefa:
+            // "maybe it's meant to open with pressing A?"): a hand ON such a leaf also asks the game's own door
+            // start, A's path, now on the door's own part (b184 asked the wrong door of the three in that spot).
+            if (st == ST_LITTLE_OPENED && hands_free) touch(d, points, ok, now, st);
             return;
         }
         if (d.different && is_open(st)) d.games_own = true;           // it opened its own way: the game's leaf
