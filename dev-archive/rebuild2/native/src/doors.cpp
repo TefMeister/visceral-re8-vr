@@ -248,6 +248,8 @@ void drop(Leaf& d, bool door_still_there) {
     d = Leaf{};
 }
 
+bool drawn(const Leaf& d);   // below, with the several-doors-in-one-spot note
+
 // ---- finding the near leaves ------------------------------------------------------------------------------------
 void take(Leaf& d, MO* door, float away) {
     d = Leaf{};
@@ -278,8 +280,8 @@ void take(Leaf& d, MO* door, float away) {
         std::string name = read_string(object_name().ptr(transform_object().ptr(d.transform)));
         if (MO* parent = transform_parent().ptr(d.transform))
             name = read_string(object_name().ptr(transform_object().ptr(parent))) + "/" + name;
-        LOGI("%s doors: met \"%s\" %.1f m away: leaf %.2f m wide, side %+.0f (bottom centre %s), state %u, leaf at %.0f deg", TAG,
-             name.c_str(), away, d.width, d.side, read_as, st, d.rest_deg);
+        LOGI("%s doors: met \"%s\" %.1f m away: leaf %.2f m wide, side %+.0f (bottom centre %s), state %u, leaf at %.0f deg, %s", TAG,
+             name.c_str(), away, d.width, d.side, read_as, st, d.rest_deg, drawn(d) ? "drawn" : "NOT drawn");
     }
 }
 
@@ -330,6 +332,20 @@ void scan(Vec3 at) {
     }
 }
 
+// SEVERAL DOORS IN ONE SPOT (2026-11-26, found by the name lines: the bolted door in the village is three door
+// objects on one hinge, "Before_Dynamic/..._Out" standing 20 deg open, "After1_Dynamic/...DoorOneWayLock_1Way"
+// and "After2_Dynamic/..._Door_Dynamic"; the game shows one and keeps the others). Until b186 the InteractDoor
+// part was picked by nearness to the hinge, so the game was asked to open the WRONG door of the three (ten asks,
+// none answered), and the hand was read against leaves that are not drawn.
+// a part belongs to a door when its own Door field is that door
+bool part_of(MO* part, MO* door) { return field_obj(part, "Door") == door; }
+// is the door's object drawn at all? (not answered = taken as drawn)
+bool drawn(const Leaf& d) {
+    bool draw = true;
+    MO* go = transform_object().ptr(d.transform);
+    return go == nullptr || !dyn_value(go, "get_Draw", &draw, sizeof draw) || draw;
+}
+
 // ---- the hand on a shut door: the game's own door start, through the gate ---------------------------------------
 void open_request(MO* door, Vec3 hinge) {
     const auto& player = ready::now();
@@ -340,18 +356,23 @@ void open_request(MO* door, Vec3 hinge) {
     MO* list = components("app.InteractDoor");
     MO* best = nullptr;
     float best_m = 1e9f;
+    bool best_own = false;
     for (int i = 0, n = count_of(list); i < n; ++i) {
         MO* part = item_of(list, i);
         Vec3 p{};
         if (part == nullptr || !transform_position().value(transform_of(part), &p, sizeof p) || !finite(p)) continue;
         if (level(p, hinge) > INTERACT_PICK_M || std::fabs(p.y - hinge.y) > 2.0f) continue;
+        const bool own = part_of(part, door);
+        if (own && !best_own) { best = nullptr; best_m = 1e9f; best_own = true; }   // from here only its own parts count
+        if (best_own && !own) continue;
         const float m = level(p, at);
         if (m < best_m) { best = part; best_m = m; }
     }
     if (best == nullptr) { say("a hand on a door, but no InteractDoor part within %.1f m of its hinge", INTERACT_PICK_M); return; }
     static Call start("app.InteractDoor", "StartInteractDoor", 1);
     start.ptr(best, {player.player});
-    say("a hand on a door: the game was asked to open it (its part %.2f m from Ethan)", best_m);
+    say(best_own ? "a hand on a door: the game was asked to open it (the door's own part, %.2f m from Ethan)"
+                 : "a hand on a door: the game was asked to open it (the NEAREST part, %.2f m from Ethan: none says it is this door's)", best_m);
 }
 
 void touch(Leaf& d, const Vec3 hands[2], const bool hand_ok[2], float now, uint32_t /*st*/) {
@@ -433,7 +454,7 @@ void near_opens(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], flo
                 Vec3 p{};
                 if (part == nullptr || !transform_position().value(transform_of(part), &p, sizeof p) || !finite(p)) continue;
                 const float m = level(p, hinge);
-                if (std::fabs(p.y - hinge.y) > 2.0f) continue;
+                if (std::fabs(p.y - hinge.y) > 2.0f || !part_of(part, d.door)) continue;
                 if (m < best[0]) { best[1] = best[0]; d.parts[1] = d.parts[0]; best[0] = m; d.parts[0] = part; }
                 else if (m < best[1]) { best[1] = m; d.parts[1] = part; }
             }
@@ -450,6 +471,7 @@ void near_opens(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], flo
 void step(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], bool hands_free, float now) {
     if (!is_managed(d.door)) { drop(d, false); return; }
     const uint32_t st = state_of(d.door);
+    if (!d.ours && !drawn(d)) { std::fill(d.prev_ok, d.prev_ok + PUSHERS, false); return; }   // one of several in this spot, not shown
     if (!d.ours) {
         if (is_shut(st)) {
             if (!d.seen_shut || d.games_own) d.rest_deg = local_yaw_deg(d.hinge);
