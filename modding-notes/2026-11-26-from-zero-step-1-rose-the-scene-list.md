@@ -85,3 +85,27 @@ Tefa: walking forward and sideways she swings a lot (*"up to 30cm"*), backward *
   praydog's file; `visceral_re8_game_arms.lua` says where it moves when the frame exists. Rule 11 (per-frame work
   is native) is not met by it yet.
 - No build of the new series is in the builds store yet.
+
+## Added 02:1x: the frame's first build (Tefa: "let's keep going, build the frame now")
+
+`dev-archive/rebuild2/native/` (visceral_re8.dll, 76 KB), built by `tools/build.sh`, installed by `tools/install.sh`.
+`[compile-verified 2026-11-26]`; **the game has NOT been started with it** (Tefa went to sleep first).
+
+- Parts: `base` (the checked calls, rule 6), `switches` (off.txt, rule 10), `bridge` (a float array from
+  `visceral_re8_bridge.lua`, found through `data/visceral_re8/bridge.txt` + a sentinel; no hook), `ready` (the player
+  and the one "the hands are the player's" flag, rules 7 and 9), `jointwriter` (the only code that writes a joint:
+  post-PrepareRendering, one writer per joint per frame, fixed order; rules 1 to 3).
+- `build.sh` fails the build on: a `"BeginRendering"` callback in any source or in our scripts, a joint or transform
+  setter named outside `jointwriter.cpp`, a source file over 800 lines.
+- First feature, `fingers`: an empty hand's finger rotations are read once after the player stood still 1 s, then
+  asked of the joint writer every frame; it stands down for a cutscene, the game's arms (Rose), a resting controller,
+  and the right hand with a weapon. Unseen. Open points to watch at the first wear: whether the pose read after the
+  crib scene is a good "rest" (it is whatever the fingers were after 1 s of standing), and whether a
+  post-PrepareRendering write shows in both eyes as it did in b178.
+- NOT in the frame yet: the object pool (rule 4), the request gate (rule 5), the arm-solver hook (rule 8), the
+  recorders (Ghost Hand, the performance recorder), controller readings and rumble on the bridge, the carry check and
+  the scene list (still `visceral_re8_game_arms.lua`).
+- Recorder v7 (`skel` lines): every joint's up-and-down travel against the eye camera while Rose is carried, to find
+  where between the hip and the hand the 6 cm starts. Not run yet.
+- Tefa, 01:5x: *"ethan's body movement - it turns unnaturally and we gotta fix that, it's ruining the game, but won't
+  do it tonight"*: board row RE8-086.
