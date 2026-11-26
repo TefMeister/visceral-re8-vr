@@ -97,14 +97,17 @@ local PLACE = { dead_cm = 1.0, follow_s = 0.90, back_cm = 2.0, steps = 1.0, step
 -- by, the torso swings into the view by that much. So: each frame the REAL Head joint is compared with where
 -- the loader's sum says the head should be, and the level difference is added, bit by bit, to the place handed
 -- to the loader (it settles within a few frames; standing straight the difference is nothing, so the standing
--- feel Tefa tuned stays). bodyplace.json "pin": 0 switches it off in play. If it ever pushes to its limit and
--- the head still does not come, it switches itself off and says so.
+-- feel Tefa tuned stays). bodyplace.json "pin": 0 switches it off in play. (That first design was WRONG in one
+-- assumption: see SECOND DESIGN in body_place.)
 local PIN_GAIN = 0.3                  -- how much of the difference is taken in per frame
-local PIN_MAX_M = 0.6                 -- never more than this
-local PIN_STUCK_FRAMES = 180          -- at the limit this long with the head still off: wrong idea, off
-local PIN_STUCK_M = 0.25
+local PIN_MAX_M = 0.35                -- never more than this
+local PIN_JOINTS = { "Neck_0", "Neck_1", "Spine_2" }   -- the first one found is watched (NOT "Head": see below)
+local PIN_LEARN_FRAMES = 45           -- standing still this long before the standing offset is first taken
+local PIN_ADAPT_FRAMES = 120          -- standing still this long: the standing offset follows slowly
+local PIN_ADAPT = 0.02
 local PIN_LOOKDOWN, PIN_FORWARD = 0.1, 0.025   -- the loader's own look-down shift and forward shift (its numbers)
-local pin_x, pin_z, pin_joint, pin_for, pin_stuck, pin_off, pin_frames = 0.0, 0.0, nil, nil, 0, false, 0
+local pin_x, pin_z, pin_joint, pin_for, pin_frames = 0.0, 0.0, nil, nil, 0
+local pin_base, pin_still, pin_last, pin_name, pin_peak = nil, 0, nil, "none", 0.0
 local PLACE_SETTLE_M = 0.01           -- a move ends this close to the head
 local PLACE_JUMP_M = 1.0              -- the head this far from the kept place: a load or a teleport, start again
 local place_at, place_moving, place_t, place_frames = nil, false, nil, 0
@@ -137,7 +140,7 @@ local function place_numbers()
     local pn = tonumber(f.pin) or 1.0
     if pn ~= PLACE.pin then
         PLACE.pin = pn
-        pin_off = false
+        pin_for = nil
         log.info(TAG .. " body pin: " .. (pn > 0.5 and "on" or "off"))
     end
     if nk ~= PLACE.neck_cm then
@@ -212,34 +215,58 @@ local function body_place()
     local bx, bz = 0.0, 0.0
     if bl > 0.001 then bx, bz = back.x / bl * PLACE.back_cm * 0.01, back.z / bl * PLACE.back_cm * 0.01 end
     local tx, tz = place_at.x + bx, place_at.z + bz          -- the place handed over, from the player's own spot
-    if PLACE.pin > 0.5 and not pin_off then
+    -- SECOND DESIGN, 2026-11-26 17:1x. The first one took the Head joint for the head: in VR that joint read 72 cm
+    -- off while Tefa stood still, and the body was dragged 63 cm back ("ethan is like more than 50cm befing me").
+    -- Now nothing is assumed about where the joint sits: while the player stands still its offset from the place
+    -- the loader aims at is LEARNED (in the body's own front / side, so turning does not change it), and only what
+    -- a motion adds on top of that is taken out. Nothing is corrected before the offset is learned; never more
+    -- than PIN_MAX_M.
+    if PLACE.pin > 0.5 and bl > 0.001 then
         if pin_for ~= player_tf then
-            pin_for, pin_x, pin_z, pin_stuck = player_tf, 0.0, 0.0, 0
-            pin_joint = player_tf:call("getJointByName", "Head")
+            pin_for, pin_x, pin_z, pin_base, pin_still, pin_last = player_tf, 0.0, 0.0, nil, 0, nil
+            pin_joint, pin_name = nil, "none"
+            for _, name in ipairs(PIN_JOINTS) do
+                local j = player_tf:call("getJointByName", name)
+                if j ~= nil then pin_joint, pin_name = j, name break end
+            end
+            log.info(TAG .. " body pin: watching the joint " .. pin_name)
         end
         if pin_joint ~= nil then
-            -- where the loader's sum puts the straight pose's head: the place + its look-down and forward shifts
-            local shift = bl > 0.001 and (PIN_LOOKDOWN * math.abs(back.y) - PIN_FORWARD) / bl or 0.0
-            local wx, wz = tx + back.x * shift, tz + back.z * shift
+            local kx, kz = back.x / bl, back.z / bl                 -- behind the body, level
+            local sx, sz = kz, -kx                                  -- to its side
+            local shift = PIN_LOOKDOWN * math.abs(back.y) - PIN_FORWARD   -- the loader's own shifts, along "behind"
             local h = pin_joint:call("get_Position")
-            -- the real head, with the correction already in it taken out again: what the motion alone leans by
-            local ex, ez = wx + pin_x - (h.x - base.x), wz + pin_z - (h.z - base.z)
-            local el = math.sqrt(ex * ex + ez * ez)
-            if el > PLACE_JUMP_M then
-                pin_x, pin_z = 0.0, 0.0
+            -- the joint from the place aimed at, our own correction taken out again
+            local rx, rz = (h.x - base.x) - pin_x - (tx + kx * shift), (h.z - base.z) - pin_z - (tz + kz * shift)
+            local r_back, r_side = rx * kx + rz * kz, rx * sx + rz * sz
+            local moved = pin_last == nil or math.abs(base.x - pin_last.x) + math.abs(base.z - pin_last.z) > 0.002
+            pin_last = { x = base.x, z = base.z }
+            pin_still = moved and 0 or pin_still + 1
+            if math.abs(r_back) > PLACE_JUMP_M or math.abs(r_side) > PLACE_JUMP_M * 2 then
+                pin_x, pin_z = 0.0, 0.0                              -- a teleport or a load: start again
+            elseif pin_base == nil then
+                if pin_still > PIN_LEARN_FRAMES then
+                    pin_base = { back = r_back, side = r_side }
+                    log.info(TAG .. string.format(" body pin: standing, the joint sits %.0f cm behind and %.0f cm beside the aim; leans are measured from here", r_back * 100.0, r_side * 100.0))
+                end
             else
-                pin_x, pin_z = pin_x + (ex - pin_x) * PIN_GAIN, pin_z + (ez - pin_z) * PIN_GAIN
+                if pin_still > PIN_ADAPT_FRAMES then                 -- standing for a while: the standing offset drifts with the pose
+                    pin_base.back = pin_base.back + (r_back - pin_base.back) * PIN_ADAPT
+                    pin_base.side = pin_base.side + (r_side - pin_base.side) * PIN_ADAPT
+                end
+                local l_back, l_side = r_back - pin_base.back, r_side - pin_base.side
+                local wx, wz = -(l_back * kx + l_side * sx), -(l_back * kz + l_side * sz)
+                pin_x, pin_z = pin_x + (wx - pin_x) * PIN_GAIN, pin_z + (wz - pin_z) * PIN_GAIN
                 local pl = math.sqrt(pin_x * pin_x + pin_z * pin_z)
                 if pl > PIN_MAX_M then pin_x, pin_z = pin_x / pl * PIN_MAX_M, pin_z / pl * PIN_MAX_M end
-                local left = math.sqrt((ex - pin_x) ^ 2 + (ez - pin_z) ^ 2)
-                if pl >= PIN_MAX_M - 0.001 and left > PIN_STUCK_M then pin_stuck = pin_stuck + 1 else pin_stuck = 0 end
-                if pin_stuck > PIN_STUCK_FRAMES then
-                    pin_off, pin_x, pin_z = true, 0.0, 0.0
-                    log.info(TAG .. " body pin: at its limit and the head still off; switched OFF for this run")
-                end
                 pin_frames = pin_frames + 1
-                if pl > 0.08 and pin_frames % 90 == 0 then
-                    log.info(TAG .. string.format(" body pin: the motion leans the head %.0f cm; the body is moved %.0f cm against it", el * 100.0, pl * 100.0))
+                local lean = math.sqrt(l_back * l_back + l_side * l_side)
+                if lean > pin_peak then pin_peak = lean end
+                if pin_frames % 180 == 0 then
+                    if pin_peak > 0.06 then
+                        log.info(TAG .. string.format(" body pin: a motion leaned the joint up to %.0f cm in the last 2 s; now %.0f cm back, %.0f cm side; the body is moved %.0f cm", pin_peak * 100.0, l_back * 100.0, l_side * 100.0, pl * 100.0))
+                    end
+                    pin_peak = 0.0
                 end
             end
         end

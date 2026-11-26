@@ -38,6 +38,7 @@ constexpr int MAX_CHILDREN = 40;
 constexpr float SCAN_S = 0.5f;             // how often the near leaves are looked for
 constexpr float SCAN_M = 3.0f;             // how near, across the floor
 constexpr float SCAN_UP_M = 1.5f;          // and up or down (another floor is not near)
+constexpr float RELEASE_M = 10.0f;         // a leaf of ours this far away is let go whatever its state
 constexpr float HAND_CM = 10.0f;           // the hand's reach around the wrist (doors.txt, 1st number)
 constexpr float BODY_CM = 32.0f;           // the body's, around the player's spot (doors.txt, 2nd number)
 constexpr float LEAF_M = 1.0f;             // a leaf's width when the door does not tell [hypothesis]
@@ -274,7 +275,13 @@ void scan(Vec3 at) {
         bool close_by = false;
         for (MO* b : best) close_by = close_by || b == d.door;
         if (!close_by && !d.ours) drop(d, true);
-        else if (!close_by && d.ours && !is_open(state_of(d.door))) drop(d, true);
+        // a leaf of ours is NOT let go while the game is closing it (2026-11-26, Tefa: doors closing behind him
+        // "close with a teleport step": walking on past 3 m let the leaf go mid-swing). It is let go by step()'s
+        // own "the game shut the door", or here once it is far away.
+        else if (!close_by && d.ours) {
+            Vec3 hinge{};
+            if (!joint_position().value(d.hinge, &hinge, sizeof hinge) || level(hinge, at) > RELEASE_M) drop(d, true);
+        }
     }
     for (int j = 0; j < MAX_LEAVES; ++j) {
         if (best[j] == nullptr) continue;
@@ -291,7 +298,7 @@ void open_request(MO* door, Vec3 hinge) {
     const auto& player = ready::now();
     Vec3 at{};
     const uint32_t st = is_managed(door) ? state_of(door) : 0u;
-    if ((st != ST_CLOSED && st != ST_LITTLE_OPENED && st != ST_CURVE) || player.player == nullptr ||
+    if ((st != ST_CLOSED && st != ST_CURVE) || player.player == nullptr ||
         !transform_position().value(player.transform, &at, sizeof at)) return;
     MO* list = components("app.InteractDoor");
     MO* best = nullptr;
@@ -310,7 +317,7 @@ void open_request(MO* door, Vec3 hinge) {
     say("a hand on a door: the game was asked to open it (its part %.2f m from Ethan)", best_m);
 }
 
-void touch(Leaf& d, const Vec3 hands[2], const bool hand_ok[2], float now) {
+void touch(Leaf& d, const Vec3 hands[2], const bool hand_ok[2], float now, uint32_t st) {
     for (int i = 0; i < 2; ++i) {
         Vec3 local{};
         if (!hand_ok[i] || !to_leaf_frame(d, hands[i], local)) { d.prev_ok[i] = false; continue; }
@@ -326,6 +333,23 @@ void touch(Leaf& d, const Vec3 hands[2], const bool hand_ok[2], float now) {
         if (!on_leaf || !closing_in || now - g_touch_at < TOUCH_COOLDOWN_S) continue;
         g_touch_at = now;
         if (is_locked(d.door)) { say("a hand on a LOCKED door (%.2f m from the hinge): nothing asked", along); return; }
+        if (st == ST_LITTLE_OPENED) {
+            // A door found standing a crack open (Tefa's picture of 2026-11-26 17:13, the bolted door in the
+            // village: ten touches, ten asks, the game did nothing: its own door start is for SHUT doors; the
+            // flat game pushes such a door by walking into it, the call this part skips). So the hand takes
+            // the leaf itself, from the angle it stands at; no game call.
+            const float yaw = local_yaw_deg(d.hinge);
+            d.ours = true;
+            d.rest_deg = 0.0f;
+            d.sign = yaw < 0.0f ? -1.0f : 1.0f;
+            d.drawn_deg = std::fabs(yaw);
+            d.shut_since = d.closing_from = -1.0f;
+            std::fill(d.prev_ok, d.prev_ok + PUSHERS, false);
+            say("a hand on a door standing %.0f deg open: ours from here, pushed by the hands and the body", d.drawn_deg);
+            const int k = index_of(d);
+            gate::ask(gate::Kind::DoorSolid, [k]() { if (g_leaf[k].ours) solid_off(g_leaf[k]); });
+            return;
+        }
         Vec3 hinge{};
         if (!joint_position().value(d.hinge, &hinge, sizeof hinge)) return;
         say(i == 0 ? "the left hand on a door, %.2f m from the hinge (the leaf at %.0f deg)" : "the right hand on a door, %.2f m from the hinge (the leaf at %.0f deg)", along, t / DEG);
@@ -366,13 +390,13 @@ void step(Leaf& d, const Vec3 points[PUSHERS], const bool ok[PUSHERS], bool hand
             if (!d.seen_shut || d.games_own) d.rest_deg = local_yaw_deg(d.hinge);
             d.seen_shut = true;
             d.games_own = false;
-            if (st == ST_CLOSED && hands_free) touch(d, points, ok, now);
+            if (st == ST_CLOSED && hands_free) touch(d, points, ok, now, st);
             return;
         }
         // a door found a crack open or swinging by itself (the scripted door in the village, 2026-11-26: Tefa's
         // hand did nothing to it): a hand on its leaf asks the game's own open too; the leaf stays the game's
         if (!d.seen_shut && !d.games_own && hands_free && (st == ST_LITTLE_OPENED || st == ST_CURVE)) {
-            touch(d, points, ok, now);
+            touch(d, points, ok, now, st);
             return;
         }
         if (!d.seen_shut || d.games_own || !is_open(st)) return;      // found open, or the game's own (Rose)
