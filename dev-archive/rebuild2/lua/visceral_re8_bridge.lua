@@ -85,7 +85,10 @@ _G.__visceral_re8_bridge = B
 -- cannot reach. Numbers: reframework/data/visceral_re8/bodyplace.json, read again every few seconds in play.
 local PLACE_FILE = "visceral_re8/bodyplace.json"
 local PLACE_FILE_EVERY_FRAMES = 180
-local PLACE = { dead_cm = 0.0, follow_s = 0.50, back_cm = 0.0, steps = 1.0, step_start_cm = 15.0, step_stop_cm = 5.0, step_push = 0.5, neck_cm = 9.0 }
+-- The numbers as Tefa tuned them in play, 2026-11-26 (bodyplace.json): dead zone 1 cm ("this feels right", after 3, 6
+-- and 15), follow 0.9 s, neck 9 cm + back 2 cm ("the 10 body backwards is ideal"), steps from 12 cm to 6 cm at a push
+-- of 0.18 ("that is great"; 0.5 was "a dash almost", 0.3 "still too fast").
+local PLACE = { dead_cm = 1.0, follow_s = 0.90, back_cm = 2.0, steps = 1.0, step_start_cm = 12.0, step_stop_cm = 6.0, step_push = 0.18, neck_cm = 9.0 }
 local PLACE_SETTLE_M = 0.01           -- a move ends this close to the head
 local PLACE_JUMP_M = 1.0              -- the head this far from the kept place: a load or a teleport, start again
 local place_at, place_moving, place_t, place_frames = nil, false, nil, 0
@@ -111,9 +114,9 @@ local function place_numbers()
     place_frames = place_frames + 1
     if place_frames % PLACE_FILE_EVERY_FRAMES ~= 1 then return end
     local f = json.load_file(PLACE_FILE) or {}
-    local d, fo, b = tonumber(f.dead_cm) or 0.0, tonumber(f.follow_s) or 0.50, tonumber(f.back_cm) or 0.0
-    local st, s1, s0, sp = tonumber(f.steps) or 1.0, tonumber(f.step_start_cm) or 15.0, tonumber(f.step_stop_cm) or 5.0,
-        tonumber(f.step_push) or 0.5
+    local d, fo, b = tonumber(f.dead_cm) or 1.0, tonumber(f.follow_s) or 0.90, tonumber(f.back_cm) or 2.0
+    local st, s1, s0, sp = tonumber(f.steps) or 1.0, tonumber(f.step_start_cm) or 12.0, tonumber(f.step_stop_cm) or 6.0,
+        tonumber(f.step_push) or 0.18
     local nk = tonumber(f.neck_cm) or 9.0
     if nk ~= PLACE.neck_cm then
         PLACE.neck_cm = nk

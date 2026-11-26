@@ -127,7 +127,58 @@ Detail and Tefa's words: `modding-notes/2026-11-26-from-zero-step-1-rose-the-sce
   `updateHeadMesh`, `updateParts`, `updatePl1000Parts` `[measured: names only]`. `getComponent` for it on
   `re8vr.player` gave nothing from our script: unexplained (RE8-083).
 
+## §11 The body in VR: who turns it, who places it, who slides it (2026-11-26, /ms, headset, nightly 01451)
+
+Full account, with Tefa's words: `modding-notes/2026-11-26b-from-zero-step-2-the-frame-worn-the-body.md`.
+
+- **Who turns the body:** `app.PlayerMovement.destinationAngle()` answers "which way should the body face", in
+  degrees, and the loader has made the camera the head. A post-hook that returns our own yaw turns the body, legs
+  and all, and touches nothing else `[verified-live 2026-11-26, headset, n=6+ runs; first proved 2026-11-10 on the
+  simulator]`. On the bare base the body does not follow the head standing still and snaps to it when walking
+  `[reported, Tefa 2026-11-26]`.
+- **The game walks along the BODY, not the camera** `[verified-live 2026-11-26, n=2: with the body held, stick
+  forward went where the body faced until the stick was turned]`. The 2026-11-10 note's "walking still goes where
+  the head looks" is wrong `[disproved]`. The stick is handed to the game in ONE place: `re8_vr.lua`,
+  `device:call("set_AxisL", ...)`. Turned by a = head - body, `(x cos a - y sin a, y cos a + x sin a)`, stick forward
+  walks where the head looks (a in the `atan(f.x, f.z)` yaw measure of the camera controller's rotation).
+- **The lower spine turns toward the view:** `Spine_0` turns about the up axis by half of (head - body), `Spine_1`
+  by the same amount back; `Spine_2`, the neck joints and the hip do not `[measured 2026-11-26, n=1 run, 45 lines,
+  -15 to +19 degrees]`. Who does it (the game or the loader's body solver) is not known. Written back at
+  post-PrepareRendering it reads constant `[measured, n=1 run]`.
+- **Who places the body:** the loader, every frame: `RE8VR::update_body_ik` sets `via.motion.IkLeg`'s
+  `CenterOffset` (`CenterPositionCtrl` 2 = world offset) to (camera position - the body's t-pose head joint), with
+  a shift along the camera's flat direction of `0.025 - 0.1 * |look down|` m `[read from the source, 2026-11-26]`. It
+  is also `re8vr:update_body_ik(rotation, position)` from Lua, and a second call in the same frame stands
+  `[verified-live 2026-11-26, n=5 runs]`. The centre offset moves the hips and all above; the feet stay planted.
+  The camera transform's `rotation * (0, 0, 1)` points BEHIND the view `[verified-live, n=1: the body went back]`.
+- **Who slides the player:** `re8_vr.lua`'s `UnlockScene` block: when the headset is off the standing origin it
+  lerps the origin toward the headset and sets the player's position by the same length every frame
+  (`cfg.roomscale_movement`) `[read]`. No walk motion plays: the feet drag `[reported, Tefa]`. Left out, with the
+  stick pushed toward the headset instead and the origin moved by as far as the player really went, the game
+  walks him with its own step motions `[verified-live 2026-11-26, n=4 runs]`. A stick push of 0.18 still walks
+  (0.5 reads as a dash) `[reported, Tefa]`.
+- **The eyes are not the neck:** the headset's position is the eyes, about 9 cm in front of the axis the head turns
+  on. Anything placed under "the head" (the hips, the test for a step) must use the neck (eyes + 9 cm behind the
+  head's flat direction), or a head that only turns drags it `[verified-live 2026-11-26, n=3 runs: hips, then
+  steps]`.
+- **Rose** (`pl5000`) hangs on Ethan's `L_Wep` joint (`get_ParentJoint`) `[measured]`. The swing while walking is
+  the walk motions' arm travel from the shoulder down: hip to shoulder 0 cm against the eye camera, upper arm 1,
+  forearm 5 / 3, hand 6 `[measured 2026-11-26, n=1 run, 40 windows]`.
+- **A sleeping controller** (Quest 3 through Virtual Desktop, OpenXR): keeps reporting its spot for about 6 s after
+  it is put down, then reports the position 0 0 0 until picked up; `vrmod:is_using_controllers()` stays true
+  `[measured 2026-11-26, n=1, both controllers]`. The hand at 0 0 0 is the hand at the face.
+- **Joints written at post-PrepareRendering show** in both eyes (arms, fingers, spine) `[verified-live, headset]`,
+  and an object that hangs on a written joint (Rose on `L_Wep`) goes with it `[measured: under 1 cm]`.
+- Village's window takes the window's own close message cleanly with the headset in use too; the process leaves
+  within a minute `[verified-live 2026-11-26, n=3]`.
+
 ## Dead ends
+- 2026-11-26: a dead zone for the body's PLACE with a plain ease (8 cm, before the neck was in): Tefa: "here is
+  where we can't really have a dead zone and need a lag instead". With the neck followed and a damped follow, a
+  dead zone of 1 cm is what he kept (3, 6, 15 tried). The neck shift added AFTER the follow leans the body the
+  other way at once. The body's back shift measured behind the HEAD swings the body against a turning head.
+- 2026-11-26: for the body turn, a wide free zone (35 / 60 degrees) and no dead zone at all (always following,
+  0.25 s) were both worn and both replaced; a dead zone then a full turn is what Tefa kept (25 degrees, 0.18 s).
 
 - praydog's connector on the 76298bd build (§1). The game's held-trigger shot with only `readyShootByTimer` forced (§2).
 

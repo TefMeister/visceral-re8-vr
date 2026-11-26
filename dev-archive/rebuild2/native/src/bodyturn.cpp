@@ -24,8 +24,9 @@ constexpr float DEG = PI / 180.0f;
 // then the body turns all the way to where the hmd is pointing". So: nothing inside DEAD_DEG; past it a turn
 // starts and runs (with the same small lag, never slower than MIN_RATE_DEG_S) until the body is within
 // SETTLE_DEG of the head.
-constexpr float LAG_S = 0.25f;             // the "bit of lag"; bodyturn.txt in the data folder overrides it, live
-constexpr float DEAD_DEG = 10.0f;          // the head may look this far off the body; bodyturn.txt's 2nd number
+// Tuned in play the same day (bodyturn.txt): lag 0.18 s ("it feels good"), dead zone 25 degrees ("this is really good now").
+constexpr float LAG_S = 0.18f;             // the "bit of lag"; bodyturn.txt in the data folder overrides it, live
+constexpr float DEAD_DEG = 25.0f;          // the head may look this far off the body; bodyturn.txt's 2nd number
 constexpr float DEAD_MAX_DEG = 90.0f;
 constexpr float SETTLE_DEG = 1.0f;         // a turn ends this close to the head
 constexpr float MIN_RATE_DEG_S = 25.0f;    // a turn never crawls: it finishes
