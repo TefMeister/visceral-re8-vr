@@ -169,6 +169,11 @@ local function place_numbers()
     local f = json.load_file(PLACE_FILE) or {}
     local d, fo, b = tonumber(f.dead_cm) or 0.0, tonumber(f.follow_s) or 0.05, tonumber(f.back_cm) or 2.0
     PLACE.lean_back = tonumber(f.lean_back)      -- nil = the same strength as "lean"
+    local sh = tonumber(f.shoulders) or 0.0
+    if sh ~= PLACE.shoulders then
+        PLACE.shoulders = sh
+        log.info(TAG .. " shoulders: " .. (sh > 0.5 and "held in their standing pose before the hands are solved" or "off, the game's motion has them"))
+    end
     local co = tonumber(f.camoff) or 0.0
     if co ~= PLACE.camoff then
         PLACE.camoff = co
@@ -459,6 +464,43 @@ function B.camera_pre(player_camera)
     glide_x, glide_z = glide_x * keep, glide_z * keep
     if math.abs(glide_x) + math.abs(glide_z) < 0.001 then glide_x, glide_z = 0.0, 0.0 return end
     cam_tf:call("set_Position", Vector3f.new(cp.x + glide_x, cp.y, cp.z + glide_z))
+end
+
+-- THE SHOULDERS HELD STILL (2026-11-27 00:3x, RE8-096), a first try, switched by bodyplace.json "shoulders".
+-- Tefa at a running stop: "hands still jank back a little ... a quick pull-back", "more teleporty than not ... and
+-- then sort of smooth out". The walk file (00:06, eight stops): the wrists stay within 3 cm of the controllers, but
+-- the ELBOWS pop 2 to 6 cm in one picture when the motion changes (run -> stop, stop -> idle about 0.6 s later,
+-- idle -> run), the body's place steady. The loader puts the arm's own three joints in a set pose before it
+-- solves the hand, so what still comes from the motion is the collar bone above them. Here both collar bones are
+-- put in the pose they had while the player STOOD (learned in play), right before the loader's last hand solve
+-- (re8_vr.lua, PrepareRendering pre; our own joint writer runs after it, which would drag the hands). Script
+-- because of that order; if it works it is rebuilt in the plugin with a call at the same place.
+local SHOULDER_NAMES = { "L_Shoulder", "R_Shoulder" }
+local SHOULDER_LEARN_S = 0.7
+local sh_owner, sh_joints, sh_ref, sh_still_since, sh_told = nil, {}, {}, nil, false
+function B.pre_hands()
+    if (PLACE.shoulders or 0.0) <= 0.5 then return end
+    local tf = re8vr.transform
+    if tf == nil or not re8vr.can_use_hands or not vrmod:is_hmd_active() or not vrmod:is_using_controllers() then return end
+    if event_name() ~= nil or re8vr.is_arm_jacked then return end                    -- a real scene: the game's
+    if sh_owner ~= tf then
+        sh_owner, sh_joints, sh_ref, sh_still_since, sh_told = tf, {}, {}, nil, false
+        for i, name in ipairs(SHOULDER_NAMES) do sh_joints[i] = tf:call("getJointByName", name) end
+    end
+    if sh_joints[1] == nil or sh_joints[2] == nil then return end
+    -- learning: the stick at rest and no blip for SHOULDER_LEARN_S, once per player object
+    if sh_ref[1] == nil then
+        local sx = arr:read_float(ARRAY_DATA_AT + S_STICK_X * 4) or 1.0
+        local sy = arr:read_float(ARRAY_DATA_AT + S_STICK_Y * 4) or 1.0
+        local still = math.abs(sx) + math.abs(sy) < 0.05 and blip_was == nil
+        local now = os.clock()
+        if not still then sh_still_since = nil return end
+        if sh_still_since == nil then sh_still_since = now end
+        if now - sh_still_since < SHOULDER_LEARN_S then return end
+        for i = 1, 2 do sh_ref[i] = sh_joints[i]:call("get_LocalRotation") end
+        if not sh_told then sh_told = true log.info(TAG .. " shoulders: the standing pose is learned; held from here") end
+    end
+    for i = 1, 2 do sh_joints[i]:call("set_LocalRotation", sh_ref[i]) end
 end
 
 function B.camera_step(player_camera)

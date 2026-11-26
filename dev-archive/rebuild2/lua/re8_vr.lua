@@ -1594,6 +1594,10 @@ re.on_pre_application_entry("UpdateBehavior", function()
 end)
 
 re.on_pre_application_entry("PrepareRendering", function()
+    -- VISCERAL 2026-11-27: the collar bones go to their standing pose right before the last hand solve
+    -- (visceral_re8_bridge.lua, B.pre_hands; bodyplace.json "shoulders")
+    local vb = rawget(_G, "__visceral_re8_bridge")
+    if vb ~= nil and vb.pre_hands ~= nil then pcall(vb.pre_hands) end
     update_hand_ik()
 end)
 
