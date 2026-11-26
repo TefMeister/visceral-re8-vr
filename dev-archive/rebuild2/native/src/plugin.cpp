@@ -41,6 +41,7 @@
 #include "gamearms.h"
 #include "gate.h"
 #include "jointwriter.h"
+#include "leanrec.h"
 #include "ready.h"
 #include "sleephands.h"
 #include "spinestill.h"
@@ -69,6 +70,7 @@ void on_prepare_rendering() {
     if (!switches::off("sleephands")) sleephands::pose();
     if (!switches::off("bodyturn") && !switches::off("spinestill")) spinestill::pose();
     if (!switches::off("doors")) doors::pose();
+    if (!switches::off("leanrec")) leanrec::pose();   // dev only: measures, changes nothing
     jointwriter::flush();
 }
 

@@ -88,7 +88,7 @@ local PLACE_FILE_EVERY_FRAMES = 180
 -- The numbers as Tefa tuned them in play, 2026-11-26 (bodyplace.json): dead zone 1 cm ("this feels right", after 3, 6
 -- and 15), follow 0.9 s, neck 9 cm + back 2 cm ("the 10 body backwards is ideal"), steps from 12 cm to 6 cm at a push
 -- of 0.18 ("that is great"; 0.5 was "a dash almost", 0.3 "still too fast").
-local PLACE = { dead_cm = 1.0, follow_s = 0.90, back_cm = 2.0, steps = 1.0, step_start_cm = 12.0, step_stop_cm = 6.0, step_push = 0.18, neck_cm = 9.0, pin = 1.0 }
+local PLACE = { dead_cm = 1.0, follow_s = 0.90, back_cm = 2.0, steps = 1.0, step_start_cm = 12.0, step_stop_cm = 6.0, step_push = 0.18, neck_cm = 9.0, pin = 0.0 }
 -- THE BODY PINNED BY THE REAL HEAD (2026-11-26). Tefa, in the village: "when i run and stop, Ethan's whole body
 -- get's pushed forward so for less than a second i'm looking through his body, like from the centre of it"; the
 -- same at a vault and when a cutscene hands control back. Switching the follow lag off changed nothing (his
@@ -137,7 +137,9 @@ local function place_numbers()
     local st, s1, s0, sp = tonumber(f.steps) or 1.0, tonumber(f.step_start_cm) or 12.0, tonumber(f.step_stop_cm) or 6.0,
         tonumber(f.step_push) or 0.18
     local nk = tonumber(f.neck_cm) or 9.0
-    local pn = tonumber(f.pin) or 1.0
+    -- OFF unless the file says 1 (2026-11-26: both designs moved the body wrongly on Tefa; the joints read at this
+    -- point of the frame are not the posed body. native/src/leanrec.h measures at the right point first.)
+    local pn = tonumber(f.pin) or 0.0
     if pn ~= PLACE.pin then
         PLACE.pin = pn
         pin_for = nil

@@ -19,6 +19,7 @@ add_library(visceral_re8 SHARED
     src/gate.cpp
     src/doors.cpp
     src/doorsounds.cpp
+    src/leanrec.cpp
     src/bodyturn.cpp
     src/sleephands.cpp
     src/spinestill.cpp)
