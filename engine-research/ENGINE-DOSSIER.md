@@ -425,3 +425,29 @@ Full write-up: `modding-notes/2026-11-26f-the-legs-are-the-games-foot-fitting-th
   solve: no change to the elbow pops at a stop, elbows look too high `[disproved 2026-11-27, n=1]`.
 - `config.ini` VSync defaults true on a fresh install; `re2_fw_config.txt` `RE8VR_HideUpperBody` /
   `RE8VR_AutoHide{Upper,Lower}BodyCutscenes` decide whether any of the above is ever seen.
+
+## §13 The running stop, read off the exe (2026-11-27, /pd, no game running)
+
+Full write-up: `modding-notes/2026-11-27a-what-starts-the-running-stop-read-off-the-exe.md`; scripts:
+`dev-archive/recon/2026-11-27-runend-static/`.
+
+- The stop = body states `RunEndL` / `RunEndR` + action id `BaseActionID.RunEnd` (hash 3705329191)
+  `[inferred-static 2026-11-27]`.
+- `app.PlayerMovement.processRunEnd` @0x1411d51d0 only LISTENS: hashes into the parameter's set, handlers
+  `<processRunEnd>b__348_0` = LateEnter, `_1` = Run, `_2` = LateExit `[inferred-static 2026-11-27]`.
+- Nothing in script code asks for `RunEndL/R` by name: their hashes (statics 0x14c4df2d8 / 0x14c4df2dc, made in the
+  static constructor @0x142b0af90) are read only by the four characters' `processRunEnd`
+  `[inferred-static 2026-11-27, all rip-relative references searched]`. The step run -> stop is the motion
+  machine's own, from what `app.PlayerMovement` holds (`IsJog` +0x190, `IsJogging` +0x191, `JogRate` +0x130):
+  which of them is NOT known `[hypothesis]`.
+- The arms have their own stop state per weapon kind: `Gun.ReadyRunEnd` (`app.PlayerGun.processReadyRunEnd`
+  @0x1411d1b40), `Melee.ReadyRunEnd`, `Item.ReadyRunEnd` `[inferred-static 2026-11-27]`; the likely reason only the
+  weapon (right) hand slips at a stop `[hypothesis]`.
+- **How the exe is read:** a string literal is `mov ecx, <number>; call 0x14118c3c0` (the number indexes the type
+  database's literal table); static fields hang off one block (pointer at 0x14c4ffd88); a managed object's fields
+  sit 0x10 after the offsets `tdb-read.py` prints; a table of 11,042 method slots (file offset 0x8684ce0: slot
+  address, method number) names every delegate a function builds `[inferred-static 2026-11-27]`.
+- DEAD END: code addresses from the type database on disk. Every method's function field is empty in the file
+  (880,234 of 880,234); only virtual methods can be found (the type's virtual table). Lambdas cannot be named
+  statically; hook them by name in the running game instead `[measured 2026-11-27]`.
+

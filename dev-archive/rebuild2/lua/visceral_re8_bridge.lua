@@ -174,6 +174,11 @@ local function place_numbers()
         PLACE.runend = re_
         log.info(TAG .. " run end: " .. (re_ and string.format("the jog-end threshold is asked to be %.3f", re_) or "the game's own threshold"))
     end
+    local sj = tonumber(f.stopjog) or 0.0
+    if sj ~= PLACE.stopjog then
+        PLACE.stopjog = sj
+        log.info(TAG .. " stop jog: " .. (sj > 0.5 and "ON, the jog flags are put down when the left stick is let go" or "off, the game's own"))
+    end
     local sh = tonumber(f.shoulders) or 0.0
     if sh ~= PLACE.shoulders then
         PLACE.shoulders = sh
@@ -525,12 +530,14 @@ end
 -- it never saw the number from the file (one line at the start, none after "go"; the stop motion, id 2, still
 -- played). The settings object is kept from that one call and written from the camera step instead.
 local runend_cfg, runend_own, runend_set = nil, nil, nil
+local runend_mov = nil                -- the player's movement object (app.PlayerMovement), for the stop-jog lever below
 do
     local ok, e = pcall(function()
         local m = sdk.find_type_definition("app.PlayerMovement"):get_method("processMove")
         sdk.hook(m, function(args)
             local okh, eh = pcall(function()
                 local this = sdk.to_managed_object(args[2])
+                if this ~= nil then runend_mov = this:add_ref() end
                 local cfg = this and this:call("get_config")
                 if cfg ~= nil then cfg = cfg:get_field("playerMovementConfig") end
                 if cfg == nil then return end
@@ -553,6 +560,52 @@ local function runend_step()
     runend_cfg:set_field("JogEndThreshold", target)
     runend_set = target
     log.info(string.format("%s run end: JogEndThreshold written %.3f, reads back %s (the game's own %s)", TAG, target, tostring(runend_cfg:get_field("JogEndThreshold")), tostring(runend_own)))
+end
+
+-- STOP JOG (2026-11-27, RE8-096, /pd with no game running), bodyplace.json "stopjog": 1. NOT WORN YET.
+-- What the exe says [inferred-static 2026-11-27, modding-notes/2026-11-27a]: nothing in the game's script ever ASKS
+-- for the states RunEndL / RunEndR by name; processRunEnd only LISTENS for them (three handlers). So the choice
+-- "run -> stop motion" is made from what the movement object holds when the stick is let go: IsJog, IsJogging,
+-- JogRate (app.PlayerMovement). RE2's fix was the same idea (its jog mode put down at the moment of the stop).
+-- The lever: the left stick is handed to the game in B.turned_stick, BEFORE the game's own update of that frame.
+-- On the frame the handed stick is at rest, the three are put down first, so the game finds a player who was not
+-- jogging and goes run -> idle with its own blend. The gun arm's own stop state (Gun.ReadyRunEnd, the right hand)
+-- follows the same choice. While the stick is pushed nothing is touched.
+-- It proves itself in the log: one line per stop with what the three held BEFORE the write, and one line each time
+-- the game still enters the stop motion (a hook on its first handler, which only counts).
+local STOPJOG_STICK_REST = 0.30        -- the handed stick under this length: let go (the game jogs only on a full push)
+local stopjog_was_pushed, stopjog_stops, stopjog_entered, stopjog_frame = false, 0, 0, 0
+local stopjog_last_stop_frame = -1000
+local function stopjog_step(x, y)
+    stopjog_frame = stopjog_frame + 1
+    local pushed = (x * x + y * y) >= STOPJOG_STICK_REST * STOPJOG_STICK_REST
+    local edge = stopjog_was_pushed and not pushed
+    stopjog_was_pushed = pushed
+    if edge then stopjog_last_stop_frame = stopjog_frame end
+    if pushed or runend_mov == nil then return end
+    if (PLACE.stopjog or 0.0) <= 0.5 then return end
+    if not (vrmod:is_hmd_active() and vrmod:is_using_controllers()) then return end
+    local m = runend_mov
+    if edge then
+        stopjog_stops = stopjog_stops + 1
+        log.info(string.format("%s stop jog: stop %d, before the write IsJog %s IsJogging %s JogRate %s IsSprint %s SprintRate %s", TAG, stopjog_stops,
+            tostring(m:get_field("IsJog")), tostring(m:get_field("IsJogging")), tostring(m:get_field("JogRate")),
+            tostring(m:get_field("IsSprint")), tostring(m:get_field("SprintRate"))))
+    end
+    m:set_field("IsJog", false)
+    m:set_field("IsJogging", false)
+    m:set_field("JogRate", 0.0)
+end
+do
+    local ok, e = pcall(function()
+        local m = sdk.find_type_definition("app.PlayerMovement"):get_method("<processRunEnd>b__348_0")
+        sdk.hook(m, function(args)
+            stopjog_entered = stopjog_entered + 1
+            log.info(string.format("%s stop jog: the game ENTERED the stop motion (%d), %d frame(s) after the stick was let go, lever %s", TAG,
+                stopjog_entered, stopjog_frame - stopjog_last_stop_frame, ((PLACE.stopjog or 0.0) > 0.5) and "ON" or "off"))
+        end, function(retval) return retval end)
+    end)
+    log.info(TAG .. " stop jog: the counting hook on the stop motion's first handler " .. (ok and "is in" or ("FAILED: " .. tostring(e))))
 end
 
 function B.camera_step(player_camera)
@@ -703,6 +756,7 @@ function B.turned_stick(axis)
         axis = Vector2f.new(step_x, step_y)
     end
     local a = arr:read_float(ARRAY_DATA_AT + S_MOVE_TURN * 4)
+    pcall(stopjog_step, axis.x, axis.y)
     if a == nil or a ~= a or math.abs(a) < 0.001 then w(S_STICK_X, axis.x) w(S_STICK_Y, axis.y) return axis end
     local s, co = math.sin(a), math.cos(a)
     w(S_STICK_X, axis.x * co - axis.y * s) w(S_STICK_Y, axis.y * co + axis.x * s)
