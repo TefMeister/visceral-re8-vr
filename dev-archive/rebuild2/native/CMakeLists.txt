@@ -15,6 +15,7 @@ add_library(visceral_re8 SHARED
     src/jointwriter.cpp
     src/fingers.cpp
     src/carryarms.cpp
+    src/gamearms.cpp
     src/bodyturn.cpp
     src/sleephands.cpp
     src/spinestill.cpp)

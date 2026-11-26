@@ -43,7 +43,7 @@ re.on_pre_application_entry("UpdateHID", function()
     wb(S_ACTIVE, active)
     wb(S_CUTSCENE, re8vr.is_in_cutscene == true)
     wb(S_CAN_USE_HANDS, re8vr.can_use_hands == true)
-    wb(S_GAME_ARMS, rawget(_G, "__visceral_re8_game_arms") == true)
+    -- S_GAME_ARMS is the plugin's (native/src/gamearms.h); B.game_arms() below reads it for re8_vr.lua
     wb(S_WEAPON, re8vr.weapon ~= nil)
     -- sleeping controllers (native/src/sleephands.h): [1] is the left one, [2] the right, as re8_vr.lua takes them
     local left_asleep, right_asleep = false, false
@@ -293,6 +293,13 @@ function B.room_step()
         end
     end
     return true
+end
+
+-- the game's own arms are showing (Rose is carried): decided by the plugin (native/src/gamearms.h). re8_vr.lua's
+-- update_hand_ik asks this and leaves the arms to the game's motions.
+function B.game_arms()
+    local v = arr:read_float(ARRAY_DATA_AT + S_GAME_ARMS * 4)
+    return v ~= nil and v > 0.5
 end
 
 -- for the dev recorder: how far the head is turned off the body, radians

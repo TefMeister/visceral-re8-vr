@@ -18,7 +18,7 @@ enum Slot : int {
     S_ACTIVE = 2,          // 1 = headset active AND controllers in use
     S_CUTSCENE = 3,        // re8vr.is_in_cutscene
     S_CAN_USE_HANDS = 4,   // re8vr.can_use_hands
-    S_GAME_ARMS = 5,       // 1 = the game's own arms are showing (Rose is carried): visceral_re8_game_arms.lua
+    S_GAME_ARMS = 5,       // WRITTEN BY THE PLUGIN (gamearms.h): 1 = the game's own arms are showing (Rose carried)
     S_WEAPON = 6,          // 1 = re8vr.weapon is something (a gun or the knife in the right hand)
     S_TURN_OK = 7,         // 1 = in play, headset active, no cutscene: the yaws below are meant (bodyturn.h)
     S_TURN_STAMP = 8,      // +1 each time the script's camera step wrote the two yaws

@@ -614,8 +614,12 @@ sdk.hook(
 local function update_hand_ik()
     if re8vr.in_re8_end_game_event then return end
     -- VISCERAL 2026-11-26: while Ethan carries Rose (prologue) the game's own arms hold her, as in praydog's end-game
-    -- events above. Set by visceral_re8_game_arms.lua. praydog's file is otherwise as shipped with nightly 01451.
-    if rawget(_G, "__visceral_re8_game_arms") then return end
+    -- events above. Decided by the plugin (native/src/gamearms.h), asked through the bridge script. praydog's file
+    -- is otherwise as shipped with nightly 01451.
+    do
+        local vb = rawget(_G, "__visceral_re8_bridge")
+        if vb ~= nil and vb.game_arms ~= nil and vb.game_arms() then return end
+    end
 
     re8vr:update_hand_ik()
 end
@@ -664,10 +668,6 @@ local zero_vec = Vector3f.new(0, 0, 0)
 
 local function update_body_ik(camera_rotation, camera_pos)
     if re8vr.in_re8_end_game_event then return end
-    -- VISCERAL 2026-11-26, A TRY: with the game's arms holding Rose she swings up to 30 cm against a still head while
-    -- walking (Tefa). praydog skips the body IK too in his end-game events; the same here, under its own switch.
-    if rawget(_G, "__visceral_re8_game_body") then return end
-
     re8vr:update_body_ik(camera_rotation, camera_pos)
 end
 

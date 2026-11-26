@@ -1,9 +1,12 @@
 # source (under rebuild2/)  target (under the game folder)
 lua/visceral_re8_carry_rec.lua reframework/autorun/visceral_re8_carry_rec.lua
-lua/visceral_re8_game_arms.lua reframework/autorun/visceral_re8_game_arms.lua
 # praydog's VR script as shipped with nightly 01451 + our dated lines (marked VISCERAL)
 lua/re8_vr.lua reframework/autorun/re8_vr.lua
 lua/visceral_re8_origin.lua reframework/autorun/visceral_re8_origin.lua
 # the frame (the native plugin) and its bridge
 native/build/Release/visceral_re8.dll reframework/plugins/visceral_re8.dll
 lua/visceral_re8_bridge.lua reframework/autorun/visceral_re8_bridge.lua
+# tuning kept from play ("keep": only put in when the game folder has none)
+# Rose's carry pose, read 2026-11-26 while Tefa stood still (carryarms.h): without it a fresh install bobs
+# until the first stand-still
+data/carryarms-rest.txt reframework/data/visceral_re8/carryarms-rest.txt keep

@@ -285,7 +285,8 @@ end
 local function skel_sample(player)
     local transform = safe(function() return player:call("get_Transform") end)
     if transform == nil then return end
-    if rawget(_G, "__visceral_re8_game_arms") ~= true then skel_n = 0 skel_min, skel_max = {}, {} return end
+    local vb = rawget(_G, "__visceral_re8_bridge")
+    if not (vb ~= nil and vb.game_arms ~= nil and vb.game_arms()) then skel_n = 0 skel_min, skel_max = {}, {} return end
     if skel_for ~= player then skel_setup(player, transform) end
     local camera = sdk.get_primary_camera()
     local cam_go = camera and safe(function() return camera:call("get_GameObject") end)
