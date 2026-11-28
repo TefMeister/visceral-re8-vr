@@ -44,3 +44,11 @@ REFramework took it the same day ("Deps: Update kananlib (fix startup deadlock w
 - cursey, kananlib commit 114de171 "Thread: Fix heap lock oversight" (2026-11-17) — https://github.com/cursey/kananlib/commit/114de171
 - praydog, REFramework commit "Deps: Update kananlib (fix startup deadlock when freezing threads)" (2026-11-17) and
   nightly 01441 — https://github.com/praydog/REFramework and https://github.com/praydog/REFramework-nightly/releases
+
+## Since then (/gs correction, 2026-11-25, folded in 2026-11-28)
+
+- The link to the b164 freeze is **not supported by the freeze logs** `[measured 2026-11-25]`: both freeze logs show
+  every frozen thread resumed (81 suspends, 81 resumes, the last more than 10 s before the freeze). REFramework's own
+  recorded start-up deadlock looks different (routes/resident-evil-village/KNOWN.md, 2026-11-23: 62 suspends against
+  17 resumes). The upstream facts stand: kananlib fixed the deadlock on 11-17, and our `76298bd` build predates the fix.
+  The suspect line above is withdrawn as an explanation of the b164 freeze.
